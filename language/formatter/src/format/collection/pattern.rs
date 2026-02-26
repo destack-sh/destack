@@ -316,8 +316,7 @@ fn pattern_fields_have_inline_spread_comment_seams(
         for annotation_id in annotation_ids {
             let is_inline_comment = match context.annotation(annotation_id) {
                 Annotation::Comment { .. } | Annotation::Doc { .. } => {
-                    let annotation_span = context.annotation_span(annotation_id);
-                    !context.span_starts_on_own_line(annotation_span)
+                    !context.annotation_starts_on_own_line(annotation_id)
                 }
                 _ => false,
             };
@@ -418,10 +417,7 @@ fn pattern_fields_have_layout_forcing_annotations(
                 Annotation::Blank { .. }
                 | Annotation::Doc { .. }
                 | Annotation::Decorator { .. } => true,
-                Annotation::Comment { .. } => {
-                    let annotation_span = context.annotation_span(annotation_id);
-                    context.span_starts_on_own_line(annotation_span)
-                }
+                Annotation::Comment { .. } => context.annotation_starts_on_own_line(annotation_id),
             })
     })
 }

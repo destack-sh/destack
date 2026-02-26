@@ -1,8 +1,8 @@
-use crate::format::analysis::{next_non_whitespace_after_span, timing};
+use crate::format::analysis::timing;
 use crate::format::chain::flatten_type_binary_expression;
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Declaration, DestackFormatContext,
-    Expression, FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType, PostfixPosition,
+    Expression, FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType, PostfixPosition, TokenType,
     TypeBinaryOperator, needs_parens_in_postfix_position, tree_literal_should_expand,
 };
 use crate::format::operator::{is_simple_type_binary_left_expression, is_type_context};
@@ -124,7 +124,10 @@ pub(crate) fn parenthesized_boundary_comments(
             continue;
         }
 
-        if next_non_whitespace_after_span(context, comment_trivia.span) != Some(')') {
+        if context
+            .next_non_whitespace_token_after_span(comment_trivia.span)
+            .is_none_or(|token| token.token.ty != TokenType::CloseParenthesis)
+        {
             continue;
         }
 
@@ -683,10 +686,16 @@ fn expression_has_only_type_grouping_prefix_annotations(
             return false;
         };
 
-        let annotation_span = context.annotation_span(annotation_id);
         matches!(
-            next_non_whitespace_after_span(context, annotation_span),
-            Some('/' | '|' | '&')
+            context.annotation_next_non_whitespace_token_type(annotation_id),
+            Some(
+                TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+                    | TokenType::ElementwiseOr
+                    | TokenType::ElementwiseAnd
+            )
         )
     })
 }

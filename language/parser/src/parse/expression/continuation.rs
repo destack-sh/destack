@@ -10,9 +10,21 @@ use destack_ast::{
 impl Parser {
     /// Return whether a newline direct call should terminate in statement position.
     #[inline]
-    fn newline_direct_call_terminates_statement(&mut self, open_parenthesis_index: usize) -> bool {
+    fn newline_direct_call_terminates_statement(
+        &mut self,
+        left_expression_id: LocalNodeId<Expression>,
+        open_parenthesis_index: usize,
+    ) -> bool {
         if !self.options.is_in_statement_context() {
             return false;
+        }
+
+        // break and continue cannot continue into newline-prefixed calls
+        if matches!(
+            self.tree.get(left_expression_id),
+            Expression::Break { .. } | Expression::Continue { .. }
+        ) {
+            return true;
         }
 
         let close_parenthesis_index = self.find_matching_close(
@@ -228,7 +240,8 @@ impl Parser {
                 let has_direct_call_after_newlines =
                     token_type == TokenType::OpenParenthesis && has_line_break_before;
                 let should_terminate_newline_direct_call = has_direct_call_after_newlines
-                    && self.newline_direct_call_terminates_statement(cursor_index);
+                    && self
+                        .newline_direct_call_terminates_statement(left_expression_id, cursor_index);
                 let has_indirect_call = token_type == TokenType::Dot
                     && next_token_type_after_newlines == TokenType::OpenParenthesis;
                 let can_direct_call = (has_direct_call

@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_source::{File, Span};
 use rustc_hash::FxHashMap;
 
-use crate::format::annotation::ownership::find_smallest_owner_enclosing_range;
+use super::ownership::find_smallest_owner_enclosing_range;
 
 /// Return whether one token kind is an opening delimiter.
 #[inline]
@@ -34,9 +34,9 @@ pub(crate) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
     )
 }
 
-/// Return whether one token after a comment seam prefers left ownership.
+/// Return whether one token after a comment seam prefers preceding ownership.
 #[inline]
-pub(crate) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
+pub(crate) fn token_after_prefers_preceding_ownership(token_type: TokenType) -> bool {
     matches!(
         token_type,
         TokenType::Semicolon
@@ -98,63 +98,6 @@ pub(crate) fn previous_non_newline_token_index(
     None
 }
 
-/// Return the previous token index before one index that is not trivia.
-pub(crate) fn previous_non_trivia_token_index(
-    semantic_tokens: &[TokenSpan],
-    index: usize,
-) -> Option<usize> {
-    if index == 0 {
-        return None;
-    }
-
-    let mut cursor = index;
-    while cursor > 0 {
-        cursor -= 1;
-        let token_type = semantic_tokens[cursor].token.ty;
-        if !is_whitespace_trivia_token(token_type) && !is_comment_trivia_token(token_type) {
-            return Some(cursor);
-        }
-    }
-
-    None
-}
-
-/// Return whether one token kind is whitespace-like trivia.
-#[inline]
-fn is_whitespace_trivia_token(token_type: TokenType) -> bool {
-    matches!(token_type, TokenType::Newline | TokenType::Whitespace)
-}
-
-/// Return whether one token kind is comment trivia.
-#[inline]
-fn is_comment_trivia_token(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment
-    )
-}
-
-/// Return the next token index after one index that is not trivia.
-pub(crate) fn next_non_trivia_token_index(
-    semantic_tokens: &[TokenSpan],
-    index: usize,
-) -> Option<usize> {
-    let mut cursor = index + 1;
-    while cursor < semantic_tokens.len() {
-        let token_type = semantic_tokens[cursor].token.ty;
-        if !is_whitespace_trivia_token(token_type) && !is_comment_trivia_token(token_type) {
-            return Some(cursor);
-        }
-
-        cursor += 1;
-    }
-
-    None
-}
-
 /// One normalized identifier keyword used in comment seam rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CommentSeamKeyword {
@@ -210,7 +153,7 @@ pub(crate) fn comment_seam_keyword(
     }
 }
 
-/// Immutable context for one comment seam attachment attachment.
+/// Immutable context for one comment seam attachment.
 #[derive(Clone, Copy)]
 pub(crate) struct CommentSeamContext<'a> {
     /// The source file.
@@ -256,11 +199,11 @@ pub(crate) struct CommentSeamData {
     pub(crate) token_before_keyword: CommentSeamKeyword,
     /// Keyword class for identifier after seam.
     pub(crate) token_after_keyword: CommentSeamKeyword,
-    /// Whether token after seam structurally prefers left ownership.
-    pub(crate) token_after_prefers_left: bool,
+    /// Whether token after seam structurally prefers preceding ownership.
+    pub(crate) token_after_prefers_preceding: bool,
     /// Whether seam is one return type boundary after `):`.
     pub(crate) token_before_is_return_type_colon: bool,
-    /// Whether default trailing behavior should prefer right binding.
+    /// Whether default trailing behavior should prefer following binding.
     pub(crate) seam_binds_right: bool,
 }
 
@@ -284,8 +227,8 @@ impl CommentSeamData {
                 .file
                 .is_same_line(context.trivia.span.start, comment_end)
         };
-        let token_after_prefers_left =
-            token_after_type.is_some_and(token_after_prefers_left_ownership);
+        let token_after_prefers_preceding =
+            token_after_type.is_some_and(token_after_prefers_preceding_ownership);
         let token_before_is_return_type_colon = context
             .token_before
             .and_then(|index| previous_non_newline_token_index(context.semantic_tokens, index))
@@ -314,7 +257,7 @@ impl CommentSeamData {
             token_after_type,
             token_before_keyword,
             token_after_keyword,
-            token_after_prefers_left,
+            token_after_prefers_preceding,
             token_before_is_return_type_colon,
             seam_binds_right,
         }
@@ -354,48 +297,51 @@ impl CommentSeamData {
 
 /// Mutable caches for one seam attachment evaluation.
 #[derive(Default)]
-pub(crate) struct CommentSeamOwnerCache {
+pub(crate) struct CommentEnclosingOwnerCache {
     /// Lazily resolved smallest owner that encloses seam token range.
-    pub(crate) seam_owner: Option<u32>,
+    pub(crate) enclosing_owner: Option<u32>,
     /// Whether seam owner lookup was executed.
-    pub(crate) seam_owner_resolved: bool,
+    pub(crate) enclosing_owner_resolved: bool,
 }
 
-/// One resolved attachment attachment for one comment seam.
+/// One resolved attachment for one comment seam.
 pub(crate) type CommentAttachment = (Option<u32>, AnnotationPosition);
 
 /// Owner candidates adjacent to one comment seam.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct CommentAttachmentOwners {
-    /// The nearest left owner candidate.
-    pub(crate) left: Option<u32>,
-    /// The nearest right owner candidate.
-    pub(crate) right: Option<u32>,
+pub(crate) struct CommentAttachmentNeighbors {
+    /// The nearest preceding owner candidate.
+    pub(crate) preceding: Option<u32>,
+    /// The nearest following owner candidate.
+    pub(crate) following: Option<u32>,
 }
 
-impl CommentAttachmentOwners {
+impl CommentAttachmentNeighbors {
     /// Build one owner candidate pair.
     #[inline]
-    pub(crate) fn new(left: Option<u32>, right: Option<u32>) -> Self {
-        Self { left, right }
+    pub(crate) fn new(preceding: Option<u32>, following: Option<u32>) -> Self {
+        Self {
+            preceding,
+            following,
+        }
     }
 }
 
 /// Resolve one seam owner lazily from seam token range.
-pub(crate) fn comment_seam_owner(
+pub(crate) fn comment_enclosing_owner(
     context: &CommentSeamContext<'_>,
-    cache: &mut CommentSeamOwnerCache,
+    cache: &mut CommentEnclosingOwnerCache,
 ) -> Option<u32> {
-    if cache.seam_owner_resolved {
-        return cache.seam_owner;
+    if cache.enclosing_owner_resolved {
+        return cache.enclosing_owner;
     }
 
-    cache.seam_owner_resolved = true;
-    cache.seam_owner = context
+    cache.enclosing_owner_resolved = true;
+    cache.enclosing_owner = context
         .token_before_span
         .zip(context.token_after_span)
         .and_then(|(before, after)| {
             find_smallest_owner_enclosing_range(context.tree, before.span.start, after.span.end)
         });
-    cache.seam_owner
+    cache.enclosing_owner
 }

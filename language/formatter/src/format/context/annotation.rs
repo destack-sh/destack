@@ -1,3 +1,7 @@
+use crate::format::analysis::{
+    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
+    token_is_keyword,
+};
 use crate::format::context::{
     ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, Annotation,
     AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationCache,
@@ -16,6 +20,99 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn annotation_span(&self, annotation_id: LocalNodeId<Annotation>) -> Span {
         self.formatter_annotation_entries[annotation_id.id as usize].span
+    }
+
+    /// Return whether one annotation starts on its own source line.
+    #[inline]
+    pub fn annotation_starts_on_own_line(&self, annotation_id: LocalNodeId<Annotation>) -> bool {
+        self.span_starts_on_own_line(self.annotation_span(annotation_id))
+    }
+
+    /// Return whether one annotation source starts after at least one newline.
+    #[inline]
+    pub fn annotation_has_leading_newline(&self, annotation_id: LocalNodeId<Annotation>) -> bool {
+        self.has_newline(self.annotation_span(annotation_id))
+    }
+
+    /// Return the nearest non-whitespace token before one annotation span.
+    #[inline]
+    pub fn annotation_previous_non_whitespace_token(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenSpan> {
+        previous_non_whitespace_token_before_annotation(self, annotation_id)
+    }
+
+    /// Return the nearest non-whitespace token after one annotation span.
+    #[inline]
+    pub fn annotation_next_non_whitespace_token(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenSpan> {
+        next_non_whitespace_token_after_annotation(self, annotation_id)
+    }
+
+    /// Return the previous non-whitespace token type before one annotation span.
+    #[inline]
+    pub fn annotation_previous_non_whitespace_token_type(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenType> {
+        self.annotation_previous_non_whitespace_token(annotation_id)
+            .map(|token| token.token.ty)
+    }
+
+    /// Return whether the next non-whitespace token after one annotation starts on the same line.
+    pub fn annotation_next_token_is_on_same_line(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> bool {
+        let annotation_span = self.annotation_span(annotation_id);
+        let Some(next_token) = self.annotation_next_non_whitespace_token(annotation_id) else {
+            return false;
+        };
+        if annotation_span.file != next_token.span.file {
+            return false;
+        }
+
+        self.file
+            .is_same_line(annotation_span.end.saturating_sub(1), next_token.span.start)
+    }
+
+    /// Return whether the next non-whitespace token after one annotation matches one keyword.
+    #[inline]
+    pub fn annotation_next_token_is_keyword(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+        keyword: ast::Keyword,
+    ) -> bool {
+        self.annotation_next_non_whitespace_token(annotation_id)
+            .is_some_and(|token| token_is_keyword(self, token, keyword))
+    }
+
+    /// Return the next non-whitespace token type after one annotation span.
+    #[inline]
+    pub fn annotation_next_non_whitespace_token_type(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenType> {
+        self.annotation_next_non_whitespace_token(annotation_id)
+            .map(|token| token.token.ty)
+    }
+
+    /// Return the guard target token type after one annotation-following semicolon.
+    #[inline]
+    pub fn annotation_semicolon_guard_target_token_type(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenType> {
+        let token_after_annotation = self.annotation_next_non_whitespace_token(annotation_id)?;
+        if token_after_annotation.token.ty != ast::TokenType::Semicolon {
+            return None;
+        }
+
+        self.next_non_trivia_token_after_span(token_after_annotation.span)
+            .map(|token| token.token.ty)
     }
 
     /// Return borrowed cached annotation data for a node.

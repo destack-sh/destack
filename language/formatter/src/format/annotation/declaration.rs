@@ -1,12 +1,12 @@
 use ast::{AnnotationPosition, NodeParentIndex, NodeTree, NodeType, TokenType};
 use destack_ast as ast;
 
-use crate::format::annotation::attachment::FormatterTriviaOwnerIndex;
-use crate::format::annotation::boundary::{
-    CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
+use super::attachment::FormatterTriviaOwnerIndex;
+use super::boundary::{
+    CommentAttachment, CommentAttachmentNeighbors, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword,
 };
-use crate::format::annotation::ownership::{
+use super::ownership::{
     find_owner_at_or_after_token_with_node_type, find_smallest_owner_enclosing_range,
     normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor,
@@ -62,7 +62,7 @@ pub(crate) fn try_attach_comment_declaration_optional_member_seam(
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if seam.has_leading_newline || seam.has_trailing_newline || !seam.comment_is_star {
         return None;
@@ -72,23 +72,23 @@ pub(crate) fn try_attach_comment_declaration_optional_member_seam(
         return None;
     }
 
-    let seam_owner = context
+    let enclosing_owner = context
         .token_before_span
         .zip(context.token_after_span)
         .and_then(|(before, after)| {
             find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
         });
 
-    let target_node = seam_owner
+    let target_node = enclosing_owner
         .and_then(|owner| promote_owner_to_member_like_ancestor(tree, parents, owner))
         .or_else(|| {
             owners
-                .left
+                .preceding
                 .and_then(|owner| promote_owner_to_member_like_ancestor(tree, parents, owner))
         })
         .or_else(|| {
             owners
-                .right
+                .following
                 .and_then(|owner| promote_owner_to_member_like_ancestor(tree, parents, owner))
         })?;
 
@@ -102,7 +102,7 @@ pub(crate) fn try_attach_comment_declaration_new_signature_seam(
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if seam.has_leading_newline
         || seam.has_trailing_newline
@@ -112,23 +112,23 @@ pub(crate) fn try_attach_comment_declaration_new_signature_seam(
         return None;
     }
 
-    let seam_owner = context
+    let enclosing_owner = context
         .token_before_span
         .zip(context.token_after_span)
         .and_then(|(before, after)| {
             find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
         });
 
-    let target_node = seam_owner
+    let target_node = enclosing_owner
         .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         .or_else(|| {
             owners
-                .left
+                .preceding
                 .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         })
         .or_else(|| {
             owners
-                .right
+                .following
                 .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         })
         .filter(|owner| declaration_owner_is_new_signature(tree, *owner))?;
@@ -141,7 +141,7 @@ pub(crate) fn try_attach_comment_declaration_new_signature_seam(
 pub(crate) fn try_attach_comment_declaration_implements_seam(
     tree: &NodeTree,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if !seam.has_leading_newline {
         return None;
@@ -151,7 +151,7 @@ pub(crate) fn try_attach_comment_declaration_implements_seam(
         return None;
     }
 
-    let target_node = owners.left?;
+    let target_node = owners.preceding?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
     Some((Some(target_node), AnnotationPosition::BlockPostfix))
 }
@@ -161,7 +161,7 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if seam.has_leading_newline || !seam.comment_is_star {
         return None;
@@ -180,7 +180,7 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
         .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
         .or_else(|| {
             owners
-                .left
+                .preceding
                 .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
         })?;
 
@@ -195,7 +195,7 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if !seam.token_after_is(TokenType::At) {
         return None;
@@ -212,7 +212,7 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
             promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
         })
     });
-    let member_target = owners.right.and_then(|owner| {
+    let member_target = owners.following.and_then(|owner| {
         promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
     });
     let declaration_target = context
@@ -228,22 +228,22 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
         .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         .or_else(|| {
             owners
-                .right
+                .following
                 .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         })
         .or_else(|| {
             owners
-                .left
+                .preceding
                 .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         })
         .or_else(|| {
             owners
-                .right
+                .following
                 .filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
         })
         .or_else(|| {
             owners
-                .left
+                .preceding
                 .filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
         });
 
@@ -288,6 +288,31 @@ pub(crate) fn try_attach_comment_declaration_arrow_seam(
     Some((Some(target_node), AnnotationPosition::BlockInfix))
 }
 
+/// Resolve inline export-head block comments.
+pub(crate) fn try_attach_comment_declaration_export_inline_block_seam(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline || seam.has_trailing_newline || !seam.comment_is_star {
+        return None;
+    }
+
+    if !seam.token_before_is_keyword(CommentSeamKeyword::Export) {
+        return None;
+    }
+
+    let target_node = context
+        .token_before_span
+        .zip(context.token_after_span)
+        .and_then(|(before, after)| {
+            find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+        })?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
+    Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))
+}
+
 /// Resolve declaration export-head seam comments.
 pub(crate) fn try_attach_comment_declaration_export_seam(
     tree: &NodeTree,
@@ -317,7 +342,7 @@ pub(crate) fn try_attach_comment_declaration_export_seam(
 pub(crate) fn try_attach_comment_declaration_return_type_seam(
     tree: &NodeTree,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if seam.has_leading_newline || !seam.has_trailing_newline || !seam.comment_is_line {
         return None;
@@ -327,7 +352,7 @@ pub(crate) fn try_attach_comment_declaration_return_type_seam(
         return None;
     }
 
-    let target_node = owners.right?;
+    let target_node = owners.following?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
 
     Some((Some(target_node), AnnotationPosition::LinePrefix))
@@ -340,7 +365,7 @@ pub(crate) fn try_attach_comment_declaration(
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-    owners: CommentAttachmentOwners,
+    owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     if let Some(attachment) =
         try_attach_comment_declaration_optional_member_seam(tree, parents, context, seam, owners)
@@ -376,6 +401,12 @@ pub(crate) fn try_attach_comment_declaration(
     }
 
     if let Some(attachment) = try_attach_comment_declaration_arrow_seam(tree, context, seam) {
+        return Some(attachment);
+    }
+
+    if let Some(attachment) =
+        try_attach_comment_declaration_export_inline_block_seam(tree, context, seam)
+    {
         return Some(attachment);
     }
 

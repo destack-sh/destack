@@ -57,6 +57,60 @@ fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> 
 }
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return the nearest non-whitespace token after one span.
+    pub fn next_non_whitespace_token_after_span(&self, span: Span) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+        while let Some(token) = tokens.get(index).copied() {
+            if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+                index += 1;
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
+    /// Return the nearest non-trivia token after one span.
+    pub fn next_non_trivia_token_after_span(&self, span: Span) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let mut index = tokens.partition_point(|token| token.span.start < span.end);
+
+        while let Some(token) = tokens.get(index).copied() {
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                index += 1;
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
+    /// Return whether one span has a newline before its next non-whitespace token.
+    pub fn span_has_newline_before_next_non_whitespace_token(&self, span: Span) -> bool {
+        let Some(next_token) = self.next_non_whitespace_token_after_span(span) else {
+            return false;
+        };
+        if next_token.span.file != span.file || next_token.span.start <= span.end {
+            return false;
+        }
+
+        self.has_newline(Span::new(span.file, span.end, next_token.span.start))
+    }
+
     /// Return the first non-trivia token that intersects one span.
     #[inline]
     pub fn first_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {

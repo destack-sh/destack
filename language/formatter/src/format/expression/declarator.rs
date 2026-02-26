@@ -168,29 +168,6 @@ fn pattern_is_array_like(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> b
     }
 }
 
-/// Return whether the next non-whitespace token after one annotation starts on the same line.
-fn annotation_next_token_is_on_same_line(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = context.annotation_span(annotation_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace => {
-                index += 1;
-                continue;
-            }
-            TokenType::Newline => return false,
-            _ => return true,
-        }
-    }
-
-    false
-}
-
 /// Return whether one declarator value has an inline prefix comment on the `=` seam.
 pub(crate) fn declarator_value_has_inline_assignment_seam_prefix_comment(
     context: &DestackFormatContext<'_>,
@@ -219,7 +196,7 @@ pub(crate) fn declarator_value_has_inline_assignment_seam_prefix_comment(
                 let comment = context.tree.get::<Comment>(node);
                 let annotation_span = context.annotation_span(*annotation_id);
                 let comment_is_inline = !context.has_newline(annotation_span)
-                    && annotation_next_token_is_on_same_line(context, *annotation_id);
+                    && context.annotation_next_token_is_on_same_line(*annotation_id);
 
                 match comment.style {
                     CommentStyle::Slash => false,

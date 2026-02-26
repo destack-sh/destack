@@ -5,7 +5,7 @@ use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
 use smallvec::SmallVec;
 
-use crate::format::annotation::attachment::FormatterTriviaOwnerIndex;
+use super::attachment::FormatterTriviaOwnerIndex;
 
 /// Return whether one node kind is excluded from trivia owner indexing.
 pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
@@ -472,22 +472,23 @@ pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
 pub(crate) fn lowest_common_owner_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    left_owner: u32,
-    right_owner: u32,
+    preceding_owner: u32,
+    following_owner: u32,
 ) -> Option<u32> {
-    let mut left_chain = SmallVec::<[u32; 24]>::new();
-    let mut current_left = Some(left_owner);
-    while let Some(owner_id) = current_left {
-        left_chain.push(owner_id);
-        current_left = parents.get_by_id(owner_id);
+    let mut preceding_chain = SmallVec::<[u32; 24]>::new();
+    let mut current_preceding = Some(preceding_owner);
+    while let Some(owner_id) = current_preceding {
+        preceding_chain.push(owner_id);
+        current_preceding = parents.get_by_id(owner_id);
     }
 
-    let mut current_right = Some(right_owner);
-    while let Some(owner_id) = current_right {
-        if left_chain.contains(&owner_id) && !is_trivia_excluded_owner_node_id(tree, owner_id) {
+    let mut current_following = Some(following_owner);
+    while let Some(owner_id) = current_following {
+        if preceding_chain.contains(&owner_id) && !is_trivia_excluded_owner_node_id(tree, owner_id)
+        {
             return Some(owner_id);
         }
-        current_right = parents.get_by_id(owner_id);
+        current_following = parents.get_by_id(owner_id);
     }
 
     None

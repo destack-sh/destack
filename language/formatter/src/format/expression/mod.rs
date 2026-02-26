@@ -31,7 +31,12 @@ pub(crate) use crate::format::analysis::{
     argument_is_simple_with_options, call_arguments_are_multiline_span, is_call_like_argument,
     is_simple_static_argument, is_tree_attribute_expression,
 };
-pub(crate) use crate::format::call::{format_call_expression, format_instantiation_expression};
+pub(crate) use crate::format::call::{
+    SeparatorLineCommentSource, argument_can_render_without_separator_line_comment,
+    format_call_expression, format_instantiation_expression,
+    single_argument_separator_line_comment_source, write_argument_without_separator_line_comment,
+    write_separator_line_comment_after_comma,
+};
 pub(crate) use crate::format::chain::{
     argument_value_id, chain_nodes, has_comment_between_expressions,
     has_line_comment_between_expressions, is_block_lambda_argument, is_chain_root,

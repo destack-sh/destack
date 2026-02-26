@@ -219,35 +219,6 @@ fn is_ignored_span_trivia_token(token_type: TokenType) -> bool {
         )
 }
 
-/// Map one token type to one punctuation character for trivia-boundary checks.
-#[inline]
-fn token_type_to_boundary_character(token_type: TokenType) -> Option<char> {
-    match token_type {
-        TokenType::Colon => Some(':'),
-        TokenType::Semicolon => Some(';'),
-        TokenType::Comma => Some(','),
-        TokenType::Dot => Some('.'),
-        TokenType::Assign => Some('='),
-        TokenType::Maybe => Some('?'),
-        TokenType::ElementwiseAnd => Some('&'),
-        TokenType::ElementwiseOr => Some('|'),
-        TokenType::Divide
-        | TokenType::LineComment
-        | TokenType::BlockComment
-        | TokenType::DocLineComment
-        | TokenType::DocBlockComment => Some('/'),
-        TokenType::OpenParenthesis => Some('('),
-        TokenType::CloseParenthesis => Some(')'),
-        TokenType::OpenBrace => Some('{'),
-        TokenType::CloseBrace => Some('}'),
-        TokenType::OpenBracket => Some('['),
-        TokenType::CloseBracket => Some(']'),
-        TokenType::LessThan => Some('<'),
-        TokenType::GreaterThan => Some('>'),
-        _ => None,
-    }
-}
-
 /// Return the nearest non-whitespace token before one span.
 pub(crate) fn previous_non_whitespace_token_before_span(
     context: &DestackFormatContext<'_>,
@@ -281,6 +252,10 @@ pub(crate) fn next_non_whitespace_token_after_span(
         if is_ignored_span_neighbor_token(token.token.ty) {
             index += 1;
             continue;
+        }
+
+        if token.token.ty == TokenType::End {
+            return None;
         }
 
         return Some(token);
@@ -367,42 +342,6 @@ pub(crate) fn next_non_whitespace_token_after_annotation(
 ) -> Option<TokenSpan> {
     let span = context.annotation_span(annotation_id);
     next_non_whitespace_token_after_span(context, span)
-}
-
-/// Return the first non-whitespace character before a span.
-pub(crate) fn previous_non_whitespace_before_span(
-    context: &DestackFormatContext<'_>,
-    span: Span,
-) -> Option<char> {
-    previous_non_whitespace_token_before_span(context, span)
-        .and_then(|token| token_type_to_boundary_character(token.token.ty))
-}
-
-/// Return the first non-whitespace character after a span.
-pub(crate) fn next_non_whitespace_after_span(
-    context: &DestackFormatContext<'_>,
-    span: Span,
-) -> Option<char> {
-    next_non_whitespace_token_after_span(context, span)
-        .and_then(|token| token_type_to_boundary_character(token.token.ty))
-}
-
-/// Return the first non-whitespace character before an annotation span.
-pub(crate) fn previous_non_whitespace_before_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.annotation_span(annotation_id);
-    previous_non_whitespace_before_span(context, span)
-}
-
-/// Return the first non-whitespace character after an annotation span.
-pub(crate) fn next_non_whitespace_after_annotation(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<char> {
-    let span = context.annotation_span(annotation_id);
-    next_non_whitespace_after_span(context, span)
 }
 
 /// Return whether one identifier token matches one keyword.
@@ -663,7 +602,7 @@ pub(crate) fn argument_is_inline_closure_cast_object(
     argument_has_inline_prefix || value_has_inline_prefix
 }
 
-/// Return whether an argument has a slash comment annotation preceded by a source comma.
+/// Return whether an argument has one slash comment annotation on a source comma seam.
 pub(crate) fn argument_has_separator_line_comment_annotation(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -691,8 +630,27 @@ pub(crate) fn argument_has_separator_line_comment_annotation(
                     return false;
                 }
 
-                previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                    .is_some_and(|token| token.token.ty == TokenType::Comma)
+                let has_preceding_separator =
+                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                        .is_some_and(|token| token.token.ty == TokenType::Comma);
+                let has_following_separator =
+                    next_non_whitespace_token_after_annotation(context, *annotation_id)
+                        .is_some_and(|token| token.token.ty == TokenType::Comma);
+                let has_trailing_boundary_without_separator =
+                    matches!(position, AnnotationPosition::LinePostfixBoundary)
+                        && next_non_whitespace_token_after_annotation(context, *annotation_id)
+                            .is_some_and(|token| {
+                                matches!(
+                                    token.token.ty,
+                                    TokenType::CloseBrace
+                                        | TokenType::CloseBracket
+                                        | TokenType::CloseParenthesis
+                                )
+                            });
+
+                has_preceding_separator
+                    || has_following_separator
+                    || has_trailing_boundary_without_separator
             })
         })
         .unwrap_or(false)

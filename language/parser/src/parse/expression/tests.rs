@@ -5861,6 +5861,46 @@ fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() 
     });
 }
 
+/// Parse newline guarded parenthesized statements after continue as separate statements.
+#[test]
+fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_separate() {
+    let mut test = TestParser::new_with_options(
+        "for (;;) {\n  if (condition) continue\n\n  // breaking comment\n  (possibleArray || []).sort()\n}",
+        LanguageType::JavaScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 1);
+    let root_expression_id = match parser.tree.get(expressions[0]) {
+        Expression::Statement(expression_id) => *expression_id,
+        _ => expressions[0],
+    };
+
+    assert_node!(parser.tree, root_expression_id, Expression::For { body, .. } => {
+        assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_eq!(expressions.len(), 2);
+
+            let if_expression_id = match parser.tree.get(expressions[0]) {
+                Expression::Statement(expression_id) => *expression_id,
+                _ => expressions[0],
+            };
+            assert_node!(parser.tree, if_expression_id, Expression::If { then_expression, .. } => {
+                assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                    assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                        assert_eq!(expressions.len(), 1);
+                        let continue_expression_id = match parser.tree.get(expressions[0]) {
+                            Expression::Statement(expression_id) => *expression_id,
+                            _ => expressions[0],
+                        };
+                        assert_node!(parser.tree, continue_expression_id, Expression::Continue { label: None });
+                    });
+                });
+            });
+        });
+    });
+}
+
 /// Reject labelled lexical declarations in javascript.
 #[test]
 fn test_reject_labelled_lexical_declaration_javascript() {
@@ -6646,4 +6686,29 @@ fn test_reject_parenthesized_satisfies_assignment_target() {
 
     let result = parser.eat_expression(parser.options);
     assert!(result.is_err());
+}
+
+/// Keep one trailing semicolon block comment trivia entry in no-semi for-of fixture slices.
+#[test]
+fn test_parse_no_semi_for_of_fixture_slice_trailing_block_comment_is_not_duplicated() {
+    let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
+    let mut test = TestParser::new_with_options(source, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let _ = parser.parse();
+    parser.attach_trivia();
+
+    let trailing_block_comment_count = parser
+        .tree
+        .comment_trivia()
+        .iter()
+        .filter(|trivia| {
+            let comment = parser.tree.get(trivia.comment);
+            if comment.style != CommentStyle::Star {
+                return false;
+            }
+
+            parser.get_span_str(parser.tree.get_span(trivia.comment)) == "/* comment */"
+        })
+        .count();
+    assert_eq!(trailing_block_comment_count, 1);
 }

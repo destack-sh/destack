@@ -5,11 +5,13 @@ use crate::format::expression::{
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format, assert_format_idempotent_with_file_type, assert_format_output_eq,
+    assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, assert_format_roundtrip_with_file_type,
+    statement_list,
 };
 use destack_ast::{
-    Argument, Declaration, DeclarationDescriptor, Expression, LocalNodeId, NodeParentIndex,
-    NodeTree, NodeType,
+    Argument, BlockContext, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
+    NodeParentIndex, NodeTree, NodeType,
 };
 use destack_source::FileType;
 use destack_workspace::{QuoteProperty, QuoteStyle};
@@ -269,6 +271,26 @@ fn test_format_jsx_comment_between_statements_stays_own_line_prefix() {
     );
 }
 
+#[test]
+fn test_format_assignment_seam_inline_block_comment_roundtrip() {
+    assert_format_program_roundtrip_with_file_type(
+        "value = /* seam */ other;\n",
+        "value = /* seam */ other;\n",
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+#[test]
+fn test_format_declarator_assignment_seam_inline_block_comment_roundtrip() {
+    assert_format_program_roundtrip_with_file_type(
+        "let value = /* seam */ other;\n",
+        "let value = /* seam */ other;\n",
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Parenthesized member objects with boundary comments should not unwrap.
 #[test]
 fn test_parenthesis_rules_reject_member_object_boundary_comment() {
@@ -321,6 +343,22 @@ fn test_parenthesis_rules_allow_ordinary_comment_member_object_unwrap() {
         inner_expression_id,
         ParenthesizedUnwrapMode::MemberObject,
     ));
+}
+
+/// Type-cast seams should keep trailing callsite comments on their own line.
+#[test]
+fn test_format_type_cast_node_keeps_terminal_line_comment() {
+    let mut options = DestackFormatOptions::default();
+    options.indent_width = 2;
+    options.line_width = 80;
+    options.quote_style = QuoteStyle::Double;
+
+    assert_format_program_roundtrip_with_file_type(
+        "!left &&\n/** @type {boolean} */\n(\n  /** @type {Identifier} */\n  (a) === \"call\" ||\n    /** @type {Identifier} */\n    (b) === \"bind\"\n//  ^^^^^^^^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n) && right;\n\n/** @type {Number} */ (a + b)();\n//                    ^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n",
+        "!left &&\n  /** @type {boolean} */\n  (\n    /** @type {Identifier} */\n    (a) === \"call\" ||\n      /** @type {Identifier} */\n      (b) === \"bind\"\n    //  ^^^^^^^^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n  ) &&\n  right;\n\n/** @type {Number} */ (a + b)();\n//                    ^^^^^^^ No need to wrap with parentheses here because the type cast node is already wrapped with parentheses.\n",
+        FileType::JavaScript,
+        options,
+    );
 }
 
 /// Decorated class expressions in extends heads should keep explicit parentheses.
@@ -413,7 +451,7 @@ fn test_format_non_null_chain_keeps_call_tail_attached_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -427,7 +465,7 @@ fn test_format_double_non_null_chain_keeps_call_tail_attached_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -441,7 +479,7 @@ fn test_format_optional_non_null_chain_keeps_call_tail_attached_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -455,7 +493,7 @@ fn test_format_parenthesized_optional_non_null_chain_keeps_tail_inside_wrapper_i
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -469,7 +507,7 @@ fn test_format_non_null_object_chain_base_keeps_grouping_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1520,14 +1558,14 @@ a = b + /** TODO this is a very very very very long comment that makes it go > 8
 
     let (first_test, first_block) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(BlockContext::Expression)
         })
         .unwrap();
     let first_output = first_test.format(&first_block, options.clone());
 
     let (second_test, second_block) =
         TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(BlockContext::Expression)
         })
         .unwrap();
     let second_output = second_test.format(&second_block, options);
@@ -1602,7 +1640,7 @@ fn test_format_throw_parenthesized_sequence_with_comment_is_idempotent() {
 
     let (first_test, first_block) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(BlockContext::Expression)
         })
         .unwrap();
     let first_output = first_test.format(&first_block, options.clone());
@@ -1614,7 +1652,7 @@ fn test_format_throw_parenthesized_sequence_with_comment_is_idempotent() {
 
     let (second_test, second_block) =
         TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
-            p.eat_block(destack_ast::BlockContext::Expression)
+            p.eat_block(BlockContext::Expression)
         })
         .unwrap();
     let second_output = second_test.format(&second_block, options);
@@ -1705,7 +1743,7 @@ fn test_format_semicolon_guard_separator_comment_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1719,7 +1757,7 @@ fn test_format_semicolon_guard_directive_comment_keeps_single_blank_line() {
         source,
         expected,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1736,7 +1774,7 @@ fn test_format_if_semicolon_guard_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1753,7 +1791,7 @@ fn test_format_if_else_semicolon_guard_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1770,7 +1808,7 @@ fn test_format_for_semicolon_guard_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1787,7 +1825,7 @@ fn test_format_while_semicolon_guard_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1804,7 +1842,121 @@ fn test_format_do_while_semicolon_guard_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Unary-plus semicolon-guard comments should keep blank separator lines stable.
+#[test]
+fn test_format_unary_plus_semicolon_guard_comment_blank_line_is_idempotent() {
+    let source = r#"{
+  foo
+
+  // 11
+  ;+bar
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Unary-minus semicolon-guard comments should keep blank separator lines stable.
+#[test]
+fn test_format_unary_minus_semicolon_guard_comment_blank_line_is_idempotent() {
+    let source = r#"{
+  foo
+
+  // 11
+  ;-bar
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Declaration seams before guarded parenthesized calls should match oxfmt output.
+#[test]
+fn test_format_declare_semicolon_guard_comment_parenthesized_call_output() {
+    let source = "declare const PAGE_PATH: string\n  //<- THIS spaces\n;(()=>{})()\n";
+    let expected = "declare const PAGE_PATH: string;\n  //<- THIS spaces\n(() => {})();\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse declaration semicolon guard source");
+    let output = formatter.format(&statement_list(&roots), options);
+    assert_format_output_eq(expected, output);
+}
+
+#[test]
+fn test_format_file_header_comments_before_declaration_are_idempotent() {
+    let source = r#"// TODO: upgrade parser
+// class A {}
+
+class C1 {
+  get;
+  x(){}
+}
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+#[test]
+fn test_format_no_semi_do_while_blank_separator_is_idempotent() {
+    let source = r#"do break; while (false)
+if (true) do break; while (false)
+
+if (true) 1; else 2
+for (;;) ;
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Semicolon guard seams should remain stable with inline trivia before bracket heads.
+#[test]
+fn test_format_semicolon_guard_with_inline_comment_before_bracket_is_idempotent() {
+    let source = r#"{
+  foo
+
+  // 11
+  ; /* guard */ [bar]
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Semicolon guard seams should remain stable with inline trivia before unary-plus heads.
+#[test]
+#[ignore = "unresolved seam-order drift with inline block trivia before unary plus guard heads"]
+fn test_format_semicolon_guard_with_inline_comment_before_unary_plus_is_idempotent() {
+    let source = r#"{
+  foo
+
+  // 11
+  ; /* guard */ +bar
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1855,7 +2007,31 @@ fn test_format_control_head_comment_before_empty_statement_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line control-head comments before empty statements should stay idempotent.
+#[test]
+fn test_format_control_head_own_line_comment_before_empty_statement_is_idempotent() {
+    let source = r#"{
+  do
+  // 21
+  ; while (1)
+
+  if (a)
+  // 25
+  ;
+
+  with (a)
+  // 27
+  ;
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1876,7 +2052,7 @@ fn test_format_control_head_comment_before_non_block_body_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1891,7 +2067,7 @@ fn test_format_control_head_inline_star_comment_before_update_body_is_idempotent
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1910,7 +2086,7 @@ fn test_format_if_else_head_body_block_comment_pair_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1932,7 +2108,7 @@ fn test_format_if_head_condition_line_comments_are_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -1951,7 +2127,7 @@ fn test_format_control_head_inline_star_comment_before_empty_statement_is_idempo
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2000,7 +2176,7 @@ fn test_format_control_head_mixed_star_comments_before_empty_statement_are_idemp
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2017,7 +2193,7 @@ fn test_format_inline_star_comment_before_semicolon_statement_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2035,7 +2211,7 @@ fn test_format_empty_container_dangling_comments_stay_inside_delimiters() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2086,6 +2262,20 @@ Promise.all(writeIconFiles)
     assert_format_program_roundtrip_with_file_type(source, source, FileType::JavaScript, options);
 }
 
+/// Blank seams before `.` should collapse to one stable member-chain expression.
+#[test]
+fn test_format_member_chain_blank_seam_without_comment_collapses() {
+    let source = "{\n  value\n\n  .prop;\n}";
+    let expected = "{\n\n    value.prop;\n}";
+    assert_format_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Empty export clauses should keep `{}` when a line seam comment follows `export`.
 #[test]
 fn test_format_export_seam_comment_keeps_empty_export_clause() {
@@ -2104,7 +2294,7 @@ fn test_format_export_seam_comment_keeps_empty_export_clause() {
 #[test]
 fn test_format_export_block_seam_comment_keeps_empty_export_clause() {
     let source = "export /* comment */ {}";
-    let expected = "/* comment */ export {}";
+    let expected = "export {} /* comment */";
     let (formatter, expression_id) =
         TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
             p.eat_expression(Default::default())
@@ -2212,7 +2402,7 @@ fn test_format_switch_label_blank_comment_seam_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2224,7 +2414,7 @@ fn test_format_ignore_labelled_continue_semicolon_guard_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2236,7 +2426,56 @@ fn test_format_typescript_as_satisfies_multiline_seam_comments_are_idempotent() 
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line comments after `as` should not collapse `a as` into one identifier.
+#[test]
+fn test_format_typescript_as_own_line_comment_preserves_operator_spacing() {
+    let source = "functionArg = a as\n  // comment\n  TSESTree.ArrowFunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined;\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Union property comments should not move semicolon ownership across passes.
+#[test]
+fn test_format_typescript_union_property_comments_keep_semicolon_position() {
+    let source = "type T = {\n  prop:\n    // comment\n    | T1\n    // comment\n    | T2\n    // comment\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Union prefix comments in parenthesized type annotations should stay idempotent.
+#[test]
+fn test_format_typescript_union_parenthesized_prefix_comments_are_idempotent() {
+    let source = "let aa2: /*1*/ | /*2*/ C | /*3*/ D;\nlet aa3: /*1*/ | /*2*/ C | /*3*/ D /*4*/;\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Adjacent inline block comments in type unions should keep stable spacing across passes.
+#[test]
+fn test_format_typescript_union_adjacent_inline_block_comments_are_idempotent() {
+    let source = r#"
+type B1 = a /* 1 */ /* 2 */ | b;
+type B2 = a /* 1 */ | /* 2 */ b;
+type B3 = a | /* 1 */ /* 2 */ b;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
         DestackFormatOptions::default(),
     );
 }
@@ -2250,7 +2489,7 @@ fn test_format_typescript_as_const_multiline_postfix_comment_keeps_semicolon_pos
         source,
         expected,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2262,7 +2501,7 @@ fn test_format_typescript_arrow_body_multiline_comments_are_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::TypeScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2274,7 +2513,7 @@ fn test_format_assignment_followup_comment_blank_line_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2288,7 +2527,7 @@ fn test_format_assignment_target_typecast_rest_comment_keeps_inline_rhs() {
         source,
         expected,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2300,7 +2539,7 @@ fn test_format_jsx_spread_child_line_comments_are_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScriptXml,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2313,7 +2552,7 @@ fn test_format_jsx_empty_expression_line_comments_are_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScriptXml,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
 }
@@ -2326,9 +2565,38 @@ fn test_format_array_blank_line_before_element_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         options,
     );
+}
+
+/// Top-level array assignment seams should keep stable blank lines across semicolon insertion.
+#[test]
+fn test_format_top_level_array_assignment_blank_lines_are_idempotent() {
+    let source = "{\na = [\n  1,\n]\n\nb = [\n  2,\n]\n}";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        options,
+    );
+}
+
+/// Program-level array assignment seams should keep stable blank lines across passes.
+#[test]
+fn test_format_program_top_level_array_assignment_blank_lines_are_idempotent() {
+    let source = "a = [\n\n  1,\n  2,\n\n  3,\n]\n\nb = [\n  4,\n  5,\n]\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Arrow seams with inline comments should stay idempotent at program level.
+#[test]
+fn test_format_program_arrow_comment_before_arrow_is_idempotent() {
+    let source = "a = () /* before arrow */ =>\nnull;\na = () => /* after arrow */\nnull;\na = (/* in parentheses */) =>\nnull;\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
 }
 
 /// Semicolon-guard comments after loop bodies should stay idempotent.
@@ -2339,7 +2607,250 @@ fn test_format_no_semi_for_statement_guard_comment_is_idempotent() {
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScript,
-        |p| p.eat_block(destack_ast::BlockContext::Expression),
+        |p| p.eat_block(BlockContext::Expression),
         options,
+    );
+}
+
+/// ASI guard comments before bracket starts should stay idempotent.
+#[test]
+fn test_format_no_semi_asi_guard_comment_is_idempotent() {
+    let source = "{\n  let foo\n\n  // comment\n  ;[foo] = [1]\n}";
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
+/// No-semi guard comments after declarations should stay stable in program context.
+#[test]
+fn test_format_no_semi_program_guard_comment_after_declaration_is_idempotent() {
+    let source = "let error = new Error(response.statusText);\n// comment\n[].response = response\n\nx;\n\n{\n  let foo\n\n  // comment\n  ;[foo] = [1]\n}\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Operator-leading no-semi expressions should not oscillate across formatting passes.
+#[test]
+fn test_format_no_semi_operator_leading_binary_statements_are_idempotent() {
+    let source =
+        "1\n- 1\n\n1\n+ 1\n\n1\n/ 1\n\narr\n[0]\n\nfn\n(x)\n\n!1\n\n1\n< 1\n\ntag\n`string`\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Semicolon-terminated trailing block comments should stay on the left statement before ignore directives.
+#[test]
+fn test_format_no_semi_trailing_block_comment_before_ignore_is_idempotent() {
+    let source = "{\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n}";
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Semicolon-terminated trailing block comments at end of file should stay idempotent.
+#[test]
+fn test_format_no_semi_trailing_block_comment_at_eof_is_idempotent() {
+    let source = "for (a of b) foo; /* comment */";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// For-of no-semi seams with trailing block comments should stay stable across full fixture flow.
+#[test]
+fn test_format_no_semi_for_of_fixture_slice_is_idempotent() {
+    let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo /* comment */ ;\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Export trailing block comments after semicolons should stay idempotent.
+#[test]
+fn test_format_export_trailing_block_comment_after_semicolon_is_idempotent() {
+    let source = "export {}; /* comment */";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Mixed export comment seams should keep trailing block comment spacing stable.
+#[test]
+fn test_format_export_mixed_comment_seams_are_idempotent() {
+    let source = "export //comment\n{}\n\nexport /* comment */ {};\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Export postfix block comments without source spacing should stay stable.
+#[test]
+fn test_format_export_postfix_block_comment_without_space_is_idempotent() {
+    let source = "export {};\n\nexport {};/* comment */\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Prettier export comment fixture shape should stay idempotent end to end.
+#[test]
+fn test_format_export_comment_fixture_shape_is_idempotent() {
+    let source = "export //comment\n{}\n\nexport /* comment */ {};\n\nconst foo = ''\nexport {\n  foo // comment\n}\n\nconst bar = ''\nexport {\n  // comment\n  bar\n}\n\nconst fooo = ''\nconst barr = ''\nexport {\n  fooo, // comment\n  barr, // comment\n}\n\nconst foooo = ''\nconst barrr = ''\nexport {\n  foooo,\n\n  barrr as  // comment\n\t\t baz,\n} from 'foo'\n\nconst fooooo = ''\nconst barrrr = ''\nexport {\n  fooooo,\n\n  barrrr as  // comment\n\t\t bazz,\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// For-loop arrays with boundary comments should keep trailing commas before own-line comments.
+#[test]
+fn test_format_for_loop_array_boundary_comment_keeps_trailing_comma_position() {
+    let source = r#"
+for (let i in [
+  // comment1
+  1, 2, 3
+  // comment2
+]);
+
+for (let i of [
+  // comment1
+  1, 2, 3
+  // comment2
+]);
+"#
+    .trim_start();
+    let expected = r#"
+for (let i in [
+    // comment1
+    1, 2, 3,
+    // comment2
+]);
+
+for (let i of [
+    // comment1
+    1, 2, 3,
+    // comment2
+]);
+"#
+    .trim_start();
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Type tuple declaration seams should not gain unstable extra blank lines across passes.
+#[test]
+fn test_format_type_tuple_declaration_blank_seam_is_idempotent() {
+    let source = r#"
+type Foo5 = [
+    /* comment1 */
+];
+
+type Foo6 = [
+    /* comment1 */
+
+    /* comment2 */
+];
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Type union grouping around commented operands should stay idempotent.
+#[test]
+fn test_format_type_union_grouped_operand_comment_is_idempotent() {
+    let source = r#"
+export type a =
+  // foo
+  | foo1&foo2
+  // bar
+  | bar1&bar2
+  // prettier-ignore
+  | qux1&qux2;
+
+export type b =
+  // foo
+  | foo1&foo2
+  // bar
+  | bar1&bar2
+  // prettier-ignore
+  | qux1&qux2
+  // baz
+  | baz1&baz2;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Semicolon-terminated trailing line comments should keep left ownership before ignore directives.
+#[test]
+fn test_format_no_semi_trailing_line_comment_before_ignore_is_idempotent() {
+    let source = "{\nfoo(); // 1\n// 2\n// prettier-ignore\nbar   (   )\n}";
+    assert_format_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Blank seams before `else` comments should remain stable across passes.
+#[test]
+fn test_format_blank_seam_before_else_comment_is_idempotent() {
+    let source = "if (a) {\n  foo();\n}\n\n// before else\nelse {\n  bar();\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Statement-end chain seams with comments should keep blank ownership stable.
+#[test]
+fn test_format_blank_seam_before_chain_comment_is_idempotent() {
+    let source = "{\n  value\n\n  // chain seam\n  .prop();\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Semicolon-guard array seams should keep blank ownership stable before comments.
+#[test]
+fn test_format_blank_seam_before_semicolon_guard_array_comment_is_idempotent() {
+    let source = "{\n  if (a)\n    foo();\n\n  // guard\n  ;[x] = y;\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
     );
 }
