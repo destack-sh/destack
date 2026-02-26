@@ -166,7 +166,7 @@ pub fn android_notify_wake(runtime_id: u64) -> RuntimeResult<()> {
 }
 
 /// Map one Android activity lifecycle transition to host lifecycle state.
-fn host_lifecycle_state_for_android_activity(
+pub(super) fn host_lifecycle_state_for_android_activity(
     lifecycle: AndroidActivityLifecycle,
 ) -> HostLifecycleState {
     match lifecycle {
@@ -178,7 +178,3 @@ fn host_lifecycle_state_for_android_activity(
         AndroidActivityLifecycle::Destroyed => HostLifecycleState::Destroyed,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/callback.rs"]
-mod tests;
