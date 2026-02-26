@@ -40,14 +40,14 @@ impl FormatterSuite {
 
     fn discover_roundtrip_tests(&mut self, base_dir: &Path) {
         let roundtrip_dir = base_dir.join("roundtrip");
-        let ds_tests = discover_test_files(
+        let roundtrip_tests = discover_test_files(
             &roundtrip_dir,
-            &["ds", ".d.ds"],
+            &["ds", ".d.ds", "js", "jsx", "ts", "tsx", ".d.ts"],
             "destack_test::formatter::roundtrip",
         )
         .unwrap_or_default();
 
-        for test in ds_tests {
+        for test in roundtrip_tests {
             self.cases.push(test);
         }
     }
