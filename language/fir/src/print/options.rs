@@ -10,6 +10,8 @@ pub struct PrintOptions {
     pub indent_width: u8 = 4,
     /// Maximum line length (best effort).
     pub line_width: u8 = 100,
+    /// Remove trailing spaces and tabs before each emitted newline.
+    pub trim_trailing_whitespace: bool = false,
 }
 
 impl PrintOptions {
@@ -34,6 +36,12 @@ impl PrintOptions {
     /// Set the line width.
     pub fn with_line_width(mut self, line_width: u8) -> Self {
         self.line_width = line_width;
+        self
+    }
+
+    /// Set whether to trim trailing spaces and tabs before newlines.
+    pub fn with_trim_trailing_whitespace(mut self, trim_trailing_whitespace: bool) -> Self {
+        self.trim_trailing_whitespace = trim_trailing_whitespace;
         self
     }
 }

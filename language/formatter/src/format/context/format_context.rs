@@ -126,6 +126,7 @@ impl DestackFormatOptions {
             line_width: self.line_width.min(255) as u8,
             indent_style: self.indent_style,
             indent_width: self.indent_width,
+            trim_trailing_whitespace: true,
         }
     }
 

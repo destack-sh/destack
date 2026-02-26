@@ -141,6 +141,7 @@ impl CodegenJsFormatOptions {
             line_width: self.line_width,
             indent_style: self.indent_style,
             indent_width: self.indent_width,
+            trim_trailing_whitespace: true,
         }
     }
 
