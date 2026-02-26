@@ -78,7 +78,7 @@ const isLess = left < right;
 isLess satisfies boolean;
 ```
 
-- contains: no matching overload
+- contains: not assignable
 
 ### equality operators reject unavailable equal contracts
 
@@ -113,3 +113,27 @@ same satisfies boolean;
 const different = 1 !== 2;
 different satisfies boolean;
 ```
+
+### comparison contracts require rhs compatibility
+
+> Comparison operators should reject incompatible right operand types even when compare is implemented.
+
+```ds
+struct Measure { value: int }
+struct OtherMeasure { value: int }
+
+extension for Measure implements Compare<Measure> {
+    compare(other: Measure): Ordering { return Ordering.Equal }
+}
+
+declare function getMeasure(): Measure;
+declare function getOtherMeasure(): OtherMeasure;
+
+const left = getMeasure();
+const right = getOtherMeasure();
+
+const isLess = left < right;
+isLess satisfies boolean;
+```
+
+- contains: not assignable

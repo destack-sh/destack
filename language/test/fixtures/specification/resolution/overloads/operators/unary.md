@@ -110,3 +110,22 @@ signedValue satisfies Signed;
 const unsignedValue = +getUnsigned();
 unsignedValue satisfies Unsigned;
 ```
+
+### unary operators reject receiver-only coverage for missing contracts
+
+> Unary operator dispatch should reject operators whose contracts are not implemented on the receiver.
+
+```ds
+struct Signed { value: int }
+
+extension for Signed implements Plus {
+    plus(): Signed { return this }
+}
+
+declare function getSigned(): Signed;
+
+const value = getSigned();
+const negated = -value;
+```
+
+- contains: no matching overload

@@ -258,3 +258,74 @@ import * as api from "./owner";
 declare const payload: api.UserEvent.Payload<{ primary: true, secondary: false }>;
 payload satisfies { primary: "id:users", secondary: never };
 ```
+
+### distributive template conditionals stay precise through renamed namespace bridges
+
+> Renamed namespace bridges should preserve distributive conditional template semantics.
+
+```ds:base.ds
+export type Segment<T extends string> = T extends `id:${infer S}` ? S : never;
+```
+
+```ds:bridge.ds
+export * as renamed from "./base";
+```
+
+```ds:main.ds
+import { renamed } from "./bridge";
+
+declare const segment: renamed.Segment<"id:users" | "id:posts">;
+segment satisfies "users" | "posts";
+```
+
+### distributive template conditionals through renamed namespace bridges reject non matches
+
+> Renamed namespace bridges should preserve non-match rejection for distributive template conditionals.
+
+```ds:base.ds
+export type Segment<T extends string> = T extends `id:${infer S}` ? S : never;
+```
+
+```ds:bridge.ds
+export * as renamed from "./base";
+```
+
+```ds:main.ds
+import { renamed } from "./bridge";
+
+declare const segment: renamed.Segment<"id:users" | "id:posts">;
+segment satisfies "users" | "posts" | "other";
+```
+
+- contains: not assignable
+
+### associated template conditionals keep precision through export-star plus rename chains
+
+> Export-star and rename chains should preserve associated template conditional precision across modules.
+
+```ds:contract.ds
+export interface Envelope<Row extends string> {
+    type Label<U extends string> = `${Row}:${U}`;
+}
+```
+
+```ds:owner.ds
+import type { Envelope } from "./contract";
+
+export class UserEnvelope implements Envelope<"users"> {}
+```
+
+```ds:barrel.ds
+export * from "./owner";
+```
+
+```ds:index.ds
+export { UserEnvelope as PublicEnvelope } from "./barrel";
+```
+
+```ds:main.ds
+import { PublicEnvelope } from "./index";
+
+declare const label: PublicEnvelope.Label<"created">;
+label satisfies "users:created";
+```

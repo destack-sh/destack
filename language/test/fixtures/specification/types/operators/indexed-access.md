@@ -374,3 +374,47 @@ function read<Row>(value: &uint8[Segment<Row>.Width as comptime]): uint8 {
     value[0]
 }
 ```
+
+### nested alias chains preserve fixed-array disambiguation with as comptime
+
+> Nested alias chains should preserve fixed-array disambiguation when `as comptime` is explicit.
+
+```ds
+class Segment<Row> {
+    comptime const Width: number = Row extends string ? 8 : 4;
+}
+
+type WidthOf<Row> = Segment<Row>.Width;
+type Lane<Row> = uint8[WidthOf<Row> as comptime];
+
+declare const lane: Lane<string>;
+lane satisfies uint8[8];
+```
+
+### nested alias chains prefer indexed access semantics without as comptime
+
+> Nested alias chains should stay in indexed-access mode when `as comptime` is omitted in admissible index contexts.
+
+```ds
+class Segment<Row> {
+    comptime const Width: number = Row extends string ? 8 : 4;
+}
+
+type WidthOf<Row> = Segment<Row>.Width;
+type Lane<Row> = uint8[][WidthOf<Row>];
+
+declare const lane: Lane<string>;
+lane satisfies uint8;
+```
+
+### generic indexed access disambiguation remains stable through helper aliases
+
+> Generic helper aliases should preserve indexed-access semantics when index admissibility holds.
+
+```ds
+type ValueAt<T, K: keyof T> = T[K];
+type User = { name: string, age: int32 };
+
+declare const value: ValueAt<User, "name">;
+value satisfies string;
+```

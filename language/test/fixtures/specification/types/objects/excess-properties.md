@@ -209,6 +209,33 @@ const base = { x: 1, label: "origin" };
 const value: WeakPoint = { ...base };
 ```
 
+### callback return literals run excess checks in contextual object return types
+
+> Contextually typed callback returns should run excess property checks on fresh returned literals.
+
+```ts
+type Person = { name: string };
+
+function use(factory: () => Person): Person {
+    return factory();
+}
+
+use(() => ({ name: "Ada", extra: true }));
+```
+
+- contains: excess property
+
+### callback-produced values lose freshness outside contextual return positions
+
+> Object values produced by non-contextual callbacks should not run excess checks on later assignment.
+
+```ts
+type Person = { name: string };
+
+const make = () => ({ name: "Ada", extra: true });
+const value: Person = make();
+```
+
 ### fresh discriminant literals reject extra fields through renamed re-exports
 
 > Fresh discriminant literals should reject excess fields through renamed re-export paths.
@@ -227,6 +254,29 @@ export type { Shape as PublicShape } from "./shape";
 import type { PublicShape } from "./index";
 
 const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
+```
+
+- contains: excess property
+
+### spread discriminant literals reject extra fields through renamed re-exports
+
+> Fresh spread literals should still reject explicit excess fields for discriminant union targets through renamed re-exports.
+
+```ts:shape.ts
+export type Shape =
+    | { kind: "a"; value: number }
+    | { kind: "b"; value: string };
+```
+
+```ts:index.ts
+export type { Shape as PublicShape } from "./shape";
+```
+
+```ts:main.ts
+import type { PublicShape } from "./index";
+
+const base = { kind: "a" as const, value: 1 };
+const value: PublicShape = { ...base, extra: true };
 ```
 
 - contains: excess property
