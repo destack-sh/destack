@@ -159,7 +159,7 @@ test-windows-crate crate:
 
 # build and run runtime tests for windows target through wine
 test-runtime-windows-cross:
-    just test-windows-crate destack_runtime
+    ../scripts/toolchain/test-runtime-windows-gnu.sh
 
 # build and run runtime tests for windows target through wine
 test-windows-runtime:
