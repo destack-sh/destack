@@ -12,13 +12,13 @@ Runtime behavior is modeled along the three basic dimensions of engine ("where?"
 | execution | `fast`, `deterministic`, `record`, `replay` | chooses determinism and replay behavior |
 | world | `host`, `simulation` | chooses host-backed or simulation-backed bindings |
 
-Component-wise, the runtime has a few main areas:
- - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
+Component-wise, the runtime is organized into a few main areas:
  - `runtime/`: all the core runtime scaffolding and orchestration (poller, scheduler/loop, etc.)
+ - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
+ - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
 
 ## Hosts
-
-<!-- FUGU: move runtime/host into host/? -->
+Host integration lives in [`src/host`](./src/host).
 
 ## Modules
 

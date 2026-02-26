@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use crate::diagnostic::RuntimeError;
-use crate::platform::crypto::CryptoStoreKind;
-use crate::platform::crypto::host::unix::core as unix_core;
-use crate::runtime::BindingCallContext;
-use crate::runtime::host::{
+use crate::host::{
     HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
 };
+use crate::platform::crypto::CryptoStoreKind;
+use crate::platform::crypto::host::unix::core as unix_core;
+use crate::runtime::BindingCallContext;
 
 use super::constants::{
     ANDROID_MACHINE_KEYSTORE_ABSOLUTE_PATH, ANDROID_USER_KEYSTORE_RELATIVE_PATH,

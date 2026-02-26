@@ -1,11 +1,11 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::{HOST_STATUS_NOT_FOUND, android_host_crypto_callbacks_snapshot};
 use crate::platform::NativeSlice;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
-use crate::runtime::host::{HOST_STATUS_NOT_FOUND, android_host_crypto_callbacks_snapshot};
 
 use super::core::{
     callback_runtime_id, configured_system_certificate_directories,

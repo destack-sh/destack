@@ -50,4 +50,4 @@ run_ios_command() {
 
 run_ios_command cargo check -p destack_runtime --target aarch64-apple-ios
 run_ios_command cargo clippy -p destack_runtime --target aarch64-apple-ios --no-deps -- -D warnings
-run_ios_command cargo test -p destack_runtime --target aarch64-apple-ios --no-run runtime::host::ios::
+run_ios_command cargo test -p destack_runtime --target aarch64-apple-ios --no-run host::ios::

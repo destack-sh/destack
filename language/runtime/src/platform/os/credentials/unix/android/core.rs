@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeError;
-use crate::platform::os::CredentialAuthenticationMechanism;
-use crate::runtime::BindingCallContext;
-use crate::runtime::host::{
+use crate::host::{
     HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
 };
+use crate::platform::os::CredentialAuthenticationMechanism;
+use crate::runtime::BindingCallContext;
 
 use super::super::super::core::{invalid_data, not_found, not_supported, permission_denied};
 

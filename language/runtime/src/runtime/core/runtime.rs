@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::{HostEventKind, HostRuntime};
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
-use crate::runtime::host::{HostEventKind, HostRuntime};
 use crate::runtime::memory::Heap;
 use crate::runtime::poller::{HostPoller, PollerToken};
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};

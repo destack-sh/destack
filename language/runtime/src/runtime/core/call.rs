@@ -105,7 +105,7 @@ impl BindingCallContext {
 
     /// Borrow the runtime host adapter state.
     #[inline]
-    pub fn host(&self) -> &crate::runtime::host::HostRuntime {
+    pub fn host(&self) -> &crate::host::HostRuntime {
         &self.runtime().host
     }
 

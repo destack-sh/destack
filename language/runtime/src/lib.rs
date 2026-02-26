@@ -7,6 +7,8 @@
 #[cfg(not(feature = "generate_bindings"))]
 pub mod diagnostic;
 #[cfg(not(feature = "generate_bindings"))]
+pub mod host;
+#[cfg(not(feature = "generate_bindings"))]
 pub mod platform;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod runtime;

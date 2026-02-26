@@ -2,7 +2,6 @@ pub mod bindings;
 pub mod capability;
 mod core;
 pub mod engine;
-pub mod host;
 pub mod memory;
 pub(crate) mod poller;
 pub mod random;

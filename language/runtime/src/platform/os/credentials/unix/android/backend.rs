@@ -1,13 +1,12 @@
 use crate::diagnostic::RuntimeResult;
+use crate::host::{
+    HOST_STATUS_BUFFER_TOO_SMALL, destack_host_android_credentials_authenticate,
+    destack_host_android_credentials_contains, destack_host_android_credentials_delete,
+    destack_host_android_credentials_read, destack_host_android_credentials_write,
+};
 use crate::platform::NativeSlice;
 use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
 use crate::runtime::BindingCallContext;
-use crate::runtime::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, destack_runtime_host_android_credentials_authenticate,
-    destack_runtime_host_android_credentials_contains,
-    destack_runtime_host_android_credentials_delete, destack_runtime_host_android_credentials_read,
-    destack_runtime_host_android_credentials_write,
-};
 
 use super::super::super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
@@ -47,7 +46,7 @@ pub(crate) fn read_credentials(
 
         let mut output_written = 0u32;
         let status = unsafe {
-            destack_runtime_host_android_credentials_read(
+            destack_host_android_credentials_read(
                 runtime_id,
                 service,
                 account,
@@ -136,7 +135,7 @@ pub(crate) fn write_credentials(
     )?;
 
     let status = unsafe {
-        destack_runtime_host_android_credentials_write(
+        destack_host_android_credentials_write(
             runtime_id,
             service,
             account,
@@ -171,7 +170,7 @@ pub(crate) fn delete_credentials(
     let access_group = context.store_string_option(access_group);
 
     let status = unsafe {
-        destack_runtime_host_android_credentials_delete(runtime_id, service, account, access_group)
+        destack_host_android_credentials_delete(runtime_id, service, account, access_group)
     };
 
     // map host callback status into runtime result
@@ -195,7 +194,7 @@ pub(crate) fn contains_credentials(
 
     let mut is_present = false;
     let status = unsafe {
-        destack_runtime_host_android_credentials_contains(
+        destack_host_android_credentials_contains(
             runtime_id,
             service,
             account,
@@ -226,7 +225,7 @@ pub(crate) fn authenticate_credentials(
     let mut authenticated = false;
     let mut mechanism_code = CredentialAuthenticationMechanism::Unknown as u32;
     let status = unsafe {
-        destack_runtime_host_android_credentials_authenticate(
+        destack_host_android_credentials_authenticate(
             runtime_id,
             title,
             subtitle,

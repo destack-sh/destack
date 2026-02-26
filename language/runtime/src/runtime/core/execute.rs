@@ -1,10 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::HostEvent;
 use crate::platform::resource;
 use crate::runtime::RuntimeHookState;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, RuntimeOutput, RuntimeValue,
 };
-use crate::runtime::host::HostEvent;
 use crate::runtime::replay::{QueueEventKind, ReplayEvent, TaskQueue, TaskQueueEvent, TaskSubject};
 use crate::runtime::scheduler::{
     EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, current_event_loop_scope,

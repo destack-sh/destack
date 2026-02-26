@@ -5,12 +5,12 @@ use destack_vm as vm;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::platform::time::TimerClock;
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
 };
-use crate::runtime::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,

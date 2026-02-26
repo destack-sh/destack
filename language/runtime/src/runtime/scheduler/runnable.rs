@@ -1,5 +1,5 @@
 use super::{Microtask, Task, Timer};
-use crate::runtime::host::HostEvent;
+use crate::host::HostEvent;
 use crate::runtime::poller::PollerEvent;
 
 /// Runnable item returned by the event loop.
