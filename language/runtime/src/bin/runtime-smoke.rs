@@ -14,7 +14,7 @@ fn run_runtime_smoke() -> Result<String, String> {
         .host()
         .poll_events(Some(0))
         .map_err(|error| format!("{error}"))?;
-    let host_event_count = host_events.len();
+    let host_event_count = host_events.events.len();
 
     // verify core counters are initialized
     let dropped_dispatch_events = runtime.dropped_dispatch_events();

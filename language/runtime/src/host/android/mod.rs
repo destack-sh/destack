@@ -24,7 +24,7 @@ pub use abi::{
     HOST_STATUS_PERMISSION_DENIED,
 };
 #[cfg(target_os = "android")]
-pub(super) use adapter::AndroidHostAdapter;
+pub(super) use adapter::AndroidHost;
 #[cfg(any(test, target_os = "android"))]
 pub use bindings::{AndroidHostBindings, destack_host_android_register_bindings};
 #[cfg(any(test, target_os = "android"))]

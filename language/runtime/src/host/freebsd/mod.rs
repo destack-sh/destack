@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "freebsd")]
-pub(super) use adapter::FreeBsdHostAdapter;
+pub(super) use adapter::FreeBsdHost;
 #[cfg(any(test, target_os = "freebsd"))]
 pub use callback::{
     FreeBsdApplicationLifecycle, freebsd_notify_application_lifecycle,

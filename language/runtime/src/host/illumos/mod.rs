@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "illumos")]
-pub(super) use adapter::IllumosHostAdapter;
+pub(super) use adapter::IllumosHost;
 #[cfg(any(test, target_os = "illumos"))]
 pub use callback::{
     IllumosApplicationLifecycle, illumos_notify_application_lifecycle,

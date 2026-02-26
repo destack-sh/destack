@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(windows)]
-pub(super) use adapter::WindowsHostAdapter;
+pub(super) use adapter::WindowsHost;
 #[cfg(any(test, windows))]
 pub use callback::{
     WindowsApplicationLifecycle, windows_notify_application_lifecycle,

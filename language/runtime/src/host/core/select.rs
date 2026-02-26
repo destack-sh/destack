@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::HostPlatform;
-use super::adapter::HostAdapter;
+use super::adapter::Host;
 
 /// Return the host platform for the active compile target.
 pub(super) const fn compile_target_host_platform() -> HostPlatform {
@@ -84,43 +84,43 @@ pub(super) const fn compile_target_host_platform() -> HostPlatform {
     }
 }
 
-/// Return one default host adapter for the active compile target.
-pub fn default_host_adapter() -> Arc<dyn HostAdapter> {
+/// Return one default host for the active compile target.
+pub fn default_host() -> Arc<dyn Host> {
     #[cfg(target_os = "android")]
-    return Arc::new(crate::host::android::AndroidHostAdapter::new());
+    return Arc::new(crate::host::android::AndroidHost::new());
 
     #[cfg(target_os = "dragonfly")]
-    return Arc::new(crate::host::dragonfly::DragonflyHostAdapter::new());
+    return Arc::new(crate::host::dragonfly::DragonflyHost::new());
 
     #[cfg(target_os = "freebsd")]
-    return Arc::new(crate::host::freebsd::FreeBsdHostAdapter::new());
+    return Arc::new(crate::host::freebsd::FreeBsdHost::new());
 
     #[cfg(target_os = "haiku")]
-    return Arc::new(crate::host::haiku::HaikuHostAdapter::new());
+    return Arc::new(crate::host::haiku::HaikuHost::new());
 
     #[cfg(target_os = "illumos")]
-    return Arc::new(crate::host::illumos::IllumosHostAdapter::new());
+    return Arc::new(crate::host::illumos::IllumosHost::new());
 
     #[cfg(target_os = "ios")]
-    return Arc::new(crate::host::ios::IosHostAdapter::new());
+    return Arc::new(crate::host::ios::IosHost::new());
 
     #[cfg(target_os = "linux")]
-    return Arc::new(crate::host::linux::LinuxHostAdapter::new());
+    return Arc::new(crate::host::linux::LinuxHost::new());
 
     #[cfg(target_os = "macos")]
-    return Arc::new(crate::host::macos::MacosHostAdapter::new());
+    return Arc::new(crate::host::macos::MacosHost::new());
 
     #[cfg(target_os = "netbsd")]
-    return Arc::new(crate::host::netbsd::NetBsdHostAdapter::new());
+    return Arc::new(crate::host::netbsd::NetBsdHost::new());
 
     #[cfg(target_os = "openbsd")]
-    return Arc::new(crate::host::openbsd::OpenBsdHostAdapter::new());
+    return Arc::new(crate::host::openbsd::OpenBsdHost::new());
 
     #[cfg(target_os = "solaris")]
-    return Arc::new(crate::host::solaris::SolarisHostAdapter::new());
+    return Arc::new(crate::host::solaris::SolarisHost::new());
 
     #[cfg(windows)]
-    return Arc::new(crate::host::windows::WindowsHostAdapter::new());
+    return Arc::new(crate::host::windows::WindowsHost::new());
 
     #[cfg(not(any(
         target_os = "android",
@@ -136,5 +136,5 @@ pub fn default_host_adapter() -> Arc<dyn HostAdapter> {
         target_os = "solaris",
         windows,
     )))]
-    return Arc::new(crate::host::unsupported::UnsupportedHostAdapter::new());
+    return Arc::new(crate::host::unsupported::UnsupportedHost::new());
 }

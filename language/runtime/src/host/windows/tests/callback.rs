@@ -4,7 +4,7 @@ use super::{
     WindowsApplicationLifecycle, host_lifecycle_state_for_windows_application,
     windows_notify_window_available,
 };
-use crate::host::core::{HostBridge, HostStateStore, register_host_bridge};
+use crate::host::core::{HostBridge, HostState, register_host_bridge};
 use crate::host::{HostEvent, HostLifecycleState, HostPlatform, HostWindowEvent};
 
 #[test]
@@ -45,14 +45,15 @@ fn test_map_windows_lifecycle_to_destroyed() {
 
 #[test]
 fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
-    let state_store = Arc::new(HostStateStore::new());
-    let bridge = Arc::new(HostBridge::new(state_store));
+    let state = Arc::new(HostState::new());
+    let bridge = Arc::new(HostBridge::new(state));
     let registration = register_host_bridge(HostPlatform::Windows, &bridge);
     let runtime_id = registration.runtime_id();
 
     windows_notify_window_available(runtime_id, 9).unwrap();
 
-    let events = bridge.poll_events(Some(0)).unwrap();
+    let poll_result = bridge.poll_events(Some(0)).unwrap();
+    let events = poll_result.events;
     assert_eq!(
         events.as_slice(),
         [HostEvent::Window(HostWindowEvent::WindowAvailable {
@@ -63,8 +64,8 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
 
 #[test]
 fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
-    let state_store = Arc::new(HostStateStore::new());
-    let bridge = Arc::new(HostBridge::new(state_store));
+    let state = Arc::new(HostState::new());
+    let bridge = Arc::new(HostBridge::new(state));
     let registration = register_host_bridge(HostPlatform::MacOS, &bridge);
     let runtime_id = registration.runtime_id();
 

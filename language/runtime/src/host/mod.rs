@@ -52,11 +52,10 @@ mod unsupported;
 mod windows;
 
 pub use core::{
-    HostAdapter, HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent,
-    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
-    HostPermissionService, HostPlatform, HostPowerMode, HostPowerModeEvent, HostRuntime,
-    HostServices, HostStateReader, HostThermalEvent, HostThermalState, HostWallClockEvent,
-    HostWindowEvent, HostWindowFocusEvent, default_host_adapter,
+    Host, HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPlatform,
+    HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostRuntime, HostState, HostThermalEvent,
+    HostThermalState, HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent, default_host,
 };
 
 #[cfg(any(test, target_os = "android"))]

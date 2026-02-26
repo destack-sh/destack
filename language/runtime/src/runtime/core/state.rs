@@ -95,7 +95,7 @@ pub struct RuntimeState {
     pub replay: ReplayController,
     /// Runtime hooks and effect state.
     pub hooks: RuntimeHooks,
-    /// Host adapter integration state.
+    /// Host integration state.
     pub host: HostRuntime,
     /// Simulation world state shared across simulation bindings.
     pub simulation: SharedSimulationState,

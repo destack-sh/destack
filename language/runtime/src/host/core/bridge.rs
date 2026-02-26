@@ -4,9 +4,9 @@ use destack_workspace::PlatformHostOptions;
 
 use super::{
     HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
-    HostPowerModeEvent, HostStateStore, HostThermalEvent, HostThermalState, HostWallClockEvent,
-    HostWindowEvent, HostWindowFocusEvent,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPollOutcome,
+    HostPowerMode, HostPowerModeEvent, HostState, HostThermalEvent, HostThermalState,
+    HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::HostEventQueue;
@@ -18,22 +18,22 @@ pub(crate) struct HostBridge {
     /// Shared host event queue.
     events: HostEventQueue,
     /// Shared mutable host service state.
-    state_store: Arc<HostStateStore>,
+    state: Arc<HostState>,
 }
 
 impl HostBridge {
     /// Create one host bridge from one shared service state object.
-    pub(crate) fn new(state_store: Arc<HostStateStore>) -> Self {
+    pub(crate) fn new(state: Arc<HostState>) -> Self {
         // initialize host bridge shared state
         Self {
             events: HostEventQueue::new(),
-            state_store,
+            state,
         }
     }
 
     /// Return the shared host service state for this bridge.
-    pub(crate) fn state_store(&self) -> &Arc<HostStateStore> {
-        &self.state_store
+    pub(crate) fn state(&self) -> &Arc<HostState> {
+        &self.state
     }
 
     /// Return one shared wake handle for this bridge.
@@ -49,19 +49,19 @@ impl HostBridge {
         self.events.configure(queue_capacity);
     }
 
-    /// Take the number of dropped events observed by the bridge queue.
-    pub(crate) fn take_dropped_event_count(&self) -> u64 {
-        self.events.take_dropped_event_count()
-    }
-
     /// Poll events from this bridge and apply service-state updates.
-    pub(crate) fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
+    pub(crate) fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
         let events = self.events.poll_events(timeout_nanos)?;
         for event in &events {
-            self.state_store.apply_event(event);
+            self.state.apply_event(event);
         }
 
-        Ok(events)
+        let dropped_event_count = self.events.take_dropped_event_count();
+
+        Ok(HostPollOutcome {
+            events,
+            dropped_event_count,
+        })
     }
 
     /// Enqueue one raw host event.

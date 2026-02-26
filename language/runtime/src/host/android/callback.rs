@@ -91,7 +91,7 @@ pub fn android_notify_permission_request_in_flight(
 ) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
     bridge
-        .state_store()
+        .state()
         .set_permission_request_in_flight(permission, is_in_flight);
 
     Ok(())

@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "openbsd")]
-pub(super) use adapter::OpenBsdHostAdapter;
+pub(super) use adapter::OpenBsdHost;
 #[cfg(any(test, target_os = "openbsd"))]
 pub use callback::{
     OpenBsdApplicationLifecycle, openbsd_notify_application_lifecycle,
