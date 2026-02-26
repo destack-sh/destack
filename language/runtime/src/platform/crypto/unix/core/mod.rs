@@ -1,10 +1,10 @@
-mod binding;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",
     not(any(target_os = "android", target_os = "ios", target_os = "macos"))
 ))]
 mod certificate;
+mod error;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",
@@ -18,12 +18,7 @@ mod key;
 ))]
 mod path;
 mod policy;
-#[cfg(any(
-    target_os = "android",
-    target_os = "ios",
-    not(any(target_os = "android", target_os = "ios", target_os = "macos"))
-))]
-mod result;
+mod probe;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",
@@ -37,13 +32,13 @@ mod snapshot;
 ))]
 mod store;
 
-pub(crate) use binding::*;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",
     not(any(target_os = "android", target_os = "ios", target_os = "macos"))
 ))]
 pub(crate) use certificate::*;
+pub(crate) use error::*;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",
@@ -57,12 +52,7 @@ pub(crate) use key::*;
 ))]
 pub(crate) use path::*;
 pub(crate) use policy::*;
-#[cfg(any(
-    target_os = "android",
-    target_os = "ios",
-    not(any(target_os = "android", target_os = "ios", target_os = "macos"))
-))]
-pub(crate) use result::*;
+pub(crate) use probe::*;
 #[cfg(any(
     target_os = "android",
     target_os = "ios",

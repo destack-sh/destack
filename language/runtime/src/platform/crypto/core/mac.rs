@@ -14,9 +14,8 @@ use crate::platform::resource::ResourceEntry;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    CRYPTO_MAC_LABEL, CRYPTO_MAC_RESOURCE_KIND, CryptoMacResource, KEY_USAGE_SIGN,
-    KEY_USAGE_VERIFY, handle_not_found, invalid_argument, not_supported, openssl_error,
-    resolve_mac_resource,
+    CRYPTO_MAC_LABEL, CRYPTO_MAC_RESOURCE_KIND, CryptoMacResource, CryptoMacState, KEY_USAGE_SIGN,
+    KEY_USAGE_VERIFY, handle_not_found, invalid_argument, openssl_error, resolve_mac_resource,
 };
 use super::digest::message_digest;
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
@@ -127,9 +126,25 @@ pub(crate) fn mac_open(
         ));
     }
 
-    // reject streaming mac open for host-managed secret-key lanes
-    if resolve_host_secret_key_material(context, key, "destack.crypto.mac.open")?.is_some() {
-        return Err(not_supported("destack.crypto.mac.open"));
+    // build host-secret stream state when this key is host managed
+    if let Some((material, store_kind, key_algorithm)) =
+        resolve_host_secret_key_material(context, key, "destack.crypto.mac.open")?
+    {
+        let resource_value = CryptoMacResource {
+            parameters,
+            state: CryptoMacState::HostSecret {
+                material,
+                store_kind,
+                key_algorithm,
+                payload: Vec::new(),
+            },
+        };
+        let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
+            .with_label(CRYPTO_MAC_LABEL)
+            .with_payload(Arc::new(Mutex::new(resource_value)));
+        let resource_id = context.runtime().resources.insert(entry);
+
+        return Ok(resource::CryptoMacHandle(resource_id));
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
@@ -143,9 +158,11 @@ pub(crate) fn mac_open(
     // publish mac resource
     let resource_value = CryptoMacResource {
         parameters,
-        inner_key,
-        outer_key,
-        hasher,
+        state: CryptoMacState::Software {
+            inner_key,
+            outer_key,
+            hasher,
+        },
     };
     let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
         .with_label(CRYPTO_MAC_LABEL)
@@ -165,13 +182,19 @@ pub(crate) fn mac_update(
     let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.update")?;
     let mut resource = resource.lock();
 
-    // feed payload bytes into streaming hmac state
-    resource
-        .hasher
-        .update(payload)
-        .map_err(|error| openssl_error("destack.crypto.mac.update", error))?;
-
-    Ok(())
+    // feed payload bytes for the active stream state
+    match &mut resource.state {
+        CryptoMacState::Software { hasher, .. } => hasher
+            .update(payload)
+            .map_err(|error| openssl_error("destack.crypto.mac.update", error)),
+        CryptoMacState::HostSecret {
+            payload: buffered_payload,
+            ..
+        } => {
+            buffered_payload.extend_from_slice(payload);
+            Ok(())
+        }
+    }
 }
 
 /// Finalize one streaming mac context.
@@ -183,32 +206,57 @@ pub(crate) fn mac_finish(
     let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.finish")?;
     let mut resource = resource.lock();
 
-    // swap active hasher out to avoid partial state loss on failure
-    let digest_algorithm = resource.parameters.digest;
-    let mut hasher = Hasher::new(message_digest(digest_algorithm)?)
-        .map_err(|error| openssl_error("destack.crypto.mac.finish", error))?;
-    std::mem::swap(&mut hasher, &mut resource.hasher);
-    let mut output = hmac_state_finish(
-        digest_algorithm,
-        &resource.inner_key,
-        &resource.outer_key,
-        &mut hasher,
-        "destack.crypto.mac.finish",
-    )?;
-    resource.hasher = hasher;
+    // cache parameter lanes before mutable state match
+    let parameters = resource.parameters;
 
-    // apply optional output truncation
-    if resource.parameters.tag_length_bytes != 0 {
-        let length = resource.parameters.tag_length_bytes as usize;
-        if length > output.len() {
-            return Err(invalid_argument(
-                "parameters.tagLengthBytes",
-                "tag length must be at most digest size",
-            ));
+    // finalize the active stream state
+    match &mut resource.state {
+        CryptoMacState::Software {
+            inner_key,
+            outer_key,
+            hasher,
+        } => {
+            let digest_algorithm = parameters.digest;
+            let mut next_hasher = Hasher::new(message_digest(digest_algorithm)?)
+                .map_err(|error| openssl_error("destack.crypto.mac.finish", error))?;
+            std::mem::swap(&mut next_hasher, hasher);
+            let mut output = hmac_state_finish(
+                digest_algorithm,
+                inner_key,
+                outer_key,
+                &mut next_hasher,
+                "destack.crypto.mac.finish",
+            )?;
+            *hasher = next_hasher;
+
+            if parameters.tag_length_bytes != 0 {
+                let length = parameters.tag_length_bytes as usize;
+                if length > output.len() {
+                    return Err(invalid_argument(
+                        "parameters.tagLengthBytes",
+                        "tag length must be at most digest size",
+                    ));
+                }
+                output.truncate(length);
+            }
+
+            Ok(output)
         }
-        output.truncate(length);
+        CryptoMacState::HostSecret {
+            material,
+            store_kind,
+            key_algorithm,
+            payload,
+        } => crypto_host::host_key_mac_compute(
+            context,
+            material,
+            *store_kind,
+            *key_algorithm,
+            parameters,
+            payload,
+            "destack.crypto.mac.finish",
+        ),
     }
-    Ok(output)
 }
 
 /// Reset one streaming mac context.
@@ -220,13 +268,28 @@ pub(crate) fn mac_reset(
     let resource = resolve_mac_resource(context, handle, "destack.crypto.mac.reset")?;
     let mut resource = resource.lock();
 
-    // rebuild hasher and preload ipad block
-    let mut hasher = Hasher::new(message_digest(resource.parameters.digest)?)
-        .map_err(|error| openssl_error("destack.crypto.mac.reset", error))?;
-    hasher
-        .update(&resource.inner_key)
-        .map_err(|error| openssl_error("destack.crypto.mac.reset", error))?;
-    resource.hasher = hasher;
+    // cache parameter lanes before mutable state match
+    let digest_algorithm = resource.parameters.digest;
+
+    // reset the active stream state
+    match &mut resource.state {
+        CryptoMacState::Software {
+            inner_key, hasher, ..
+        } => {
+            let mut next_hasher = Hasher::new(message_digest(digest_algorithm)?)
+                .map_err(|error| openssl_error("destack.crypto.mac.reset", error))?;
+            next_hasher
+                .update(inner_key)
+                .map_err(|error| openssl_error("destack.crypto.mac.reset", error))?;
+            *hasher = next_hasher;
+        }
+        CryptoMacState::HostSecret {
+            payload: buffered_payload,
+            ..
+        } => {
+            buffered_payload.clear();
+        }
+    }
 
     Ok(())
 }
@@ -237,7 +300,7 @@ pub(crate) fn mac_close(
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
     // remove mac resource entry
-    let Some(mut entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context.runtime().resources.remove(handle.0) else {
         return Err(handle_not_found(
             "destack.crypto.mac.close",
             "crypto mac",
@@ -254,13 +317,27 @@ pub(crate) fn mac_close(
         ));
     }
 
-    // wipe hmac key pads eagerly before resource drop
-    if let Some(payload) = entry.payload.as_mut()
-        && let Some(mac_resource) = payload.downcast_mut::<Arc<Mutex<CryptoMacResource>>>()
-    {
-        let mut mac_resource = mac_resource.lock();
-        mac_resource.inner_key.zeroize();
-        mac_resource.outer_key.zeroize();
+    // wipe sensitive stream state before releasing the final resource entry
+    let payload = entry
+        .payload
+        .as_ref()
+        .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoMacResource>>>())
+        .map(Arc::clone);
+    if let Some(resource) = payload {
+        let mut resource = resource.lock();
+        match &mut resource.state {
+            CryptoMacState::Software {
+                inner_key,
+                outer_key,
+                ..
+            } => {
+                inner_key.zeroize();
+                outer_key.zeroize();
+            }
+            CryptoMacState::HostSecret { payload, .. } => {
+                payload.zeroize();
+            }
+        }
     }
 
     Ok(())

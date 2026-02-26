@@ -52,19 +52,6 @@ pub(crate) fn signature_digest(
     Ok(digest)
 }
 
-/// Resolve one supported EC curve into runtime and OpenSSL metadata.
-pub(crate) fn resolve_ec_curve(
-    named_curve: CryptoNamedCurve,
-) -> Option<(CryptoNamedCurve, Nid, u32)> {
-    match named_curve {
-        CryptoNamedCurve::Unknown => Some((CryptoNamedCurve::P256, Nid::X9_62_PRIME256V1, 256)),
-        CryptoNamedCurve::P256 => Some((CryptoNamedCurve::P256, Nid::X9_62_PRIME256V1, 256)),
-        CryptoNamedCurve::P384 => Some((CryptoNamedCurve::P384, Nid::SECP384R1, 384)),
-        CryptoNamedCurve::P521 => Some((CryptoNamedCurve::P521, Nid::SECP521R1, 521)),
-        _ => None,
-    }
-}
-
 /// Resolve one runtime named curve from one private EC key.
 pub(crate) fn curve_from_private_key(
     private_key: &PKey<Private>,
@@ -183,7 +170,9 @@ pub(crate) fn generate_ec_key_pair(
     operation: &'static str,
 ) -> RuntimeResult<(PKey<Private>, CryptoNamedCurve, u32)> {
     // resolve one supported named curve
-    let Some((resolved_named_curve, curve_nid, size_bits)) = resolve_ec_curve(named_curve) else {
+    let Some((resolved_named_curve, size_bits, curve_nid)) =
+        crypto_core::resolve_nist_p_curve(named_curve)
+    else {
         return Err(not_supported(operation));
     };
 

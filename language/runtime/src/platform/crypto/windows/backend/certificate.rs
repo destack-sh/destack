@@ -13,7 +13,7 @@ use windows_sys::Win32::Security::Cryptography::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
-use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
+use crate::platform::crypto::core::{CRYPTO_STORE_OPEN_OPERATION, push_der_certificate_if_unique};
 use crate::runtime::BindingCallContext;
 
 use super::constants::{
@@ -318,7 +318,7 @@ pub(super) fn windows_collect_certificates_from_location(
             let der_bytes = unsafe {
                 std::slice::from_raw_parts(context.pbCertEncoded, context.cbCertEncoded as usize)
             };
-            push_der_certificate(der_bytes, certificates, seen_der_certificates);
+            push_der_certificate_if_unique(der_bytes, certificates, seen_der_certificates);
         }
 
         previous_context = certificate_context;
@@ -330,21 +330,4 @@ pub(super) fn windows_collect_certificates_from_location(
     }
 
     Ok(())
-}
-
-/// Push one certificate when DER bytes are unique and parseable.
-fn push_der_certificate(
-    der_bytes: &[u8],
-    certificates: &mut Vec<X509>,
-    seen_der_certificates: &mut HashSet<Vec<u8>>,
-) {
-    // skip duplicates across multi-store merges
-    if !seen_der_certificates.insert(der_bytes.to_vec()) {
-        return;
-    }
-
-    // parse and append one x509 certificate
-    if let Ok(certificate) = X509::from_der(der_bytes) {
-        certificates.push(certificate);
-    }
 }

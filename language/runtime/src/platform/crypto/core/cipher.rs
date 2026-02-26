@@ -6,7 +6,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, host as crypto_host,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, CryptoKeyAlgorithm,
+    CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
@@ -14,9 +15,9 @@ use crate::runtime::BindingCallContext;
 
 use super::constants::DEFAULT_AEAD_TAG_LENGTH_BYTES;
 use super::core::{
-    CRYPTO_CIPHER_LABEL, CRYPTO_CIPHER_RESOURCE_KIND, CryptoCipherResource, KEY_USAGE_DECRYPT,
-    KEY_USAGE_ENCRYPT, decode_native_bytes, handle_not_found, invalid_argument, not_supported,
-    openssl_error, resolve_cipher_resource,
+    CRYPTO_CIPHER_LABEL, CRYPTO_CIPHER_RESOURCE_KIND, CryptoCipherResource, CryptoCipherState,
+    HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, decode_native_bytes, handle_not_found,
+    invalid_argument, openssl_error, resolve_cipher_resource,
 };
 use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
@@ -126,9 +127,32 @@ pub(crate) fn cipher_open(
     // enforce key usage policy
     require_key_usage(context, key, required_usage, "destack.crypto.cipher.open")?;
 
-    // reject streaming cipher open for host-managed secret-key lanes
-    if resolve_host_secret_key_material(context, key, "destack.crypto.cipher.open")?.is_some() {
-        return Err(not_supported("destack.crypto.cipher.open"));
+    // build host-secret stream state when this key is host managed
+    if let Some((material, store_kind, key_algorithm)) =
+        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.open")?
+    {
+        let (nonce, additional_data, decrypt_tag) =
+            prepare_host_cipher_stream_parameters(direction, parameters)?;
+        let resource_value = CryptoCipherResource {
+            algorithm: parameters.algorithm,
+            direction,
+            tag_length_bytes: parameters.tag_length_bytes,
+            state: CryptoCipherState::HostSecret {
+                material,
+                store_kind,
+                key_algorithm,
+                nonce,
+                decrypt_tag,
+                additional_data,
+                payload: Vec::new(),
+            },
+        };
+        let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
+            .with_label(CRYPTO_CIPHER_LABEL)
+            .with_payload(Arc::new(Mutex::new(resource_value)));
+        let resource_id = context.runtime().resources.insert(entry);
+
+        return Ok(resource::CryptoCipherHandle(resource_id));
     }
 
     // resolve key bytes and initialize streaming cipher state
@@ -139,9 +163,8 @@ pub(crate) fn cipher_open(
     let resource_value = CryptoCipherResource {
         algorithm: parameters.algorithm,
         direction,
-        key,
         tag_length_bytes: parameters.tag_length_bytes,
-        crypter,
+        state: CryptoCipherState::Software { key, crypter },
     };
     let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
         .with_label(CRYPTO_CIPHER_LABEL)
@@ -165,11 +188,19 @@ pub(crate) fn cipher_update_additional_data(
     )?;
     let mut resource = resource.lock();
 
-    // feed additional authenticated data
-    resource
-        .crypter
-        .aad_update(additional_data)
-        .map_err(|error| openssl_error("destack.crypto.cipher.updateAdditionalData", error))
+    // feed additional authenticated data for the active stream state
+    match &mut resource.state {
+        CryptoCipherState::Software { crypter, .. } => crypter
+            .aad_update(additional_data)
+            .map_err(|error| openssl_error("destack.crypto.cipher.updateAdditionalData", error)),
+        CryptoCipherState::HostSecret {
+            additional_data: buffered_additional_data,
+            ..
+        } => {
+            buffered_additional_data.extend_from_slice(additional_data);
+            Ok(())
+        }
+    }
 }
 
 /// Update one streaming cipher with payload bytes.
@@ -182,18 +213,118 @@ pub(crate) fn cipher_update(
     let resource = resolve_cipher_resource(context, handle, "destack.crypto.cipher.update")?;
     let mut resource = resource.lock();
 
-    // allocate output buffer for this update call
-    let cipher = openssl_cipher(resource.algorithm, resource.key.len())?;
-    let mut output = vec![0u8; payload.len() + cipher.block_size()];
+    // cache algorithm lane before mutable state match
+    let algorithm = resource.algorithm;
 
-    // process payload bytes
-    let written = resource
-        .crypter
-        .update(payload, &mut output)
-        .map_err(|error| openssl_error("destack.crypto.cipher.update", error))?;
+    // run update for the active stream state
+    match &mut resource.state {
+        CryptoCipherState::Software { key, crypter } => {
+            let cipher = openssl_cipher(algorithm, key.len())?;
+            let mut output = vec![0u8; payload.len() + cipher.block_size()];
+
+            let written = crypter
+                .update(payload, &mut output)
+                .map_err(|error| openssl_error("destack.crypto.cipher.update", error))?;
+            output.truncate(written);
+            Ok(output)
+        }
+        CryptoCipherState::HostSecret {
+            payload: buffered_payload,
+            ..
+        } => {
+            buffered_payload.extend_from_slice(payload);
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// Finalize one software cipher stream.
+fn cipher_finish_software(
+    algorithm: CryptoCipherAlgorithm,
+    direction: CryptoCipherDirection,
+    tag_length_bytes: u32,
+    key: &[u8],
+    crypter: &mut Crypter,
+    final_payload: &[u8],
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    // process final payload and finalize cryptographic state
+    let cipher = openssl_cipher(algorithm, key.len())?;
+    let mut output = vec![0u8; final_payload.len() + cipher.block_size()];
+    let mut written = crypter
+        .update(final_payload, &mut output)
+        .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
+    written += crypter
+        .finalize(&mut output[written..])
+        .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
     output.truncate(written);
 
-    Ok(output)
+    // emit authentication tag for AEAD encryption streams
+    let tag = if direction == CryptoCipherDirection::Encrypt && is_aead_cipher(algorithm) {
+        let tag_length =
+            resolve_aead_tag_length(algorithm, tag_length_bytes, "parameters.tagLengthBytes")?;
+        let mut tag = vec![0u8; tag_length];
+        crypter
+            .get_tag(&mut tag)
+            .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
+        tag
+    } else {
+        Vec::new()
+    };
+
+    Ok((output, tag))
+}
+
+/// Finalize one host-secret cipher stream.
+fn cipher_finish_host_secret(
+    context: &BindingCallContext,
+    algorithm: CryptoCipherAlgorithm,
+    direction: CryptoCipherDirection,
+    tag_length_bytes: u32,
+    material: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    key_algorithm: CryptoKeyAlgorithm,
+    nonce: &[u8],
+    decrypt_tag: &[u8],
+    additional_data: &[u8],
+    buffered_payload: &mut Vec<u8>,
+    final_payload: &[u8],
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    // append final payload bytes into the buffered stream payload
+    buffered_payload.extend_from_slice(final_payload);
+
+    // materialize runtime parameters from buffered host-stream state
+    let parameters = CryptoCipherParameters {
+        algorithm,
+        nonce: context.store_slice(nonce.to_vec()),
+        additional_data: context.store_slice(additional_data.to_vec()),
+        tag: context.store_slice(decrypt_tag.to_vec()),
+        tag_length_bytes,
+    };
+
+    // dispatch one-shot host cipher for buffered stream payload
+    if direction == CryptoCipherDirection::Encrypt {
+        return crypto_host::host_key_cipher_encrypt(
+            context,
+            material,
+            store_kind,
+            key_algorithm,
+            parameters,
+            buffered_payload,
+            "destack.crypto.cipher.finish",
+        );
+    }
+
+    let output = crypto_host::host_key_cipher_decrypt(
+        context,
+        material,
+        store_kind,
+        key_algorithm,
+        parameters,
+        buffered_payload,
+        "destack.crypto.cipher.finish",
+    )?;
+
+    Ok((output, Vec::new()))
 }
 
 /// Finalize one streaming cipher context.
@@ -206,39 +337,42 @@ pub(crate) fn cipher_finish(
     let resource = resolve_cipher_resource(context, handle, "destack.crypto.cipher.finish")?;
     let mut resource = resource.lock();
 
-    // process final payload and finalize cryptographic state
-    let cipher = openssl_cipher(resource.algorithm, resource.key.len())?;
-    let mut output = vec![0u8; final_payload.len() + cipher.block_size()];
-    let mut written = resource
-        .crypter
-        .update(final_payload, &mut output)
-        .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
-    written += resource
-        .crypter
-        .finalize(&mut output[written..])
-        .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
-    output.truncate(written);
-
-    // emit authentication tag for AEAD encryption streams
-    let tag = if resource.direction == CryptoCipherDirection::Encrypt
-        && is_aead_cipher(resource.algorithm)
-    {
-        let tag_length = resolve_aead_tag_length(
-            resource.algorithm,
-            resource.tag_length_bytes,
-            "parameters.tagLengthBytes",
-        )?;
-        let mut tag = vec![0u8; tag_length];
-        resource
-            .crypter
-            .get_tag(&mut tag)
-            .map_err(|error| openssl_error("destack.crypto.cipher.finish", error))?;
-        tag
-    } else {
-        Vec::new()
-    };
-
-    Ok((output, tag))
+    // finalize the active stream state
+    let algorithm = resource.algorithm;
+    let direction = resource.direction;
+    let tag_length_bytes = resource.tag_length_bytes;
+    match &mut resource.state {
+        CryptoCipherState::Software { key, crypter } => cipher_finish_software(
+            algorithm,
+            direction,
+            tag_length_bytes,
+            key,
+            crypter,
+            final_payload,
+        ),
+        CryptoCipherState::HostSecret {
+            material,
+            store_kind,
+            key_algorithm,
+            nonce,
+            decrypt_tag,
+            additional_data,
+            payload,
+        } => cipher_finish_host_secret(
+            context,
+            algorithm,
+            direction,
+            tag_length_bytes,
+            material,
+            *store_kind,
+            *key_algorithm,
+            nonce,
+            decrypt_tag,
+            additional_data,
+            payload,
+            final_payload,
+        ),
+    }
 }
 
 /// Reset one streaming cipher context with new parameters.
@@ -254,14 +388,29 @@ pub(crate) fn cipher_reset(
     // replace active algorithm parameters
     resource.algorithm = parameters.algorithm;
     resource.tag_length_bytes = parameters.tag_length_bytes;
+    let direction = resource.direction;
 
-    // rebuild cipher state with existing key and direction
-    resource.crypter = build_cipher_state(
-        &resource.key,
-        resource.direction,
-        parameters,
-        "destack.crypto.cipher.reset",
-    )?;
+    // rebuild stream state with reset parameters
+    match &mut resource.state {
+        CryptoCipherState::Software { key, crypter } => {
+            *crypter =
+                build_cipher_state(key, direction, parameters, "destack.crypto.cipher.reset")?;
+        }
+        CryptoCipherState::HostSecret {
+            nonce,
+            decrypt_tag,
+            additional_data,
+            payload,
+            ..
+        } => {
+            let (next_nonce, next_additional_data, next_decrypt_tag) =
+                prepare_host_cipher_stream_parameters(direction, parameters)?;
+            *nonce = next_nonce;
+            *decrypt_tag = next_decrypt_tag;
+            *additional_data = next_additional_data;
+            payload.clear();
+        }
+    }
 
     Ok(())
 }
@@ -272,7 +421,7 @@ pub(crate) fn cipher_close(
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
     // remove cipher resource entry
-    let Some(mut entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context.runtime().resources.remove(handle.0) else {
         return Err(handle_not_found(
             "destack.crypto.cipher.close",
             "crypto cipher",
@@ -289,15 +438,97 @@ pub(crate) fn cipher_close(
         ));
     }
 
-    // wipe key bytes eagerly before resource drop
-    if let Some(payload) = entry.payload.as_mut()
-        && let Some(cipher_resource) = payload.downcast_mut::<Arc<Mutex<CryptoCipherResource>>>()
-    {
-        let mut cipher_resource = cipher_resource.lock();
-        cipher_resource.key.zeroize();
+    // wipe sensitive stream state before releasing the final resource entry
+    let payload = entry
+        .payload
+        .as_ref()
+        .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCipherResource>>>())
+        .map(Arc::clone);
+    if let Some(resource) = payload {
+        let mut resource = resource.lock();
+        match &mut resource.state {
+            CryptoCipherState::Software { key, .. } => {
+                key.zeroize();
+            }
+            CryptoCipherState::HostSecret {
+                nonce,
+                decrypt_tag,
+                additional_data,
+                payload,
+                ..
+            } => {
+                nonce.zeroize();
+                decrypt_tag.zeroize();
+                additional_data.zeroize();
+                payload.zeroize();
+            }
+        }
     }
 
     Ok(())
+}
+
+/// Return the expected nonce length for one cipher algorithm.
+fn expected_nonce_length(algorithm: CryptoCipherAlgorithm) -> RuntimeResult<usize> {
+    match algorithm {
+        CryptoCipherAlgorithm::AesGcm => Ok(12),
+        CryptoCipherAlgorithm::AesCtr => Ok(16),
+        CryptoCipherAlgorithm::AesCbc => Ok(16),
+        CryptoCipherAlgorithm::ChaCha20Poly1305 => Ok(12),
+        CryptoCipherAlgorithm::Unknown => Err(invalid_argument(
+            "parameters.algorithm",
+            "algorithm must not be Unknown",
+        )),
+    }
+}
+
+/// Decode and validate one host cipher stream parameter set.
+fn prepare_host_cipher_stream_parameters(
+    direction: CryptoCipherDirection,
+    parameters: CryptoCipherParameters,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+    // decode byte arguments from native handles
+    let nonce = decode_native_bytes(parameters.nonce, "parameters.nonce")?;
+    let additional_data =
+        decode_native_bytes(parameters.additional_data, "parameters.additionalData")?;
+    let decrypt_tag = decode_native_bytes(parameters.tag, "parameters.tag")?;
+
+    // enforce nonce length shape for this algorithm lane
+    let expected_nonce_length = expected_nonce_length(parameters.algorithm)?;
+    if nonce.len() != expected_nonce_length {
+        return Err(invalid_argument(
+            "parameters.nonce",
+            format!("nonce length must be {expected_nonce_length} bytes"),
+        ));
+    }
+
+    // enforce tag shape for aead and non-aead lanes
+    if is_aead_cipher(parameters.algorithm) {
+        let expected_tag_length = resolve_aead_tag_length(
+            parameters.algorithm,
+            parameters.tag_length_bytes,
+            "parameters.tagLengthBytes",
+        )?;
+        if direction == CryptoCipherDirection::Decrypt && decrypt_tag.len() != expected_tag_length {
+            return Err(invalid_argument(
+                "parameters.tag",
+                format!("tag length must be {expected_tag_length} bytes"),
+            ));
+        }
+        if direction == CryptoCipherDirection::Encrypt && !decrypt_tag.is_empty() {
+            return Err(invalid_argument(
+                "parameters.tag",
+                "tag must be empty when encrypting",
+            ));
+        }
+    } else if !decrypt_tag.is_empty() {
+        return Err(invalid_argument(
+            "parameters.tag",
+            "tag is only valid for AEAD algorithms",
+        ));
+    }
+
+    Ok((nonce, additional_data, decrypt_tag))
 }
 
 /// Return one openssl cipher object for one cipher algorithm and key length.

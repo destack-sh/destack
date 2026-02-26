@@ -10,9 +10,10 @@ use zeroize::Zeroize;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
-    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoDigestAlgorithm, CryptoKeyAlgorithm,
-    CryptoKeyKind, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
-    CryptoStoreProvenance, CryptoStoreProvider, host as crypto_host,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherOutput, CryptoDigestAlgorithm,
+    CryptoKeyAlgorithm, CryptoKeyKind, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve,
+    CryptoStoreIdentity, CryptoStoreKind, CryptoStoreProvenance, CryptoStoreProvider,
+    host as crypto_host,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceEntry;
@@ -55,6 +56,10 @@ pub(crate) enum HostKeyBackend {
     WindowsPlatformKeyStorageRsa,
     /// Windows platform-provider-backed key-storage EC lane.
     WindowsPlatformKeyStorageEc,
+    /// Windows platform-provider-backed key-storage AES lane.
+    WindowsPlatformKeyStorageAes,
+    /// Windows platform-provider-backed key-storage HMAC lane.
+    WindowsPlatformKeyStorageHmac,
     /// Android software-backed host-managed key-storage RSA lane.
     AndroidSoftwareKeyStorageRsa,
     /// Android software-backed host-managed key-storage EC lane.
@@ -218,19 +223,50 @@ pub(crate) struct CryptoDigestResource {
 pub(crate) struct CryptoMacResource {
     /// Mac parameters.
     pub(crate) parameters: CryptoMacParameters,
-    /// HMAC ipad bytes.
-    pub(crate) inner_key: Vec<u8>,
-    /// HMAC opad bytes.
-    pub(crate) outer_key: Vec<u8>,
-    /// Streaming hasher state.
-    pub(crate) hasher: Hasher,
+    /// Streaming mac state.
+    pub(crate) state: CryptoMacState,
+}
+
+/// Streaming mac runtime state.
+pub(crate) enum CryptoMacState {
+    /// Software HMAC state.
+    Software {
+        /// HMAC ipad bytes.
+        inner_key: Vec<u8>,
+        /// HMAC opad bytes.
+        outer_key: Vec<u8>,
+        /// Streaming hasher state.
+        hasher: Hasher,
+    },
+    /// Host-managed secret-key mac state.
+    HostSecret {
+        /// Host key material.
+        material: HostKeyMaterial,
+        /// Host store lane.
+        store_kind: CryptoStoreKind,
+        /// Host key algorithm lane.
+        key_algorithm: CryptoKeyAlgorithm,
+        /// Buffered payload bytes.
+        payload: Vec<u8>,
+    },
 }
 
 impl Drop for CryptoMacResource {
     fn drop(&mut self) {
-        // wipe hmac ipad and opad material on drop
-        self.inner_key.zeroize();
-        self.outer_key.zeroize();
+        // wipe streaming state material on drop
+        match &mut self.state {
+            CryptoMacState::Software {
+                inner_key,
+                outer_key,
+                ..
+            } => {
+                inner_key.zeroize();
+                outer_key.zeroize();
+            }
+            CryptoMacState::HostSecret { payload, .. } => {
+                payload.zeroize();
+            }
+        }
     }
 }
 
@@ -240,18 +276,60 @@ pub(crate) struct CryptoCipherResource {
     pub(crate) algorithm: CryptoCipherAlgorithm,
     /// Direction lane.
     pub(crate) direction: CryptoCipherDirection,
-    /// Secret key bytes.
-    pub(crate) key: Vec<u8>,
     /// Active AEAD tag length.
     pub(crate) tag_length_bytes: u32,
-    /// Active crypter state.
-    pub(crate) crypter: Crypter,
+    /// Streaming cipher state.
+    pub(crate) state: CryptoCipherState,
+}
+
+/// Streaming cipher runtime state.
+pub(crate) enum CryptoCipherState {
+    /// Software symmetric-key cipher state.
+    Software {
+        /// Secret key bytes.
+        key: Vec<u8>,
+        /// Active crypter state.
+        crypter: Crypter,
+    },
+    /// Host-managed secret-key cipher state.
+    HostSecret {
+        /// Host key material.
+        material: HostKeyMaterial,
+        /// Host store lane.
+        store_kind: CryptoStoreKind,
+        /// Host key algorithm lane.
+        key_algorithm: CryptoKeyAlgorithm,
+        /// Cipher nonce bytes.
+        nonce: Vec<u8>,
+        /// Decrypt tag bytes provided at open or reset.
+        decrypt_tag: Vec<u8>,
+        /// Buffered additional-authenticated-data bytes.
+        additional_data: Vec<u8>,
+        /// Buffered payload bytes.
+        payload: Vec<u8>,
+    },
 }
 
 impl Drop for CryptoCipherResource {
     fn drop(&mut self) {
-        // wipe symmetric key material on drop
-        self.key.zeroize();
+        // wipe streaming state material on drop
+        match &mut self.state {
+            CryptoCipherState::Software { key, .. } => {
+                key.zeroize();
+            }
+            CryptoCipherState::HostSecret {
+                nonce,
+                decrypt_tag,
+                additional_data,
+                payload,
+                ..
+            } => {
+                nonce.zeroize();
+                decrypt_tag.zeroize();
+                additional_data.zeroize();
+                payload.zeroize();
+            }
+        }
     }
 }
 
@@ -363,6 +441,53 @@ pub(crate) fn decode_native_mut_bytes<'a>(
         ))
         .boxed()
     })
+}
+
+/// Write one value into one output pointer.
+pub(crate) unsafe fn write_out_value<T>(out: *mut T, value: T) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Write one byte-slice output into one output pointer.
+pub(crate) unsafe fn write_out_bytes(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    value: Vec<u8>,
+) -> RuntimeResult<()> {
+    unsafe { write_out_value(out, context.store_slice(value)) }
+}
+
+/// Build one cipher output payload from bytes and tag values.
+pub(crate) fn cipher_output(
+    context: &BindingCallContext,
+    bytes: Vec<u8>,
+    tag: Vec<u8>,
+) -> CryptoCipherOutput {
+    CryptoCipherOutput {
+        bytes: context.store_slice(bytes),
+        tag: context.store_slice(tag),
+    }
+}
+
+/// Decode one native byte slice argument.
+pub(crate) fn decode_bytes(bytes: NativeSlice<u8>, field: &str) -> RuntimeResult<Vec<u8>> {
+    decode_native_bytes(bytes, field)
+}
+
+/// Decode one native mutable byte slice argument.
+pub(crate) fn decode_mut_bytes<'a>(
+    bytes: NativeSlice<u8>,
+    field: &str,
+) -> RuntimeResult<&'a mut [u8]> {
+    decode_native_mut_bytes(bytes, field)
 }
 
 /// Resolve one key from one handle.
@@ -478,7 +603,7 @@ fn store_key_policy_support(
         && host_store_supports_key_persistence(store.kind)
         && crypto_host::host_store_persistence_backend_is_available(context, store.kind);
     let supports_hardware_backed =
-        is_available && host_store_supports_hardware_backed_key(context, store.kind);
+        supports_persistent && host_store_supports_hardware_backed_key(context, store.kind);
 
     StoreKeyPolicySupport {
         supports_key_writes: supports_persistent,
@@ -488,7 +613,7 @@ fn store_key_policy_support(
 }
 
 /// Return whether one host-lane store supports persistent key writes.
-pub(super) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
+pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
     crypto_host::host_store_supports_key_persistence(kind)
 }
 
@@ -498,6 +623,15 @@ pub(super) fn host_store_supports_hardware_backed_key(
     kind: CryptoStoreKind,
 ) -> bool {
     crypto_host::host_store_supports_hardware_backed_key(context, kind)
+}
+
+/// Return whether one host-lane store supports one hardware-backed pair algorithm.
+pub(super) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    crypto_host::host_store_supports_hardware_backed_pair_algorithm(context, kind, algorithm)
 }
 
 /// Return whether one host-lane store supports certificate write operations.
@@ -593,9 +727,11 @@ pub(super) fn store_provenance_to_descriptor(
     store_provenance: &CryptoStoreProvenanceResource,
 ) -> CryptoStoreProvenance {
     CryptoStoreProvenance {
-        kind: store_provenance.kind,
-        provider: store_provenance.provider,
-        namespace: context.store_string(&store_provenance.namespace),
+        identity: CryptoStoreIdentity {
+            kind: store_provenance.kind,
+            provider: store_provenance.provider,
+            namespace: context.store_string(&store_provenance.namespace),
+        },
     }
 }
 

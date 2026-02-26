@@ -1,32 +1,39 @@
 use std::sync::Arc;
 
-use openssl::bn::BigNum;
-use openssl::ec::{EcGroup, EcKey};
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use openssl::bn::{BigNum, BigNumContext};
+use openssl::ec::{EcGroup, EcKey, EcPoint};
 use openssl::encrypt::{Decrypter, Encrypter};
 use openssl::nid::Nid;
 use openssl::pkey::{Id as PKeyId, PKey, Private, Public};
 use openssl::rand::rand_bytes;
 use openssl::rsa::{Padding, Rsa};
 use openssl::sign::{RsaPssSaltlen, Signer, Verifier};
+use openssl::symm::{Cipher, Crypter, Mode};
 use parking_lot::Mutex;
+use serde::Deserialize;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
-    CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm,
-    CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyImportRequest,
-    CryptoKeyKind, CryptoKeyPair, CryptoKeyUsageMask, CryptoNamedCurve, CryptoSignatureAlgorithm,
+    CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
+    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyFormat,
+    CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyKind, CryptoKeyPair,
+    CryptoKeyResidency, CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters,
+    CryptoNamedCurve, CryptoPrivateKeyExportRequest, CryptoSignatureAlgorithm,
     CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, HostKeyMaterial,
-    KEY_USAGE_DECRYPT, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT,
-    KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP,
-    attach_key_to_store, create_persistent_identifier, decode_native_bytes, decode_native_string,
-    enforce_store_key_policy, handle_not_found, insert_key_resource, invalid_argument,
+    CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, CryptoStoreProvenanceResource,
+    HostKeyMaterial, KEY_USAGE_DECRYPT, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS,
+    KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY,
+    KEY_USAGE_WRAP, attach_key_to_store, create_persistent_identifier, decode_native_bytes,
+    decode_native_string, enforce_store_key_policy, handle_not_found,
+    host_store_supports_hardware_backed_pair_algorithm, insert_key_resource, invalid_argument,
     invalid_data, message_digest, openssl_error, permission_denied, resolve_key_resource,
     resolve_store_resource, store_provenance_from_store, store_provenance_to_descriptor,
 };
@@ -48,6 +55,497 @@ struct SoftwareKeyPair {
     public_exponent: u32,
     /// Effective key size in bits.
     size_bits: u32,
+}
+
+/// Parsed JSON Web Key payload.
+#[derive(Deserialize)]
+struct JsonWebKey {
+    /// JWK key-type discriminator.
+    kty: Option<String>,
+    /// Curve selector for EC and OKP keys.
+    crv: Option<String>,
+    /// Public x-coordinate for EC and OKP keys.
+    x: Option<String>,
+    /// Public y-coordinate for EC keys.
+    y: Option<String>,
+    /// Private key scalar for EC and OKP keys.
+    d: Option<String>,
+    /// RSA modulus.
+    n: Option<String>,
+    /// RSA public exponent.
+    e: Option<String>,
+    /// RSA prime factor p.
+    p: Option<String>,
+    /// RSA prime factor q.
+    q: Option<String>,
+    /// RSA CRT exponent d mod (p-1).
+    dp: Option<String>,
+    /// RSA CRT exponent d mod (q-1).
+    dq: Option<String>,
+    /// RSA CRT coefficient q^-1 mod p.
+    qi: Option<String>,
+    /// Symmetric key material.
+    k: Option<String>,
+    /// JWK extractability flag.
+    ext: Option<bool>,
+}
+
+/// Return one required JWK string field.
+fn decode_jwk_required_string<'a>(
+    value: &'a Option<String>,
+    field: &'static str,
+    operation: &'static str,
+) -> RuntimeResult<&'a str> {
+    // require a present and non-empty string value
+    let Some(value) = value.as_deref() else {
+        return Err(invalid_data(
+            operation,
+            format!("jwk field {field} must be present"),
+        ));
+    };
+    if value.is_empty() {
+        return Err(invalid_data(
+            operation,
+            format!("jwk field {field} must be non-empty"),
+        ));
+    }
+
+    Ok(value)
+}
+
+/// Decode one JWK base64url field into bytes.
+fn decode_jwk_base64url_bytes(
+    encoded: &str,
+    field: &'static str,
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // strip optional trailing padding and decode base64url payload
+    let encoded = encoded.trim_end_matches('=');
+    URL_SAFE_NO_PAD.decode(encoded).map_err(|error| {
+        invalid_data(
+            operation,
+            format!("jwk field {field} is not valid base64url: {error}"),
+        )
+    })
+}
+
+/// Decode one JWK base64url field into one OpenSSL big number.
+fn decode_jwk_base64url_bignum(
+    encoded: &str,
+    field: &'static str,
+    operation: &'static str,
+) -> RuntimeResult<BigNum> {
+    // decode raw bytes and then construct one big number
+    let bytes = decode_jwk_base64url_bytes(encoded, field, operation)?;
+    if bytes.is_empty() {
+        return Err(invalid_data(
+            operation,
+            format!("jwk field {field} must be non-empty"),
+        ));
+    }
+
+    BigNum::from_slice(&bytes).map_err(|error| openssl_error(operation, error))
+}
+
+/// Return one EC named curve from one JWK curve label.
+fn jwk_ec_named_curve(curve: &str, operation: &'static str) -> RuntimeResult<CryptoNamedCurve> {
+    let named_curve = match curve {
+        "P-256" => CryptoNamedCurve::P256,
+        "P-384" => CryptoNamedCurve::P384,
+        "P-521" => CryptoNamedCurve::P521,
+        "secp256k1" => CryptoNamedCurve::Secp256k1,
+        _ => {
+            return Err(invalid_data(
+                operation,
+                format!("unsupported jwk ec curve {curve}"),
+            ));
+        }
+    };
+
+    Ok(named_curve)
+}
+
+/// Return one OKP lane from one JWK curve label.
+fn jwk_okp_curve_metadata(
+    curve: &str,
+    operation: &'static str,
+) -> RuntimeResult<(CryptoKeyAlgorithm, CryptoNamedCurve, PKeyId)> {
+    let metadata = match curve {
+        "Ed25519" => (
+            CryptoKeyAlgorithm::Ed25519,
+            CryptoNamedCurve::Ed25519,
+            PKeyId::ED25519,
+        ),
+        "Ed448" => (
+            CryptoKeyAlgorithm::Ed448,
+            CryptoNamedCurve::Ed448,
+            PKeyId::ED448,
+        ),
+        "X25519" => (
+            CryptoKeyAlgorithm::X25519,
+            CryptoNamedCurve::X25519,
+            PKeyId::X25519,
+        ),
+        "X448" => (
+            CryptoKeyAlgorithm::X448,
+            CryptoNamedCurve::X448,
+            PKeyId::X448,
+        ),
+        _ => {
+            return Err(invalid_data(
+                operation,
+                format!("unsupported jwk okp curve {curve}"),
+            ));
+        }
+    };
+
+    Ok(metadata)
+}
+
+/// Decode one optional RSA exponent into one u32 lane.
+fn jwk_public_exponent_u32(public_exponent: &BigNum) -> u32 {
+    // map large exponents to zero because descriptor fields are u32-sized
+    let bytes = public_exponent.to_vec();
+    if bytes.is_empty() || bytes.len() > 4 {
+        return 0;
+    }
+
+    // decode one big-endian u32 exponent
+    let mut exponent = 0u32;
+    for byte in bytes {
+        exponent = (exponent << 8) | u32::from(byte);
+    }
+
+    exponent
+}
+
+/// Parse one JWK payload into one key resource.
+fn import_jwk_key_resource(
+    request: &CryptoKeyImportRequest,
+    bytes: &[u8],
+    label: String,
+    persistent_id: String,
+    store_provenance: CryptoStoreProvenanceResource,
+    operation: &'static str,
+) -> RuntimeResult<CryptoKeyResource> {
+    // parse JWK JSON and enforce extractability constraints when declared
+    let jwk: JsonWebKey = serde_json::from_slice(bytes).map_err(|error| {
+        invalid_data(
+            operation,
+            format!("failed to parse jwk json payload: {error}"),
+        )
+    })?;
+    if jwk.ext == Some(false) && request.extractable {
+        return Err(invalid_argument(
+            "request.extractable",
+            "jwk field ext=false conflicts with extractable=true",
+        ));
+    }
+
+    // resolve key type discriminator before algorithm-specific decoding
+    let key_type = decode_jwk_required_string(&jwk.kty, "kty", operation)?;
+
+    // parse one symmetric oct key
+    if key_type == "oct" {
+        if !is_secret_key_algorithm(request.algorithm) {
+            return Err(invalid_argument(
+                "request.algorithm",
+                "jwk oct keys require one secret-key algorithm",
+            ));
+        }
+
+        let encoded_key = decode_jwk_required_string(&jwk.k, "k", operation)?;
+        let secret_key = decode_jwk_base64url_bytes(encoded_key, "k", operation)?;
+        if secret_key.is_empty() {
+            return Err(invalid_data(
+                operation,
+                "jwk oct key bytes must be non-empty",
+            ));
+        }
+
+        return Ok(CryptoKeyResource {
+            kind: CryptoKeyKind::Secret,
+            algorithm: request.algorithm,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: request.digest,
+            size_bits: (secret_key.len() as u32) * 8,
+            usage_mask: request.usage_mask,
+            label,
+            extractable: request.extractable,
+            hardware_backed: false,
+            persistent: request.persistent,
+            persistent_id,
+            store_provenance,
+            material: CryptoKeyMaterial::Secret(secret_key),
+        });
+    }
+
+    // parse one RSA JWK public or private key
+    if key_type == "RSA" {
+        let modulus = decode_jwk_base64url_bignum(
+            decode_jwk_required_string(&jwk.n, "n", operation)?,
+            "n",
+            operation,
+        )?;
+        let exponent = decode_jwk_base64url_bignum(
+            decode_jwk_required_string(&jwk.e, "e", operation)?,
+            "e",
+            operation,
+        )?;
+        let public_exponent = jwk_public_exponent_u32(&exponent);
+        let modulus_bits = modulus.num_bits() as u32;
+
+        // decode one private key when d is present
+        if jwk.d.is_some() {
+            let private_exponent = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.d, "d", operation)?,
+                "d",
+                operation,
+            )?;
+            let prime_p = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.p, "p", operation)?,
+                "p",
+                operation,
+            )?;
+            let prime_q = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.q, "q", operation)?,
+                "q",
+                operation,
+            )?;
+            let exponent_p = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.dp, "dp", operation)?,
+                "dp",
+                operation,
+            )?;
+            let exponent_q = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.dq, "dq", operation)?,
+                "dq",
+                operation,
+            )?;
+            let coefficient_q = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.qi, "qi", operation)?,
+                "qi",
+                operation,
+            )?;
+            let private_key = Rsa::from_private_components(
+                modulus,
+                exponent,
+                private_exponent,
+                prime_p,
+                prime_q,
+                exponent_p,
+                exponent_q,
+                coefficient_q,
+            )
+            .map_err(|error| openssl_error(operation, error))?;
+            let private_key =
+                PKey::from_rsa(private_key).map_err(|error| openssl_error(operation, error))?;
+
+            return Ok(CryptoKeyResource {
+                kind: CryptoKeyKind::Private,
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits,
+                public_exponent,
+                digest: request.digest,
+                size_bits: private_key.bits(),
+                usage_mask: request.usage_mask,
+                label,
+                extractable: request.extractable,
+                hardware_backed: false,
+                persistent: request.persistent,
+                persistent_id,
+                store_provenance,
+                material: CryptoKeyMaterial::Private(private_key),
+            });
+        }
+
+        // otherwise decode one RSA public key
+        let public_key = Rsa::from_public_components(modulus, exponent)
+            .map_err(|error| openssl_error(operation, error))?;
+        let public_key =
+            PKey::from_rsa(public_key).map_err(|error| openssl_error(operation, error))?;
+
+        return Ok(CryptoKeyResource {
+            kind: CryptoKeyKind::Public,
+            algorithm: CryptoKeyAlgorithm::Rsa,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits,
+            public_exponent,
+            digest: request.digest,
+            size_bits: public_key.bits(),
+            usage_mask: request.usage_mask,
+            label,
+            extractable: true,
+            hardware_backed: false,
+            persistent: request.persistent,
+            persistent_id,
+            store_provenance,
+            material: CryptoKeyMaterial::Public(public_key),
+        });
+    }
+
+    // parse one EC JWK public or private key
+    if key_type == "EC" {
+        let curve_label = decode_jwk_required_string(&jwk.crv, "crv", operation)?;
+        let named_curve = jwk_ec_named_curve(curve_label, operation)?;
+        let group = EcGroup::from_curve_name(nid_from_named_curve(named_curve)?)
+            .map_err(|error| openssl_error(operation, error))?;
+        let x = decode_jwk_base64url_bignum(
+            decode_jwk_required_string(&jwk.x, "x", operation)?,
+            "x",
+            operation,
+        )?;
+        let y = decode_jwk_base64url_bignum(
+            decode_jwk_required_string(&jwk.y, "y", operation)?,
+            "y",
+            operation,
+        )?;
+        let mut context = BigNumContext::new().map_err(|error| openssl_error(operation, error))?;
+        let mut public_point =
+            EcPoint::new(&group).map_err(|error| openssl_error(operation, error))?;
+        public_point
+            .set_affine_coordinates_gfp(&group, &x, &y, &mut context)
+            .map_err(|error| openssl_error(operation, error))?;
+
+        // decode one private EC key when d is present
+        if jwk.d.is_some() {
+            let private_scalar = decode_jwk_base64url_bignum(
+                decode_jwk_required_string(&jwk.d, "d", operation)?,
+                "d",
+                operation,
+            )?;
+            let private_key =
+                EcKey::from_private_components(&group, &private_scalar, &public_point)
+                    .map_err(|error| openssl_error(operation, error))?;
+            let private_key =
+                PKey::from_ec_key(private_key).map_err(|error| openssl_error(operation, error))?;
+
+            return Ok(CryptoKeyResource {
+                kind: CryptoKeyKind::Private,
+                algorithm: CryptoKeyAlgorithm::Ec,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: request.digest,
+                size_bits: private_key.bits(),
+                usage_mask: request.usage_mask,
+                label,
+                extractable: request.extractable,
+                hardware_backed: false,
+                persistent: request.persistent,
+                persistent_id,
+                store_provenance,
+                material: CryptoKeyMaterial::Private(private_key),
+            });
+        }
+
+        // otherwise decode one EC public key
+        let public_key = EcKey::from_public_key(&group, &public_point)
+            .map_err(|error| openssl_error(operation, error))?;
+        let public_key =
+            PKey::from_ec_key(public_key).map_err(|error| openssl_error(operation, error))?;
+
+        return Ok(CryptoKeyResource {
+            kind: CryptoKeyKind::Public,
+            algorithm: CryptoKeyAlgorithm::Ec,
+            named_curve,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: request.digest,
+            size_bits: public_key.bits(),
+            usage_mask: request.usage_mask,
+            label,
+            extractable: true,
+            hardware_backed: false,
+            persistent: request.persistent,
+            persistent_id,
+            store_provenance,
+            material: CryptoKeyMaterial::Public(public_key),
+        });
+    }
+
+    // parse one OKP JWK public or private key
+    if key_type == "OKP" {
+        let curve_label = decode_jwk_required_string(&jwk.crv, "crv", operation)?;
+        let (algorithm, named_curve, openssl_key_id) =
+            jwk_okp_curve_metadata(curve_label, operation)?;
+
+        // decode one private key when d is present and optionally validate x
+        if jwk.d.is_some() {
+            let private_bytes = decode_jwk_base64url_bytes(
+                decode_jwk_required_string(&jwk.d, "d", operation)?,
+                "d",
+                operation,
+            )?;
+            let private_key = PKey::private_key_from_raw_bytes(&private_bytes, openssl_key_id)
+                .map_err(|error| openssl_error(operation, error))?;
+            if let Some(public_component) = jwk.x.as_deref() {
+                let expected_public = decode_jwk_base64url_bytes(public_component, "x", operation)?;
+                let actual_public = private_key
+                    .raw_public_key()
+                    .map_err(|error| openssl_error(operation, error))?;
+                if expected_public != actual_public {
+                    return Err(invalid_data(
+                        operation,
+                        "jwk okp public key component does not match private key component",
+                    ));
+                }
+            }
+
+            return Ok(CryptoKeyResource {
+                kind: CryptoKeyKind::Private,
+                algorithm,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: request.digest,
+                size_bits: private_key.bits(),
+                usage_mask: request.usage_mask,
+                label,
+                extractable: request.extractable,
+                hardware_backed: false,
+                persistent: request.persistent,
+                persistent_id,
+                store_provenance,
+                material: CryptoKeyMaterial::Private(private_key),
+            });
+        }
+
+        // otherwise decode one OKP public key
+        let public_bytes = decode_jwk_base64url_bytes(
+            decode_jwk_required_string(&jwk.x, "x", operation)?,
+            "x",
+            operation,
+        )?;
+        let public_key = PKey::public_key_from_raw_bytes(&public_bytes, openssl_key_id)
+            .map_err(|error| openssl_error(operation, error))?;
+
+        return Ok(CryptoKeyResource {
+            kind: CryptoKeyKind::Public,
+            algorithm,
+            named_curve,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: request.digest,
+            size_bits: public_key.bits(),
+            usage_mask: request.usage_mask,
+            label,
+            extractable: true,
+            hardware_backed: false,
+            persistent: request.persistent,
+            persistent_id,
+            store_provenance,
+            material: CryptoKeyMaterial::Public(public_key),
+        });
+    }
+
+    Err(invalid_data(
+        operation,
+        format!("unsupported jwk key type {key_type}"),
+    ))
 }
 
 /// Insert one key resource, attach it to one store, and persist it when required.
@@ -160,6 +658,18 @@ pub(crate) fn key_generate_secret(
 
     // route hardware-backed secret-key generation through host backends
     if request.hardware_backed {
+        // require one backend lane that explicitly supports hardware-backed secret keys
+        if !crypto_host::host_store_supports_hardware_backed_secret_key(
+            context,
+            store_provenance.kind,
+            request.algorithm,
+        ) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generateSecret",
+            ))
+            .boxed());
+        }
+
         // current hardware-backed secret-key lanes require persistence
         if !request.persistent {
             return Err(RuntimeError::from(PlatformError::not_supported(
@@ -179,6 +689,7 @@ pub(crate) fn key_generate_secret(
         // enforce algorithm and usage-mask constraints for current host lanes
         enforce_hardware_backed_secret_generation(
             request.algorithm,
+            request.digest,
             request.usage_mask,
             "destack.crypto.key.generateSecret",
         )?;
@@ -317,6 +828,18 @@ pub(crate) fn key_generate_pair(
         size_bits,
         public_hardware_backed,
     ) = if request.hardware_backed {
+        // require one backend lane that explicitly supports this hardware-backed pair family
+        if !host_store_supports_hardware_backed_pair_algorithm(
+            context,
+            store_provenance.kind,
+            request.algorithm,
+        ) {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generatePair",
+            ))
+            .boxed());
+        }
+
         if !request.persistent {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.crypto.key.generatePair",
@@ -647,6 +1170,7 @@ fn enforce_hardware_backed_pair_usage(
 /// Enforce secret-key generation lanes supported by current hardware-backed backends.
 fn enforce_hardware_backed_secret_generation(
     algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
     usage_mask: CryptoKeyUsageMask,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -668,6 +1192,11 @@ fn enforce_hardware_backed_secret_generation(
 
     // hmac hardware lanes currently support sign and verify only
     if algorithm == CryptoKeyAlgorithm::Hmac {
+        // windows host HMAC lanes are currently SHA-256 only
+        if digest != CryptoDigestAlgorithm::Unknown && digest != CryptoDigestAlgorithm::Sha256 {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+        }
+
         let unsupported_usage_mask = KEY_USAGE_ENCRYPT
             | KEY_USAGE_DECRYPT
             | KEY_USAGE_WRAP
@@ -707,6 +1236,7 @@ fn key_import_with_bytes(
     // decode stable operation context
     let operation = "destack.crypto.key.import";
     let label = decode_native_string(request.label, "request.label")?;
+    let passphrase = decode_native_bytes(request.passphrase, "request.passphrase")?;
     let mut bytes = Zeroizing::new(bytes);
     let store_resource = resolve_store_resource(context, store, operation)?;
     let store_provenance = {
@@ -839,6 +1369,84 @@ fn key_import_with_bytes(
                 material: CryptoKeyMaterial::Private(private_key),
             }
         }
+        CryptoKeyFormat::Pkcs8EncryptedPem => {
+            if passphrase.is_empty() {
+                return Err(invalid_argument(
+                    "request.passphrase",
+                    "encrypted pkcs8 import requires one non-empty passphrase",
+                ));
+            }
+
+            let private_key = PKey::private_key_from_pem_passphrase(&bytes, &passphrase)
+                .map_err(|error| openssl_error(operation, error))?;
+            let algorithm = key_algorithm_from_private_key(&private_key);
+            let named_curve = if algorithm == CryptoKeyAlgorithm::Ec {
+                let ec_key = private_key
+                    .ec_key()
+                    .map_err(|error| openssl_error(operation, error))?;
+                named_curve_from_ec_key(&ec_key)
+            } else {
+                named_curve_from_algorithm(algorithm)
+            };
+            enforce_import_algorithm_match(algorithm, request.algorithm, operation)?;
+            enforce_import_named_curve_match(named_curve, request.named_curve)?;
+            CryptoKeyResource {
+                kind: CryptoKeyKind::Private,
+                algorithm,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: request.digest,
+                size_bits: private_key.bits(),
+                usage_mask: request.usage_mask,
+                label,
+                extractable: request.extractable,
+                hardware_backed: false,
+                persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
+                material: CryptoKeyMaterial::Private(private_key),
+            }
+        }
+        CryptoKeyFormat::Pkcs8EncryptedDer => {
+            if passphrase.is_empty() {
+                return Err(invalid_argument(
+                    "request.passphrase",
+                    "encrypted pkcs8 import requires one non-empty passphrase",
+                ));
+            }
+
+            let private_key = PKey::private_key_from_pkcs8_passphrase(&bytes, &passphrase)
+                .map_err(|error| openssl_error(operation, error))?;
+            let algorithm = key_algorithm_from_private_key(&private_key);
+            let named_curve = if algorithm == CryptoKeyAlgorithm::Ec {
+                let ec_key = private_key
+                    .ec_key()
+                    .map_err(|error| openssl_error(operation, error))?;
+                named_curve_from_ec_key(&ec_key)
+            } else {
+                named_curve_from_algorithm(algorithm)
+            };
+            enforce_import_algorithm_match(algorithm, request.algorithm, operation)?;
+            enforce_import_named_curve_match(named_curve, request.named_curve)?;
+            CryptoKeyResource {
+                kind: CryptoKeyKind::Private,
+                algorithm,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: request.digest,
+                size_bits: private_key.bits(),
+                usage_mask: request.usage_mask,
+                label,
+                extractable: request.extractable,
+                hardware_backed: false,
+                persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
+                material: CryptoKeyMaterial::Private(private_key),
+            }
+        }
         CryptoKeyFormat::Sec1Pem | CryptoKeyFormat::Sec1Der => {
             let private_key = import_sec1_private_key(&bytes, request.format)?;
             let ec_key = private_key
@@ -929,7 +1537,21 @@ fn key_import_with_bytes(
                 material: CryptoKeyMaterial::Public(public_key),
             }
         }
-        CryptoKeyFormat::Jwk | CryptoKeyFormat::Unknown | CryptoKeyFormat::Raw => {
+        CryptoKeyFormat::Jwk => {
+            let key_resource = import_jwk_key_resource(
+                &request,
+                &bytes,
+                label,
+                persistent_id.clone(),
+                store_provenance.clone(),
+                operation,
+            )?;
+            enforce_import_algorithm_match(key_resource.algorithm, request.algorithm, operation)?;
+            enforce_import_named_curve_match(key_resource.named_curve, request.named_curve)?;
+
+            key_resource
+        }
+        CryptoKeyFormat::Unknown | CryptoKeyFormat::Raw => {
             return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
         }
     };
@@ -997,6 +1619,7 @@ pub(crate) fn key_export_public(
             context,
             &key_resource,
             format,
+            None,
             "destack.crypto.key.exportPublic",
         ),
         CryptoKeyKind::Secret => Err(invalid_argument(
@@ -1010,7 +1633,7 @@ pub(crate) fn key_export_public(
 pub(crate) fn key_export_private(
     context: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
-    format: CryptoKeyFormat,
+    request: CryptoPrivateKeyExportRequest,
 ) -> RuntimeResult<Vec<u8>> {
     // enforce export usage policy
     require_key_usage(
@@ -1049,10 +1672,25 @@ pub(crate) fn key_export_private(
         ));
     }
 
+    let passphrase = decode_native_bytes(request.passphrase, "request.passphrase")?;
+    if is_encrypted_pkcs8_format(request.format) && passphrase.is_empty() {
+        return Err(invalid_argument(
+            "request.passphrase",
+            "encrypted pkcs8 export requires one non-empty passphrase",
+        ));
+    }
+    if !is_encrypted_pkcs8_format(request.format) && !passphrase.is_empty() {
+        return Err(invalid_argument(
+            "request.passphrase",
+            "passphrase is only valid for encrypted pkcs8 export",
+        ));
+    }
+
     export_key_resource(
         context,
         &key_resource,
-        format,
+        request.format,
+        Some(&passphrase),
         "destack.crypto.key.exportPrivate",
     )
 }
@@ -1102,6 +1740,7 @@ pub(crate) fn key_export_secret(
             context,
             &key_resource,
             format,
+            None,
             "destack.crypto.key.exportSecret",
         ),
         _ => Err(invalid_argument(
@@ -1328,22 +1967,217 @@ pub(crate) fn key_decrypt(
     )
 }
 
+/// Return whether this key format uses encrypted PKCS#8 encoding.
+fn is_encrypted_pkcs8_format(format: CryptoKeyFormat) -> bool {
+    matches!(
+        format,
+        CryptoKeyFormat::Pkcs8EncryptedPem | CryptoKeyFormat::Pkcs8EncryptedDer
+    )
+}
+
+/// Convert key-wrap parameters into asymmetric encryption parameters.
+fn key_wrap_parameters_to_asymmetric(
+    parameters: CryptoKeyWrapParameters,
+) -> RuntimeResult<CryptoAsymmetricEncryptionParameters> {
+    // map rsa oaep wrap onto asymmetric encryption parameters
+    if parameters.algorithm == CryptoKeyWrapAlgorithm::RsaOaep {
+        return Ok(CryptoAsymmetricEncryptionParameters {
+            algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            digest: parameters.digest,
+            label: parameters.label,
+        });
+    }
+
+    // reject non-rsa key-wrap algorithm lanes
+    Err(invalid_argument(
+        "parameters.algorithm",
+        "rsa oaep parameters require one rsa-oaep key-wrap algorithm",
+    ))
+}
+
+/// Return one AES key-wrap cipher for one wrap algorithm and wrapping-key size.
+fn aes_key_wrap_cipher(
+    algorithm: CryptoKeyWrapAlgorithm,
+    wrapping_key_bytes: usize,
+    operation: &'static str,
+) -> RuntimeResult<Cipher> {
+    let cipher_nid = match (algorithm, wrapping_key_bytes) {
+        (CryptoKeyWrapAlgorithm::AesKw, 16) => Nid::ID_AES128_WRAP,
+        (CryptoKeyWrapAlgorithm::AesKw, 24) => Nid::ID_AES192_WRAP,
+        (CryptoKeyWrapAlgorithm::AesKw, 32) => Nid::ID_AES256_WRAP,
+        (CryptoKeyWrapAlgorithm::AesKwp, 16) => Nid::ID_AES128_WRAP_PAD,
+        (CryptoKeyWrapAlgorithm::AesKwp, 24) => Nid::ID_AES192_WRAP_PAD,
+        (CryptoKeyWrapAlgorithm::AesKwp, 32) => Nid::ID_AES256_WRAP_PAD,
+        (CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp, _) => {
+            return Err(invalid_argument(
+                "wrappingKey",
+                "aes key-wrap requires one 128-bit, 192-bit, or 256-bit wrapping key",
+            ));
+        }
+        _ => {
+            return Err(invalid_argument(
+                "parameters.algorithm",
+                "aes key-wrap requires one aes key-wrap algorithm",
+            ));
+        }
+    };
+
+    Cipher::from_nid(cipher_nid)
+        .ok_or_else(|| RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Enforce AES key-wrap parameter shape.
+fn validate_aes_key_wrap_parameters(parameters: CryptoKeyWrapParameters) -> RuntimeResult<()> {
+    // aes wrap algorithms do not consume digest selectors
+    if parameters.digest != CryptoDigestAlgorithm::Unknown {
+        return Err(invalid_argument(
+            "parameters.digest",
+            "digest must be Unknown for aes key-wrap algorithms",
+        ));
+    }
+
+    // aes wrap algorithms do not consume label payloads
+    if parameters.label.len != 0 {
+        return Err(invalid_argument(
+            "parameters.label",
+            "label must be empty for aes key-wrap algorithms",
+        ));
+    }
+
+    // enforce expected algorithm lane
+    if !matches!(
+        parameters.algorithm,
+        CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp
+    ) {
+        return Err(invalid_argument(
+            "parameters.algorithm",
+            "aes key-wrap requires one aes key-wrap algorithm",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Resolve one AES wrapping key as raw bytes.
+fn resolve_aes_wrapping_key_bytes(
+    context: &BindingCallContext,
+    wrapping_key: resource::CryptoKeyHandle,
+    required_usage: u32,
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // enforce usage requirement first
+    require_key_usage(context, wrapping_key, required_usage, operation)?;
+
+    // reject host-managed secret lanes for AES key-wrap until host backends expose this primitive
+    if resolve_host_secret_key_material(context, wrapping_key, operation)?.is_some() {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    // resolve key metadata and enforce AES secret-key shape
+    let key_resource = resolve_key_resource(context, wrapping_key, operation)?;
+    let key_resource = key_resource.lock();
+    if key_resource.kind != CryptoKeyKind::Secret {
+        return Err(invalid_argument(
+            "wrappingKey",
+            "wrapping key must reference one secret key",
+        ));
+    }
+    if key_resource.algorithm != CryptoKeyAlgorithm::Aes {
+        return Err(invalid_argument(
+            "wrappingKey",
+            "wrapping key algorithm must be Aes for aes key-wrap",
+        ));
+    }
+
+    match &key_resource.material {
+        CryptoKeyMaterial::Secret(bytes) => Ok(bytes.clone()),
+        _ => Err(invalid_argument(
+            "wrappingKey",
+            "wrapping key must reference one software secret key",
+        )),
+    }
+}
+
+/// Wrap one payload with AES-KW or AES-KWP.
+fn aes_key_wrap_payload(
+    wrapping_key: &[u8],
+    payload: &[u8],
+    parameters: CryptoKeyWrapParameters,
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // validate algorithm-specific parameter lanes
+    validate_aes_key_wrap_parameters(parameters)?;
+
+    // aes-kw requires one minimum 16-byte payload aligned to 8-byte lanes
+    if parameters.algorithm == CryptoKeyWrapAlgorithm::AesKw
+        && (payload.len() < 16 || !payload.len().is_multiple_of(8))
+    {
+        return Err(invalid_argument(
+            "keyToWrap",
+            "aes-kw requires one payload length that is at least 16 bytes and divisible by 8",
+        ));
+    }
+
+    // resolve one cipher and run one two-pass encrypt flow
+    let cipher = aes_key_wrap_cipher(parameters.algorithm, wrapping_key.len(), operation)?;
+    let mut crypter = Crypter::new(cipher, Mode::Encrypt, wrapping_key, None)
+        .map_err(|error| openssl_error(operation, error))?;
+    let mut output = vec![0u8; payload.len() + cipher.block_size() + 16];
+    let mut written = crypter
+        .update(payload, &mut output)
+        .map_err(|error| openssl_error(operation, error))?;
+    written += crypter
+        .finalize(&mut output[written..])
+        .map_err(|error| openssl_error(operation, error))?;
+    output.truncate(written);
+
+    Ok(output)
+}
+
+/// Unwrap one payload with AES-KW or AES-KWP.
+fn aes_key_unwrap_payload(
+    wrapping_key: &[u8],
+    payload: &[u8],
+    parameters: CryptoKeyWrapParameters,
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // validate algorithm-specific parameter lanes
+    validate_aes_key_wrap_parameters(parameters)?;
+
+    // aes-kw wrapped payloads are at least 24 bytes and always 8-byte aligned
+    if parameters.algorithm == CryptoKeyWrapAlgorithm::AesKw
+        && (payload.len() < 24 || !payload.len().is_multiple_of(8))
+    {
+        return Err(invalid_argument(
+            "wrappedKey",
+            "aes-kw wrapped payload must be at least 24 bytes and divisible by 8",
+        ));
+    }
+
+    // resolve one cipher and run one two-pass decrypt flow
+    let cipher = aes_key_wrap_cipher(parameters.algorithm, wrapping_key.len(), operation)?;
+    let mut crypter = Crypter::new(cipher, Mode::Decrypt, wrapping_key, None)
+        .map_err(|error| openssl_error(operation, error))?;
+    let mut output = vec![0u8; payload.len() + cipher.block_size()];
+    let mut written = crypter
+        .update(payload, &mut output)
+        .map_err(|error| openssl_error(operation, error))?;
+    written += crypter
+        .finalize(&mut output[written..])
+        .map_err(|error| openssl_error(operation, error))?;
+    output.truncate(written);
+
+    Ok(output)
+}
+
 /// Wrap one key by exporting and encrypting it.
 pub(crate) fn key_wrap(
     context: &BindingCallContext,
     wrapping_key: resource::CryptoKeyHandle,
     key_to_wrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
 ) -> RuntimeResult<Vec<u8>> {
-    // enforce wrap usage policy on wrapping key
-    require_key_usage(
-        context,
-        wrapping_key,
-        KEY_USAGE_WRAP,
-        "destack.crypto.key.wrap",
-    )?;
-
     // export target key material under export and extractability policy
     let wrapped = {
         let key_resource = resolve_key_resource(context, key_to_wrap, "destack.crypto.key.wrap")?;
@@ -1356,22 +2190,51 @@ pub(crate) fn key_wrap(
             ));
         }
 
-        export_key_resource(context, &key_resource, format, "destack.crypto.key.wrap")?
+        export_key_resource(
+            context,
+            &key_resource,
+            format,
+            None,
+            "destack.crypto.key.wrap",
+        )?
     };
 
-    // encrypt exported key bytes and wipe plaintext export buffer
-    let wrapped_result = key_encrypt_internal(
-        context,
-        wrapping_key,
-        parameters,
-        &wrapped,
-        KEY_USAGE_WRAP,
-        "destack.crypto.key.wrap",
-    );
-    let mut wrapped = wrapped;
-    wrapped.zeroize();
+    // keep exported payload zeroized while processing wrap operation
+    let wrapped = Zeroizing::new(wrapped);
 
-    wrapped_result
+    // route wrap behavior by key-wrap algorithm lane
+    match parameters.algorithm {
+        CryptoKeyWrapAlgorithm::RsaOaep => {
+            let parameters = key_wrap_parameters_to_asymmetric(parameters)?;
+            key_encrypt_internal(
+                context,
+                wrapping_key,
+                parameters,
+                &wrapped,
+                KEY_USAGE_WRAP,
+                "destack.crypto.key.wrap",
+            )
+        }
+        CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
+            let wrapping_key_bytes = resolve_aes_wrapping_key_bytes(
+                context,
+                wrapping_key,
+                KEY_USAGE_WRAP,
+                "destack.crypto.key.wrap",
+            )?;
+            let wrapping_key_bytes = Zeroizing::new(wrapping_key_bytes);
+            aes_key_wrap_payload(
+                &wrapping_key_bytes,
+                &wrapped,
+                parameters,
+                "destack.crypto.key.wrap",
+            )
+        }
+        CryptoKeyWrapAlgorithm::Unknown => Err(invalid_argument(
+            "parameters.algorithm",
+            "key-wrap algorithm must not be Unknown",
+        )),
+    }
 }
 
 /// Unwrap one key by decrypting and importing it.
@@ -1380,18 +2243,44 @@ pub(crate) fn key_unwrap(
     store: resource::CryptoStoreHandle,
     wrapping_key: resource::CryptoKeyHandle,
     wrapped_key: &[u8],
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    // decrypt wrapped payload first
-    let clear = key_decrypt_internal(
-        context,
-        wrapping_key,
-        parameters,
-        wrapped_key,
-        KEY_USAGE_UNWRAP,
-        "destack.crypto.key.unwrap",
-    )?;
+    // unwrap payload with the selected key-wrap algorithm
+    let clear = match parameters.algorithm {
+        CryptoKeyWrapAlgorithm::RsaOaep => {
+            let parameters = key_wrap_parameters_to_asymmetric(parameters)?;
+            key_decrypt_internal(
+                context,
+                wrapping_key,
+                parameters,
+                wrapped_key,
+                KEY_USAGE_UNWRAP,
+                "destack.crypto.key.unwrap",
+            )?
+        }
+        CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
+            let wrapping_key_bytes = resolve_aes_wrapping_key_bytes(
+                context,
+                wrapping_key,
+                KEY_USAGE_UNWRAP,
+                "destack.crypto.key.unwrap",
+            )?;
+            let wrapping_key_bytes = Zeroizing::new(wrapping_key_bytes);
+            aes_key_unwrap_payload(
+                &wrapping_key_bytes,
+                wrapped_key,
+                parameters,
+                "destack.crypto.key.unwrap",
+            )?
+        }
+        CryptoKeyWrapAlgorithm::Unknown => {
+            return Err(invalid_argument(
+                "parameters.algorithm",
+                "key-wrap algorithm must not be Unknown",
+            ));
+        }
+    };
 
     // keep decrypted bytes zeroized on error paths
     let mut clear = Zeroizing::new(clear);
@@ -1724,11 +2613,34 @@ pub(super) fn nid_from_named_curve(curve: CryptoNamedCurve) -> RuntimeResult<Nid
     Ok(nid)
 }
 
+/// Resolve one supported NIST P-curve into runtime and OpenSSL metadata.
+#[cfg(any(windows, target_os = "android"))]
+pub(crate) fn resolve_nist_p_curve(
+    named_curve: CryptoNamedCurve,
+) -> Option<(CryptoNamedCurve, u32, Nid)> {
+    match named_curve {
+        CryptoNamedCurve::Unknown => Some((CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)),
+        CryptoNamedCurve::P256 => Some((CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)),
+        CryptoNamedCurve::P384 => Some((CryptoNamedCurve::P384, 384, Nid::SECP384R1)),
+        CryptoNamedCurve::P521 => Some((CryptoNamedCurve::P521, 521, Nid::SECP521R1)),
+        _ => None,
+    }
+}
+
 /// Build one key descriptor payload from one key resource.
 pub(super) fn key_descriptor_from_resource(
     context: &BindingCallContext,
     key: &CryptoKeyResource,
 ) -> CryptoKeyDescriptor {
+    // derive one effective residency policy from key metadata
+    let residency = if key.hardware_backed {
+        CryptoKeyResidency::HardwareOpaque
+    } else if key.extractable {
+        CryptoKeyResidency::SoftwareExportable
+    } else {
+        CryptoKeyResidency::SoftwareNonExportable
+    };
+
     CryptoKeyDescriptor {
         kind: key.kind,
         algorithm: key.algorithm,
@@ -1740,6 +2652,7 @@ pub(super) fn key_descriptor_from_resource(
         usage_mask: key.usage_mask,
         label: context.store_string(&key.label),
         extractable: key.extractable,
+        residency,
         hardware_backed: key.hardware_backed,
         persistent: key.persistent,
         store_provenance: store_provenance_to_descriptor(context, &key.store_provenance),
@@ -1798,6 +2711,7 @@ pub(super) fn export_key_resource(
     _context: &BindingCallContext,
     key_resource: &CryptoKeyResource,
     format: CryptoKeyFormat,
+    passphrase: Option<&[u8]>,
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     match &key_resource.material {
@@ -1826,6 +2740,26 @@ pub(super) fn export_key_resource(
             CryptoKeyFormat::Pkcs8Der => key
                 .private_key_to_der()
                 .map_err(|error| openssl_error(operation, error)),
+            CryptoKeyFormat::Pkcs8EncryptedPem => {
+                let Some(passphrase) = passphrase else {
+                    return Err(invalid_argument(
+                        "request.passphrase",
+                        "encrypted pkcs8 export requires one passphrase",
+                    ));
+                };
+                key.private_key_to_pem_pkcs8_passphrase(Cipher::aes_256_cbc(), passphrase)
+                    .map_err(|error| openssl_error(operation, error))
+            }
+            CryptoKeyFormat::Pkcs8EncryptedDer => {
+                let Some(passphrase) = passphrase else {
+                    return Err(invalid_argument(
+                        "request.passphrase",
+                        "encrypted pkcs8 export requires one passphrase",
+                    ));
+                };
+                key.private_key_to_pkcs8_passphrase(Cipher::aes_256_cbc(), passphrase)
+                    .map_err(|error| openssl_error(operation, error))
+            }
             CryptoKeyFormat::Sec1Pem | CryptoKeyFormat::Sec1Der => {
                 export_sec1_private_key(key, format, operation)
             }

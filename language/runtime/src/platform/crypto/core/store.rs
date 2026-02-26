@@ -9,10 +9,16 @@ use zeroize::Zeroizing;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCertificateListEntry, CryptoCertificateListPage, CryptoCertificateQuery,
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyKind, CryptoKeyListEntry,
-    CryptoKeyListPage, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve, CryptoStoreCapability,
-    CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider, host as crypto_host,
+    CryptoAsymmetricEncryptionAlgorithm, CryptoCertificateListEntry, CryptoCertificateListPage,
+    CryptoCertificateQuery, CryptoCipherAlgorithm, CryptoDigestAlgorithm,
+    CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyKind,
+    CryptoKeyListEntry, CryptoKeyListPage, CryptoKeyQuery, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm, CryptoMacAlgorithm, CryptoNamedCurve, CryptoSignatureAlgorithm,
+    CryptoStoreAgreementCapability, CryptoStoreAsymmetricEncryptionCapability,
+    CryptoStoreCapability, CryptoStoreCertificateCapability, CryptoStoreCipherCapability,
+    CryptoStoreIdentity, CryptoStoreKeyCapability, CryptoStoreKeyWrapCapability, CryptoStoreKind,
+    CryptoStoreMacCapability, CryptoStoreOptions, CryptoStoreProvider,
+    CryptoStoreSignatureCapability, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
@@ -23,12 +29,21 @@ use super::core::{
     CRYPTO_CERTIFICATE_RESOURCE_KIND, CRYPTO_KEY_RESOURCE_KIND, CRYPTO_STORE_LABEL,
     CRYPTO_STORE_RESOURCE_KIND, CryptoCertificateResource, CryptoKeyMaterial, CryptoKeyResource,
     CryptoStoreProvenanceResource, CryptoStoreResource, DEFAULT_CERTIFICATE_LIST_LIMIT,
-    DEFAULT_KEY_LIST_LIMIT, HostKeyBackend, HostKeyMaterial, decode_native_string,
-    handle_not_found, host_store_supports_hardware_backed_key, host_store_supports_key_persistence,
-    insert_certificate_resource, insert_key_resource, invalid_argument, invalid_data,
-    not_supported, openssl_error, resolve_key_resource, resolve_store_resource,
+    DEFAULT_KEY_LIST_LIMIT, HostKeyBackend, HostKeyMaterial, KEY_USAGE_DECRYPT,
+    KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
+    KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, decode_native_string,
+    handle_not_found, host_store_supports_certificate_write,
+    host_store_supports_hardware_backed_key, host_store_supports_hardware_backed_pair_algorithm,
+    host_store_supports_key_persistence, insert_certificate_resource, insert_key_resource,
+    invalid_argument, invalid_data, not_supported, openssl_error, resolve_key_resource,
+    resolve_store_resource,
 };
-use super::probe::{probe_key_algorithms, probe_key_formats};
+use super::digest::digest_output_size_bytes;
+use super::probe::{
+    probe_agreement_algorithms, probe_cipher_algorithms, probe_digest_algorithms,
+    probe_key_algorithms, probe_key_formats, probe_key_wrap_algorithms, probe_mac_algorithms,
+    probe_signature_algorithms,
+};
 
 /// Current version for serialized host-key store snapshots.
 const HOST_KEY_SNAPSHOT_VERSION: u32 = 1;
@@ -109,8 +124,8 @@ struct LegacyPersistedHostKeyMaterial {
     public_key_spki_der: Vec<u8>,
 }
 
-/// Host-lane capability state for key semantics.
-struct HostStoreLaneCapability {
+/// Host store capability state for key semantics.
+struct HostStoreCapabilityState {
     /// Whether the lane is available for open calls.
     is_available: bool,
     /// Whether key persistence is supported.
@@ -291,7 +306,7 @@ pub(crate) fn store_probe_kinds(
         CryptoStoreKind::Machine,
         CryptoStoreKind::Provider,
     ] {
-        let capability = store_probe_capability(context, kind, CryptoStoreProvider::Unknown)?;
+        let capability = store_probe_capability(context, kind, CryptoStoreProvider::OpenSsl)?;
         if capability.is_available {
             kinds.push(kind);
         }
@@ -306,61 +321,142 @@ pub(crate) fn store_probe_capability(
     kind: CryptoStoreKind,
     provider: CryptoStoreProvider,
 ) -> RuntimeResult<CryptoStoreCapability> {
-    // reject provider selectors for non-provider store kinds
-    if kind != CryptoStoreKind::Provider && provider != CryptoStoreProvider::Unknown {
-        return Err(invalid_argument(
-            "provider",
-            "provider is only valid for Provider store kind",
-        ));
-    }
+    // provider is only meaningful for provider stores
+    let provider = if kind == CryptoStoreKind::Provider {
+        provider
+    } else {
+        CryptoStoreProvider::OpenSsl
+    };
 
-    // report effective capabilities for each lane
+    // report effective capabilities for each store kind
     let capability = match kind {
         CryptoStoreKind::Ephemeral => CryptoStoreCapability {
-            kind,
-            provider: CryptoStoreProvider::Unknown,
+            identity: CryptoStoreIdentity {
+                kind,
+                provider: CryptoStoreProvider::OpenSsl,
+                namespace: context.store_string(""),
+            },
             is_available: true,
             supports_hardware_backed: false,
             supports_persistent: false,
             supports_key_export: true,
             supported_key_algorithms: context.store_array(probe_key_algorithms()),
             supported_key_formats: context.store_array(probe_key_formats()),
+            supported_key_residencies: context.store_array(vec![
+                CryptoKeyResidency::SoftwareExportable,
+                CryptoKeyResidency::SoftwareNonExportable,
+            ]),
+            key_capabilities: context
+                .store_array(store_key_capabilities(context, kind, true, true, false)),
+            signature_capabilities: context
+                .store_array(store_signature_capabilities(context, true)),
+            asymmetric_encryption_capabilities: context
+                .store_array(store_asymmetric_encryption_capabilities(context, true)),
+            key_wrap_capabilities: context.store_array(store_key_wrap_capabilities(context, true)),
+            cipher_capabilities: context.store_array(store_cipher_capabilities(true)),
+            mac_capabilities: context.store_array(store_mac_capabilities(context, true)),
+            agreement_capabilities: context.store_array(store_agreement_capabilities(true)),
+            certificate_capabilities: CryptoStoreCertificateCapability {
+                supports_import: true,
+                supports_export: true,
+                supports_descriptor: true,
+                supports_verify: true,
+                supports_delete: true,
+                supports_system_trust_anchors: false,
+            },
         },
         CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine => {
-            let lane_capability = host_store_lane_capability(context, kind);
+            let store_capability = host_store_capability(context, kind);
+            let supports_certificate_write = store_capability.is_available
+                && host_store_supports_certificate_write(context, kind);
+            let supports_certificate_read = store_capability.is_available;
+            let supported_key_residencies = if store_capability.supports_persistent {
+                let mut residencies = vec![
+                    CryptoKeyResidency::SoftwareExportable,
+                    CryptoKeyResidency::SoftwareNonExportable,
+                ];
+                if store_capability.supports_hardware_backed {
+                    residencies.push(CryptoKeyResidency::HardwareOpaque);
+                }
+                residencies
+            } else {
+                Vec::<CryptoKeyResidency>::new()
+            };
             CryptoStoreCapability {
-                kind,
-                provider: CryptoStoreProvider::Unknown,
-                is_available: lane_capability.is_available,
-                supports_hardware_backed: lane_capability.supports_hardware_backed,
-                supports_persistent: lane_capability.supports_persistent,
-                supports_key_export: lane_capability.supports_key_export,
+                identity: CryptoStoreIdentity {
+                    kind,
+                    provider: CryptoStoreProvider::OpenSsl,
+                    namespace: context.store_string(""),
+                },
+                is_available: store_capability.is_available,
+                supports_hardware_backed: store_capability.supports_hardware_backed,
+                supports_persistent: store_capability.supports_persistent,
+                supports_key_export: store_capability.supports_key_export,
                 supported_key_algorithms: context.store_array(
-                    if lane_capability.supports_persistent {
+                    if store_capability.supports_persistent {
                         probe_key_algorithms()
                     } else {
                         Vec::<CryptoKeyAlgorithm>::new()
                     },
                 ),
                 supported_key_formats: context.store_array(
-                    if lane_capability.supports_persistent {
+                    if store_capability.supports_persistent {
                         probe_key_formats()
                     } else {
                         Vec::<CryptoKeyFormat>::new()
                     },
                 ),
+                supported_key_residencies: context.store_array(supported_key_residencies),
+                key_capabilities: context.store_array(store_key_capabilities(
+                    context,
+                    kind,
+                    store_capability.supports_persistent,
+                    store_capability.supports_key_export,
+                    store_capability.supports_hardware_backed,
+                )),
+                signature_capabilities: context.store_array(store_signature_capabilities(
+                    context,
+                    store_capability.supports_persistent,
+                )),
+                asymmetric_encryption_capabilities: context.store_array(
+                    store_asymmetric_encryption_capabilities(
+                        context,
+                        store_capability.supports_persistent,
+                    ),
+                ),
+                key_wrap_capabilities: context.store_array(store_key_wrap_capabilities(
+                    context,
+                    store_capability.supports_persistent,
+                )),
+                cipher_capabilities: context.store_array(store_cipher_capabilities(
+                    store_capability.supports_persistent,
+                )),
+                mac_capabilities: context.store_array(store_mac_capabilities(
+                    context,
+                    store_capability.supports_persistent,
+                )),
+                agreement_capabilities: context.store_array(store_agreement_capabilities(
+                    store_capability.supports_persistent,
+                )),
+                certificate_capabilities: CryptoStoreCertificateCapability {
+                    supports_import: supports_certificate_write,
+                    supports_export: supports_certificate_read,
+                    supports_descriptor: supports_certificate_read,
+                    supports_verify: supports_certificate_read,
+                    supports_delete: supports_certificate_write,
+                    supports_system_trust_anchors: supports_certificate_read,
+                },
             }
         }
         CryptoStoreKind::Provider => {
-            let provider = if provider == CryptoStoreProvider::Unknown {
-                CryptoStoreProvider::OpenSsl
-            } else {
-                provider
-            };
             let is_available = provider == CryptoStoreProvider::OpenSsl;
+            let supports_certificate_operations = is_available;
             CryptoStoreCapability {
-                kind,
-                provider,
+                identity: CryptoStoreIdentity {
+                    kind,
+                    provider,
+                    namespace: context.store_string(""),
+                },
                 is_available,
                 supports_hardware_backed: false,
                 supports_persistent: false,
@@ -375,11 +471,435 @@ pub(crate) fn store_probe_capability(
                 } else {
                     Vec::<CryptoKeyFormat>::new()
                 }),
+                supported_key_residencies: context.store_array(if is_available {
+                    vec![
+                        CryptoKeyResidency::SoftwareExportable,
+                        CryptoKeyResidency::SoftwareNonExportable,
+                    ]
+                } else {
+                    Vec::<CryptoKeyResidency>::new()
+                }),
+                key_capabilities: context.store_array(store_key_capabilities(
+                    context,
+                    kind,
+                    is_available,
+                    true,
+                    false,
+                )),
+                signature_capabilities: context
+                    .store_array(store_signature_capabilities(context, is_available)),
+                asymmetric_encryption_capabilities: context.store_array(
+                    store_asymmetric_encryption_capabilities(context, is_available),
+                ),
+                key_wrap_capabilities: context
+                    .store_array(store_key_wrap_capabilities(context, is_available)),
+                cipher_capabilities: context.store_array(store_cipher_capabilities(is_available)),
+                mac_capabilities: context
+                    .store_array(store_mac_capabilities(context, is_available)),
+                agreement_capabilities: context
+                    .store_array(store_agreement_capabilities(is_available)),
+                certificate_capabilities: CryptoStoreCertificateCapability {
+                    supports_import: supports_certificate_operations,
+                    supports_export: supports_certificate_operations,
+                    supports_descriptor: supports_certificate_operations,
+                    supports_verify: supports_certificate_operations,
+                    supports_delete: supports_certificate_operations,
+                    supports_system_trust_anchors: false,
+                },
             }
         }
     };
 
     Ok(capability)
+}
+
+/// Return key-wrap capability rows for one availability state.
+fn store_key_wrap_capabilities(
+    context: &BindingCallContext,
+    is_available: bool,
+) -> Vec<CryptoStoreKeyWrapCapability> {
+    if !is_available {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_key_wrap_algorithms() {
+        let (wrapping_key_algorithm, supported_digests) = match algorithm {
+            CryptoKeyWrapAlgorithm::RsaOaep => (
+                CryptoKeyAlgorithm::Rsa,
+                context.store_slice(probe_digest_algorithms()),
+            ),
+            CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp => {
+                (CryptoKeyAlgorithm::Aes, context.store_slice(Vec::new()))
+            }
+            CryptoKeyWrapAlgorithm::Unknown => continue,
+        };
+
+        capabilities.push(CryptoStoreKeyWrapCapability {
+            wrapping_key_algorithm,
+            algorithm,
+            supports_wrap: true,
+            supports_unwrap: true,
+            supported_digests,
+        });
+    }
+
+    capabilities
+}
+
+/// Return key capability rows for one store identity.
+fn store_key_capabilities(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    supports_key_operations: bool,
+    supports_key_export: bool,
+    supports_hardware_backed: bool,
+) -> Vec<CryptoStoreKeyCapability> {
+    if !supports_key_operations {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_key_algorithms() {
+        for residency in store_supported_residencies_for_algorithm(
+            context,
+            kind,
+            algorithm,
+            supports_hardware_backed,
+        ) {
+            let supports_generate_secret = matches!(
+                algorithm,
+                CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::ChaCha20 | CryptoKeyAlgorithm::Hmac
+            );
+            let supports_generate_pair = matches!(
+                algorithm,
+                CryptoKeyAlgorithm::Rsa
+                    | CryptoKeyAlgorithm::Ec
+                    | CryptoKeyAlgorithm::Ed25519
+                    | CryptoKeyAlgorithm::Ed448
+                    | CryptoKeyAlgorithm::X25519
+                    | CryptoKeyAlgorithm::X448
+            );
+            let supports_import = residency != CryptoKeyResidency::HardwareOpaque;
+            let supports_export =
+                residency == CryptoKeyResidency::SoftwareExportable && supports_key_export;
+            let supported_usage_mask =
+                key_usage_mask_for_algorithm(algorithm, residency, supports_key_export);
+            let import_formats = if supports_import {
+                key_formats_for_algorithm(algorithm)
+            } else {
+                Vec::new()
+            };
+            let export_formats = if supports_export {
+                key_formats_for_algorithm(algorithm)
+            } else {
+                Vec::new()
+            };
+
+            capabilities.push(CryptoStoreKeyCapability {
+                algorithm,
+                residency,
+                supports_generate_secret,
+                supports_generate_pair,
+                supports_import,
+                supports_export_public: supports_export,
+                supports_export_private: supports_export,
+                supports_export_secret: supports_export,
+                supported_usage_mask,
+                supported_import_formats: context.store_slice(import_formats),
+                supported_export_formats: context.store_slice(export_formats),
+            });
+        }
+    }
+
+    capabilities
+}
+
+/// Return signature capability rows for one store identity.
+fn store_signature_capabilities(
+    context: &BindingCallContext,
+    supports_key_operations: bool,
+) -> Vec<CryptoStoreSignatureCapability> {
+    if !supports_key_operations {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_signature_algorithms() {
+        let key_algorithm = match algorithm {
+            CryptoSignatureAlgorithm::RsaPkcs1v15 | CryptoSignatureAlgorithm::RsaPss => {
+                CryptoKeyAlgorithm::Rsa
+            }
+            CryptoSignatureAlgorithm::Ecdsa => CryptoKeyAlgorithm::Ec,
+            CryptoSignatureAlgorithm::Ed25519 => CryptoKeyAlgorithm::Ed25519,
+            CryptoSignatureAlgorithm::Ed448 => CryptoKeyAlgorithm::Ed448,
+            CryptoSignatureAlgorithm::Unknown => continue,
+        };
+        let supported_digests = match algorithm {
+            CryptoSignatureAlgorithm::Ed25519 | CryptoSignatureAlgorithm::Ed448 => {
+                vec![CryptoDigestAlgorithm::Unknown]
+            }
+            _ => probe_digest_algorithms(),
+        };
+
+        capabilities.push(CryptoStoreSignatureCapability {
+            key_algorithm,
+            signature_algorithm: algorithm,
+            supports_sign: true,
+            supports_verify: true,
+            supported_digests: context.store_slice(supported_digests),
+        });
+    }
+
+    capabilities
+}
+
+/// Return asymmetric-encryption capability rows for one store identity.
+fn store_asymmetric_encryption_capabilities(
+    context: &BindingCallContext,
+    supports_key_operations: bool,
+) -> Vec<CryptoStoreAsymmetricEncryptionCapability> {
+    if !supports_key_operations {
+        return Vec::new();
+    }
+
+    vec![CryptoStoreAsymmetricEncryptionCapability {
+        key_algorithm: CryptoKeyAlgorithm::Rsa,
+        algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+        supports_encrypt: true,
+        supports_decrypt: true,
+        supported_digests: context.store_slice(probe_digest_algorithms()),
+    }]
+}
+
+/// Return cipher capability rows for one store identity.
+fn store_cipher_capabilities(is_available: bool) -> Vec<CryptoStoreCipherCapability> {
+    if !is_available {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_cipher_algorithms() {
+        let key_algorithm = match algorithm {
+            CryptoCipherAlgorithm::AesGcm
+            | CryptoCipherAlgorithm::AesCtr
+            | CryptoCipherAlgorithm::AesCbc => CryptoKeyAlgorithm::Aes,
+            CryptoCipherAlgorithm::ChaCha20Poly1305 => CryptoKeyAlgorithm::ChaCha20,
+            CryptoCipherAlgorithm::Unknown => continue,
+        };
+        let supports_additional_data = matches!(
+            algorithm,
+            CryptoCipherAlgorithm::AesGcm | CryptoCipherAlgorithm::ChaCha20Poly1305
+        );
+        let supports_detached_tag = supports_additional_data;
+        let (min_tag_length_bytes, max_tag_length_bytes) = match algorithm {
+            CryptoCipherAlgorithm::AesGcm => (12, 16),
+            CryptoCipherAlgorithm::ChaCha20Poly1305 => (16, 16),
+            _ => (0, 0),
+        };
+
+        capabilities.push(CryptoStoreCipherCapability {
+            key_algorithm,
+            algorithm,
+            supports_one_shot: true,
+            supports_streaming: true,
+            supports_additional_data,
+            supports_detached_tag,
+            min_tag_length_bytes,
+            max_tag_length_bytes,
+        });
+    }
+
+    capabilities
+}
+
+/// Return mac capability rows for one store identity.
+fn store_mac_capabilities(
+    context: &BindingCallContext,
+    is_available: bool,
+) -> Vec<CryptoStoreMacCapability> {
+    if !is_available {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_mac_algorithms() {
+        if algorithm != CryptoMacAlgorithm::Hmac {
+            continue;
+        }
+
+        let digests = probe_digest_algorithms();
+        let mut max_tag_length_bytes = 0u32;
+        for digest in &digests {
+            if let Some(digest_size) = digest_output_size_bytes(*digest)
+                && digest_size > max_tag_length_bytes
+            {
+                max_tag_length_bytes = digest_size;
+            }
+        }
+
+        capabilities.push(CryptoStoreMacCapability {
+            key_algorithm: CryptoKeyAlgorithm::Hmac,
+            algorithm,
+            supports_one_shot: true,
+            supports_streaming: true,
+            supported_digests: context.store_slice(digests),
+            min_tag_length_bytes: 1,
+            max_tag_length_bytes,
+        });
+    }
+
+    capabilities
+}
+
+/// Return agreement capability rows for one store identity.
+fn store_agreement_capabilities(is_available: bool) -> Vec<CryptoStoreAgreementCapability> {
+    if !is_available {
+        return Vec::new();
+    }
+
+    let mut capabilities = Vec::new();
+    for algorithm in probe_agreement_algorithms() {
+        let key_algorithm = match algorithm {
+            CryptoKeyAgreementAlgorithm::Ecdh => CryptoKeyAlgorithm::Ec,
+            CryptoKeyAgreementAlgorithm::X25519 => CryptoKeyAlgorithm::X25519,
+            CryptoKeyAgreementAlgorithm::X448 => CryptoKeyAlgorithm::X448,
+            CryptoKeyAgreementAlgorithm::Unknown => continue,
+        };
+
+        capabilities.push(CryptoStoreAgreementCapability {
+            private_key_algorithm: key_algorithm,
+            peer_public_key_algorithm: key_algorithm,
+            algorithm,
+            supports_derive_shared_secret: true,
+            supports_derive_key: true,
+        });
+    }
+
+    capabilities
+}
+
+/// Return supported key residencies for one key algorithm lane.
+fn store_supported_residencies_for_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    supports_hardware_backed: bool,
+) -> Vec<CryptoKeyResidency> {
+    // include software lanes for all algorithm families
+    let mut residencies = vec![
+        CryptoKeyResidency::SoftwareExportable,
+        CryptoKeyResidency::SoftwareNonExportable,
+    ];
+    if !supports_hardware_backed {
+        return residencies;
+    }
+
+    // include host-backed hardware lane only when this algorithm is actually supported
+    if store_supports_hardware_residency(context, kind, algorithm) {
+        residencies.push(CryptoKeyResidency::HardwareOpaque);
+    }
+
+    residencies
+}
+
+/// Return whether one key algorithm supports the hardware residency lane for one store.
+fn store_supports_hardware_residency(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // hardware-backed secret-key support is algorithm specific
+    if matches!(
+        algorithm,
+        CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::Hmac | CryptoKeyAlgorithm::ChaCha20
+    ) {
+        return crypto_host::host_store_supports_hardware_backed_secret_key(
+            context, kind, algorithm,
+        );
+    }
+
+    // hardware-backed pair support is algorithm specific per host lane
+    host_store_supports_hardware_backed_pair_algorithm(context, kind, algorithm)
+}
+
+/// Return key usage mask bits for one key algorithm and residency lane.
+fn key_usage_mask_for_algorithm(
+    algorithm: CryptoKeyAlgorithm,
+    residency: CryptoKeyResidency,
+    supports_key_export: bool,
+) -> CryptoKeyUsageMask {
+    let base_usage = match algorithm {
+        CryptoKeyAlgorithm::Aes => {
+            // hardware-backed aes lanes currently do not expose key-wrap primitives
+            if residency == CryptoKeyResidency::HardwareOpaque {
+                KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT
+            } else {
+                KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT | KEY_USAGE_WRAP | KEY_USAGE_UNWRAP
+            }
+        }
+        CryptoKeyAlgorithm::ChaCha20 => KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
+        CryptoKeyAlgorithm::Hmac => KEY_USAGE_SIGN | KEY_USAGE_VERIFY,
+        CryptoKeyAlgorithm::Rsa => {
+            KEY_USAGE_SIGN
+                | KEY_USAGE_VERIFY
+                | KEY_USAGE_ENCRYPT
+                | KEY_USAGE_DECRYPT
+                | KEY_USAGE_WRAP
+                | KEY_USAGE_UNWRAP
+        }
+        CryptoKeyAlgorithm::Ec => {
+            KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS
+        }
+        CryptoKeyAlgorithm::Ed25519 | CryptoKeyAlgorithm::Ed448 => {
+            KEY_USAGE_SIGN | KEY_USAGE_VERIFY
+        }
+        CryptoKeyAlgorithm::X25519 | CryptoKeyAlgorithm::X448 => {
+            KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS
+        }
+        CryptoKeyAlgorithm::Unknown => 0,
+    };
+
+    // export support depends on both residency and lane policy
+    let supports_export =
+        residency == CryptoKeyResidency::SoftwareExportable && supports_key_export;
+    if supports_export {
+        return CryptoKeyUsageMask(base_usage | KEY_USAGE_EXPORT);
+    }
+
+    CryptoKeyUsageMask(base_usage)
+}
+
+/// Return import and export key formats for one algorithm lane.
+fn key_formats_for_algorithm(algorithm: CryptoKeyAlgorithm) -> Vec<CryptoKeyFormat> {
+    match algorithm {
+        CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::ChaCha20 | CryptoKeyAlgorithm::Hmac => {
+            vec![CryptoKeyFormat::Raw]
+        }
+        CryptoKeyAlgorithm::Ec => vec![
+            CryptoKeyFormat::Pkcs8Pem,
+            CryptoKeyFormat::Pkcs8Der,
+            CryptoKeyFormat::Pkcs8EncryptedPem,
+            CryptoKeyFormat::Pkcs8EncryptedDer,
+            CryptoKeyFormat::Sec1Pem,
+            CryptoKeyFormat::Sec1Der,
+            CryptoKeyFormat::SpkiPem,
+            CryptoKeyFormat::SpkiDer,
+        ],
+        CryptoKeyAlgorithm::Rsa
+        | CryptoKeyAlgorithm::Ed25519
+        | CryptoKeyAlgorithm::Ed448
+        | CryptoKeyAlgorithm::X25519
+        | CryptoKeyAlgorithm::X448 => vec![
+            CryptoKeyFormat::Pkcs8Pem,
+            CryptoKeyFormat::Pkcs8Der,
+            CryptoKeyFormat::Pkcs8EncryptedPem,
+            CryptoKeyFormat::Pkcs8EncryptedDer,
+            CryptoKeyFormat::SpkiPem,
+            CryptoKeyFormat::SpkiDer,
+        ],
+        CryptoKeyAlgorithm::Unknown => Vec::new(),
+    }
 }
 
 /// Open one crypto store.
@@ -392,12 +912,6 @@ pub(crate) fn store_open(
 
     // open one ephemeral in-memory store lane
     if options.kind == CryptoStoreKind::Ephemeral {
-        if options.provider != CryptoStoreProvider::Unknown {
-            return Err(invalid_argument(
-                "options.provider",
-                "provider is not supported for ephemeral stores",
-            ));
-        }
         if !namespace.is_empty() {
             return Err(invalid_argument(
                 "options.namespace",
@@ -407,7 +921,7 @@ pub(crate) fn store_open(
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider: options.provider,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -417,19 +931,9 @@ pub(crate) fn store_open(
 
     // open one runtime provider store lane
     if options.kind == CryptoStoreKind::Provider {
-        let provider = if options.provider == CryptoStoreProvider::Unknown {
-            CryptoStoreProvider::OpenSsl
-        } else {
-            options.provider
-        };
-
-        if provider != CryptoStoreProvider::OpenSsl {
-            return Err(not_supported("destack.crypto.store.open"));
-        }
-
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -446,12 +950,6 @@ pub(crate) fn store_open(
             return Err(not_supported("destack.crypto.store.open"));
         }
 
-        if options.provider != CryptoStoreProvider::Unknown {
-            return Err(invalid_argument(
-                "options.provider",
-                "provider is not supported for this store kind",
-            ));
-        }
         if !namespace.is_empty() {
             return Err(invalid_argument(
                 "options.namespace",
@@ -464,7 +962,7 @@ pub(crate) fn store_open(
             load_host_persistent_keys(context, options.kind, "destack.crypto.store.open")?;
         let store_provenance = CryptoStoreProvenanceResource {
             kind: options.kind,
-            provider: CryptoStoreProvider::Unknown,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace: String::new(),
         };
 
@@ -512,7 +1010,7 @@ pub(crate) fn store_open(
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider: options.provider,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace,
             keys,
             certificates,
@@ -867,19 +1365,19 @@ fn insert_store_resource(
 }
 
 /// Return one capability snapshot for one host store lane.
-fn host_store_lane_capability(
+fn host_store_capability(
     context: &BindingCallContext,
     kind: CryptoStoreKind,
-) -> HostStoreLaneCapability {
+) -> HostStoreCapabilityState {
     // compute lane availability and key policy support
     let is_available = crypto_host::host_store_lane_is_available(context, kind);
-    let supports_hardware_backed =
-        is_available && host_store_supports_hardware_backed_key(context, kind);
     let supports_persistent = is_available
         && host_store_supports_key_persistence(kind)
         && host_store_persistence_backend_is_available(context, kind);
+    let supports_hardware_backed =
+        supports_persistent && host_store_supports_hardware_backed_key(context, kind);
 
-    HostStoreLaneCapability {
+    HostStoreCapabilityState {
         is_available,
         supports_persistent,
         supports_hardware_backed,
@@ -1004,6 +1502,8 @@ fn key_to_persisted_record(
                 HostKeyBackend::PosixSoftwareKeyStorageEc => 15u8,
                 HostKeyBackend::AndroidHardwareKeystoreAes => 16u8,
                 HostKeyBackend::AndroidHardwareKeystoreHmac => 17u8,
+                HostKeyBackend::WindowsPlatformKeyStorageAes => 18u8,
+                HostKeyBackend::WindowsPlatformKeyStorageHmac => 19u8,
             };
             let persisted = PersistedHostKeyMaterial {
                 backend,
@@ -1105,6 +1605,8 @@ fn key_from_persisted_record(
                 15 => HostKeyBackend::PosixSoftwareKeyStorageEc,
                 16 => HostKeyBackend::AndroidHardwareKeystoreAes,
                 17 => HostKeyBackend::AndroidHardwareKeystoreHmac,
+                18 => HostKeyBackend::WindowsPlatformKeyStorageAes,
+                19 => HostKeyBackend::WindowsPlatformKeyStorageHmac,
                 _ => {
                     return Err(invalid_data(
                         operation,
@@ -1144,7 +1646,7 @@ fn key_from_persisted_record(
         persistent_id: record.persistent_id,
         store_provenance: CryptoStoreProvenanceResource {
             kind,
-            provider: CryptoStoreProvider::Unknown,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace: String::new(),
         },
         material,

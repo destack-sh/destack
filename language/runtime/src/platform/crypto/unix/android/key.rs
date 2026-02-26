@@ -16,44 +16,16 @@ use crate::platform::crypto::{
 use crate::platform::{NativeSlice, NativeStringRef};
 use crate::runtime::BindingCallContext;
 
-use super::abi::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
-    HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    HOST_STATUS_PERMISSION_DENIED, android_host_crypto_api,
+use super::abi::{HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, android_host_crypto_api};
+use super::core::{
+    callback_runtime_id, host_status_result, host_store_kind, invalid_data, not_supported,
 };
-use super::core::{invalid_data, not_supported, permission_denied};
 
 /// Supported software host-key backends for Android key operations.
 const ANDROID_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
     HostKeyBackend::AndroidSoftwareKeyStorageRsa,
     HostKeyBackend::AndroidSoftwareKeyStorageEc,
 ];
-
-/// Resolve one callback runtime identifier for Android host callback routing.
-fn callback_runtime_id(
-    context: &BindingCallContext,
-    operation: &'static str,
-) -> RuntimeResult<u64> {
-    let Some(runtime_id) = context.host().callback_runtime_id() else {
-        return Err(not_supported(operation));
-    };
-
-    Ok(runtime_id)
-}
-
-/// Encode one store kind for Android host callback ABI values.
-fn host_store_kind(kind: CryptoStoreKind, operation: &'static str) -> RuntimeResult<u32> {
-    let encoded = match kind {
-        CryptoStoreKind::System => 1,
-        CryptoStoreKind::User => 2,
-        CryptoStoreKind::Machine => 3,
-        CryptoStoreKind::Provider => 4,
-        CryptoStoreKind::Ephemeral => 5,
-        _ => return Err(not_supported(operation)),
-    };
-
-    Ok(encoded)
-}
 
 /// Encode one key algorithm for Android host callback ABI values.
 fn host_key_algorithm(
@@ -156,54 +128,6 @@ fn host_mac_algorithm(
     };
 
     Ok(encoded)
-}
-
-/// Map one Android host callback status into one runtime result.
-fn host_status_result(
-    status: u32,
-    operation: &'static str,
-    action: &'static str,
-) -> RuntimeResult<()> {
-    if status == HOST_STATUS_OK {
-        return Ok(());
-    }
-
-    if status == HOST_STATUS_NOT_SUPPORTED {
-        return Err(not_supported(operation));
-    }
-
-    if status == HOST_STATUS_INVALID_ARGUMENT {
-        return Err(invalid_data(
-            operation,
-            format!("android host crypto {action} reported one invalid argument"),
-        ));
-    }
-
-    if status == HOST_STATUS_NOT_FOUND {
-        return Err(invalid_data(
-            operation,
-            format!("android host crypto {action} could not resolve one key"),
-        ));
-    }
-
-    if status == HOST_STATUS_PERMISSION_DENIED {
-        return Err(permission_denied(
-            operation,
-            format!("android host crypto {action} was denied"),
-        ));
-    }
-
-    if status == HOST_STATUS_FAILED {
-        return Err(invalid_data(
-            operation,
-            format!("android host crypto {action} failed"),
-        ));
-    }
-
-    Err(invalid_data(
-        operation,
-        format!("android host crypto {action} failed with status code {status}"),
-    ))
 }
 
 /// Run one host output callback with one two-pass ciphertext and tag flow.
@@ -394,18 +318,112 @@ pub(crate) fn host_store_supports_hardware_backed_key(
         return false;
     }
 
-    // require one active callback runtime id and host callback symbol
+    // require one active callback runtime id and lane selector
     let Some(runtime_id) = context.host().callback_runtime_id() else {
-        return false;
-    };
-    let Some(callback) = android_host_crypto_api().supports_hardware_key else {
         return false;
     };
     let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
 
+    // require at least one complete hardware lane callback set
+    let callbacks = android_host_crypto_api();
+    let has_rsa_pair_lane = callbacks.generate_hardware_key_pair.is_some()
+        && callbacks.export_hardware_public_key.is_some()
+        && callbacks.sign_hardware_key.is_some()
+        && callbacks.decrypt_hardware_key.is_some()
+        && callbacks.delete_hardware_key.is_some();
+    let has_ec_pair_lane = callbacks.generate_hardware_key_pair.is_some()
+        && callbacks.export_hardware_public_key.is_some()
+        && callbacks.sign_hardware_key.is_some()
+        && callbacks.derive_hardware_shared_secret.is_some()
+        && callbacks.delete_hardware_key.is_some();
+    let has_aes_secret_lane = callbacks.generate_hardware_secret_key.is_some()
+        && callbacks.encrypt_hardware_secret_key.is_some()
+        && callbacks.decrypt_hardware_secret_key.is_some()
+        && callbacks.delete_hardware_key.is_some();
+    let has_hmac_secret_lane = callbacks.generate_hardware_secret_key.is_some()
+        && callbacks.compute_hardware_mac.is_some()
+        && callbacks.delete_hardware_key.is_some();
+    if !has_rsa_pair_lane && !has_ec_pair_lane && !has_aes_secret_lane && !has_hmac_secret_lane {
+        return false;
+    }
+
+    // use explicit hardware-support callback when present
+    let Some(callback) = callbacks.supports_hardware_key else {
+        return true;
+    };
+
     unsafe { callback(runtime_id, encoded_kind) == HOST_STATUS_OK }
+}
+
+/// Return whether one host store lane supports one hardware-backed pair algorithm.
+pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // hardware-backed pair lanes currently target user lane
+    if kind != CryptoStoreKind::User {
+        return false;
+    }
+
+    // require one available hardware lane first
+    if !host_store_supports_hardware_backed_key(context, kind) {
+        return false;
+    }
+
+    // require complete callback sets for each pair algorithm lane
+    let callbacks = android_host_crypto_api();
+    if algorithm == CryptoKeyAlgorithm::Rsa {
+        return callbacks.generate_hardware_key_pair.is_some()
+            && callbacks.export_hardware_public_key.is_some()
+            && callbacks.sign_hardware_key.is_some()
+            && callbacks.decrypt_hardware_key.is_some()
+            && callbacks.delete_hardware_key.is_some();
+    }
+    if algorithm == CryptoKeyAlgorithm::Ec {
+        return callbacks.generate_hardware_key_pair.is_some()
+            && callbacks.export_hardware_public_key.is_some()
+            && callbacks.sign_hardware_key.is_some()
+            && callbacks.derive_hardware_shared_secret.is_some()
+            && callbacks.delete_hardware_key.is_some();
+    }
+
+    false
+}
+
+/// Return whether one host store lane supports hardware-backed secret keys.
+pub(crate) fn host_store_supports_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // hardware-backed secret keys currently target user lane
+    if kind != CryptoStoreKind::User {
+        return false;
+    }
+
+    // require one available hardware lane first
+    if !host_store_supports_hardware_backed_key(context, kind) {
+        return false;
+    }
+
+    // require complete callback sets for each secret algorithm lane
+    let callbacks = android_host_crypto_api();
+    if algorithm == CryptoKeyAlgorithm::Aes {
+        return callbacks.generate_hardware_secret_key.is_some()
+            && callbacks.encrypt_hardware_secret_key.is_some()
+            && callbacks.decrypt_hardware_secret_key.is_some()
+            && callbacks.delete_hardware_key.is_some();
+    }
+    if algorithm == CryptoKeyAlgorithm::Hmac {
+        return callbacks.generate_hardware_secret_key.is_some()
+            && callbacks.compute_hardware_mac.is_some()
+            && callbacks.delete_hardware_key.is_some();
+    }
+
+    false
 }
 
 /// Generate one host-backed hardware key pair.
@@ -426,7 +444,9 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     if algorithm == CryptoKeyAlgorithm::Rsa && named_curve != CryptoNamedCurve::Unknown {
         return Err(not_supported(operation));
     }
-    if algorithm == CryptoKeyAlgorithm::Ec && unix_core::resolve_ec_curve(named_curve).is_none() {
+    if algorithm == CryptoKeyAlgorithm::Ec
+        && crypto_core::resolve_nist_p_curve(named_curve).is_none()
+    {
         return Err(not_supported(operation));
     }
 

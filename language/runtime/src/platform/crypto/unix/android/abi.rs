@@ -126,6 +126,12 @@ pub(super) type HostDeriveHardwareSharedSecretFn = unsafe extern "C" fn(
 /// Host callback for deleting one hardware-backed key.
 pub(super) type HostDeleteHardwareKeyFn =
     unsafe extern "C" fn(runtime_id: u64, key_algorithm: u32, key_label: NativeStringRef) -> u32;
+/// Host callback for importing one certificate into one host lane.
+pub(super) type HostImportCertificateFn =
+    unsafe extern "C" fn(runtime_id: u64, store_kind: u32, certificate_der: NativeSlice<u8>) -> u32;
+/// Host callback for deleting one certificate from one host lane.
+pub(super) type HostDeleteCertificateFn =
+    unsafe extern "C" fn(runtime_id: u64, store_kind: u32, certificate_der: NativeSlice<u8>) -> u32;
 
 /// Resolved Android host crypto callbacks from the process symbol table.
 pub(super) struct AndroidHostCryptoApi {
@@ -151,6 +157,10 @@ pub(super) struct AndroidHostCryptoApi {
     pub(super) derive_hardware_shared_secret: Option<HostDeriveHardwareSharedSecretFn>,
     /// Delete one hardware-backed key.
     pub(super) delete_hardware_key: Option<HostDeleteHardwareKeyFn>,
+    /// Import one certificate into one host lane.
+    pub(super) import_certificate: Option<HostImportCertificateFn>,
+    /// Delete one certificate from one host lane.
+    pub(super) delete_certificate: Option<HostDeleteCertificateFn>,
 }
 
 /// Resolve and cache one Android host crypto callback table.
@@ -188,6 +198,12 @@ pub(super) fn android_host_crypto_api() -> &'static AndroidHostCryptoApi {
         ),
         delete_hardware_key: load_symbol(
             b"destack_runtime_host_android_crypto_delete_hardware_key\0",
+        ),
+        import_certificate: load_symbol(
+            b"destack_runtime_host_android_crypto_import_certificate\0",
+        ),
+        delete_certificate: load_symbol(
+            b"destack_runtime_host_android_crypto_delete_certificate\0",
         ),
     })
 }

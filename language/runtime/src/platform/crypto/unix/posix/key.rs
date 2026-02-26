@@ -33,6 +33,28 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     false
 }
 
+/// Return whether one host store lane supports one hardware-backed pair algorithm.
+pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    let _ = (context, kind, algorithm);
+
+    false
+}
+
+/// Return whether one host store lane supports hardware-backed secret keys.
+pub(crate) fn host_store_supports_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    let _ = (context, kind, algorithm);
+
+    false
+}
+
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
     context: &BindingCallContext,
