@@ -30,30 +30,35 @@ _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and pl
 
 ## The Destack
 
-Destack is a fully integrated software engine with a language, runtime, libraries, and platform on top of TypeScript and the open web ecosystem.
+Destack is a universal software engine with a language, runtime, libraries, services, and apps on top of TypeScript and the open web ecosystem.
 At its essence, Destack is the antithesis to the very idea of a "stack".
-Instead of wrangling many disparate tools, libraries, and approaches, Destack unifies the process of software development into one integrated system:
+Instead of wrangling many disparate tools, libraries, approaches, and products, Destack unifies the processes of software development into one integrated system:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
-- [**Destack Library**](library/README.md): Standard library packages for most things most software needs, (written in TS++).
-- [**Destack Client**](client/README.md): User-facing SDKs and bindings for JS/TS, WASM, Rust, and Python.
-- [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.
+- [**Destack Library**](library/README.md): Standard library packages for most things most software needs.
+- [**Destack Services**](services/README.md): ... 
+- [**Destack Apps**](apps/README.md): ...
+- [**Destack Bridge**](client/README.md): External-facing SDKs (JS/TS, WASM, Rust, Python), IDE integrations, etc.
+- [**Destack Templates**](templates/README.md): Ready-to-clone starter kits for common use cases
 
 While Destack is designed from the ground up as an integrated system, you are of course free to pick and choose only the components you like.
 It's all open source, open standards, zero lock-in.
 
+---
+
 ### Higher-Order Programming
 
-Over 50 years since the invention of higher order programming with the introduction of the C programming language, the production and deployment of software is still astoundingly immature. 
-We routinely fail to build even trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
+Over 50 years since the invention of higher order programming with the introduction of the C programming language, programming is still astoundingly immature. 
+We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more. 
-Probabilistic computing promises new magical features, but is even harder to make robust and reliable.
-We believe the opaqueness, inefficiency, and fragmentation of software as a whole can only be fully solved by rethinking the entire development process and unifying the disparate parts that have been separated purely for historical reasons.
+Software is very useful, we have a lot of it, and there is about to be much, much more.
+We believe the opaqueness, inefficiency, and fragmentation of software as a whole can only be solved by reimagining all software processes; in the limit, this means unifying the disparate parts that have remained separate purely for historical reasons.
 
-The more we can express in one unified software system, the more great software systems we can build that understands more about what we're actually trying to do.
-At its best, software is not just a pale digital shadow of a real world process, but an enabling technology to support processes that weren't possible before.
-There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a unified software system is the best way.
+The more we can express in one software system, the higher order the abstractions we can program correctly and optimally.
+At its best, software is not just a digital shadow of some "real" system, but an enabling technology for systems that weren't possible before.
+There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to do it.
+
+---
 
 ## Getting Started
 
