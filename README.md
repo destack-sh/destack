@@ -14,14 +14,14 @@
 <p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f?style=for-the-badge" alt="Version"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/ci.yml?branch=main&logo=github&style=for-the-badge" alt="CI"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/nightly.yml?branch=main&logo=github&style=for-the-badge" alt="Nightly"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&logo=github&style=for-the-badge" alt="Release"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
+    <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 <p>
+    <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/nightly.yml?branch=main&logo=github&style=for-the-badge" alt="Nightly"></a>
+    <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&logo=github&style=for-the-badge" alt="Release"></a>
     <a title="Commits" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/commit-activity/m/destack-sh/destack?style=for-the-badge" alt="Commits"></a>
     <a title="Last Commit" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/last-commit/destack-sh/destack?style=for-the-badge&color=FF9900" alt="Last Commit"></a>
-    <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 
 **[The Destack](#the-destack) • [Higher-Order Programming](#higher-order-programming) • [Getting Started](#getting-started) • [Targets](#targets) • [Contributing](CONTRIBUTING.md) • [Discord](https://discord.gg/xUFQ45TWYd)**
@@ -32,8 +32,8 @@
 
 ## The Destack
 
-Destack is a universal software engine with a language, runtime, libraries, services, and apps on top of TypeScript and the open web ecosystem.
-At its essence, Destack is the antithesis to the very idea of a "stack":
+Destack is a universal software engine with a language, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.
+Conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, and products, Destack unifies the processes of software development into _one_ computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
