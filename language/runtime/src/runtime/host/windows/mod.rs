@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, windows))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(windows)]
 pub(super) use adapter::WindowsHostAdapter;

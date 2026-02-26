@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, target_os = "solaris"))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(target_os = "solaris")]
 pub(super) use adapter::SolarisHostAdapter;

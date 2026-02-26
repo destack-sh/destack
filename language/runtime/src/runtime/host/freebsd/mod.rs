@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, target_os = "freebsd"))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(target_os = "freebsd")]
 pub(super) use adapter::FreeBsdHostAdapter;

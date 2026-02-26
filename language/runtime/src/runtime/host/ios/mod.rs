@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, target_os = "ios"))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(target_os = "ios")]
 pub(super) use adapter::IosHostAdapter;

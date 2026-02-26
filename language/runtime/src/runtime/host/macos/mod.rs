@@ -1,6 +1,8 @@
 mod adapter;
 mod callback;
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 pub(super) use adapter::MacosHostAdapter;
 pub use callback::{
