@@ -217,7 +217,8 @@ const thing: GlobalThing = { value: 1, label: "ok" };
         thing_entry.canonical_symbol.is_none(),
         "unexpected canonical_symbol on thing binding",
     );
-    let canonical_symbol = test.compiler.canonical_symbol_id(
+    let canonical_symbol = canonical_symbol_id(
+        &test.compiler,
         &module,
         view.symbols(),
         profile,
@@ -458,10 +459,7 @@ values.first() satisfies number | undefined;
                     panic!("expected ambient Array instance object type");
                 };
 
-                fields
-                    .iter()
-                    .map(|field| field.key.clone())
-                    .collect::<Vec<_>>()
+                fields.iter().map(|field| field.key).collect::<Vec<_>>()
             },
         )
         .expect("declare stage should be ready for ambient Array merge baseline");

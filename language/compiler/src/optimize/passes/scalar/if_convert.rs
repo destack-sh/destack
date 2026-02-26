@@ -362,10 +362,8 @@ fn should_convert(
 
         let then_ratio = then_count as f64 / total_count as f64;
         let else_ratio = else_count as f64 / total_count as f64;
-        let is_balanced = then_ratio >= (1.0 - BIASED_BRANCH_RATIO)
-            && then_ratio <= BIASED_BRANCH_RATIO
-            && else_ratio >= (1.0 - BIASED_BRANCH_RATIO)
-            && else_ratio <= BIASED_BRANCH_RATIO;
+        let is_balanced = ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&then_ratio)
+            && ((1.0 - BIASED_BRANCH_RATIO)..=BIASED_BRANCH_RATIO).contains(&else_ratio);
 
         if is_balanced {
             return total_cost <= BALANCED_CONVERT_BUDGET;

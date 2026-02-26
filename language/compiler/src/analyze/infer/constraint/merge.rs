@@ -1,11 +1,11 @@
-use crate::{AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeResult, Compiler, InferState};
 use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalTypeId, Property, Type, TypeLiteral, TypeTable,
 };
 
 use super::expression::ObjectLiteralField;
 use crate::analyze::common::{
-    InferTablesContext, NormalizationMode, ObjectShape, RelationMode, TypeTablesContext,
+    InferContext, NormalizationMode, ObjectShape, RelationMode, TypeContext,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -13,10 +13,10 @@ impl Compiler {
     /// Infer literal fields and spread shapes for an object literal.
     pub(crate) fn infer_object_literal_shapes(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         properties: &[LocalNodeId<Property>],
         expected_object_ty_id: Option<LocalTypeId>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<(
         Vec<ObjectLiteralField>,
         Vec<ObjectShape>,
@@ -29,22 +29,22 @@ impl Compiler {
 
         // collect literal fields and spread shapes
         for property_id in properties {
-            let property = tables.tree.get(*property_id);
+            let property = ctx.tree.get(*property_id);
             match property {
                 Property::Spread { value, .. } => {
-                    let mut spread_ctx = ctx.fork().with_expected_type(None);
+                    let mut spread_ctx = state.fork().with_expected_type(None);
                     let spread_type =
-                        self.infer_expression(&mut tables.reborrow(), *value, &mut spread_ctx)?;
+                        self.infer_expression(&mut ctx.reborrow(), *value, &mut spread_ctx)?;
                     // normalize spreads before extracting shapes
                     let spread_type = self.normalize_type_with_relation(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         spread_type,
                         NormalizationMode::Assign,
                         RelationMode::OBJECT_SHAPE,
                     );
 
                     // short circuit on any or unknown spreads
-                    match tables.types.get_type(spread_type) {
+                    match ctx.types.get_type(spread_type) {
                         Type::TypeLiteral {
                             value: TypeLiteral::Any,
                         } => {
@@ -68,7 +68,7 @@ impl Compiler {
 
                     // expand spread types into object shapes
                     let spread_shapes = self.collect_object_spread_shapes(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         (*property_id).into_any(),
                         spread_type,
                     )?;
@@ -76,10 +76,10 @@ impl Compiler {
                 }
                 _ => {
                     if let Some(field) = self.infer_property(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         *property_id,
                         expected_object_ty_id,
-                        ctx,
+                        state,
                     )? {
                         literal_fields.push(field.clone());
                         for shape in shapes.iter_mut() {
@@ -137,23 +137,18 @@ impl Compiler {
     /// Collect object shapes from a spread type.
     fn collect_object_spread_shapes(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         type_id: LocalTypeId,
     ) -> AnalyzeResult<Vec<ObjectShape>> {
         let mut visited = Vec::new();
-        self.collect_object_spread_shapes_inner(
-            &mut tables.reborrow(),
-            node_id,
-            type_id,
-            &mut visited,
-        )
+        self.collect_object_spread_shapes_inner(&mut ctx.reborrow(), node_id, type_id, &mut visited)
     }
 
     /// Collect object shapes with recursion protection.
     fn collect_object_spread_shapes_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         type_id: LocalTypeId,
         visited: &mut Vec<LocalTypeId>,
@@ -168,7 +163,7 @@ impl Compiler {
         let normalized_type = {
             let mut normalize_visited = Vec::new();
             self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 type_id,
                 NormalizationMode::Assign,
                 RelationMode::OBJECT_SHAPE,
@@ -177,22 +172,21 @@ impl Compiler {
         };
 
         // derive shapes based on the normalized type
-        let normalized_type_value = tables.types.get_type(normalized_type).clone();
+        let normalized_type_value = ctx.types.get_type(normalized_type).clone();
         let shapes = match normalized_type_value {
             Type::Object { .. } => {
                 // direct object shapes map to a single inferred shape
                 let mut shape = ObjectShape::default();
-                shape.extend_from_object(tables.types.get_type(normalized_type));
+                shape.extend_from_object(ctx.types.get_type(normalized_type));
                 vec![shape]
             }
             Type::Reference { symbol, .. } => {
                 // use apparent types for spreads to match shape behavior
-                let instance_id =
-                    self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol);
+                let instance_id = self.apparent_instance_type(&mut ctx.reborrow(), node_id, symbol);
 
                 if let Some(instance_id) = instance_id {
                     self.collect_object_spread_shapes_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         instance_id,
                         visited,
@@ -207,7 +201,7 @@ impl Compiler {
                 let mut merged = Vec::new();
                 for element_id in elements {
                     let mut element_shapes = self.collect_object_spread_shapes_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         element_id,
                         visited,
@@ -221,7 +215,7 @@ impl Compiler {
                 let mut merged = vec![ObjectShape::default()];
                 for element_id in elements {
                     let element_shapes = self.collect_object_spread_shapes_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         element_id,
                         visited,
@@ -229,7 +223,7 @@ impl Compiler {
                     merged = self.merge_object_spread_shape_sets_for_intersection(
                         merged,
                         element_shapes,
-                        tables.types,
+                        ctx.types,
                     );
                 }
                 merged

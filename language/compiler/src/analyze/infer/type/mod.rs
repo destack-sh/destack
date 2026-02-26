@@ -6,10 +6,10 @@ use super::{
 };
 use crate::analyze::common::{
     AnalyzeDependencyStage, ConstContext, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
-    RelationMode, TypeRewriteCache, TypeTablesContext, TypeWalkContext, TypeWalkKey, WideningMode,
+    RelationMode, TypeContext, TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode,
     rewrite_type_with_cache,
 };
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, Declarator, Expression, Extension, ExtensionKind,
     FloatType, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny,
@@ -29,6 +29,7 @@ mod operator;
 mod remote;
 
 pub(super) use binding::TypeGuardTarget;
+pub(crate) use remote::RemoteValueTypeReadDomain;
 
 #[cfg(test)]
 mod tests;

@@ -9,6 +9,7 @@ mod operator;
 mod process;
 pub(crate) mod provisional;
 mod r#type;
+pub(crate) use r#type::RemoteValueTypeReadDomain;
 
 pub(crate) use expression::{argument, call};
 

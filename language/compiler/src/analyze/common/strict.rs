@@ -5,51 +5,34 @@ use destack_workspace::Module;
 
 use super::r#type::TypeContainmentVisitor;
 use crate::Compiler;
+use crate::analyze::common::TypeView;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check whether a type contains the `any` literal.
-    pub(crate) fn type_contains_any(
-        &self,
-        module: &Module,
-        ty_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> bool {
-        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_any, true)
+    pub(crate) fn type_contains_any(&self, ctx: TypeView<'_>, ty_id: LocalTypeId) -> bool {
+        self.type_contains_forbidden_literal(ctx, ty_id, literal_is_any, true)
     }
 
     /// Check whether a type contains the `unknown` literal.
-    pub(crate) fn type_contains_unknown(
-        &self,
-        module: &Module,
-        ty_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> bool {
-        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_unknown, true)
+    pub(crate) fn type_contains_unknown(&self, ctx: TypeView<'_>, ty_id: LocalTypeId) -> bool {
+        self.type_contains_forbidden_literal(ctx, ty_id, literal_is_unknown, true)
     }
 
     /// Check whether a type contains imprecise primitive literals.
     pub(crate) fn type_contains_imprecise_primitive(
         &self,
-        module: &Module,
+        ctx: TypeView<'_>,
         ty_id: LocalTypeId,
-        types: &TypeTable,
     ) -> bool {
-        self.type_contains_forbidden_literal(
-            module,
-            ty_id,
-            types,
-            literal_is_imprecise_primitive,
-            false,
-        )
+        self.type_contains_forbidden_literal(ctx, ty_id, literal_is_imprecise_primitive, false)
     }
 
     /// Check whether a type contains a forbidden literal.
     fn type_contains_forbidden_literal(
         &self,
-        module: &Module,
+        ctx: TypeView<'_>,
         ty_id: LocalTypeId,
-        types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
         skip_imported_types: bool,
     ) -> bool {
@@ -59,9 +42,9 @@ impl Compiler {
 
         // scan the type graph
         self.type_contains_forbidden_literal_inner(
-            module,
+            ctx.module,
             ty_id,
-            types,
+            ctx.types,
             predicate,
             skip_imported_types,
             &mut visited_types,

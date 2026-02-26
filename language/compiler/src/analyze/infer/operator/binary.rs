@@ -4,58 +4,53 @@ use super::*;
 impl Compiler {
     pub(crate) fn infer_binary_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &BinaryOperator,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the left side first
-        let left_ty_id = self.infer_expression(&mut tables.reborrow(), left_id, ctx)?;
+        let left_ty_id = self.infer_expression(&mut ctx.reborrow(), left_id, state)?;
 
         // infer the right side after the left
-        let right_ty_id = self.infer_expression(&mut tables.reborrow(), right_id, ctx)?;
+        let right_ty_id = self.infer_expression(&mut ctx.reborrow(), right_id, state)?;
 
         // load resolved operand types for operator checks
-        let left_ty_id = self.unwrap_type_value(left_ty_id, tables.types);
-        let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
-        let left_ty = tables.types.get_type(left_ty_id).clone();
-        let right_ty = tables.types.get_type(right_ty_id).clone();
+        let left_ty_id = self.unwrap_type_value(left_ty_id, ctx.types);
+        let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
+        let left_ty = ctx.types.get_type(left_ty_id).clone();
+        let right_ty = ctx.types.get_type(right_ty_id).clone();
 
         // resolve apparent operand types for builtin operator checks
         let left_operator_ty_id = self.normalize_apparent_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             left_ty_id,
             NormalizationMode::Assign,
             RelationMode::OPERATOR_COMPAT,
         );
         let right_operator_ty_id = self.normalize_apparent_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             right_ty_id,
             NormalizationMode::Assign,
             RelationMode::OPERATOR_COMPAT,
         );
-        let left_operator_ty = tables.types.get_type(left_operator_ty_id).clone();
-        let right_operator_ty = tables.types.get_type(right_operator_ty_id).clone();
+        let left_operator_ty = ctx.types.get_type(left_operator_ty_id).clone();
+        let right_operator_ty = ctx.types.get_type(right_operator_ty_id).clone();
 
         // enforce class-only instanceof targets
         if matches!(operator, BinaryOperator::InstanceOf)
-            && matches!(tables.module.source, ModuleSource::User)
+            && matches!(ctx.module.source, ModuleSource::User)
         {
-            let target_symbol = self.reference_symbol_for_expression(
-                tables.module,
-                right_id,
-                ctx.profile,
-                tables.tree,
-                tables.symbols,
-            );
+            let target_symbol =
+                self.reference_symbol_for_expression(ctx.tree_symbol_view(), right_id);
             let is_class_target =
                 target_symbol.is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
             if !is_class_target {
                 self.error(AnalyzeError::InvalidInstanceOfTarget {
                     node: expression_id
-                        .into_global_any(tables.module.id)
+                        .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -64,23 +59,21 @@ impl Compiler {
         // cache runtime check kind for instanceof guards
         if matches!(operator, BinaryOperator::InstanceOf) {
             let target_type_id = self.resolve_declared_type_expression(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 right_id,
                 true,
                 true,
             );
             if let Ok(target_type_id) = target_type_id {
-                let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
+                let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
                 let runtime_check_kind = self.runtime_check_kind_for_relation(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     left_ty_id,
                     target_type_id,
                 );
                 if let Some(kind) = runtime_check_kind {
-                    tables.types.set_runtime_check_kind(
-                        expression_id.into_global_any(tables.module.id),
-                        kind,
-                    );
+                    ctx.types
+                        .set_runtime_check_kind(expression_id.into_global_any(ctx.module.id), kind);
                 }
             }
         }
@@ -90,7 +83,7 @@ impl Compiler {
 
         // reject referential equality when configured
         if ctx.options.no_referential_equality
-            && matches!(tables.module.source, ModuleSource::User)
+            && matches!(ctx.module.source, ModuleSource::User)
             && matches!(
                 operator,
                 BinaryOperator::Equal
@@ -100,14 +93,14 @@ impl Compiler {
             )
         {
             let left_is_object =
-                self.type_is_object_like(&mut tables.type_tables_reborrow(), left_ty_id);
+                self.type_is_object_like(&mut ctx.type_context_reborrow(), left_ty_id);
             let right_is_object =
-                self.type_is_object_like(&mut tables.type_tables_reborrow(), right_ty_id);
+                self.type_is_object_like(&mut ctx.type_context_reborrow(), right_ty_id);
             if left_is_object || right_is_object {
                 referential_equality_violation = true;
                 self.error(AnalyzeError::ReferentialEqualityDisabled {
                     node: expression_id
-                        .into_global_any(tables.module.id)
+                        .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -118,7 +111,7 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Boolean),
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // guard strict equality against struct types
@@ -137,9 +130,9 @@ impl Compiler {
             if let Some(struct_ty_id) = struct_ty_id {
                 self.error(AnalyzeError::InvalidStrictEquality {
                     node: expression_id
-                        .into_global_any(tables.module.id)
+                        .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
-                    ty: struct_ty_id.into_global(tables.module.id),
+                    ty: struct_ty_id.into_global(ctx.module.id),
                 });
             }
         }
@@ -147,7 +140,7 @@ impl Compiler {
         // handle coalesce operator separately
         if matches!(operator, BinaryOperator::Coalesce) {
             return self.infer_coalesce_expression(
-                tables,
+                ctx,
                 expression_id,
                 left_id,
                 right_id,
@@ -155,19 +148,19 @@ impl Compiler {
                 right_ty_id,
                 &left_ty,
                 &right_ty,
-                ctx,
+                state,
             );
         }
 
         // handle logical operators with operand unions
         if matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
             let result_ty_id =
-                self.union_type_from_list(vec![left_ty_id, right_ty_id], left_ty_id, tables.types);
+                self.union_type_from_list(vec![left_ty_id, right_ty_id], left_ty_id, ctx.types);
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(left_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
             return Ok(result_ty_id);
         }
@@ -176,7 +169,7 @@ impl Compiler {
         // allow literal comparisons when values are assignable
         let is_literal_equality = self.should_use_literal_equality(
             operator,
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             left_ty_id,
             right_ty_id,
             left_id,
@@ -191,49 +184,40 @@ impl Compiler {
             operator,
             &left_operator_ty,
             &right_operator_ty,
-            tables.types,
+            ctx.types,
         ) || is_literal_equality
         {
             let ty = self.infer_binary_operation(
                 operator,
                 &left_operator_ty,
                 &right_operator_ty,
-                tables.types,
+                ctx.types,
             );
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(left_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         let Some(operator_item) = operator_item else {
-            let ty = self.infer_binary_operation(operator, &left_ty, &right_ty, tables.types);
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            let ty = self.infer_binary_operation(operator, &left_ty, &right_ty, ctx.types);
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         };
 
         // require explicit operator interface implementation
-        if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
-            &left_ty,
-            operator_item,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.is_interface_implemented(ctx.symbol_type_view(), &left_ty, operator_item) {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
             return Ok(self.binary_overload_failure_result_type(
                 operator,
                 expression_id,
-                tables.types,
+                ctx.types,
             ));
         }
 
@@ -241,7 +225,7 @@ impl Compiler {
         let operator_key = self.operator_member_key(operator_item);
         let Some(resolved) = ({
             self.resolve_member_function(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 left_id,
                 Some(left_ty_id),
@@ -250,38 +234,34 @@ impl Compiler {
             )?
         }) else {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
             return Ok(self.binary_overload_failure_result_type(
                 operator,
                 expression_id,
-                tables.types,
+                ctx.types,
             ));
         };
 
         // handle missing member
         if !resolved.has_member {
             self.record_member_call_resolution(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 left_ty_id,
                 &resolved,
             )?;
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
             return Ok(self.binary_overload_failure_result_type(
                 operator,
                 expression_id,
-                tables.types,
+                ctx.types,
             ));
         }
 
@@ -289,42 +269,41 @@ impl Compiler {
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
         }
 
         // check argument assignability
         if let Some(parameter_ty_id) = parameter_ty_id {
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: right_ty_id,
                 super_type: parameter_ty_id,
                 variance: None,
             });
 
+            let options = *ctx.options;
             self.enforce_assignability_or_defer_diagnostic(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id.into_any(),
                 parameter_ty_id,
                 right_ty_id,
-                &ctx.options,
+                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
         }
 
         // finalize resolution and instance registration
         self.record_member_call_resolution(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             left_ty_id,
             &resolved,
         )?;
 
         let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
-            tables.types.insert_type_from(
+            ctx.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 },
@@ -343,14 +322,13 @@ impl Compiler {
             let boolean_ty = Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Boolean),
             };
-            return Ok(tables.types.insert_type_from(boolean_ty, expression_id));
+            return Ok(ctx.types.insert_type_from(boolean_ty, expression_id));
         }
 
         Ok(return_ty_id)
     }
 
     /// Infer an assignment expression.
-
     /// Return one result type for operator overload resolution failures.
     fn binary_overload_failure_result_type(
         &self,
@@ -512,7 +490,7 @@ impl Compiler {
     fn should_use_literal_equality(
         &self,
         operator: &BinaryOperator,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
         left_id: LocalNodeId<Expression>,
@@ -533,17 +511,17 @@ impl Compiler {
 
         // decide whether either side is a literal value
         let left_literal_type_id = self
-            .literal_type_id_for_expression(left_id, tables.tree, tables.types)
+            .literal_type_id_for_expression(left_id, ctx.tree, ctx.types)
             .or_else(|| self.is_literal_value_type(left_ty).then_some(left_ty_id));
 
         let right_literal_type_id = self
-            .literal_type_id_for_expression(right_id, tables.tree, tables.types)
+            .literal_type_id_for_expression(right_id, ctx.tree, ctx.types)
             .or_else(|| self.is_literal_value_type(right_ty).then_some(right_ty_id));
 
         // allow comparisons when the left literal is assignable
         if let Some(left_literal_type_id) = left_literal_type_id {
             let assignable = self.is_type_assignable(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 right_ty_id,
                 left_literal_type_id,
             );
@@ -554,7 +532,7 @@ impl Compiler {
         // allow comparisons when the right literal is assignable
         if let Some(right_literal_type_id) = right_literal_type_id {
             let assignable = self.is_type_assignable(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 left_ty_id,
                 right_literal_type_id,
             );

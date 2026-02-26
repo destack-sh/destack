@@ -2,7 +2,7 @@ use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskResultCollector};
 
 impl Compiler {
@@ -84,9 +84,7 @@ impl Compiler {
                 // resolve the binding name id
                 let symbol_id = local_symbol_id.into_global(module_id);
                 let canonical_symbol_id = self.canonical_symbol_id(
-                    &module,
-                    &symbols,
-                    profile,
+                    ModuleSymbolView::new(&module, profile, &symbols),
                     symbol_id,
                     CanonicalSymbolMode::FollowAliases,
                 );
@@ -121,7 +119,7 @@ impl Compiler {
                     let message = self
                         .program
                         .strings
-                        .intern(&format!("intrinsic name '{}' is already bound", name));
+                        .intern(&format!("intrinsic name '{name}' is already bound"));
                     return Err(AnalyzeError::InvalidWellKnownDecorator {
                         node: anchor,
                         message,

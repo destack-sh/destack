@@ -7,28 +7,26 @@ use destack_dir::{
     SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::Module;
 
 use crate::{AnalyzeResult, Compiler};
 
 use super::walk::CaptureCollector;
+use crate::analyze::common::TreeSymbolView;
 
 impl Compiler {
     /// Resolve the nearest `this` symbol visible to an expression.
     pub(crate) fn resolve_this_symbol(
         &self,
-        module: &Module,
+        ctx: TreeSymbolView<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         let this_name = self.program.strings.intern("this");
 
         // resolve an explicit this parameter in a signature
         let resolve_signature_this = |signature: &FunctionSignature| {
             if let Some(this_parameter_id) = signature.this_parameter {
-                let symbol = tree.get(this_parameter_id).symbol();
-                return Some(symbol.into_global(module.id));
+                let symbol = ctx.tree.get(this_parameter_id).symbol();
+                return Some(symbol.into_global(ctx.module.id));
             }
             None
         };
@@ -39,39 +37,41 @@ impl Compiler {
 
         // resolve an explicit this parameter bound into the scope
         let resolve_scope_this = |scope: &Scope| {
-            let symbol_id = symbols.find_active_symbol(scope, StaticKey::Name(this_name))?;
-            Some(symbol_id.into_global(module.id))
+            let symbol_id = ctx
+                .symbols
+                .find_active_symbol(scope, StaticKey::Name(this_name))?;
+            Some(symbol_id.into_global(ctx.module.id))
         };
 
         // walk outward through scope owners
-        let mut scope = symbols.get_scope(expression_id, tree);
+        let mut scope = ctx.symbols.get_scope(expression_id, ctx.tree);
 
         loop {
             if let Some(owner_symbol) = scope.1.owner_id {
-                let owner_symbol = owner_symbol.into_global(module.id);
-                let owner_data = symbols.get_symbol(owner_symbol.into_local());
+                let owner_symbol = owner_symbol.into_global(ctx.module.id);
+                let owner_data = ctx.symbols.get_symbol(owner_symbol.into_local());
                 if let Some(primary_declaration) = owner_data.primary_declaration {
                     let owner_id = primary_declaration.local_id;
                     let signature = match owner_id.ty {
                         NodeType::Declaration => {
                             let declaration_id = LocalNodeId::<Declaration>::new(owner_id.id);
-                            match tree.get(declaration_id) {
+                            match ctx.tree.get(declaration_id) {
                                 Declaration::Function { signature, .. } => Some(signature),
                                 _ => None,
                             }
                         }
                         NodeType::Member => {
                             let member_id = LocalNodeId::<Member>::new(owner_id.id);
-                            match tree.get(member_id) {
+                            match ctx.tree.get(member_id) {
                                 Member::Method { signature, .. } => Some(signature),
                                 _ => None,
                             }
                         }
                         NodeType::Expression => {
                             let expression_id = LocalNodeId::<Expression>::new(owner_id.id);
-                            match tree.get(expression_id) {
+                            match ctx.tree.get(expression_id) {
                                 Expression::Declaration { declaration } => {
-                                    match tree.get(*declaration) {
+                                    match ctx.tree.get(*declaration) {
                                         Declaration::Function { signature, .. } => Some(signature),
                                         _ => None,
                                     }
@@ -113,7 +113,7 @@ impl Compiler {
             let (parent_scope_id, parent_mark) = scope.1.parent?;
             scope = (
                 parent_scope_id,
-                symbols.get_scope_by_id(parent_scope_id),
+                ctx.symbols.get_scope_by_id(parent_scope_id),
                 parent_mark,
             );
         }
@@ -122,20 +122,18 @@ impl Compiler {
     /// Compute capture sets for nested functions and lambdas in a module.
     pub(crate) fn compute_module_captures(
         &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        ctx: TreeSymbolView<'_>,
         captures: &mut CaptureTable,
     ) -> AnalyzeResult<()> {
         // scan for function declarations
-        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+        for declaration_id in ctx.tree.iter_node_ids_of_type::<Declaration>() {
             // skip inactive nodes
-            if !self.is_node_active(tree, symbols, declaration_id.into_any()) {
+            if !self.is_node_active(ctx.tree, ctx.symbols, declaration_id.into_any()) {
                 continue;
             }
 
             // unwrap function declarations
-            let declaration = tree.get(declaration_id);
+            let declaration = ctx.tree.get(declaration_id);
             let Declaration::Function {
                 descriptor,
                 signature: _,
@@ -147,7 +145,7 @@ impl Compiler {
             };
 
             // skip inactive symbols
-            let symbol = symbols.get_symbol(descriptor.symbol);
+            let symbol = ctx.symbols.get_symbol(descriptor.symbol);
             if !symbol.is_active() {
                 continue;
             }
@@ -158,15 +156,14 @@ impl Compiler {
             };
 
             // resolve capture directive for this closure
-            let function_symbol = descriptor.symbol.into_global(module.id);
+            let function_symbol = descriptor.symbol.into_global(ctx.module.id);
             let directive = captures
                 .capture_directive(function_symbol)
                 .cloned()
                 .unwrap_or_default();
 
             // collect captured symbols
-            let mut collector =
-                CaptureCollector::new(module.id, *scope, tree, symbols, self, module);
+            let mut collector = CaptureCollector::new(ctx, *scope, self);
             collector.collect(*body_id);
 
             // build capture bindings and address taken info
@@ -181,7 +178,7 @@ impl Compiler {
                 {
                     CaptureKind::ByValue
                 } else {
-                    self.capture_kind_for_symbol(tree, symbols, symbol, &directive)
+                    self.capture_kind_for_symbol(ctx, symbol, &directive)
                 };
 
                 // record the capture in order
@@ -189,9 +186,7 @@ impl Compiler {
 
                 // track address taken locals for by reference captures
                 if kind == CaptureKind::ByReference {
-                    let Some(owner_symbol) =
-                        self.owner_symbol_for_symbol(module.id, tree, symbols, symbol)
-                    else {
+                    let Some(owner_symbol) = self.owner_symbol_for_symbol(ctx, symbol) else {
                         continue;
                     };
 
@@ -281,13 +276,12 @@ impl Compiler {
     /// Resolve the capture kind for a symbol given a directive.
     fn capture_kind_for_symbol(
         &self,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
         directive: &CaptureDirective,
     ) -> CaptureKind {
         // honor explicit rules when a name is present
-        let symbol_data = symbols.get_symbol(symbol.into_local());
+        let symbol_data = ctx.symbols.get_symbol(symbol.into_local());
         if let Some(name) = symbol_data.name()
             && let Some(kind) = directive.override_for_name(name)
         {
@@ -300,7 +294,7 @@ impl Compiler {
         }
 
         // default policy: const by valueable by reference
-        let mutability = self.mutability_for_symbol(tree, symbols, symbol);
+        let mutability = self.mutability_for_symbol(ctx, symbol);
         if mutability == Some(Mutability::Immutable) {
             return CaptureKind::ByValue;
         }
@@ -311,16 +305,15 @@ impl Compiler {
     /// Resolve mutability for a symbol when available.
     fn mutability_for_symbol(
         &self,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<Mutability> {
         // use the primary declaration when available
-        let symbol_data = symbols.get_symbol(symbol.into_local());
+        let symbol_data = ctx.symbols.get_symbol(symbol.into_local());
         let primary_declaration = symbol_data.primary_declaration?;
 
         // skip declarations from other modules
-        if primary_declaration.module_id != tree.module_id {
+        if primary_declaration.module_id != ctx.tree.module_id {
             return None;
         }
 
@@ -332,11 +325,11 @@ impl Compiler {
         // walk up to find the owning let binding
         let mut current = primary_declaration.local_id;
         loop {
-            let parent_id = tree.get_parent(current.id)?;
+            let parent_id = ctx.tree.get_parent(current.id)?;
 
             if parent_id.ty == NodeType::Expression {
                 let parent_expression_id = LocalNodeId::<Expression>::new(parent_id.id);
-                let parent_expression = tree.get(parent_expression_id);
+                let parent_expression = ctx.tree.get(parent_expression_id);
                 if let Expression::Let { mutability, .. } = parent_expression {
                     return Some(*mutability);
                 }
@@ -349,23 +342,21 @@ impl Compiler {
     /// Resolve the owning function symbol for a local symbol.
     fn owner_symbol_for_symbol(
         &self,
-        module_id: ModuleId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<GlobalSymbolId> {
         // resolve the owning scope for local symbols when possible
-        let symbol_data = symbols.get_symbol(symbol.into_local());
-        if symbol_data.module_id != module_id {
+        let symbol_data = ctx.symbols.get_symbol(symbol.into_local());
+        if symbol_data.module_id != ctx.module.id {
             return None;
         }
         let mut scope_id = symbol_data.scope.0;
         loop {
-            let scope = symbols.get_scope_by_id(scope_id);
+            let scope = ctx.symbols.get_scope_by_id(scope_id);
             if let Some(owner_id) = scope.owner_id {
-                let owner_symbol = symbols.get_symbol(owner_id);
-                if self.symbol_is_function(tree, owner_symbol) {
-                    return Some(owner_id.into_global(module_id));
+                let owner_symbol = ctx.symbols.get_symbol(owner_id);
+                if self.symbol_is_function(ctx.tree, owner_symbol) {
+                    return Some(owner_id.into_global(ctx.module.id));
                 }
             }
             let Some((parent_id, _)) = scope.parent else {
@@ -376,7 +367,7 @@ impl Compiler {
 
         // fall back to walking up from the primary declaration
         let primary_declaration = symbol_data.primary_declaration?;
-        if primary_declaration.module_id != module_id {
+        if primary_declaration.module_id != ctx.module.id {
             return None;
         }
 
@@ -386,28 +377,28 @@ impl Compiler {
             match current.ty {
                 NodeType::Declaration => {
                     let declaration_id = LocalNodeId::<Declaration>::new(current.id);
-                    if let Declaration::Function { descriptor, .. } = tree.get(declaration_id) {
-                        return Some(descriptor.symbol.into_global(module_id));
+                    if let Declaration::Function { descriptor, .. } = ctx.tree.get(declaration_id) {
+                        return Some(descriptor.symbol.into_global(ctx.module.id));
                     }
                 }
                 NodeType::Member => {
                     let member_id = LocalNodeId::<Member>::new(current.id);
-                    if let Member::Method { symbol, .. } = tree.get(member_id) {
-                        return Some(symbol.into_global(module_id));
+                    if let Member::Method { symbol, .. } = ctx.tree.get(member_id) {
+                        return Some(symbol.into_global(ctx.module.id));
                     }
                 }
                 NodeType::Expression => {
                     let expression_id = LocalNodeId::<Expression>::new(current.id);
-                    if let Expression::Declaration { declaration } = tree.get(expression_id)
-                        && let Declaration::Function { descriptor, .. } = tree.get(*declaration)
+                    if let Expression::Declaration { declaration } = ctx.tree.get(expression_id)
+                        && let Declaration::Function { descriptor, .. } = ctx.tree.get(*declaration)
                     {
-                        return Some(descriptor.symbol.into_global(module_id));
+                        return Some(descriptor.symbol.into_global(ctx.module.id));
                     }
                 }
                 _ => {}
             }
 
-            let parent_id = tree.get_parent(current.id)?;
+            let parent_id = ctx.tree.get_parent(current.id)?;
             current = parent_id;
         }
     }

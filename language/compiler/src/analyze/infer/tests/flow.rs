@@ -136,11 +136,11 @@ fn test_build_flow_graph_short_circuit_guard() {
     // build flow data for the condition expression
     // build the flow graph
     let graph = FlowGraphBuilder::new(module.id, &tree).build(condition_id);
-    let context = InferContext::new(
+    let context = InferState::new(
         profile,
         AnalyzeOptions::from(&DsConfigCompilerOptions::default()),
     );
-    let mut flow_tables = TypeTablesContext::new(
+    let mut flow_ctx = TypeContext::new(
         &module,
         profile,
         &context.options,
@@ -150,7 +150,7 @@ fn test_build_flow_graph_short_circuit_guard() {
     );
     let flow = test
         .compiler
-        .compute_flow_table_for_graph(&mut flow_tables, &graph, &context)
+        .compute_flow_table_for_graph(&mut flow_ctx, &graph, &context)
         .expect("expected flow table");
 
     // read the flow environment for the right side argument

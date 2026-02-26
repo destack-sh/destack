@@ -4,20 +4,20 @@ use super::obligation::relation::UnassignableRelationFailureMode;
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
-use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext, RelationMode};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, RelationMode};
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, Compiler, InferContext,
+    AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, Compiler, InferState,
     OperatorLanguageSymbolExt,
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    AssignOperator, BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, InferTable,
+    AssignOperator, BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId,
     LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
     NormalizationMode, PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable,
     SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource};
 use std::collections::HashMap;
 
 mod assign;

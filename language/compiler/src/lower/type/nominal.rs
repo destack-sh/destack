@@ -4,6 +4,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, GlobalSymbolId, LocalNodeId};
 use destack_mir as mir;
 
+use crate::analyze::TreeSymbolTypeView;
 use crate::lower::{
     FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, static_key_to_field_name,
 };
@@ -223,11 +224,13 @@ impl ModuleLowerer<'_> {
                 // resolve a static key for layout naming
                 let Some(key) = key.and_then(|key| {
                     self.compiler.static_key_from_dynamic_key(
-                        self.profile,
+                        TreeSymbolTypeView::new(
+                            self.profile,
+                            self.dir_tree,
+                            self.symbols,
+                            self.types,
+                        ),
                         key,
-                        self.dir_tree,
-                        self.symbols,
-                        self.types,
                     )
                 }) else {
                     return Err(LowerError::UnsupportedConstruct {

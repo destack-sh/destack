@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 mod active;
 mod canonical;
 mod exports;

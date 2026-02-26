@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_base::StringId;
@@ -86,14 +86,14 @@ impl Compiler {
     }
 
     /// Validate binding identifiers.
-    pub(super) fn validate_binding_names(&self, type_tables: &TypeTablesContext<'_>) {
-        if !type_tables.module.is_user() {
+    pub(super) fn validate_binding_names(&self, ctx: &TypeContext<'_>) {
+        if !ctx.module.is_user() {
             return;
         }
 
-        for scope in type_tables.symbols.scopes() {
-            for (key, symbol_id) in type_tables.symbols.active_named_symbols(scope) {
-                let symbol = type_tables.symbols.get_symbol(symbol_id);
+        for scope in ctx.symbols.scopes() {
+            for (key, symbol_id) in ctx.symbols.active_named_symbols(scope) {
+                let symbol = ctx.symbols.get_symbol(symbol_id);
                 if symbol.space == SymbolSpace::Label {
                     continue;
                 }
@@ -108,12 +108,12 @@ impl Compiler {
                     {
                         let parameter_id =
                             LocalNodeId::<Parameter>::new(primary_declaration.local_id.id);
-                        if self.is_explicit_this_parameter(type_tables.tree, parameter_id) {
+                        if self.is_explicit_this_parameter(ctx.tree, parameter_id) {
                             continue;
                         }
                     }
                     self.error(AnalyzeError::ReservedIdentifier {
-                        node: primary_declaration.into_anchored(Some(type_tables.profile)),
+                        node: primary_declaration.into_anchored(Some(ctx.profile)),
                         name,
                     });
                 }

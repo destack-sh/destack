@@ -11,6 +11,7 @@ use destack_workspace::{DiagnosticPolicy, Module};
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
     pub(super) fn validate_binding_conflicts(&self, module: &Module) {
@@ -459,8 +460,8 @@ impl Compiler {
                         let ancestor_binding_category =
                             self.symbol_binding_category(ancestor_symbol);
                         let should_conflict = self.ancestor_binding_categories_conflict(
-                            &tree,
-                            &symbols,
+                            tree,
+                            symbols,
                             symbol,
                             ancestor_symbol,
                             binding_category,

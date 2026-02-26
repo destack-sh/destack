@@ -6,6 +6,7 @@ use destack_workspace::{Module, Package};
 use rustc_hash::FxHasher;
 use {destack_dir as dir, destack_mir as mir};
 
+use crate::analyze::TreeSymbolTypeView;
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
 
@@ -1146,11 +1147,8 @@ impl ModuleLowerer<'_> {
 
         // resolve the key into a static key
         let key = self.compiler.static_key_from_dynamic_key(
-            self.profile,
+            TreeSymbolTypeView::new(self.profile, self.dir_tree, self.symbols, self.types),
             key,
-            self.dir_tree,
-            self.symbols,
-            self.types,
         )?;
 
         // return the static key name

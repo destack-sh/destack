@@ -2,12 +2,11 @@ use std::collections::HashSet;
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, StaticArgument, StaticExpression,
-    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    WellKnownSymbol,
+    SymbolKind, SymbolSpace, SymbolType, Type, TypeLiteral, TypeTable, WellKnownSymbol,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::ProfileId;
 
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::{AnalyzeDependencyStage, ModuleSymbolView, TypeContext};
 use crate::{Compiler, TaskDependencyError};
 
 /// Control how canonical symbol resolution treats aliases.
@@ -24,9 +23,7 @@ impl Compiler {
     /// Resolve the canonical symbol for a reference with an explicit stage contract.
     pub(crate) fn canonical_symbol_id_at_stage(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
         stage: AnalyzeDependencyStage,
@@ -43,10 +40,10 @@ impl Compiler {
 
             let (symbol_ty, canonical_symbol, target_symbol) = self
                 .with_module_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     current_symbol.module_id,
-                    symbols,
+                    view.symbols,
                     stage,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
@@ -83,16 +80,12 @@ impl Compiler {
     /// Resolve a symbol to the declaration owner symbol with an explicit stage contract.
     pub(crate) fn declaration_symbol_id_at_stage(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         stage: AnalyzeDependencyStage,
     ) -> Result<Option<GlobalSymbolId>, TaskDependencyError> {
         let mut current_symbol = self.canonical_symbol_id_at_stage(
-            module,
-            symbols,
-            profile,
+            view,
             symbol,
             CanonicalSymbolMode::FollowAliases,
             stage,
@@ -106,10 +99,10 @@ impl Compiler {
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
                 .with_module_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     current_symbol.module_id,
-                    symbols,
+                    view.symbols,
                     stage,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
@@ -139,9 +132,7 @@ impl Compiler {
                 return Ok(None);
             };
             current_symbol = self.canonical_symbol_id_at_stage(
-                module,
-                symbols,
-                profile,
+                view,
                 next_symbol,
                 CanonicalSymbolMode::FollowAliases,
                 stage,
@@ -152,9 +143,7 @@ impl Compiler {
     /// Resolve the canonical symbol for a reference with explicit alias handling.
     pub(crate) fn canonical_symbol_id(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
     ) -> GlobalSymbolId {
@@ -170,10 +159,10 @@ impl Compiler {
 
             let Some((symbol_ty, canonical_symbol, target_symbol)) = self
                 .with_module_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     current_symbol.module_id,
-                    symbols,
+                    view.symbols,
                     AnalyzeDependencyStage::Declare,
                     |_, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
@@ -214,18 +203,11 @@ impl Compiler {
     /// Resolve a symbol to the declaration owner symbol when one exists.
     pub(crate) fn declaration_symbol_id(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<GlobalSymbolId> {
-        let mut current_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
+        let mut current_symbol =
+            self.canonical_symbol_id(view, symbol, CanonicalSymbolMode::FollowAliases);
         let mut visited_symbols = HashSet::new();
 
         loop {
@@ -233,12 +215,12 @@ impl Compiler {
                 return None;
             }
 
-            let Some((normalized_symbol, is_declaration, target_symbol, canonical_symbol)) = self
+            let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
                 .with_module_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     current_symbol.module_id,
-                    symbols,
+                    view.symbols,
                     AnalyzeDependencyStage::Declare,
                     |owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
@@ -259,23 +241,15 @@ impl Compiler {
                         )
                     },
                 )
-                .ok()
-            else {
-                return None;
-            };
+                .ok()?;
 
             if is_declaration {
                 return Some(normalized_symbol);
             }
 
             let next_symbol = target_symbol.or(canonical_symbol)?;
-            current_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
-                next_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
+            current_symbol =
+                self.canonical_symbol_id(view, next_symbol, CanonicalSymbolMode::FollowAliases);
         }
     }
 
@@ -300,14 +274,12 @@ impl Compiler {
     /// Resolve merged namespace symbols into the type space when possible.
     pub(crate) fn merged_type_symbol_id(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
         // reuse local symbol table when possible
-        if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
+        if symbol.module_id == view.module.id {
+            let symbol_entry = view.symbols.get_symbol(symbol.local_id);
             // stop when the symbol is not a namespace
             if symbol_entry.kind != SymbolKind::Namespace {
                 return symbol;
@@ -319,28 +291,28 @@ impl Compiler {
             };
 
             // select a merged type or type value symbol when available
-            let candidate =
-                symbols
-                    .merge_group_symbols(group_id)
-                    .iter()
-                    .copied()
-                    .find(|group_symbol| {
-                        let merged_symbol = symbols.get_symbol(*group_symbol);
-                        merged_symbol.kind != SymbolKind::Namespace
-                            && matches!(
-                                merged_symbol.space,
-                                SymbolSpace::Type | SymbolSpace::TypeValue
-                            )
-                    });
+            let candidate = view
+                .symbols
+                .merge_group_symbols(group_id)
+                .iter()
+                .copied()
+                .find(|group_symbol| {
+                    let merged_symbol = view.symbols.get_symbol(*group_symbol);
+                    merged_symbol.kind != SymbolKind::Namespace
+                        && matches!(
+                            merged_symbol.space,
+                            SymbolSpace::Type | SymbolSpace::TypeValue
+                        )
+                });
 
             return candidate
-                .map(|candidate| candidate.into_global(module.id))
+                .map(|candidate| candidate.into_global(view.module.id))
                 .unwrap_or(symbol);
         }
 
         self.with_module_symbols_at_stage(
-            module,
-            profile,
+            view.module,
+            view.profile,
             symbol.module_id,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
@@ -380,33 +352,23 @@ impl Compiler {
     /// Normalize well-known type references into structural types when possible.
     pub(crate) fn normalize_well_known_type_reference(
         &self,
-        _module: &Module,
-        _symbols: &SymbolTable,
-        _profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
-        _symbol: GlobalSymbolId,
         well_known: WellKnownSymbol,
         static_arguments: Option<&[StaticArgument]>,
-        types: &mut TypeTable,
     ) -> Option<Type> {
         let element = static_arguments
             .and_then(|arguments| arguments.first())
-            .map(|argument| self.static_argument_type(argument, source_id, types));
+            .map(|argument| self.static_argument_type(argument, source_id, ctx.types));
 
         match well_known {
             WellKnownSymbol::FixedArray => {
-                let Some(arguments) = static_arguments else {
-                    return None;
-                };
-                let Some(element_argument) = arguments.first() else {
-                    return None;
-                };
-                let Some(count_argument) = arguments.get(1) else {
-                    return None;
-                };
+                let arguments = static_arguments?;
+                let element_argument = arguments.first()?;
+                let count_argument = arguments.get(1)?;
 
-                let element = self.static_argument_type(element_argument, source_id, types);
-                let count = self.static_argument_type(count_argument, source_id, types);
+                let element = self.static_argument_type(element_argument, source_id, ctx.types);
+                let count = self.static_argument_type(count_argument, source_id, ctx.types);
                 Some(Type::ArraySized {
                     element,
                     count,

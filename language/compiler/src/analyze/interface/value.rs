@@ -1,5 +1,5 @@
-use crate::analyze::common::{InferTablesContext, TypeTablesContext};
-use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use crate::analyze::common::{InferContext, TreeSymbolView, TypeContext};
+use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferState};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree, NodeType,
@@ -92,66 +92,57 @@ impl Compiler {
     /// Infer interface value types using local information only.
     pub(crate) fn infer_interface_value_types(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         exported_symbols: &IndexMap<(SymbolSpace, StaticKey), Export>,
         emit_unknown_warnings: bool,
     ) -> AnalyzeResult<()> {
         // skip interface value inference for declaration modules
-        if type_tables.module.language_type.is_declaration() {
+        if ctx.module.language_type.is_declaration() {
             for export in exported_symbols.values() {
-                let Some((export_symbol, value_symbol)) = self.interface_value_symbol_for_export(
-                    type_tables.symbols,
-                    type_tables.module.id,
-                    export,
-                ) else {
+                let Some((export_symbol, value_symbol)) =
+                    self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
+                else {
                     continue;
                 };
 
                 if let Some(value_ty_id) =
-                    self.known_interface_value_type_id(type_tables.types, value_symbol)
+                    self.known_interface_value_type_id(ctx.types, value_symbol)
                 {
                     self.publish_interface_value_type(
                         export_symbol,
                         value_symbol,
                         value_ty_id,
-                        type_tables.types,
+                        ctx.types,
                     );
                     continue;
                 }
 
-                let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-                    type_tables.module,
-                    value_symbol,
-                    type_tables.tree,
-                    type_tables.symbols,
-                ) else {
+                let Some(declarator_id) =
+                    self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
+                else {
                     continue;
                 };
 
-                if let Some(declared_type_id) = self
-                    .declared_interface_value_type_id(&mut type_tables.reborrow(), declarator_id)?
+                if let Some(declared_type_id) =
+                    self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?
                 {
                     self.publish_interface_value_type(
                         export_symbol,
                         value_symbol,
                         declared_type_id,
-                        type_tables.types,
+                        ctx.types,
                     );
                 }
             }
 
             // ensure interface snapshots never publish value exports without one value type
-            self.ensure_interface_value_types_for_exports(
-                &mut type_tables.reborrow(),
-                exported_symbols,
-            );
+            self.ensure_interface_value_types_for_exports(&mut ctx.reborrow(), exported_symbols);
 
             return Ok(());
         }
 
         // prepare surface inference for interface values
-        let base_ctx =
-            InferContext::new(type_tables.profile, *type_tables.options).for_surface_inference();
+        let base_ctx = InferState::new(ctx.profile, *ctx.options).for_surface_inference();
         let mut infer = InferTable::default();
         let mut inferred_exports = Vec::new();
         let mut export_inference = Vec::new();
@@ -160,67 +151,60 @@ impl Compiler {
         // collect exported symbols that need value types
         for export in exported_symbols.values() {
             // resolve the local export symbol for interface value inference
-            let Some((export_symbol, value_symbol)) = self.interface_value_symbol_for_export(
-                type_tables.symbols,
-                type_tables.module.id,
-                export,
-            ) else {
+            let Some((export_symbol, value_symbol)) =
+                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
+            else {
                 continue;
             };
 
             // read the primary declaration for the export symbol
-            let symbol_entry = type_tables.symbols.get_symbol(value_symbol.local_id);
+            let symbol_entry = ctx.symbols.get_symbol(value_symbol.local_id);
             let Some(primary_declaration) = symbol_entry.primary_declaration else {
                 continue;
             };
 
             // defer unannotated function returns to declaration inference
             if let Some(declaration_id) =
-                self.interface_function_declaration(type_tables.tree, primary_declaration)
+                self.interface_function_declaration(ctx.tree, primary_declaration)
             {
                 export_declarations.push(InterfaceDeclarationInference { declaration_id });
                 continue;
             }
 
             // reuse known value types when already available
-            if let Some(value_ty_id) =
-                self.known_interface_value_type_id(type_tables.types, value_symbol)
-            {
+            if let Some(value_ty_id) = self.known_interface_value_type_id(ctx.types, value_symbol) {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
                     value_ty_id,
-                    type_tables.types,
+                    ctx.types,
                 );
                 continue;
             }
 
             // resolve the declarator that owns this binding
-            let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-                type_tables.module,
-                value_symbol,
-                type_tables.tree,
-                type_tables.symbols,
-            ) else {
+            let Some(declarator_id) =
+                self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
+            else {
                 continue;
             };
 
             // evaluate declared types when present
             if let Some(declared_type_id) =
-                self.declared_interface_value_type_id(&mut type_tables.reborrow(), declarator_id)?
+                self.declared_interface_value_type_id(&mut ctx.reborrow(), declarator_id)?
             {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
                     declared_type_id,
-                    type_tables.types,
+                    ctx.types,
                 );
                 continue;
             }
 
             // defer to surface inference for initializer-only exports
-            let declarator = type_tables.tree.get(declarator_id);
-            let binding_mutability = type_tables
+            let declarator = ctx.tree.get(declarator_id);
+            let binding_mutability = ctx
                 .symbols
                 .get_symbol(value_symbol.local_id)
                 .binding_mutability;
@@ -240,12 +224,11 @@ impl Compiler {
                 owner: export.export_symbol,
                 function_id: None,
             };
-            let origin = InferOrigin::Expression(
-                export.declarator_id.into_global_any(type_tables.module.id),
-            );
+            let origin =
+                InferOrigin::Expression(export.declarator_id.into_global_any(ctx.module.id));
             let symbol_ty_id = self.infer_var_type_for_symbol(
                 &mut infer,
-                type_tables.types,
+                ctx.types,
                 export.export_symbol,
                 export.declarator_id.into_any(),
                 origin,
@@ -257,30 +240,30 @@ impl Compiler {
                 export.export_symbol,
                 export.value_symbol,
                 symbol_ty_id,
-                type_tables.types,
+                ctx.types,
             );
             inferred_exports.push((
                 symbol_ty_id,
-                export.declarator_id.into_global_any(type_tables.module.id),
+                export.declarator_id.into_global_any(ctx.module.id),
             ));
         }
 
-        // infer interface declarations and initializers with one shared tables context
-        let mut tables = InferTablesContext::new(
-            type_tables.module,
-            type_tables.profile,
+        // infer interface declarations and initializers with one shared ctx context
+        let mut ctx = InferContext::new(
+            ctx.module,
+            ctx.profile,
             &base_ctx.options,
-            type_tables.tree,
-            type_tables.symbols,
-            type_tables.types,
+            ctx.tree,
+            ctx.symbols,
+            ctx.types,
             &mut infer,
         );
 
         // infer unannotated exported function declarations
         for export in &export_declarations {
             // infer the declaration with an unconstrained expectation
-            let mut ctx = base_ctx.fork().with_expected_type(None);
-            self.infer_declaration(&mut tables.reborrow(), export.declaration_id, &mut ctx)?;
+            let mut state = base_ctx.fork().with_expected_type(None);
+            self.infer_declaration(&mut ctx.reborrow(), export.declaration_id, &mut state)?;
         }
 
         // infer initializer types and constrain export symbols
@@ -289,25 +272,23 @@ impl Compiler {
             let Some(value_id) = export.value_id else {
                 continue;
             };
-            let Some(symbol_ty_id) = tables.types.get_value_type_id(export.export_symbol) else {
+            let Some(symbol_ty_id) = ctx.types.get_value_type_id(export.export_symbol) else {
                 continue;
             };
 
             // infer the initializer with binding defaults and export expectations
-            let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
-            ctx = self.binding_initializer_context(&ctx, export.binding_mutability);
+            let mut state = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
+            state = self.binding_initializer_context(&state, export.binding_mutability);
             let inferred_ty_id =
-                self.infer_expression(&mut tables.reborrow(), value_id, &mut ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), value_id, &mut state)?;
             let committed_ty_id = self.materialize_declarator_initializer_type(
-                tables.module,
+                &mut ctx.type_context_reborrow(),
                 export.declarator_id,
                 value_id,
                 inferred_ty_id,
-                tables.tree,
-                &ctx,
-                tables.types,
+                &state,
             );
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: committed_ty_id,
                 super_type: symbol_ty_id,
                 variance: None,
@@ -316,21 +297,21 @@ impl Compiler {
 
         // solve interface-local constraints for this surface pass
         {
-            let (mut type_tables, infer) = tables.split_type_tables_and_infer();
-            self.solve_interface_value_constraints(&mut type_tables, infer);
+            let (mut ctx, infer) = ctx.split_type_context_and_infer();
+            self.solve_interface_value_constraints(&mut ctx, infer);
         }
 
         // warn when interface exports remain unknown after surface inference
         if emit_unknown_warnings {
             for (ty_id, node_id) in inferred_exports {
                 if matches!(
-                    tables.types.get_type(ty_id),
+                    ctx.types.get_type(ty_id),
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown
                     }
                 ) {
                     self.warning(AnalyzeWarning::ExportTypeUnknown {
-                        node: node_id.into_anchored(Some(tables.profile)),
+                        node: node_id.into_anchored(Some(ctx.profile)),
                     });
                 }
             }
@@ -338,7 +319,7 @@ impl Compiler {
 
         // ensure interface snapshots never publish value exports without one value type
         self.ensure_interface_value_types_for_exports(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             exported_symbols,
         );
 
@@ -348,46 +329,43 @@ impl Compiler {
     /// Ensure each published value export has one committed interface value type.
     fn ensure_interface_value_types_for_exports(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
     ) {
         for export in exports.values() {
             let Some((export_symbol, value_symbol)) =
-                self.interface_value_symbol_for_export(tables.symbols, tables.module.id, export)
+                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
             else {
                 continue;
             };
 
-            if let Some(export_type_id) = tables.types.get_value_type_id(export_symbol) {
+            if let Some(export_type_id) = ctx.types.get_value_type_id(export_symbol) {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
                     export_type_id,
-                    tables.types,
+                    ctx.types,
                 );
                 continue;
             }
 
-            if let Some(value_type_id) = tables.types.get_value_type_id(value_symbol) {
+            if let Some(value_type_id) = ctx.types.get_value_type_id(value_symbol) {
                 self.publish_interface_value_type(
                     export_symbol,
                     value_symbol,
                     value_type_id,
-                    tables.types,
+                    ctx.types,
                 );
                 continue;
             }
 
-            let unknown_type_id = self.commit_unknown_interface_value_type(
-                &mut tables.reborrow(),
-                export,
-                value_symbol,
-            );
+            let unknown_type_id =
+                self.commit_unknown_interface_value_type(&mut ctx.reborrow(), export, value_symbol);
             self.publish_interface_value_type(
                 export_symbol,
                 value_symbol,
                 unknown_type_id,
-                tables.types,
+                ctx.types,
             );
         }
     }
@@ -409,20 +387,20 @@ impl Compiler {
     /// Commit semantic unknown for one published export symbol with no inferred value type.
     fn commit_unknown_interface_value_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         export: &Export,
         value_symbol: GlobalSymbolId,
     ) -> LocalTypeId {
-        let source_node = tables
+        let source_node = ctx
             .symbols
             .get_symbol(value_symbol.local_id)
             .primary_declaration
-            .filter(|declaration| declaration.module_id == tables.module.id)
+            .filter(|declaration| declaration.module_id == ctx.module.id)
             .map(|declaration| declaration.local_id)
             .or_else(|| export.item.map(|item| item.into_any()))
-            .unwrap_or(tables.module.dir(tables.profile).anchor_node);
+            .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
 
-        tables.types.insert_type_from_any(
+        ctx.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
@@ -431,17 +409,13 @@ impl Compiler {
     }
 
     /// Solve interface value inference constraints for the current surface pass.
-    fn solve_interface_value_constraints(
-        &self,
-        type_tables: &mut TypeTablesContext<'_>,
-        infer: &InferTable,
-    ) {
+    fn solve_interface_value_constraints(&self, ctx: &mut TypeContext<'_>, infer: &InferTable) {
         if infer.vars.is_empty() {
             return;
         }
 
         // interface inference solves an ephemeral local table, not the module solve stage table
-        self.solve_infer_table(type_tables, infer);
+        self.solve_infer_table(ctx, infer);
     }
 
     /// Resolve the export symbol and its local target for interface value inference.
@@ -521,33 +495,31 @@ impl Compiler {
     /// Resolve and evaluate the declared value type for an export.
     fn declared_interface_value_type_id(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // read the declared type when present
-        let declared_type_id = type_tables
+        let declared_type_id = ctx
             .types
-            .get_declared_type_id(declarator_id.into_global_any(type_tables.module.id));
+            .get_declared_type_id(declarator_id.into_global_any(ctx.module.id));
         let Some(declared_type_id) = declared_type_id else {
             return Ok(None);
         };
 
         // evaluate and return the declared type
-        self.resolve_declared_type(type_tables, declared_type_id)?;
+        self.resolve_declared_type(ctx, declared_type_id)?;
         Ok(Some(declared_type_id))
     }
 
     /// Collect remote references used by an interface value initializer.
     pub(crate) fn interface_value_references(
         &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        ctx: TreeSymbolView<'_>,
         value_id: LocalNodeId<Expression>,
     ) -> Vec<GlobalSymbolId> {
         // walk the initializer and collect remote symbols
-        let mut collector = InterfaceValueReferenceCollector::new(module, symbols);
-        collector.visit_expression(tree, value_id, tree.get(value_id));
+        let mut collector = InterfaceValueReferenceCollector::new(ctx.module, ctx.symbols);
+        collector.visit_expression(ctx.tree, value_id, ctx.tree.get(value_id));
         collector.references
     }
 

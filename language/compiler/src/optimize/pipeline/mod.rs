@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 mod builder;
 mod context;
 mod contract;

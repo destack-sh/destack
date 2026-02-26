@@ -27,6 +27,7 @@ const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
 
 /// Source module resolve policy derived from package and tsconfig ownership.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 enum SourceImportResolvePolicy {
     /// Package owns dsconfig, so tsconfig path mapping is disabled.
     DsConfig {
@@ -44,6 +45,7 @@ enum SourceImportResolvePolicy {
     None,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
     ///
@@ -357,12 +359,9 @@ impl Compiler {
     ) -> Option<ModuleId> {
         let (protocol, raw_path) = specifier.split_once(':')?;
         let raw_path = raw_path.trim_start_matches('/');
-        let Some((_, root)) = BUILTIN_NAMESPACE_ROOTS
+        let (_, root) = BUILTIN_NAMESPACE_ROOTS
             .iter()
-            .find(|(namespace, _)| *namespace == protocol)
-        else {
-            return None;
-        };
+            .find(|(namespace, _)| *namespace == protocol)?;
 
         // normalize empty protocol imports to the namespace entrypoint
         let path = if raw_path.is_empty() {

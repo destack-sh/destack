@@ -1,12 +1,15 @@
+#![allow(clippy::too_many_arguments)]
+
 use destack_dir::{
     Asynchrony, FloatType, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeIdAny,
     LocalSymbolId, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, StringId, SymbolTable,
     SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_source::{FileContent, Span};
-use destack_workspace::ModuleDir;
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
-use crate::{Assignability, TestProgram};
+use crate::analyze::common::TypeContext;
+use crate::{AnalyzeOptions, Assignability, Compiler, TestProgram};
 
 /// Return a stable source id for test types.
 fn test_source_id(dir: &ModuleDir) -> LocalNodeIdAny {
@@ -37,6 +40,22 @@ fn expect_symbol_by_name(
     panic!("expected symbol");
 }
 
+/// Check assignability for test types through the analyze type context.
+fn is_type_assignable(
+    compiler: &Compiler,
+    module: &Module,
+    profile: ProfileId,
+    symbols: &SymbolTable,
+    target_id: LocalTypeId,
+    source_id: LocalTypeId,
+    types: &mut TypeTable,
+    options: &AnalyzeOptions,
+) -> Assignability {
+    let tree = module.dir(profile).tree.read();
+    let mut ctx = TypeContext::new(module, profile, options, &tree, symbols, types);
+    compiler.is_type_assignable(&mut ctx, target_id, source_id)
+}
+
 /// Number is assignable to number.
 #[test]
 fn test_analyze_assignability_same_primitive() {
@@ -63,8 +82,15 @@ fn test_analyze_assignability_same_primitive() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, number_ty, number_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            number_ty,
+            number_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -126,7 +152,8 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
 
     // assert assignability
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -172,8 +199,15 @@ fn test_analyze_assignability_different_primitives() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, number_ty, string_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            number_ty,
+            string_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -212,8 +246,15 @@ fn test_analyze_assignability_literal_to_primitive() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, number_ty, literal_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            number_ty,
+            literal_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -252,8 +293,15 @@ fn test_analyze_assignability_any() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, any_ty, number_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            any_ty,
+            number_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -292,8 +340,15 @@ fn test_analyze_assignability_never_source() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, number_ty, never_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            number_ty,
+            never_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -332,8 +387,15 @@ fn test_analyze_assignability_never_target() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, never_ty, number_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            never_ty,
+            number_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -380,8 +442,15 @@ fn test_analyze_assignability_tuple() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, tuple_ty, tuple_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            tuple_ty,
+            tuple_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -436,7 +505,8 @@ fn test_analyze_assignability_tuple_different_length() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -483,8 +553,15 @@ fn test_analyze_assignability_array() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, array_ty, array_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            array_ty,
+            array_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -532,8 +609,15 @@ fn test_analyze_assignability_tuple_to_array() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, array_ty, tuple_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            array_ty,
+            tuple_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -616,16 +700,30 @@ fn test_analyze_assignability_object_structural() {
 
     // larger object assignable to smaller (has all required fields)
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, obj_small, obj_large, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            obj_small,
+            obj_large,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
 
     // smaller object not assignable to larger (missing field b)
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, obj_large, obj_small, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            obj_large,
+            obj_small,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -691,7 +789,8 @@ fn test_analyze_assignability_object_optional_field() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -703,7 +802,8 @@ fn test_analyze_assignability_object_optional_field() {
         Assignability::NotAssignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -792,13 +892,21 @@ fn test_analyze_assignability_object_call_signatures() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            target_obj,
+            source_obj,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -881,7 +989,8 @@ fn test_analyze_assignability_function_param_count() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -893,7 +1002,8 @@ fn test_analyze_assignability_function_param_count() {
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1012,7 +1122,8 @@ fn test_analyze_assignability_function_this_parameter() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1024,7 +1135,8 @@ fn test_analyze_assignability_function_this_parameter() {
         Assignability::NotAssignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1140,13 +1252,21 @@ fn test_analyze_assignability_object_index_signatures() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            target_obj,
+            source_obj,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1158,7 +1278,8 @@ fn test_analyze_assignability_object_index_signatures() {
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1170,7 +1291,8 @@ fn test_analyze_assignability_object_index_signatures() {
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1270,7 +1392,8 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1282,7 +1405,8 @@ fn test_analyze_assignability_object_index_signatures_string_source() {
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1356,8 +1480,15 @@ fn test_analyze_assignability_object_numeric_key_field_match() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, target_obj, source_obj, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            target_obj,
+            source_obj,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -1453,7 +1584,8 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1465,7 +1597,8 @@ fn test_analyze_assignability_object_index_signature_optional_field() {
         Assignability::Assignable
     );
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -1518,8 +1651,15 @@ fn test_analyze_assignability_union_target() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, union_ty, number_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            union_ty,
+            number_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -1826,8 +1966,15 @@ fn test_analyze_assignability_literal_to_int() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, int_ty, literal_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            int_ty,
+            literal_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -1867,8 +2014,15 @@ fn test_analyze_assignability_literal_to_float() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, float_ty, literal_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            float_ty,
+            literal_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -1907,8 +2061,15 @@ fn test_analyze_assignability_int_out_of_range() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, int8_ty, literal_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            int8_ty,
+            literal_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -1948,15 +2109,29 @@ fn test_analyze_numeric_widening_int() {
 
     // widening allowed
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, int16_ty, int8_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            int16_ty,
+            int8_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
     // narrowing not allowed
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, int8_ty, int16_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            int8_ty,
+            int16_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -1995,8 +2170,15 @@ fn test_analyze_numeric_widening_signed_to_unsigned_not_allowed() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, uint8_ty, int8_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            uint8_ty,
+            int8_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -2119,8 +2301,15 @@ fn test_analyze_assignability_object_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, object_ty, object_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            object_ty,
+            object_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -2176,7 +2365,8 @@ fn test_analyze_assignability_object_literal_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -2232,8 +2422,15 @@ fn test_analyze_assignability_array_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, object_ty, array_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            object_ty,
+            array_ty,
+            &mut types,
+            &options
         ),
         Assignability::Assignable
     );
@@ -2286,7 +2483,8 @@ fn test_analyze_assignability_function_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,
@@ -2333,8 +2531,15 @@ fn test_analyze_assignability_primitive_not_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, object_ty, number_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            object_ty,
+            number_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -2374,8 +2579,15 @@ fn test_analyze_assignability_null_not_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
-            &module, profile, &symbols, object_ty, null_ty, &mut types, &options
+        is_type_assignable(
+            &test.compiler,
+            &module,
+            profile,
+            &symbols,
+            object_ty,
+            null_ty,
+            &mut types,
+            &options
         ),
         Assignability::NotAssignable
     );
@@ -2415,7 +2627,8 @@ fn test_analyze_assignability_undefined_not_to_object() {
     );
 
     assert_eq!(
-        test.compiler.is_type_assignable(
+        is_type_assignable(
+            &test.compiler,
             &module,
             profile,
             &symbols,

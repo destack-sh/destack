@@ -134,7 +134,8 @@ const raw: int32 = status;
     assert_eq!(member_name, active_name);
 
     let left_symbol = view.expect_reference_symbol(left_id);
-    let left_symbol = test.compiler.canonical_symbol_id(
+    let left_symbol = canonical_symbol_id(
+        &test.compiler,
         &module,
         view.symbols(),
         profile,
@@ -146,7 +147,8 @@ const raw: int32 = status;
     // validate assignability
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
-    let assignability = test.compiler.is_type_assignable(
+    let assignability = is_type_assignable(
+        &test.compiler,
         &module,
         profile,
         &symbols,
@@ -353,7 +355,8 @@ const status = Status.Active;
     let enum_module = enum_module.read();
 
     // confirm the binding value type is the nominal enum reference
-    let status_symbol = test.compiler.canonical_symbol_id(
+    let status_symbol = canonical_symbol_id(
+        &test.compiler,
         &enum_module,
         view.symbols(),
         view.profile_id(),
@@ -404,7 +407,8 @@ const status = Status.Active;
         },
         value_id.into_any(),
     );
-    let assignable = test.compiler.is_type_assignable(
+    let assignable = is_type_assignable(
+        &test.compiler,
         &enum_module,
         view.profile_id(),
         &symbols,

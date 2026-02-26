@@ -14,6 +14,7 @@ use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Build export tables for module bindings in this module.
     pub(super) fn build_module_binding_exports(

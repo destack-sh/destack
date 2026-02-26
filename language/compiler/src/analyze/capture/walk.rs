@@ -2,27 +2,20 @@ use indexmap::IndexMap;
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalScopeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, SymbolTable, walk_expression,
+    NodeVisitorOptions, walk_expression,
 };
-use destack_source::ModuleId;
-use destack_workspace::Module;
 
 use crate::Compiler;
+use crate::analyze::common::TreeSymbolView;
 
 /// Collect captures for a closure body.
 pub(super) struct CaptureCollector<'a> {
-    /// The module id for capture checks.
-    pub module_id: ModuleId,
+    /// The module tree and symbols view for this closure walk.
+    pub ctx: TreeSymbolView<'a>,
     /// The scope id for the closure body.
     pub closure_scope: LocalScopeId,
-    /// The node tree for this module.
-    pub tree: &'a NodeTree,
-    /// The symbol table for this module.
-    pub symbols: &'a SymbolTable,
     /// The compiler context for helper access.
     pub compiler: &'a Compiler,
-    /// The module for this analysis pass.
-    pub module: &'a Module,
     /// The captured symbols in discovery order.
     pub captured_symbols: IndexMap<GlobalSymbolId, ()>,
     /// The captured symbol bound to `this`.
@@ -32,21 +25,15 @@ pub(super) struct CaptureCollector<'a> {
 impl<'a> CaptureCollector<'a> {
     /// Build a collector for a single closure body.
     pub(super) fn new(
-        module_id: ModuleId,
+        ctx: TreeSymbolView<'a>,
         closure_scope: LocalScopeId,
-        tree: &'a NodeTree,
-        symbols: &'a SymbolTable,
         compiler: &'a Compiler,
-        module: &'a Module,
     ) -> Self {
         // initialize collector state
         Self {
-            module_id,
+            ctx,
             closure_scope,
-            tree,
-            symbols,
             compiler,
-            module,
             captured_symbols: IndexMap::new(),
             this_symbol: None,
         }
@@ -60,7 +47,7 @@ impl<'a> CaptureCollector<'a> {
     /// Visit an expression node for captures.
     fn visit_expression(&mut self, expression_id: LocalNodeId<Expression>) {
         // skip nested declarations
-        let expression = self.tree.get(expression_id);
+        let expression = self.ctx.tree.get(expression_id);
         if matches!(expression, Expression::Declaration { .. }) {
             return;
         }
@@ -73,12 +60,8 @@ impl<'a> CaptureCollector<'a> {
                 self.capture_symbol(*target_symbol);
             }
             Expression::This | Expression::Super => {
-                if let Some(symbol) = self.compiler.resolve_this_symbol(
-                    self.module,
-                    expression_id,
-                    self.tree,
-                    self.symbols,
-                ) && self.capture_symbol(symbol)
+                if let Some(symbol) = self.compiler.resolve_this_symbol(self.ctx, expression_id)
+                    && self.capture_symbol(symbol)
                 {
                     self.this_symbol = Some(symbol);
                 }
@@ -87,15 +70,15 @@ impl<'a> CaptureCollector<'a> {
         }
 
         // walk child nodes
-        walk_expression(self, self.tree, expression_id, expression);
+        walk_expression(self, self.ctx.tree, expression_id, expression);
     }
 
     /// Record a captured symbol if it should be captured.
     fn capture_symbol(&mut self, symbol: GlobalSymbolId) -> bool {
         // skip symbols that do not require capture
         if !self.compiler.should_capture_symbol(
-            self.module_id,
-            self.symbols,
+            self.ctx.module.id,
+            self.ctx.symbols,
             self.closure_scope,
             symbol,
         ) {

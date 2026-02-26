@@ -4,21 +4,21 @@ use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Mutability, SymbolSpace, Type, TypeField,
 };
 
-use super::{AnalyzeDependencyStage, InferTablesContext, ObjectShape};
-use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
+use super::{AnalyzeDependencyStage, InferContext, ObjectShape};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
 
 impl Compiler {
     /// Build the globalThis value type from global symbol bindings.
     pub(crate) fn infer_global_this_value_type(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         global_this_symbol: GlobalSymbolId,
-        ctx: &InferContext,
+        state: &InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // reuse object types that already exist
-        if let Some(existing) = tables.types.get_value_type_id(global_this_symbol)
-            && matches!(tables.types.get_type(existing), Type::Object { .. })
+        if let Some(existing) = ctx.types.get_value_type_id(global_this_symbol)
+            && matches!(ctx.types.get_type(existing), Type::Object { .. })
         {
             return Ok(Some(existing));
         }
@@ -32,7 +32,7 @@ impl Compiler {
             .find_map(|entry| {
                 let (key, table) = entry.pair();
                 if key.profile_id == ctx.profile
-                    && table.module_versions.contains_key(&tables.module.id)
+                    && table.module_versions.contains_key(&ctx.module.id)
                 {
                     return Some(table.clone());
                 }
@@ -61,20 +61,18 @@ impl Compiler {
                 }
 
                 // resolve the value type for the global binding
-                let value_ty_id = if let Some(value_ty_id) =
-                    tables.types.get_value_type_id(*symbol_id)
+                let value_ty_id = if let Some(value_ty_id) = ctx.types.get_value_type_id(*symbol_id)
                 {
                     value_ty_id
-                } else if symbol_id.module_id != tables.module.id {
+                } else if symbol_id.module_id != ctx.module.id {
                     self.resolve_remote_symbol_value_type_for_context(
-                        tables.module,
-                        ctx,
+                        &mut ctx.reborrow(),
+                        state,
                         expression_id.into_any(),
                         *symbol_id,
-                        tables.types,
                     )?
                 } else if let Some(inferred_ty_id) =
-                    self.infer_direct_binding_value_type(&mut tables.reborrow(), *symbol_id, ctx)?
+                    self.infer_direct_binding_value_type(&mut ctx.reborrow(), *symbol_id, state)?
                 {
                     inferred_ty_id
                 } else {
@@ -84,10 +82,10 @@ impl Compiler {
                 // compute readonly status from the binding mutability
                 let binding_mutability = self
                     .with_module_symbols_or_local_at_stage(
-                        tables.module,
+                        ctx.module,
                         ctx.profile,
                         symbol_id.module_id,
-                        tables.symbols,
+                        ctx.symbols,
                         AnalyzeDependencyStage::Declare,
                         |_, owner_symbols| {
                             owner_symbols
@@ -108,10 +106,10 @@ impl Compiler {
         }
 
         // register the synthesized globalThis type
-        let ty_id = tables
+        let ty_id = ctx
             .types
             .insert_type_from_any(shape.into_object_type(), expression_id.into_any());
-        tables.types.set_value_type(global_this_symbol, ty_id);
+        ctx.types.set_value_type(global_this_symbol, ty_id);
 
         Ok(Some(ty_id))
     }

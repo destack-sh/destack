@@ -1,15 +1,15 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::analyze::module::GlobalMergeCategory;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn unwrap_type_alias_reference(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
-        let symbol = match tables.types.get_type(type_id).symbol() {
+        let symbol = match ctx.types.get_type(type_id).symbol() {
             Some(symbol) => symbol,
             None => return Ok(type_id),
         };
@@ -20,12 +20,12 @@ impl Compiler {
         }
 
         // skip remote aliases during local flow computation
-        if symbol.module_id != tables.module.id {
+        if symbol.module_id != ctx.module.id {
             return Ok(type_id);
         }
 
         // load the type alias declaration
-        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return Ok(type_id);
         };
@@ -37,7 +37,7 @@ impl Compiler {
             static_parameters,
             value,
             ..
-        } = tables.tree.get(declaration_id)
+        } = ctx.tree.get(declaration_id)
         else {
             return Ok(type_id);
         };
@@ -51,17 +51,17 @@ impl Compiler {
         }
 
         // reuse any apparent instance type before evaluating the alias body
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
         if let Some(instance_type_id) =
-            self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+            self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
         {
             return Ok(instance_type_id);
         }
 
         // evaluate the alias value into an instance type
         let instance_type_id =
-            self.resolve_declared_type_expression(&mut tables.reborrow(), *value, true, true)?;
-        tables.types.set_instance_type(symbol, instance_type_id);
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), *value, true, true)?;
+        ctx.types.set_instance_type(symbol, instance_type_id);
 
         Ok(instance_type_id)
     }
@@ -69,13 +69,13 @@ impl Compiler {
     /// Ensure instance types for any reference types inside a type.
     pub(crate) fn ensure_reference_instance_types_for_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         ty_id: LocalTypeId,
     ) -> AnalyzeResult<()> {
         let mut visited = HashSet::new();
         self.ensure_reference_instance_types_for_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             node_id,
             ty_id,
             &mut visited,
@@ -85,7 +85,7 @@ impl Compiler {
     /// Ensure instance types for any reference types inside a type.
     fn ensure_reference_instance_types_for_type_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         ty_id: LocalTypeId,
         visited: &mut HashSet<LocalTypeId>,
@@ -96,15 +96,15 @@ impl Compiler {
         }
 
         // clone to avoid holding a borrow across recursion
-        let ty = tables.types.get_type(ty_id).clone();
+        let ty = ctx.types.get_type(ty_id).clone();
 
         // ensure reference symbols have instance types
         if let Type::Reference { symbol, .. } = ty {
             let instance_id =
-                self.resolve_instance_type_for_symbol(&mut tables.reborrow(), node_id, symbol)?;
+                self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol)?;
             if let Some(instance_id) = instance_id {
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     instance_id,
                     visited,
@@ -116,7 +116,7 @@ impl Compiler {
         // walk nested types based on structure
         match ty {
             Type::Value { value } => self.ensure_reference_instance_types_for_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 value,
                 visited,
@@ -129,25 +129,25 @@ impl Compiler {
                 else_type,
             } => {
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     left,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     right,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     then_type,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     else_type,
                     visited,
@@ -158,7 +158,7 @@ impl Compiler {
                 parameter, value, ..
             } => {
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     parameter.constraint,
                     visited,
@@ -166,7 +166,7 @@ impl Compiler {
 
                 if let Some(key_remap) = parameter.key_remap {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         key_remap,
                         visited,
@@ -174,7 +174,7 @@ impl Compiler {
                 }
 
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     value,
                     visited,
@@ -182,13 +182,13 @@ impl Compiler {
             }
             Type::Index { left, index } => {
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     left,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     index,
                     visited,
@@ -197,7 +197,7 @@ impl Compiler {
             Type::TemplateLiteral { spans, .. } => {
                 for span in spans {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         span,
                         visited,
@@ -208,7 +208,7 @@ impl Compiler {
             Type::Infer { constraint, .. } => {
                 if let Some(constraint) = constraint {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         constraint,
                         visited,
@@ -219,7 +219,7 @@ impl Compiler {
             Type::Predicate { target, .. } => {
                 if let Some(target) = target {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         target,
                         visited,
@@ -231,20 +231,20 @@ impl Compiler {
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => self.ensure_reference_instance_types_for_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 right,
                 visited,
             ),
             Type::Binary { left, right, .. } => {
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     left,
                     visited,
                 )?;
                 self.ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     right,
                     visited,
@@ -252,7 +252,7 @@ impl Compiler {
             }
             Type::ArraySized { element, .. } => self
                 .ensure_reference_instance_types_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     element,
                     visited,
@@ -260,7 +260,7 @@ impl Compiler {
             Type::Array { element, .. } => {
                 if let Some(element) = element {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         element,
                         visited,
@@ -271,7 +271,7 @@ impl Compiler {
             Type::Tuple { elements, .. } => {
                 for element in elements {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         element.ty,
                         visited,
@@ -287,7 +287,7 @@ impl Compiler {
             } => {
                 for field in fields {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         field.ty,
                         visited,
@@ -296,7 +296,7 @@ impl Compiler {
 
                 for signature in call_signatures {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         signature,
                         visited,
@@ -305,7 +305,7 @@ impl Compiler {
 
                 for signature in construct_signatures {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         signature,
                         visited,
@@ -314,13 +314,13 @@ impl Compiler {
 
                 for signature in index_signatures {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         signature.key_type,
                         visited,
                     )?;
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         signature.value_type,
                         visited,
@@ -338,7 +338,7 @@ impl Compiler {
             } => {
                 for parameter in static_parameters {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         parameter,
                         visited,
@@ -347,7 +347,7 @@ impl Compiler {
 
                 if let Some(this_parameter) = this_parameter {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         this_parameter,
                         visited,
@@ -356,7 +356,7 @@ impl Compiler {
 
                 for parameter in dynamic_parameters {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         parameter,
                         visited,
@@ -365,7 +365,7 @@ impl Compiler {
 
                 if let Some(return_type) = return_type {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         return_type,
                         visited,
@@ -377,7 +377,7 @@ impl Compiler {
             Type::Union { elements } | Type::Intersection { elements } => {
                 for element in elements {
                     self.ensure_reference_instance_types_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         element,
                         visited,
@@ -398,7 +398,7 @@ impl Compiler {
     /// Resolve the instance type for a referenced symbol into the local type table.
     pub(crate) fn resolve_instance_type_for_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -432,21 +432,21 @@ impl Compiler {
         }
 
         // ensure the defining module is declared before reading its types
-        if symbol.module_id != tables.module.id {
-            self.require_analyze_module_declare(symbol.module_id, tables.profile)
+        if symbol.module_id != ctx.module.id {
+            self.require_analyze_module_declare(symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
         // ensure the global symbol table is available for this module
-        self.require_resolve_module_prepare(tables.module.id, tables.profile)
+        self.require_resolve_module_prepare(ctx.module.id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         // select the global merge group when the symbol participates
         let mut group_symbols = if symbol_is_global_augmentation || owner_is_ambient_lib {
             if let Some(key) = symbol_key {
                 self.collect_global_merge_sources_for_key(
-                    tables.module,
-                    tables.profile,
+                    ctx.module,
+                    ctx.profile,
                     key,
                     symbol_space,
                     GlobalMergeCategory::Instance,
@@ -478,7 +478,7 @@ impl Compiler {
 
         // reuse cached instance types when no merge is needed
         if group_symbols.len() == 1
-            && let Some(existing) = tables.types.get_instance_type_id(symbol)
+            && let Some(existing) = ctx.types.get_instance_type_id(symbol)
         {
             return Ok(Some(existing));
         }
@@ -488,8 +488,7 @@ impl Compiler {
             let mut merged_id = None;
             let mut all_match = true;
             for group_symbol in &group_symbols {
-                let Some(group_instance_id) = tables.types.get_instance_type_id(*group_symbol)
-                else {
+                let Some(group_instance_id) = ctx.types.get_instance_type_id(*group_symbol) else {
                     all_match = false;
                     break;
                 };
@@ -518,16 +517,16 @@ impl Compiler {
         for group_symbol in group_symbols.iter().copied() {
             // load the instance type for the group symbol
             let local_instance_id =
-                if let Some(existing) = tables.types.get_instance_type_id(group_symbol) {
+                if let Some(existing) = ctx.types.get_instance_type_id(group_symbol) {
                     existing
-                } else if group_symbol.module_id == tables.module.id {
+                } else if group_symbol.module_id == ctx.module.id {
                     continue;
                 } else {
                     let Some(imported) = self.import_instance_type_for_symbol(
-                        tables.profile,
+                        ctx.profile,
                         node_id,
                         group_symbol,
-                        tables.types,
+                        ctx.types,
                     )?
                     else {
                         continue;
@@ -540,7 +539,7 @@ impl Compiler {
             }
 
             // extract instance type members
-            let local_instance_ty = tables.types.get_type(local_instance_id);
+            let local_instance_ty = ctx.types.get_type(local_instance_id);
             if let Type::Object {
                 fields: instance_fields,
                 call_signatures: instance_calls,
@@ -563,7 +562,7 @@ impl Compiler {
                 && index_signatures.is_empty())
         {
             if let Some(own_instance_id) = own_instance_id {
-                tables.types.set_instance_type(symbol, own_instance_id);
+                ctx.types.set_instance_type(symbol, own_instance_id);
             }
             return Ok(own_instance_id);
         }
@@ -575,9 +574,9 @@ impl Compiler {
             construct_signatures,
             index_signatures,
         };
-        let merged_id = tables.types.insert_type_from_any(merged_ty, node_id);
+        let merged_id = ctx.types.insert_type_from_any(merged_ty, node_id);
         for group_symbol in group_symbols {
-            tables.types.set_instance_type(group_symbol, merged_id);
+            ctx.types.set_instance_type(group_symbol, merged_id);
         }
 
         Ok(Some(merged_id))

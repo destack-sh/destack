@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral, SymbolTable,
-    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
+    LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral, Type,
+    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
-use destack_workspace::{Module, ProfileId};
 
 use super::RelationMode;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::{TypeContext, TypeView};
 use crate::{Assignability, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -15,36 +14,25 @@ impl Compiler {
     /// Check whether a type requires evaluative normalization.
     pub(crate) fn type_requires_evaluative_normalization(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // check for free static parameter references
         let mut static_visited = HashSet::new();
         let bound = HashSet::new();
-        if self.type_contains_free_static_parameters(
-            module,
-            profile,
-            type_id,
-            &bound,
-            symbols,
-            types,
-            &mut static_visited,
-        ) {
+        if self.type_contains_free_static_parameters(ctx, type_id, &bound, &mut static_visited) {
             return true;
         }
 
         // check for inference variables
         let mut infer_visited = HashSet::new();
-        if self.type_contains_infer_vars(type_id, types, &mut infer_visited) {
+        if self.type_contains_infer_vars(type_id, ctx.types, &mut infer_visited) {
             return true;
         }
 
         // check for conditional infer bindings
         let mut binding_visited = HashSet::new();
-        if self.type_contains_infer(type_id, types, &mut binding_visited) {
+        if self.type_contains_infer(type_id, ctx.types, &mut binding_visited) {
             return true;
         }
 
@@ -54,21 +42,21 @@ impl Compiler {
     /// Check whether a type requires convergence before static evaluation.
     pub(crate) fn type_requires_static_evaluation_convergence(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // evaluation dependent types are not stable yet
-        if self.type_requires_evaluative_normalization(module, profile, type_id, symbols, types) {
+        if self.type_requires_evaluative_normalization(ctx, type_id) {
             return true;
         }
 
         // unevaluated static arguments are not stable yet
         let mut static_argument_visited = HashSet::new();
-        if self.type_has_unevaluated_static_arguments(type_id, types, &mut static_argument_visited)
-        {
+        if self.type_has_unevaluated_static_arguments(
+            type_id,
+            ctx.types,
+            &mut static_argument_visited,
+        ) {
             return true;
         }
 
@@ -78,31 +66,23 @@ impl Compiler {
     /// Check whether a type is converged for static evaluation.
     pub(crate) fn type_is_converged_for_static_evaluation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
-        !self.type_requires_static_evaluation_convergence(module, profile, type_id, symbols, types)
+        !self.type_requires_static_evaluation_convergence(ctx, type_id)
     }
 
     /// Check whether one normalized type stays as deferred `keyof` projection.
     pub(crate) fn type_is_deferred_keyof_projection(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
-        match types.get_type(type_id) {
+        match ctx.types.get_type(type_id) {
             Type::Unary {
                 operator: TypeUnaryOperator::Keyof,
                 right,
-            } => {
-                self.type_requires_evaluative_normalization(module, profile, *right, symbols, types)
-            }
+            } => self.type_requires_evaluative_normalization(ctx, *right),
             _ => false,
         }
     }
@@ -110,20 +90,11 @@ impl Compiler {
     /// Return evaluative policy for normalizing one `keyof` operand.
     pub(crate) fn keyof_normalization_policy(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         operand_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         default_mode: NormalizationMode,
     ) -> (bool, NormalizationMode) {
-        let needs_evaluation = self.type_requires_evaluative_normalization(
-            module,
-            profile,
-            operand_type_id,
-            symbols,
-            types,
-        );
+        let needs_evaluation = self.type_requires_evaluative_normalization(ctx, operand_type_id);
         let normalize_mode = if needs_evaluation {
             NormalizationMode::Flow
         } else {
@@ -136,7 +107,7 @@ impl Compiler {
     /// Normalize decidable type operators into boolean literal types.
     pub(crate) fn normalize_decidable_type_operator(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         operator: TypeBinaryOperator,
         left: LocalTypeId,
@@ -163,31 +134,21 @@ impl Compiler {
             Type::Value { value } => *value,
             _ => ty_id,
         };
-        let left = unwrap_value(left, tables.types);
-        let right = unwrap_value(right, tables.types);
+        let left = unwrap_value(left, ctx.types);
+        let right = unwrap_value(right, ctx.types);
 
         // treat evaluation dependent checks as undecidable
-        let left_needs_evaluation = self.type_requires_evaluative_normalization(
-            tables.module,
-            tables.profile,
-            left,
-            tables.symbols,
-            tables.types,
-        );
-        let right_needs_evaluation = self.type_requires_evaluative_normalization(
-            tables.module,
-            tables.profile,
-            right,
-            tables.symbols,
-            tables.types,
-        );
+        let left_needs_evaluation =
+            self.type_requires_evaluative_normalization(ctx.type_view(), left);
+        let right_needs_evaluation =
+            self.type_requires_evaluative_normalization(ctx.type_view(), right);
         let is_decidable = !(left_needs_evaluation || right_needs_evaluation);
 
         // compute assignability for operator semantics
         let assignability = if operator == TypeBinaryOperator::In {
             let mut key_visited = Vec::new();
             let key_type_id = self.normalize_keyof_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 None,
                 right,
@@ -195,9 +156,9 @@ impl Compiler {
                 relation_mode,
                 &mut key_visited,
             );
-            self.is_type_assignable(&mut tables.reborrow(), key_type_id, left)
+            self.is_type_assignable(&mut ctx.reborrow(), key_type_id, left)
         } else {
-            self.is_type_assignable(&mut tables.reborrow(), right, left)
+            self.is_type_assignable(&mut ctx.reborrow(), right, left)
         };
 
         let ty = if !is_decidable {
@@ -210,6 +171,6 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(value)),
             }
         };
-        Some(tables.types.insert_type_from_any(ty, source_id))
+        Some(ctx.types.insert_type_from_any(ty, source_id))
     }
 }

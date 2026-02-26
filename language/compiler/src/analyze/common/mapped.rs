@@ -9,7 +9,7 @@ use destack_dir::{
 use super::key::KeySet;
 use super::template::TemplateLiteralKeyShape;
 use crate::Compiler;
-use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeTablesContext};
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeContext};
 
 /// A mapped key produced when expanding mapped types.
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ impl Compiler {
     /// Normalize a `keyof` type expression.
     pub(crate) fn normalize_keyof_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         keyof_type_id: Option<LocalTypeId>,
         right: LocalTypeId,
@@ -63,18 +63,12 @@ impl Compiler {
         let relation_mode = RelationMode::TYPE_OPERATOR;
 
         // preserve keyof when the operand still depends on evaluation
-        let (needs_evaluation, normalize_mode) = self.keyof_normalization_policy(
-            tables.module,
-            tables.profile,
-            right,
-            tables.symbols,
-            tables.types,
-            mode,
-        );
+        let (needs_evaluation, normalize_mode) =
+            self.keyof_normalization_policy(ctx.type_view(), right, mode);
 
         // normalize the operand before extracting keys
         let normalized_right = self.normalize_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             right,
             normalize_mode,
             relation_mode,
@@ -91,42 +85,36 @@ impl Compiler {
                 operator: TypeUnaryOperator::Keyof,
                 right: normalized_right,
             };
-            return tables.types.insert_type_from_any(normalized, source_id);
+            return ctx.types.insert_type_from_any(normalized, source_id);
         }
 
         // treat unconstrained type parameters as keyof any
-        if let Type::Reference { symbol, .. } = tables.types.get_type(normalized_right) {
+        if let Type::Reference { symbol, .. } = ctx.types.get_type(normalized_right) {
             let symbol = *symbol;
-            let is_static_parameter = self.symbol_is_static_parameter(
-                tables.module,
-                tables.profile,
-                symbol,
-                tables.symbols,
-                tables.types,
-            );
-            if is_static_parameter {
-                if let Some(constraint_id) =
-                    self.static_parameter_constraint_type(&mut tables.reborrow(), symbol, source_id)
-                    && matches!(
-                        tables.types.get_type(constraint_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        }
-                    )
-                {
-                    let mut key_set = KeySet::default();
-                    key_set.insert_index_kind(MappedIndexKind::String);
-                    key_set.insert_index_kind(MappedIndexKind::Number);
-                    key_set.insert_index_kind(MappedIndexKind::Symbol);
-                    return self.key_type_id_for_key_set(source_id, key_set, tables.types);
-                }
+            let is_static_parameter =
+                self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol);
+            if is_static_parameter
+                && let Some(constraint_id) =
+                    self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id)
+                && matches!(
+                    ctx.types.get_type(constraint_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    }
+                )
+            {
+                let mut key_set = KeySet::default();
+                key_set.insert_index_kind(MappedIndexKind::String);
+                key_set.insert_index_kind(MappedIndexKind::Number);
+                key_set.insert_index_kind(MappedIndexKind::Symbol);
+                return self.key_type_id_for_key_set(source_id, key_set, ctx.types);
             }
         }
 
         // collect keys for the normalized operand
         let mut visited_keys = HashSet::new();
         let key_set = self.key_set_for_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             normalized_right,
             mode,
             relation_mode,
@@ -135,9 +123,9 @@ impl Compiler {
         );
 
         // turn the key set into a union type
-        let key_type_id = self.key_type_id_for_key_set(source_id, key_set, tables.types);
+        let key_type_id = self.key_type_id_for_key_set(source_id, key_set, ctx.types);
         self.normalize_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             key_type_id,
             mode,
             relation_mode,
@@ -148,7 +136,7 @@ impl Compiler {
     /// Collect key information for a type id.
     fn key_set_for_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         mode: NormalizationMode,
         relation_mode: RelationMode,
@@ -156,14 +144,14 @@ impl Compiler {
         visited_keys: &mut HashSet<LocalTypeId>,
     ) -> KeySet {
         // resolve apparent types for key extraction
-        let type_id = self.apparent_type(&mut tables.reborrow(), type_id, relation_mode);
+        let type_id = self.apparent_type(&mut ctx.reborrow(), type_id, relation_mode);
 
         // avoid cycles when traversing recursive types
         if !visited_keys.insert(type_id) {
             return KeySet::default();
         }
 
-        let ty = tables.types.get_type(type_id).clone();
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::TypeLiteral {
                 value: TypeLiteral::Any,
@@ -191,7 +179,7 @@ impl Compiler {
                 ..
             } => {
                 // collect literal keys and index signatures
-                self.key_set_for_object(&fields, &index_signatures, tables.types)
+                self.key_set_for_object(&fields, &index_signatures, ctx.types)
             }
             Type::Tuple { elements, .. } => {
                 let mut keys = self.key_set_for_index_kind(MappedIndexKind::Number);
@@ -210,9 +198,7 @@ impl Compiler {
                 static_arguments,
             } => {
                 let symbol = self.canonical_symbol_id(
-                    tables.module,
-                    tables.symbols,
-                    tables.profile,
+                    ctx.module_symbol_view(),
                     symbol,
                     CanonicalSymbolMode::PreserveAliases,
                 );
@@ -221,9 +207,9 @@ impl Compiler {
                 if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
                     && let Some(static_arguments) = static_arguments.as_ref()
                 {
-                    let source_id = tables.types.get_type_source(type_id);
+                    let source_id = ctx.types.get_type_source(type_id);
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         source_id,
                         symbol,
                         static_arguments,
@@ -232,7 +218,7 @@ impl Compiler {
                         visited,
                     ) {
                         return self.key_set_for_type(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             expanded_id,
                             mode,
                             relation_mode,
@@ -243,12 +229,12 @@ impl Compiler {
                 }
 
                 // resolve the apparent instance type for shape queries
-                let source_id = tables.types.get_type_source(type_id);
+                let source_id = ctx.types.get_type_source(type_id);
                 if let Some(apparent_id) =
-                    self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                    self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                 {
                     return self.key_set_for_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         apparent_id,
                         mode,
                         relation_mode,
@@ -269,14 +255,14 @@ impl Compiler {
 
                 // intersect keys across union members
                 let normalized_first = self.normalize_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     first,
                     mode,
                     relation_mode,
                     visited,
                 );
                 let mut keys = self.key_set_for_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     normalized_first,
                     mode,
                     relation_mode,
@@ -285,14 +271,14 @@ impl Compiler {
                 );
                 for element_id in iter {
                     let normalized_element = self.normalize_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         mode,
                         relation_mode,
                         visited,
                     );
                     let element_keys = self.key_set_for_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized_element,
                         mode,
                         relation_mode,
@@ -309,14 +295,14 @@ impl Compiler {
                 let mut keys = KeySet::default();
                 for element_id in elements {
                     let normalized_element = self.normalize_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         mode,
                         relation_mode,
                         visited,
                     );
                     let element_keys = self.key_set_for_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized_element,
                         mode,
                         relation_mode,
@@ -502,7 +488,7 @@ impl Compiler {
     /// Normalize a conditional type by evaluating its branches.
     pub(super) fn normalize_conditional_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
         distributive_symbol: Option<GlobalSymbolId>,
@@ -514,7 +500,7 @@ impl Compiler {
         _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
-        // conditional tables.types use type operations semantics
+        // conditional ctx.types use type operations semantics
         let relation_mode = RelationMode::TYPE_OPERATOR;
 
         // normalize the condition operands
@@ -523,29 +509,23 @@ impl Compiler {
         let original_then = then_type;
         let original_else = else_type;
         let left =
-            self.normalize_type_inner(&mut tables.reborrow(), left, mode, relation_mode, visited);
+            self.normalize_type_inner(&mut ctx.reborrow(), left, mode, relation_mode, visited);
         let right =
-            self.normalize_type_inner(&mut tables.reborrow(), right, mode, relation_mode, visited);
+            self.normalize_type_inner(&mut ctx.reborrow(), right, mode, relation_mode, visited);
 
         // keep conditional types unresolved when they depend on static parameters
-        let left_contains_static_parameters = self.type_contains_static_parameters(
-            tables.module,
-            tables.profile,
-            left,
-            tables.symbols,
-            tables.types,
-            &mut HashSet::new(),
-        );
+        let left_contains_static_parameters =
+            self.type_contains_static_parameters(ctx.type_view(), left, &mut HashSet::new());
         if left_contains_static_parameters {
             let normalized_then = self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 then_type,
                 mode,
                 relation_mode,
                 visited,
             );
             let normalized_else = self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 else_type,
                 mode,
                 relation_mode,
@@ -559,7 +539,7 @@ impl Compiler {
                 return type_id;
             }
 
-            return tables.types.insert_type_from_any(
+            return ctx.types.insert_type_from_any(
                 Type::Conditional {
                     distributive_symbol,
                     left,
@@ -573,7 +553,7 @@ impl Compiler {
 
         // distribute over unions for conditional typing
         if let Some(distributive_symbol) = distributive_symbol
-            && let Type::Union { elements } = tables.types.get_type(left).clone()
+            && let Type::Union { elements } = ctx.types.get_type(left).clone()
         {
             let mut branch_types = Vec::new();
 
@@ -582,26 +562,22 @@ impl Compiler {
                 let mut substitutions = HashMap::new();
                 substitutions.insert(distributive_symbol, element_id);
                 let mut cache = HashMap::new();
-                let mapped_right = self.substitute_static_parameters(
-                    right,
-                    &substitutions,
-                    tables.types,
-                    &mut cache,
-                );
+                let mapped_right =
+                    self.substitute_static_parameters(right, &substitutions, ctx.types, &mut cache);
                 let mapped_then = self.substitute_static_parameters(
                     then_type,
                     &substitutions,
-                    tables.types,
+                    ctx.types,
                     &mut cache,
                 );
                 let mapped_else = self.substitute_static_parameters(
                     else_type,
                     &substitutions,
-                    tables.types,
+                    ctx.types,
                     &mut cache,
                 );
                 let branch = self.normalize_conditional_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     type_id,
                     source_id,
                     None,
@@ -618,7 +594,7 @@ impl Compiler {
 
             // union the distributed results
             return match branch_types.len() {
-                0 => tables.types.insert_type_from_any(
+                0 => ctx.types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Never,
                     },
@@ -626,14 +602,14 @@ impl Compiler {
                 ),
                 1 => branch_types[0],
                 _ => {
-                    let union_id = tables.types.insert_type_from_any(
+                    let union_id = ctx.types.insert_type_from_any(
                         Type::Union {
                             elements: branch_types,
                         },
                         source_id,
                     );
                     self.normalize_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         union_id,
                         mode,
                         relation_mode,
@@ -646,13 +622,13 @@ impl Compiler {
         // distribute over never as an empty union
         if distributive_symbol.is_some()
             && matches!(
-                tables.types.get_type(left),
+                ctx.types.get_type(left),
                 Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 }
             )
         {
-            return tables.types.insert_type_from_any(
+            return ctx.types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 },
@@ -666,29 +642,21 @@ impl Compiler {
             substitutions.insert(distributive_symbol, left);
             let mut cache = HashMap::new();
             let mapped_right =
-                self.substitute_static_parameters(right, &substitutions, tables.types, &mut cache);
-            let mapped_then = self.substitute_static_parameters(
-                then_type,
-                &substitutions,
-                tables.types,
-                &mut cache,
-            );
-            let mapped_else = self.substitute_static_parameters(
-                else_type,
-                &substitutions,
-                tables.types,
-                &mut cache,
-            );
+                self.substitute_static_parameters(right, &substitutions, ctx.types, &mut cache);
+            let mapped_then =
+                self.substitute_static_parameters(then_type, &substitutions, ctx.types, &mut cache);
+            let mapped_else =
+                self.substitute_static_parameters(else_type, &substitutions, ctx.types, &mut cache);
             (mapped_right, mapped_then, mapped_else)
         } else {
             (right, then_type, else_type)
         };
 
         // collect conditional relation facts once for infer and branch selection
-        let contains_infer = self.type_contains_infer(right, tables.types, &mut HashSet::new());
+        let contains_infer = self.type_contains_infer(right, ctx.types, &mut HashSet::new());
         let infer_substitutions = if contains_infer {
             self.infer_conditional_type_substitutions(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive_symbol.is_some(),
                 left,
                 right,
@@ -698,16 +666,16 @@ impl Compiler {
             None
         };
         let is_assignable = self
-            .is_type_assignable(&mut tables.reborrow(), right, left)
+            .is_type_assignable(&mut ctx.reborrow(), right, left)
             .is_assignable();
 
         // infer conditional bindings before choosing a branch
         if contains_infer {
             if let Some(substitutions) = infer_substitutions {
                 let substituted =
-                    self.substitute_infer_types(&mut tables.reborrow(), then_type, &substitutions);
+                    self.substitute_infer_types(&mut ctx.reborrow(), then_type, &substitutions);
                 return self.normalize_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     substituted,
                     mode,
                     relation_mode,
@@ -716,7 +684,7 @@ impl Compiler {
             }
 
             return self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 else_type,
                 mode,
                 relation_mode,
@@ -726,20 +694,20 @@ impl Compiler {
 
         // any yields the union of both branches
         if matches!(
-            tables.types.get_type(left),
+            ctx.types.get_type(left),
             Type::TypeLiteral {
                 value: TypeLiteral::Any,
             }
         ) {
             let normalized_then = self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 then_type,
                 mode,
                 relation_mode,
                 visited,
             );
             let normalized_else = self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 else_type,
                 mode,
                 relation_mode,
@@ -748,14 +716,14 @@ impl Compiler {
             if normalized_then == normalized_else {
                 return normalized_then;
             }
-            let union_id = tables.types.insert_type_from_any(
+            let union_id = ctx.types.insert_type_from_any(
                 Type::Union {
                     elements: vec![normalized_then, normalized_else],
                 },
                 source_id,
             );
             return self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 union_id,
                 mode,
                 relation_mode,
@@ -766,19 +734,13 @@ impl Compiler {
         // choose the active branch based on assignability
         let branch_id = if is_assignable { then_type } else { else_type };
 
-        self.normalize_type_inner(
-            &mut tables.reborrow(),
-            branch_id,
-            mode,
-            relation_mode,
-            visited,
-        )
+        self.normalize_type_inner(&mut ctx.reborrow(), branch_id, mode, relation_mode, visited)
     }
 
     /// Normalize indexed access types by resolving the accessed value types.
     pub(super) fn normalize_index_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         left: LocalTypeId,
         index: LocalTypeId,
@@ -790,7 +752,7 @@ impl Compiler {
         let relation_mode = RelationMode::INDEX_ACCESS;
 
         let resolution = self.resolve_index_access_types(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             source_id,
             left,
             index,
@@ -802,33 +764,27 @@ impl Compiler {
 
         // collapse the collected value types
         let combined = match value_types.len() {
-            0 => tables.types.insert_type_from_any(
+            0 => ctx.types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
                 source_id,
             ),
             1 => value_types[0],
-            _ => tables.types.insert_type_from_any(
+            _ => ctx.types.insert_type_from_any(
                 Type::Union {
                     elements: value_types,
                 },
                 source_id,
             ),
         };
-        self.normalize_type_inner(
-            &mut tables.reborrow(),
-            combined,
-            mode,
-            relation_mode,
-            visited,
-        )
+        self.normalize_type_inner(&mut ctx.reborrow(), combined, mode, relation_mode, visited)
     }
 
     /// Resolve indexed access value types and missing keys.
     pub(crate) fn resolve_index_access_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         left: LocalTypeId,
         index: LocalTypeId,
@@ -840,17 +796,17 @@ impl Compiler {
         let relation_mode = RelationMode::INDEX_ACCESS;
 
         // resolve apparent operand types before index evaluation
-        let left = self.apparent_type(&mut tables.reborrow(), left, relation_mode);
-        let index = self.apparent_type(&mut tables.reborrow(), index, relation_mode);
+        let left = self.apparent_type(&mut ctx.reborrow(), left, relation_mode);
+        let index = self.apparent_type(&mut ctx.reborrow(), index, relation_mode);
 
         // normalize operands before evaluating the index
         let left =
-            self.normalize_type_inner(&mut tables.reborrow(), left, mode, relation_mode, visited);
+            self.normalize_type_inner(&mut ctx.reborrow(), left, mode, relation_mode, visited);
         let index =
-            self.normalize_type_inner(&mut tables.reborrow(), index, mode, relation_mode, visited);
+            self.normalize_type_inner(&mut ctx.reborrow(), index, mode, relation_mode, visited);
 
         // split union index types into individual keys
-        let index_types = match tables.types.get_type(index) {
+        let index_types = match ctx.types.get_type(index) {
             Type::Union { elements } => elements.clone(),
             _ => vec![index],
         };
@@ -860,7 +816,7 @@ impl Compiler {
         // compute the accessed type for each key
         for key_type_id in index_types {
             let value_type = self.index_access_type_for_key_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 left,
                 key_type_id,
                 source_id,
@@ -870,10 +826,10 @@ impl Compiler {
             if let Some(value_type) = value_type {
                 value_types.push(value_type);
             } else {
-                if let Some(missing_key) = self.static_key_from_type(key_type_id, tables.types) {
+                if let Some(missing_key) = self.static_key_from_type(key_type_id, ctx.types) {
                     missing_keys.push(missing_key);
                 }
-                value_types.push(tables.types.insert_type_from_any(
+                value_types.push(ctx.types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     },
@@ -891,7 +847,7 @@ impl Compiler {
     /// Resolve an index access for a single key type.
     fn index_access_type_for_key_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left: LocalTypeId,
         key_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
@@ -899,9 +855,9 @@ impl Compiler {
         relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         // handle literal key access first
-        if let Some(static_key) = self.static_key_from_type(key_type_id, tables.types) {
+        if let Some(static_key) = self.static_key_from_type(key_type_id, ctx.types) {
             return self.index_access_for_literal_key(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 left,
                 static_key,
                 mode,
@@ -910,9 +866,9 @@ impl Compiler {
         }
 
         // handle primitive index kinds
-        if let Some(kind) = self.mapped_index_kind_for_type(key_type_id, tables.types) {
+        if let Some(kind) = self.mapped_index_kind_for_type(key_type_id, ctx.types) {
             return self.index_access_for_index_kind(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 left,
                 kind,
                 mode,
@@ -920,10 +876,10 @@ impl Compiler {
             );
         }
 
-        match tables.types.get_type(key_type_id) {
+        match ctx.types.get_type(key_type_id) {
             Type::TypeLiteral {
                 value: TypeLiteral::Any | TypeLiteral::Unknown,
-            } => Some(tables.types.insert_type_from_any(
+            } => Some(ctx.types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
@@ -936,7 +892,7 @@ impl Compiler {
     /// Resolve a literal key access on a type id.
     fn index_access_for_literal_key(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: StaticKey,
         mode: NormalizationMode,
@@ -945,7 +901,7 @@ impl Compiler {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
         self.index_access_for_literal_key_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             type_id,
             key,
             mode,
@@ -957,7 +913,7 @@ impl Compiler {
     /// Resolve a literal key access on a type id with a recursion guard.
     fn index_access_for_literal_key_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: StaticKey,
         mode: NormalizationMode,
@@ -970,8 +926,8 @@ impl Compiler {
         }
 
         // use the receiver type as the source for synthesized unions
-        let source_id = tables.types.get_type_source(type_id);
-        let ty = tables.types.get_type(type_id).clone();
+        let source_id = ctx.types.get_type_source(type_id);
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
                 let mut value_types = Vec::new();
@@ -979,7 +935,7 @@ impl Compiler {
                 // union values across elements
                 for element_id in elements {
                     let value_type = self.index_access_for_literal_key_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         key,
                         mode,
@@ -989,7 +945,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.union_type_ids_from_list(value_types, source_id, tables.types))
+                Some(self.union_type_ids_from_list(value_types, source_id, ctx.types))
             }
             Type::Intersection { elements } => {
                 let mut value_types = Vec::new();
@@ -997,11 +953,11 @@ impl Compiler {
                 // intersect values across elements
                 for element_id in elements {
                     // skip descriptor wrappers when resolving member keys
-                    if matches!(tables.types.get_type(element_id), Type::Value { .. }) {
+                    if matches!(ctx.types.get_type(element_id), Type::Value { .. }) {
                         continue;
                     }
                     if let Some(value_type) = self.index_access_for_literal_key_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         key,
                         mode,
@@ -1014,7 +970,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.intersection_type_ids_from_list(value_types, source_id, tables.types))
+                    Some(self.intersection_type_ids_from_list(value_types, source_id, ctx.types))
                 }
             }
             Type::Mapped {
@@ -1024,7 +980,7 @@ impl Compiler {
             } => {
                 let mut normalize_visited = Vec::new();
                 let normalized_id = self.normalize_mapped_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     parameter,
                     modifiers,
@@ -1033,11 +989,11 @@ impl Compiler {
                     relation_mode,
                     &mut normalize_visited,
                 );
-                if matches!(tables.types.get_type(normalized_id), Type::Mapped { .. }) {
+                if matches!(ctx.types.get_type(normalized_id), Type::Mapped { .. }) {
                     None
                 } else {
                     self.index_access_for_literal_key_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized_id,
                         key,
                         mode,
@@ -1051,7 +1007,7 @@ impl Compiler {
 
                 // add field type when present
                 if let Some(field_type) =
-                    self.field_type_for_key(&mut tables.reborrow(), type_id, &key)
+                    self.field_type_for_key(&mut ctx.reborrow(), type_id, &key)
                 {
                     value_types.push(field_type);
                 }
@@ -1059,7 +1015,7 @@ impl Compiler {
                 // add index signature candidates when compatible
                 if let Some(kind) = self.mapped_index_kind_for_static_key(&key) {
                     let index_values = self.index_signature_value_types_for_kind(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         type_id,
                         kind,
                     );
@@ -1069,7 +1025,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_ids_from_list(value_types, source_id, tables.types))
+                    Some(self.union_type_ids_from_list(value_types, source_id, ctx.types))
                 }
             }
         }
@@ -1078,7 +1034,7 @@ impl Compiler {
     /// Resolve an index access for a primitive index kind.
     fn index_access_for_index_kind(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
         mode: NormalizationMode,
@@ -1087,7 +1043,7 @@ impl Compiler {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
         self.index_access_for_index_kind_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             type_id,
             kind,
             mode,
@@ -1099,7 +1055,7 @@ impl Compiler {
     /// Resolve an index access for a primitive index kind with a recursion guard.
     fn index_access_for_index_kind_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
         mode: NormalizationMode,
@@ -1112,8 +1068,8 @@ impl Compiler {
         }
 
         // use the receiver type as the source for synthesized unions
-        let source_id = tables.types.get_type_source(type_id);
-        let ty = tables.types.get_type(type_id).clone();
+        let source_id = ctx.types.get_type_source(type_id);
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
                 let mut value_types = Vec::new();
@@ -1121,7 +1077,7 @@ impl Compiler {
                 // union values across elements
                 for element_id in elements {
                     let value_type = self.index_access_for_index_kind_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         kind,
                         mode,
@@ -1131,7 +1087,7 @@ impl Compiler {
                     value_types.push(value_type);
                 }
 
-                Some(self.union_type_ids_from_list(value_types, source_id, tables.types))
+                Some(self.union_type_ids_from_list(value_types, source_id, ctx.types))
             }
             Type::Intersection { elements } => {
                 let mut value_types = Vec::new();
@@ -1139,11 +1095,11 @@ impl Compiler {
                 // intersect values across elements
                 for element_id in elements {
                     // skip descriptor wrappers when resolving member keys
-                    if matches!(tables.types.get_type(element_id), Type::Value { .. }) {
+                    if matches!(ctx.types.get_type(element_id), Type::Value { .. }) {
                         continue;
                     }
                     if let Some(value_type) = self.index_access_for_index_kind_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         kind,
                         mode,
@@ -1157,7 +1113,7 @@ impl Compiler {
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.intersection_type_ids_from_list(value_types, source_id, tables.types))
+                    Some(self.intersection_type_ids_from_list(value_types, source_id, ctx.types))
                 }
             }
             Type::Mapped {
@@ -1167,7 +1123,7 @@ impl Compiler {
             } => {
                 let mut normalize_visited = Vec::new();
                 let normalized_id = self.normalize_mapped_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     parameter,
                     modifiers,
@@ -1176,11 +1132,11 @@ impl Compiler {
                     relation_mode,
                     &mut normalize_visited,
                 );
-                if matches!(tables.types.get_type(normalized_id), Type::Mapped { .. }) {
+                if matches!(ctx.types.get_type(normalized_id), Type::Mapped { .. }) {
                     None
                 } else {
                     self.index_access_for_index_kind_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized_id,
                         kind,
                         mode,
@@ -1194,21 +1150,18 @@ impl Compiler {
 
                 // add field types compatible with this kind
                 let field_values =
-                    self.field_types_for_index_kind(&mut tables.reborrow(), type_id, kind);
+                    self.field_types_for_index_kind(&mut ctx.reborrow(), type_id, kind);
                 value_types.extend(field_values);
 
                 // add index signature types
-                let index_values = self.index_signature_value_types_for_kind(
-                    &mut tables.reborrow(),
-                    type_id,
-                    kind,
-                );
+                let index_values =
+                    self.index_signature_value_types_for_kind(&mut ctx.reborrow(), type_id, kind);
                 value_types.extend(index_values);
 
                 if value_types.is_empty() {
                     None
                 } else {
-                    Some(self.union_type_ids_from_list(value_types, source_id, tables.types))
+                    Some(self.union_type_ids_from_list(value_types, source_id, ctx.types))
                 }
             }
         }
@@ -1253,12 +1206,12 @@ impl Compiler {
     /// Resolve the field type for a specific key.
     fn field_type_for_key(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
     ) -> Option<LocalTypeId> {
         // unwrap alias references before walking fields
-        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, ctx.types);
         let mut field_types = Vec::new();
         let mut pending = vec![type_id];
         let mut visited = Vec::new();
@@ -1269,7 +1222,7 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
@@ -1311,7 +1264,7 @@ impl Compiler {
                     symbol,
                     static_arguments,
                 } => {
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
                     if static_arguments.is_some()
@@ -1321,7 +1274,7 @@ impl Compiler {
                         let arguments = static_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 source_id,
                                 symbol,
                                 arguments,
@@ -1336,7 +1289,7 @@ impl Compiler {
                     }
 
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(instance_id);
                     }
@@ -1353,7 +1306,7 @@ impl Compiler {
         match field_types.len() {
             0 => None,
             1 => Some(field_types[0]),
-            _ => Some(tables.types.insert_type_from_type(
+            _ => Some(ctx.types.insert_type_from_type(
                 Type::Intersection {
                     elements: field_types,
                 },
@@ -1365,12 +1318,12 @@ impl Compiler {
     /// Collect field types compatible with an index kind.
     fn field_types_for_index_kind(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
     ) -> Vec<LocalTypeId> {
         // unwrap alias references before collecting
-        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, ctx.types);
         let mut field_types = Vec::new();
         let mut pending = vec![type_id];
         let mut visited = Vec::new();
@@ -1381,7 +1334,7 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
@@ -1416,7 +1369,7 @@ impl Compiler {
                     symbol,
                     static_arguments,
                 } => {
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
                     if static_arguments.is_some()
@@ -1426,7 +1379,7 @@ impl Compiler {
                         let arguments = static_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 source_id,
                                 symbol,
                                 arguments,
@@ -1441,7 +1394,7 @@ impl Compiler {
                     }
 
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(instance_id);
                     }
@@ -1461,12 +1414,12 @@ impl Compiler {
     /// Collect index signature value types compatible with an index kind.
     fn index_signature_value_types_for_kind(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
     ) -> Vec<LocalTypeId> {
         // unwrap alias references before collecting
-        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, ctx.types);
         let mut value_types = Vec::new();
         let mut pending = vec![type_id];
         let mut visited = Vec::new();
@@ -1477,14 +1430,14 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Object {
                     index_signatures, ..
                 } => {
                     for signature in index_signatures {
                         let signature_kind =
-                            self.mapped_index_kind_for_type(signature.key_type, tables.types);
+                            self.mapped_index_kind_for_type(signature.key_type, ctx.types);
                         if let Some(signature_kind) = signature_kind
                             && self.index_kinds_compatible(signature_kind, kind)
                         {
@@ -1507,9 +1460,9 @@ impl Compiler {
                     }
                 }
                 Type::Reference { symbol, .. } => {
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(instance_id);
                     }
@@ -1609,7 +1562,7 @@ impl Compiler {
     /// Normalize mapped types into object shapes.
     pub(crate) fn normalize_mapped_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         parameter: TypeMappedParameter,
         modifiers: TypeMappedModifiers,
@@ -1636,50 +1589,39 @@ impl Compiler {
         bound_static_parameters.insert(symbol);
         let mut static_visited = HashSet::new();
         let constraint_contains_static = self.type_contains_free_static_parameters(
-            tables.module,
-            tables.profile,
+            ctx.type_view(),
             constraint,
             &bound_static_parameters,
-            tables.symbols,
-            tables.types,
             &mut static_visited,
         );
         let mut infer_visited = HashSet::new();
         let constraint_contains_infer =
-            self.type_contains_infer_vars(constraint, tables.types, &mut infer_visited);
+            self.type_contains_infer_vars(constraint, ctx.types, &mut infer_visited);
         let remap_contains_static = key_remap.is_some_and(|key_remap| {
             self.type_contains_free_static_parameters(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 key_remap,
                 &bound_static_parameters,
-                tables.symbols,
-                tables.types,
                 &mut HashSet::new(),
             )
         });
         let remap_contains_infer = key_remap.is_some_and(|key_remap| {
-            self.type_contains_infer_vars(key_remap, tables.types, &mut HashSet::new())
+            self.type_contains_infer_vars(key_remap, ctx.types, &mut HashSet::new())
         });
         if constraint_contains_static
             || constraint_contains_infer
             || remap_contains_static
             || remap_contains_infer
         {
-            let normalized_value = self.normalize_type_inner(
-                &mut tables.reborrow(),
-                value,
-                mode,
-                relation_mode,
-                visited,
-            );
+            let normalized_value =
+                self.normalize_type_inner(&mut ctx.reborrow(), value, mode, relation_mode, visited);
             let parameter = TypeMappedParameter {
                 name,
                 symbol,
                 constraint,
                 key_remap,
             };
-            return tables.types.insert_type_from_any(
+            return ctx.types.insert_type_from_any(
                 Type::Mapped {
                     parameter,
                     modifiers,
@@ -1691,29 +1633,23 @@ impl Compiler {
 
         // normalize the key constraint for evaluation
         let normalized_constraint = self.normalize_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             constraint,
             mode,
             relation_mode,
             visited,
         );
         let normalized_key_remap = key_remap.map(|key_remap| {
-            self.normalize_type_inner(
-                &mut tables.reborrow(),
-                key_remap,
-                mode,
-                relation_mode,
-                visited,
-            )
+            self.normalize_type_inner(&mut ctx.reborrow(), key_remap, mode, relation_mode, visited)
         });
 
-        // reuse one tables context for mapped key collection and expansion
-        let mut type_tables = tables.reborrow();
+        // reuse one ctx context for mapped key collection and expansion
+        let mut ctx = ctx.reborrow();
         {
             // collect mapped keys from the constraint
             let mut keys = Vec::new();
             self.collect_mapped_keys_for_type(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 normalized_constraint,
                 relation_mode,
                 &mut keys,
@@ -1726,14 +1662,12 @@ impl Compiler {
                     construct_signatures: Vec::new(),
                     index_signatures: Vec::new(),
                 };
-                return type_tables
-                    .types
-                    .insert_type_from_any(normalized, source_id);
+                return ctx.types.insert_type_from_any(normalized, source_id);
             }
 
             // find the source type for modifier inheritance
             let source_type_id = parameter_symbol.and_then(|parameter_symbol| {
-                self.mapped_source_type_id(parameter_symbol, constraint, value, type_tables.types)
+                self.mapped_source_type_id(parameter_symbol, constraint, value, ctx.types)
             });
 
             // expand each mapped key into fields or index signatures
@@ -1744,7 +1678,7 @@ impl Compiler {
             // precompute normalized value and remap when the parameter is unused
             let normalized_value_without_param = if parameter_symbol.is_none() {
                 Some(self.normalize_type_inner(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     value,
                     mode,
                     relation_mode,
@@ -1758,7 +1692,7 @@ impl Compiler {
             {
                 let mut remapped = Vec::new();
                 self.collect_mapped_keys_for_type(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     key_remap,
                     relation_mode,
                     &mut remapped,
@@ -1779,11 +1713,7 @@ impl Compiler {
                     MappedKey::Field { key, .. } => {
                         let (optional, readonly) = source_type_id
                             .and_then(|source| {
-                                self.field_modifiers_for_key(
-                                    &mut type_tables.reborrow(),
-                                    source,
-                                    key,
-                                )
+                                self.field_modifiers_for_key(&mut ctx.reborrow(), source, key)
                             })
                             .unwrap_or((false, false));
                         (optional, readonly, readonly)
@@ -1792,7 +1722,7 @@ impl Compiler {
                         let readonly = source_type_id
                             .and_then(|source| {
                                 self.resolve_index_signature_readonly_for_kind(
-                                    &mut type_tables.reborrow(),
+                                    &mut ctx.reborrow(),
                                     source,
                                     *kind,
                                 )
@@ -1814,11 +1744,11 @@ impl Compiler {
                     let substituted_value = self.substitute_static_parameters(
                         value,
                         &substitutions,
-                        type_tables.types,
+                        ctx.types,
                         &mut cache,
                     );
                     self.normalize_type_inner(
-                        &mut type_tables.reborrow(),
+                        &mut ctx.reborrow(),
                         substituted_value,
                         mode,
                         relation_mode,
@@ -1839,11 +1769,11 @@ impl Compiler {
                     let substituted_remap = self.substitute_static_parameters(
                         key_remap,
                         &substitutions,
-                        type_tables.types,
+                        ctx.types,
                         &mut cache,
                     );
                     let normalized_remap = self.normalize_type_inner(
-                        &mut type_tables.reborrow(),
+                        &mut ctx.reborrow(),
                         substituted_remap,
                         mode,
                         relation_mode,
@@ -1851,7 +1781,7 @@ impl Compiler {
                     );
                     let mut remapped = Vec::new();
                     self.collect_mapped_keys_for_type(
-                        &mut type_tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized_remap,
                         relation_mode,
                         &mut remapped,
@@ -1876,7 +1806,7 @@ impl Compiler {
                                 fields.iter_mut().find(|field| field.key.matches(&key))
                             {
                                 if existing.ty != normalized_value {
-                                    existing.ty = type_tables.types.insert_type_from_type(
+                                    existing.ty = ctx.types.insert_type_from_type(
                                         Type::Union {
                                             elements: vec![existing.ty, normalized_value],
                                         },
@@ -1911,10 +1841,8 @@ impl Compiler {
             // build index signatures for mapped index keys
             let mut index_signatures = Vec::new();
             for (kind, values) in index_values {
-                let value_type_id =
-                    self.union_type_ids_from_list(values, source_id, type_tables.types);
-                let key_type_id =
-                    self.key_type_id_for_index_kind(kind, source_id, type_tables.types);
+                let value_type_id = self.union_type_ids_from_list(values, source_id, ctx.types);
+                let key_type_id = self.key_type_id_for_index_kind(kind, source_id, ctx.types);
                 let is_readonly = index_readonly.get(&kind).copied().unwrap_or(false);
                 index_signatures.push(TypeIndexSignature {
                     name,
@@ -1931,9 +1859,7 @@ impl Compiler {
                 construct_signatures: Vec::new(),
                 index_signatures,
             };
-            type_tables
-                .types
-                .insert_type_from_any(normalized, source_id)
+            ctx.types.insert_type_from_any(normalized, source_id)
         }
     }
 
@@ -1968,7 +1894,7 @@ impl Compiler {
     /// Collect mapped keys for a constraint type.
     fn collect_mapped_keys_for_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
@@ -1976,7 +1902,7 @@ impl Compiler {
         // track visited types to avoid recursion cycles
         let mut visited = HashSet::new();
         self.collect_mapped_keys_for_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             type_id,
             relation_mode,
             keys,
@@ -1987,7 +1913,7 @@ impl Compiler {
     /// Collect mapped keys for a constraint type with a recursion guard.
     fn collect_mapped_keys_for_type_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
@@ -1999,14 +1925,14 @@ impl Compiler {
         }
 
         // reuse the current type source for synthesized key types
-        let source_id = tables.types.get_type_source(type_id);
-        let ty = tables.types.get_type(type_id).clone();
+        let source_id = ctx.types.get_type_source(type_id);
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
                 // expand each union member
                 for element_id in elements {
                     self.collect_mapped_keys_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element_id,
                         relation_mode,
                         keys,
@@ -2019,19 +1945,13 @@ impl Compiler {
                 static_arguments,
             } => {
                 // follow constraint bounds for static parameter references
-                if self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    symbol,
-                    tables.symbols,
-                    tables.types,
-                ) {
-                    let mut module_tables = tables.reborrow();
+                if self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
+                    let mut ctx = ctx.reborrow();
                     if let Some(constraint_id) =
-                        self.static_parameter_constraint_type(&mut module_tables, symbol, source_id)
+                        self.static_parameter_constraint_type(&mut ctx, symbol, source_id)
                     {
                         self.collect_mapped_keys_for_type_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             constraint_id,
                             relation_mode,
                             keys,
@@ -2040,23 +1960,23 @@ impl Compiler {
                     }
                 } else if static_arguments.is_none()
                     && let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                 {
                     // prefer instance shapes for type parameter and alias references
                     self.collect_mapped_keys_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         instance_id,
                         relation_mode,
                         keys,
                         visited,
                     );
                 } else if symbol.ty() == SymbolType::TypeAlias
-                    && !tables.types.is_normalization_alias_in_progress(symbol)
+                    && !ctx.types.is_normalization_alias_in_progress(symbol)
                 {
                     // expand alias references to collect mapped keys from utility types
                     let mut normalize_visited = Vec::new();
                     let normalized = self.normalize_type_alias_reference_with_arguments(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         source_id,
                         symbol,
                         static_arguments.as_deref().unwrap_or(&[]),
@@ -2066,14 +1986,14 @@ impl Compiler {
                     );
                     if let Some(normalized) = normalized {
                         let normalized = self.normalize_type_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             normalized,
                             NormalizationMode::Assign,
                             relation_mode,
                             &mut Vec::new(),
                         );
                         self.collect_mapped_keys_for_type_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             normalized,
                             relation_mode,
                             keys,
@@ -2088,7 +2008,7 @@ impl Compiler {
             } => {
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_keyof_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     Some(type_id),
                     right,
@@ -2096,18 +2016,12 @@ impl Compiler {
                     relation_mode,
                     &mut normalize_visited,
                 );
-                if self.type_is_deferred_keyof_projection(
-                    tables.module,
-                    tables.profile,
-                    normalized,
-                    tables.symbols,
-                    tables.types,
-                ) {
+                if self.type_is_deferred_keyof_projection(ctx.type_view(), normalized) {
                     // avoid recursing on deferred keyof projections
                     return;
                 }
                 self.collect_mapped_keys_for_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     normalized,
                     relation_mode,
                     keys,
@@ -2117,7 +2031,7 @@ impl Compiler {
             Type::Conditional { .. } => {
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_type_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     type_id,
                     NormalizationMode::Assign,
                     relation_mode,
@@ -2125,7 +2039,7 @@ impl Compiler {
                 );
                 if normalized != type_id {
                     self.collect_mapped_keys_for_type_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         normalized,
                         relation_mode,
                         keys,
@@ -2137,8 +2051,8 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(_),
             } => {
                 // literal keys map directly to field keys
-                if let Some(key) = self.static_key_from_type(type_id, tables.types) {
-                    let key_type = self.key_type_id_for_static_key(key, source_id, tables.types);
+                if let Some(key) = self.static_key_from_type(type_id, ctx.types) {
+                    let key_type = self.key_type_id_for_static_key(key, source_id, ctx.types);
                     keys.push(MappedKey::Field { key, key_type });
                 }
             }
@@ -2151,7 +2065,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::String,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
             }
@@ -2164,7 +2078,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Number,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
             }
@@ -2179,7 +2093,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Symbol,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
             }
@@ -2192,7 +2106,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::String,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
                 keys.push(MappedKey::Index {
@@ -2200,7 +2114,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Number,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
                 keys.push(MappedKey::Index {
@@ -2208,14 +2122,14 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Symbol,
                         source_id,
-                        tables.types,
+                        ctx.types,
                     ),
                 });
             }
             Type::TemplateLiteral { strings, spans } => {
                 // expand template literal keys into literal fields when possible
                 if let Some(shape) = self.template_literal_key_shape(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &strings,
                     &spans,
                     relation_mode,
@@ -2224,7 +2138,7 @@ impl Compiler {
                         TemplateLiteralKeyShape::Literal(literal_keys) => {
                             for key in literal_keys {
                                 let key_type =
-                                    self.key_type_id_for_static_key(key, source_id, tables.types);
+                                    self.key_type_id_for_static_key(key, source_id, ctx.types);
                                 keys.push(MappedKey::Field { key, key_type });
                             }
                         }
@@ -2234,7 +2148,7 @@ impl Compiler {
                                 key_type: self.key_type_id_for_index_kind(
                                     MappedIndexKind::String,
                                     source_id,
-                                    tables.types,
+                                    ctx.types,
                                 ),
                             });
                         }
@@ -2271,12 +2185,12 @@ impl Compiler {
     /// Resolve base modifiers for a field key on a type.
     pub(crate) fn field_modifiers_for_key(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
     ) -> Option<(bool, bool)> {
         // unwrap alias references before walking
-        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, ctx.types);
         let mut is_optional = true;
         let mut is_readonly = true;
         let mut found = false;
@@ -2289,7 +2203,7 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
@@ -2304,7 +2218,7 @@ impl Compiler {
                     symbol,
                     static_arguments,
                 } => {
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
                     if static_arguments.is_some()
@@ -2314,7 +2228,7 @@ impl Compiler {
                         let arguments = static_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 source_id,
                                 symbol,
                                 arguments,
@@ -2329,7 +2243,7 @@ impl Compiler {
                     }
 
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(instance_id);
                     }
@@ -2349,12 +2263,12 @@ impl Compiler {
     /// Resolve readonly modifiers for index signatures of a given kind.
     fn resolve_index_signature_readonly_for_kind(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
     ) -> Option<bool> {
         // unwrap alias references before walking
-        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, ctx.types);
         let mut is_readonly = true;
         let mut found = false;
         let mut pending = vec![type_id];
@@ -2366,14 +2280,14 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Object {
                     index_signatures, ..
                 } => {
                     for signature in index_signatures {
                         let signature_kind =
-                            self.mapped_index_kind_for_type(signature.key_type, tables.types);
+                            self.mapped_index_kind_for_type(signature.key_type, ctx.types);
                         if let Some(signature_kind) = signature_kind
                             && self.index_kinds_compatible(signature_kind, kind)
                         {
@@ -2386,7 +2300,7 @@ impl Compiler {
                     symbol,
                     static_arguments,
                 } => {
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
 
                     // expand alias references with static arguments before apparent lookup
                     if static_arguments.is_some()
@@ -2396,7 +2310,7 @@ impl Compiler {
                         let arguments = static_arguments.as_deref().unwrap_or(&[]);
                         if let Some(expanded_id) = self
                             .normalize_type_alias_reference_with_arguments(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 source_id,
                                 symbol,
                                 arguments,
@@ -2411,7 +2325,7 @@ impl Compiler {
                     }
 
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(instance_id);
                     }

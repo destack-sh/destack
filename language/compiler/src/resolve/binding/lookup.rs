@@ -8,6 +8,7 @@ use destack_workspace::Module;
 use crate::Compiler;
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return the namespace scope used for module binding lookups in global declarations.
     pub(crate) fn module_binding_scope_for_global_expression(

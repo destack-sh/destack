@@ -15,6 +15,7 @@ use crate::resolve::dependency::cache::{
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect namespace reexport targets for a specific scope.
     pub(super) fn collect_namespace_exports_for_scope(

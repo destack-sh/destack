@@ -34,21 +34,21 @@ impl Compiler {
 
         let target_assignable = self
             .is_type_assignable(
-                &mut ctx.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 target_element,
                 source_element,
             )
             .is_assignable();
         let source_assignable = self
             .is_type_assignable(
-                &mut ctx.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 source_element,
                 target_element,
             )
             .is_assignable();
 
         if target_assignable && !source_assignable {
-            self.report_unsound_variance(ctx.module, ctx.profile, anchor, ctx.options);
+            self.report_unsound_variance(&*ctx, anchor);
         }
     }
 

@@ -2,27 +2,21 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral,
-    SymbolType, Type, TypeLiteral, TypeTable,
+    SymbolType, Type, TypeLiteral,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::ModuleSource;
 
-use super::AnalyzeDependencyStage;
 use super::r#type::TypeContainmentVisitor;
+use super::{AnalyzeDependencyStage, ModuleTypeView};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check whether a type expression implicitly relies on managed defaults.
-    pub(crate) fn type_is_implicit_managed(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        ty: &Type,
-        types: &TypeTable,
-    ) -> bool {
+    pub(crate) fn type_is_implicit_managed(&self, ctx: ModuleTypeView<'_>, ty: &Type) -> bool {
         // track visited symbols to break alias cycles
         let mut visited = HashSet::new();
-        self.type_is_implicit_managed_inner(module, profile, ty, types, &mut visited)
+        self.type_is_implicit_managed_inner(ctx, ty, &mut visited)
     }
 
     /// Check whether a type expression relies on managed defaults.
@@ -30,40 +24,28 @@ impl Compiler {
     /// Explicit ownership wrappers (`^T`, `&T`, `*T`) are treated as non managed.
     pub(crate) fn type_contains_managed(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         type_id: LocalTypeId,
-        types: &TypeTable,
     ) -> bool {
         let mut visited_symbols = HashSet::new();
-        self.type_contains_managed_with_visited_symbols(
-            module,
-            profile,
-            type_id,
-            types,
-            &mut visited_symbols,
-        )
+        self.type_contains_managed_with_visited_symbols(ctx, type_id, &mut visited_symbols)
     }
 
     /// Check whether a type expression relies on managed defaults with visited tracking.
     fn type_contains_managed_with_visited_symbols(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         type_id: LocalTypeId,
-        types: &TypeTable,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
         let mut visited_types = HashSet::new();
         let visitor = TypeContainmentVisitor::new_managed_type(
             self,
-            module,
-            profile,
-            types,
+            ctx,
             &mut visited_types,
             visited_symbols,
         );
-        visitor.contains(types, type_id)
+        visitor.contains(ctx.types, type_id)
     }
 
     /// Check whether an expression makes ownership explicit.
@@ -88,17 +70,15 @@ impl Compiler {
     /// Emit a diagnostic when an implicit managed value is used without ownership control.
     pub(crate) fn check_no_implicit_managed_value(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         expression_id: LocalNodeId<Expression>,
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
         tree: &NodeTree,
-        types: &TypeTable,
         options: &AnalyzeOptions,
     ) {
         // only enforce for user modules with the option enabled
-        if !options.no_implicit_managed || !matches!(module.source, ModuleSource::User) {
+        if !options.no_implicit_managed || !matches!(ctx.module.source, ModuleSource::User) {
             return;
         }
 
@@ -113,38 +93,36 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
-            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, ctx.types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, ctx.types)
         {
             return;
         }
 
         // only require explicit ownership when a managed default is expected
-        let expected_ty = types.get_type(expected_ty_id);
-        if !self.type_is_implicit_managed(module, profile, expected_ty, types) {
+        let expected_ty = ctx.types.get_type(expected_ty_id);
+        if !self.type_is_implicit_managed(ctx, expected_ty) {
             return;
         }
 
         self.error(AnalyzeError::ImplicitManagedValueDisabled {
             node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
         });
     }
 
     /// Emit a diagnostic when an inferred managed value lacks ownership control.
     pub(crate) fn check_no_implicit_managed_inferred(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         expression_id: LocalNodeId<Expression>,
         inferred_ty_id: LocalTypeId,
         tree: &NodeTree,
-        types: &TypeTable,
         options: &AnalyzeOptions,
     ) {
         // only enforce for user modules with the option enabled
-        if !options.no_implicit_managed || !matches!(module.source, ModuleSource::User) {
+        if !options.no_implicit_managed || !matches!(ctx.module.source, ModuleSource::User) {
             return;
         }
 
@@ -159,17 +137,17 @@ impl Compiler {
         }
 
         // skip error types to avoid noisy diagnostics
-        if self.type_blocks_cascading_diagnostic(inferred_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(inferred_ty_id, ctx.types) {
             return;
         }
 
         // report inferred implicit managed values
-        let inferred_ty = types.get_type(inferred_ty_id);
-        if self.type_is_implicit_managed(module, profile, inferred_ty, types) {
+        let inferred_ty = ctx.types.get_type(inferred_ty_id);
+        if self.type_is_implicit_managed(ctx, inferred_ty) {
             self.error(AnalyzeError::ImplicitManagedValueDisabled {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
         }
     }
@@ -177,10 +155,8 @@ impl Compiler {
     /// Walk a type for implicit managed defaults.
     fn type_is_implicit_managed_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         ty: &Type,
-        types: &TypeTable,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
         // treat explicit ownership wrappers as non managed
@@ -188,20 +164,20 @@ impl Compiler {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
             Type::Unary { right, .. } | Type::Value { value: right } => {
                 // follow the wrapped type
-                let inner = types.get_type(*right);
-                self.type_is_implicit_managed_inner(module, profile, inner, types, visited)
+                let inner = ctx.types.get_type(*right);
+                self.type_is_implicit_managed_inner(ctx, inner, visited)
             }
             Type::Reference { symbol, .. } => {
                 // unwrap aliases before checking references
-                self.symbol_is_managed_inner(module, profile, *symbol, types, visited, true)
+                self.symbol_is_managed_inner(ctx, *symbol, visited, true)
             }
             Type::Object { .. } | Type::Array { .. } | Type::Function { .. } => true,
             Type::TypeLiteral { value } => self.type_literal_is_managed(value),
             Type::Union { elements } | Type::Intersection { elements } => {
                 elements.iter().any(|element| {
                     // report managed defaults in union or intersection members
-                    let inner = types.get_type(*element);
-                    self.type_is_implicit_managed_inner(module, profile, inner, types, visited)
+                    let inner = ctx.types.get_type(*element);
+                    self.type_is_implicit_managed_inner(ctx, inner, visited)
                 })
             }
             Type::This => true,
@@ -210,13 +186,10 @@ impl Compiler {
     }
 
     /// Walk a type for any managed usage.
-    /// Walk a symbol definition to determine managed usage.
     pub(super) fn symbol_is_managed_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
-        types: &TypeTable,
         visited: &mut HashSet<GlobalSymbolId>,
         treat_explicit_wrappers_as_managed: bool,
     ) -> bool {
@@ -236,25 +209,15 @@ impl Compiler {
 
                 // resolve the alias target type and recurse
                 let resolved = self.with_alias_target_type(
-                    module,
-                    profile,
+                    ctx,
                     symbol,
-                    types,
-                    |alias_module, alias_types, alias_type_id, alias_ty| {
+                    |alias_view, alias_type_id, alias_ty| {
                         if treat_explicit_wrappers_as_managed {
-                            self.type_is_implicit_managed_inner(
-                                alias_module,
-                                profile,
-                                alias_ty,
-                                alias_types,
-                                visited,
-                            )
+                            self.type_is_implicit_managed_inner(alias_view, alias_ty, visited)
                         } else {
                             self.type_contains_managed_with_visited_symbols(
-                                alias_module,
-                                profile,
+                                alias_view,
                                 alias_type_id,
-                                alias_types,
                                 visited,
                             )
                         }
@@ -268,22 +231,21 @@ impl Compiler {
     /// Provide the alias target type to a handler when available.
     fn with_alias_target_type<R>(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
-        types: &TypeTable,
-        handle: impl FnOnce(&Module, &TypeTable, LocalTypeId, &Type) -> R,
+        handle: impl FnOnce(ModuleTypeView<'_>, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
         self.with_module_types_or_local_at_stage(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             symbol.module_id,
-            types,
+            ctx.types,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_types| {
                 let target_id = owner_types.get_alias_target_type_id(symbol)?;
                 let target_ty = owner_types.get_type(target_id);
-                Some(handle(owner_module, owner_types, target_id, target_ty))
+                let view = ModuleTypeView::new(owner_module, ctx.profile, owner_types);
+                Some(handle(view, target_id, target_ty))
             },
         )
         .ok()

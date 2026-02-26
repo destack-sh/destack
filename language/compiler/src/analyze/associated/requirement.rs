@@ -1,10 +1,10 @@
-use crate::analyze::common::{CanonicalSymbolMode, TypeTablesContext};
+use crate::analyze::common::{CanonicalSymbolMode, TreeSymbolView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    StringId, SymbolTable, WhereClause,
+    StringId, WhereClause,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::ModuleSource;
 use std::collections::HashSet;
 
 /// The associated requirement category for declaration checks.
@@ -28,17 +28,17 @@ impl DeclaredAssociatedRequirementKind {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Report missing declared associated requirements for one declaration in one tables context.
-    pub(crate) fn report_missing_associated_requirements_in_tables(
+    /// Report missing declared associated requirements for one declaration in one ctx context.
+    pub(crate) fn report_missing_associated_requirements(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         declaration_symbol: GlobalSymbolId,
         heritage: &Heritage,
         members: &[LocalNodeId<Member>],
         allows_deferred_requirements: bool,
     ) -> AnalyzeResult<()> {
         self.check_associated_requirements(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             declaration_symbol,
             heritage,
             members,
@@ -47,7 +47,7 @@ impl Compiler {
         )?;
 
         self.check_associated_requirements(
-            tables,
+            ctx,
             declaration_symbol,
             heritage,
             members,
@@ -61,7 +61,7 @@ impl Compiler {
     /// Check declared associated requirements for one declaration.
     fn check_associated_requirements(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         declaration_symbol: GlobalSymbolId,
         heritage: &Heritage,
         members: &[LocalNodeId<Member>],
@@ -69,16 +69,11 @@ impl Compiler {
         requirement_kind: DeclaredAssociatedRequirementKind,
     ) -> AnalyzeResult<()> {
         let declaration_symbol = self
-            .declaration_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
-                declaration_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), declaration_symbol)
             .unwrap_or(declaration_symbol);
 
         // skip non-user modules
-        if !matches!(tables.module.source, ModuleSource::User) {
+        if !matches!(ctx.module.source, ModuleSource::User) {
             return Ok(());
         }
 
@@ -90,24 +85,21 @@ impl Compiler {
 
         // collect declaration associated names for this requirement category
         let declared_associated_names =
-            self.declared_associated_member_names(requirement_kind, members, tables.tree);
+            self.declared_associated_member_names(requirement_kind, members, ctx.tree);
 
         // report or mark missing requirements once per associated name
         let mut reported_missing_names = HashSet::new();
         for expression_id in contract_expressions {
-            let Some(target_symbol) = self
-                .inherited_contract_symbol_for_expression(&mut tables.reborrow(), expression_id)?
+            let Some(target_symbol) =
+                self.inherited_contract_symbol_for_expression(&mut ctx.reborrow(), expression_id)?
             else {
                 continue;
             };
 
             let requirements = self.collect_associated_requirement_pairs_for_contract(
                 requirement_kind,
-                tables.module,
-                tables.profile,
+                ctx.tree_symbol_view(),
                 target_symbol,
-                tables.tree,
-                tables.symbols,
             )?;
 
             for (requirement_name, requires_implementation) in requirements {
@@ -119,12 +111,11 @@ impl Compiler {
                     continue;
                 }
 
-                tables
-                    .types
+                ctx.types
                     .mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
                 let node = expression_id
-                    .into_global_any(tables.module.id)
-                    .into_anchored(Some(tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
                 self.error(AnalyzeError::InvalidStaticArgument {
                     node,
                     message: requirement_kind.missing_requirement_message().to_string(),
@@ -180,32 +171,17 @@ impl Compiler {
     fn collect_associated_requirement_pairs_for_contract(
         &self,
         requirement_kind: DeclaredAssociatedRequirementKind,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         contract_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<(StringId, bool)>> {
         let requirements = match requirement_kind {
             DeclaredAssociatedRequirementKind::Type => self
-                .collect_contract_associated_type_requirements(
-                    module,
-                    profile,
-                    contract_symbol,
-                    tree,
-                    symbols,
-                )?
+                .collect_contract_associated_type_requirements(ctx, contract_symbol)?
                 .into_iter()
                 .map(|requirement| (requirement.name, requirement.requires_implementation))
                 .collect(),
             DeclaredAssociatedRequirementKind::Comptime => self
-                .collect_contract_associated_comptime_requirements(
-                    module,
-                    profile,
-                    contract_symbol,
-                    tree,
-                    symbols,
-                )?
+                .collect_contract_associated_comptime_requirements(ctx, contract_symbol)?
                 .into_iter()
                 .map(|requirement| (requirement.name, requirement.requires_implementation))
                 .collect(),
@@ -217,63 +193,47 @@ impl Compiler {
     /// Resolve one inherited contract symbol from one heritage expression.
     fn inherited_contract_symbol_for_expression(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve direct symbol links through canonical declaration ownership
-        if let Some(target_symbol) = tables.tree.get(expression_id).target_symbol() {
+        if let Some(target_symbol) = ctx.tree.get(expression_id).target_symbol() {
             let mut target_symbol = self.canonical_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
+                ctx.module_symbol_view(),
                 target_symbol,
                 CanonicalSymbolMode::FollowAliases,
             );
-            target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
-            if let Some(target_symbol) = self.declaration_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
-                target_symbol,
-            ) {
+            target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
+            if let Some(target_symbol) =
+                self.declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
+            {
                 return Ok(Some(target_symbol));
             }
         }
 
         // otherwise evaluate the heritage expression to resolve the target symbol
-        let inherited_contract_type_id = self.resolve_declared_type_expression(
-            &mut tables.reborrow(),
-            expression_id,
-            true,
-            true,
-        )?;
+        let inherited_contract_type_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)?;
         let target_symbol = self
-            .unwrap_type_value_symbol(tables.types, inherited_contract_type_id)
+            .unwrap_type_value_symbol(ctx.types, inherited_contract_type_id)
             .map(|target_symbol| {
                 let mut target_symbol = self.canonical_symbol_id(
-                    tables.module,
-                    tables.symbols,
-                    tables.profile,
+                    ctx.module_symbol_view(),
                     target_symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
-                self.declaration_symbol_id(
-                    tables.module,
-                    tables.symbols,
-                    tables.profile,
-                    target_symbol,
-                )
-                .unwrap_or(target_symbol)
+                target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
+                self.declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
+                    .unwrap_or(target_symbol)
             });
 
         Ok(target_symbol)
     }
 
-    /// Declare type-member aliases and their generics for one declaration in one tables context.
-    pub(crate) fn collect_associated_type_members_in_tables(
+    /// Declare type-member aliases and their generics for one declaration in one ctx context.
+    pub(crate) fn collect_associated_type_members(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         members: &[LocalNodeId<Member>],
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<()> {
@@ -284,13 +244,13 @@ impl Compiler {
                 ty,
                 value,
                 ..
-            } = type_tables.tree.get(*member_id)
+            } = ctx.tree.get(*member_id)
             else {
                 continue;
             };
 
             self.collect_associated_type_member(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 *member_id,
                 static_parameters.as_deref(),
                 where_clauses.as_deref(),
@@ -306,7 +266,7 @@ impl Compiler {
     /// Declare one type-member alias and its generic context.
     pub(crate) fn collect_associated_type_member(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         member_id: LocalNodeId<Member>,
         static_parameters: Option<&[LocalNodeId<Parameter>]>,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
@@ -320,43 +280,38 @@ impl Compiler {
                 .map(|static_parameters| static_parameters.to_vec()),
             where_clauses: where_clauses.map(|where_clauses| where_clauses.to_vec()),
         };
-        self.collect_generics_in_tables(&mut type_tables.reborrow(), &member_generics)?;
+        self.collect_generics(&mut ctx.reborrow(), &member_generics)?;
 
         // resolve associated type bound
         if let Some(ty) = ty {
             let bound_ty_id = self.collect_or_defer_type_expression(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 ty,
                 defer_type_evaluation,
             )?;
-            type_tables
-                .types
-                .set_declared_type(ty.into_global_any(type_tables.module.id), bound_ty_id);
+            ctx.types
+                .set_declared_type(ty.into_global_any(ctx.module.id), bound_ty_id);
         }
 
         // resolve and register associated type default
         if let Some(value) = value {
             let value_ty_id = self.collect_or_defer_type_expression(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 value,
                 defer_type_evaluation,
             )?;
-            type_tables
-                .types
-                .set_declared_type(value.into_global_any(type_tables.module.id), value_ty_id);
+            ctx.types
+                .set_declared_type(value.into_global_any(ctx.module.id), value_ty_id);
 
-            let member_symbol = type_tables.tree.get(member_id).symbol();
-            let member_symbol_entry = type_tables.symbols.get_symbol(member_symbol);
+            let member_symbol = ctx.tree.get(member_id).symbol();
+            let member_symbol_entry = ctx.symbols.get_symbol(member_symbol);
             let member_symbol = GlobalSymbolId::new(
-                type_tables.module.id,
+                ctx.module.id,
                 member_symbol.with_type(member_symbol_entry.ty),
             );
-            type_tables
-                .types
+            ctx.types
                 .set_alias_target_type_id(member_symbol, value_ty_id);
-            type_tables
-                .types
-                .set_instance_type(member_symbol, value_ty_id);
+            ctx.types.set_instance_type(member_symbol, value_ty_id);
         }
 
         Ok(())

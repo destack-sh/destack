@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use super::member::MemberLookupMode;
 
-use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext, TypeTablesContext};
-use crate::{AnalyzeResult, Compiler, InferContext};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, TypeContext};
+use crate::{AnalyzeResult, Compiler, InferState};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NormalizationMode,
     Pattern, PatternField, ScalarLiteral, StaticKey, SymbolType, Type, TypeElement, TypeKind,
@@ -24,35 +24,34 @@ impl Compiler {
     /// Infer a dependency item.
     pub(crate) fn infer_pattern(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         binding_ty_id: Option<LocalTypeId>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<()> {
-        let pattern = tables.tree.get(pattern_id);
+        let pattern = ctx.tree.get(pattern_id);
         match pattern {
             Pattern::Wildcard => {
                 // nothing to do
             }
             Pattern::Must(pattern_id) => {
                 let binding_ty_id = binding_ty_id.and_then(|binding_ty_id| {
-                    let (non_nullish, _) =
-                        self.strip_nullish_from_union(binding_ty_id, tables.types);
+                    let (non_nullish, _) = self.strip_nullish_from_union(binding_ty_id, ctx.types);
                     non_nullish.or(Some(binding_ty_id))
                 });
-                self.infer_pattern(&mut tables.reborrow(), *pattern_id, binding_ty_id, ctx)?;
+                self.infer_pattern(&mut ctx.reborrow(), *pattern_id, binding_ty_id, state)?;
             }
             Pattern::ReferenceOf {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(&mut tables.reborrow(), *right, binding_ty_id, ctx)?;
+                self.infer_pattern(&mut ctx.reborrow(), *right, binding_ty_id, state)?;
             }
             Pattern::ValueOf {
                 mutability: _,
                 right,
             } => {
-                self.infer_pattern(&mut tables.reborrow(), *right, binding_ty_id, ctx)?;
+                self.infer_pattern(&mut ctx.reborrow(), *right, binding_ty_id, state)?;
             }
             Pattern::Binding {
                 mutability: _,
@@ -61,65 +60,61 @@ impl Compiler {
                 pattern,
             } => {
                 if let Some(ty_id) = binding_ty_id {
-                    let binding_symbol = symbol.into_global(tables.module.id);
-                    tables.types.set_value_type(binding_symbol, ty_id);
+                    let binding_symbol = symbol.into_global(ctx.module.id);
+                    ctx.types.set_value_type(binding_symbol, ty_id);
 
                     // mirror onto the canonical symbol to avoid lookup misses
                     let canonical_symbol = self.canonical_symbol_id(
-                        tables.module,
-                        tables.symbols,
-                        ctx.profile,
+                        ctx.module_symbol_view(),
                         binding_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
                     if canonical_symbol != binding_symbol {
-                        tables.types.set_value_type(canonical_symbol, ty_id);
+                        ctx.types.set_value_type(canonical_symbol, ty_id);
                     }
                 }
                 if let Some(pattern_id) = pattern {
-                    self.infer_pattern(&mut tables.reborrow(), *pattern_id, binding_ty_id, ctx)?;
+                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, binding_ty_id, state)?;
                 }
             }
             Pattern::Expression { value } => {
-                let value_ty_id = self.infer_expression(&mut tables.reborrow(), *value, ctx)?;
+                let value_ty_id = self.infer_expression(&mut ctx.reborrow(), *value, state)?;
                 // ensure the pattern expression is compatible with the binding type
                 if let Some(binding_ty_id) = binding_ty_id {
                     let assignable = self.is_type_assignable(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         binding_ty_id,
                         value_ty_id,
                     );
                     if !assignable.is_assignable() {
                         self.emit_unassignable_type_for_types(
-                            tables.module,
-                            ctx.profile,
+                            ctx.module_type_view(),
                             value.into_any(),
                             binding_ty_id,
                             value_ty_id,
-                            tables.types,
                         );
                     }
                 }
             }
             Pattern::Tuple { fields } => {
                 self.infer_pattern_sequence(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     fields,
                     binding_ty_id,
                     |rest_types| Type::Tuple {
                         elements: rest_types.into_iter().map(TypeElement::new).collect(),
                         is_readonly: false,
                     },
-                    ctx,
+                    state,
                 )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
                 // prefer union variants from the binding type when available
                 let mut ty_id =
-                    self.evaluate_pattern_tag_type(&mut tables.type_tables_reborrow(), *ty)?;
+                    self.evaluate_pattern_tag_type(&mut ctx.type_context_reborrow(), *ty)?;
                 if let Some(binding_ty_id) = binding_ty_id
                     && let Some(union_ty_id) = self.select_union_variant_for_tagged_pattern(
-                        tables.types,
+                        ctx.types,
                         binding_ty_id,
                         ty_id,
                     )
@@ -128,80 +123,73 @@ impl Compiler {
                 }
                 // handle scalar tagged patterns like `UserId(value)`
                 if fields.len() == 1 {
-                    let field = tables.tree.get(fields[0]);
+                    let field = ctx.tree.get(fields[0]);
                     if let PatternField::Positional { pattern, default } = field {
-                        self.infer_pattern(&mut tables.reborrow(), *pattern, Some(ty_id), ctx)?;
+                        self.infer_pattern(&mut ctx.reborrow(), *pattern, Some(ty_id), state)?;
                         if let Some(default) = default {
-                            self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
+                            self.infer_expression(&mut ctx.reborrow(), *default, state)?;
                         }
                         return Ok(());
                     }
                 }
 
                 self.infer_pattern_sequence(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     fields,
                     Some(ty_id),
                     |rest_types| Type::Tuple {
                         elements: rest_types.into_iter().map(TypeElement::new).collect(),
                         is_readonly: false,
                     },
-                    ctx,
+                    state,
                 )?;
             }
             Pattern::Array { fields } => {
                 self.infer_pattern_sequence(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     fields,
                     binding_ty_id,
                     |rest_types| Type::Array {
                         element: rest_types.first().cloned(),
                         is_readonly: false,
                     },
-                    ctx,
+                    state,
                 )?;
             }
             Pattern::Object { fields } => {
                 // reject bare object patterns against nominal object values
                 if let Some(binding_ty_id) = binding_ty_id
                     && self.is_nominal_object_pattern_target(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         pattern_id,
                         binding_ty_id,
                     )?
                 {
-                    let object_ty_id = tables.types.insert_type_from_any(
+                    let object_ty_id = ctx.types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Object,
                         },
                         pattern_id.into_any(),
                     );
                     self.emit_unassignable_type_for_types(
-                        tables.module,
-                        ctx.profile,
+                        ctx.module_type_view(),
                         pattern_id.into_any(),
                         binding_ty_id,
                         object_ty_id,
-                        tables.types,
                     );
                 }
 
                 for field_id in fields {
-                    self.infer_pattern_field(
-                        &mut tables.reborrow(),
-                        *field_id,
-                        binding_ty_id,
-                        ctx,
-                    )?;
+                    self.infer_pattern_field(&mut ctx.reborrow(), *field_id, binding_ty_id, state)?;
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
                 // prefer union variants from the binding type when available
                 let mut ty_id =
-                    self.evaluate_pattern_tag_type(&mut tables.type_tables_reborrow(), *ty)?;
+                    self.evaluate_pattern_tag_type(&mut ctx.type_context_reborrow(), *ty)?;
                 if let Some(binding_ty_id) = binding_ty_id
                     && let Some(union_ty_id) = self.select_union_variant_for_tagged_pattern(
-                        tables.types,
+                        ctx.types,
                         binding_ty_id,
                         ty_id,
                     )
@@ -209,12 +197,12 @@ impl Compiler {
                     ty_id = union_ty_id;
                 }
                 for field_id in fields {
-                    self.infer_pattern_field(&mut tables.reborrow(), *field_id, Some(ty_id), ctx)?;
+                    self.infer_pattern_field(&mut ctx.reborrow(), *field_id, Some(ty_id), state)?;
                 }
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.infer_pattern(&mut tables.reborrow(), *pattern_id, binding_ty_id, ctx)?;
+                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, binding_ty_id, state)?;
                 }
             }
         }
@@ -225,7 +213,7 @@ impl Compiler {
     /// Narrow a match pattern binding type using union member compatibility.
     pub(crate) fn narrow_match_pattern_binding_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         binding_ty_id: LocalTypeId,
         pattern_id: LocalNodeId<Pattern>,
     ) -> LocalTypeId {
@@ -233,13 +221,10 @@ impl Compiler {
         let original_ty_id = binding_ty_id;
 
         // try both flow and assign normalization modes to preserve compatibility
-        let normalized_flow_ty_id = self.normalize_type(
-            &mut tables.reborrow(),
-            binding_ty_id,
-            NormalizationMode::Flow,
-        );
+        let normalized_flow_ty_id =
+            self.normalize_type(&mut ctx.reborrow(), binding_ty_id, NormalizationMode::Flow);
         let normalized_assign_ty_id = self.normalize_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             binding_ty_id,
             NormalizationMode::Assign,
         );
@@ -247,13 +232,13 @@ impl Compiler {
         // narrow against union members using the match pattern shape
         let narrowed_members = self
             .pattern_filter_union_members_for_match_pattern(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 pattern_id,
                 normalized_flow_ty_id,
             )
             .or_else(|| {
                 self.pattern_filter_union_members_for_match_pattern(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     pattern_id,
                     normalized_assign_ty_id,
                 )
@@ -273,19 +258,19 @@ impl Compiler {
         }
 
         // materialize the narrowed union for downstream pattern inference
-        self.union_type_from_list(narrowed_members, original_ty_id, tables.types)
+        self.union_type_from_list(narrowed_members, original_ty_id, ctx.types)
     }
 
     /// Filter union members that are compatible with a match pattern.
     fn pattern_filter_union_members_for_match_pattern(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         binding_ty_id: LocalTypeId,
     ) -> Option<Vec<LocalTypeId>> {
         // only union-like bindings can be narrowed by member filtering
         let union_members =
-            self.pattern_union_member_types_for_binding(binding_ty_id, tables.types)?;
+            self.pattern_union_member_types_for_binding(binding_ty_id, ctx.types)?;
         if union_members.is_empty() {
             return None;
         }
@@ -294,7 +279,7 @@ impl Compiler {
         let mut narrowed_members = Vec::new();
         for member_ty_id in union_members {
             if self.pattern_matches_type_for_narrowing(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 pattern_id,
                 member_ty_id,
             ) {
@@ -331,11 +316,11 @@ impl Compiler {
     /// Check whether a pattern can match a specific candidate type.
     fn pattern_matches_type_for_narrowing(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         candidate_ty_id: LocalTypeId,
     ) -> bool {
-        let pattern = tables.tree.get(pattern_id);
+        let pattern = ctx.tree.get(pattern_id);
         match pattern {
             // wildcard and binding patterns accept every candidate
             Pattern::Wildcard | Pattern::Binding { .. } => true,
@@ -350,32 +335,23 @@ impl Compiler {
                 mutability: _,
                 right: pattern_id,
             } => self.pattern_matches_type_for_narrowing(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *pattern_id,
                 candidate_ty_id,
             ),
 
             // expression patterns narrow by literal or reference symbol identity
             Pattern::Expression { value } => {
-                if let Some(literal) =
-                    self.pattern_scalar_literal_for_expression(*value, tables.tree)
+                if let Some(literal) = self.pattern_scalar_literal_for_expression(*value, ctx.tree)
                 {
-                    self.pattern_type_contains_scalar_literal(
-                        candidate_ty_id,
-                        &literal,
-                        tables.types,
-                    )
-                } else if let Some(pattern_symbol) = self.reference_symbol_for_expression(
-                    tables.module,
-                    *value,
-                    tables.profile,
-                    tables.tree,
-                    tables.symbols,
-                ) {
+                    self.pattern_type_contains_scalar_literal(candidate_ty_id, &literal, ctx.types)
+                } else if let Some(pattern_symbol) =
+                    self.reference_symbol_for_expression(ctx.tree_symbol_view(), *value)
+                {
                     self.pattern_type_contains_reference_symbol(
                         candidate_ty_id,
                         pattern_symbol,
-                        tables.types,
+                        ctx.types,
                     )
                 } else {
                     true
@@ -385,7 +361,7 @@ impl Compiler {
             // union patterns match when any branch matches
             Pattern::Union { patterns } => patterns.iter().any(|pattern_id| {
                 self.pattern_matches_type_for_narrowing(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     *pattern_id,
                     candidate_ty_id,
                 )
@@ -393,14 +369,14 @@ impl Compiler {
 
             // tuple patterns narrow tuple-like candidate types
             Pattern::Tuple { fields } => self.pattern_tuple_fields_match_type_for_narrowing(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 fields,
                 candidate_ty_id,
             ),
 
             // object patterns narrow object-like candidate types by field patterns
             Pattern::Object { fields } => self.pattern_object_fields_match_type_for_narrowing(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 fields,
                 candidate_ty_id,
             ),
@@ -470,26 +446,26 @@ impl Compiler {
     /// Check tuple pattern compatibility for a candidate type.
     fn pattern_tuple_fields_match_type_for_narrowing(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         candidate_ty_id: LocalTypeId,
     ) -> bool {
         let Some(element_types) =
-            self.pattern_fixed_tuple_element_types_for_narrowing(candidate_ty_id, tables.types)
+            self.pattern_fixed_tuple_element_types_for_narrowing(candidate_ty_id, ctx.types)
         else {
             return false;
         };
 
         let mut tuple_index = 0;
         for field_id in fields {
-            let field = tables.tree.get(*field_id);
+            let field = ctx.tree.get(*field_id);
             match field {
                 PatternField::Positional { pattern, .. } => {
                     let Some(field_ty_id) = element_types.get(tuple_index).copied() else {
                         return false;
                     };
                     if !self.pattern_matches_type_for_narrowing(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         *pattern,
                         field_ty_id,
                     ) {
@@ -537,12 +513,12 @@ impl Compiler {
     /// Check object pattern compatibility for a candidate type.
     fn pattern_object_fields_match_type_for_narrowing(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         candidate_ty_id: LocalTypeId,
     ) -> bool {
         for field_id in fields {
-            let field = tables.tree.get(*field_id);
+            let field = ctx.tree.get(*field_id);
             match field {
                 PatternField::Named {
                     name,
@@ -551,7 +527,7 @@ impl Compiler {
                     mutability: _,
                 } => {
                     let Some(field_ty_id) = self.pattern_member_type_for_narrowing(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         *field_id,
                         candidate_ty_id,
                         StaticKey::Name(*name),
@@ -560,7 +536,7 @@ impl Compiler {
                     };
                     if let Some(pattern_id) = pattern
                         && !self.pattern_matches_type_for_narrowing(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             *pattern_id,
                             field_ty_id,
                         )
@@ -577,7 +553,7 @@ impl Compiler {
                 } => {
                     if self
                         .pattern_member_type_for_narrowing(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             *field_id,
                             candidate_ty_id,
                             StaticKey::Name(*name),
@@ -602,15 +578,15 @@ impl Compiler {
     /// Resolve a member type for object pattern narrowing.
     fn pattern_member_type_for_narrowing(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         field_id: LocalNodeId<PatternField>,
         candidate_ty_id: LocalTypeId,
         key: StaticKey,
     ) -> Option<LocalTypeId> {
-        let receiver_ty = tables.types.get_type(candidate_ty_id).clone();
+        let receiver_ty = ctx.types.get_type(candidate_ty_id).clone();
         let mut visited = Vec::new();
         self.infer_member_of_type(
-            tables,
+            ctx,
             field_id.into_any(),
             &receiver_ty,
             &key,
@@ -651,11 +627,11 @@ impl Compiler {
     /// Check whether a binding type is a nominal object for untagged patterns.
     fn is_nominal_object_pattern_target(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         binding_ty_id: LocalTypeId,
     ) -> AnalyzeResult<bool> {
-        let binding_ty = tables.types.get_type(binding_ty_id).clone();
+        let binding_ty = ctx.types.get_type(binding_ty_id).clone();
         if self.is_definitely_struct_type(&binding_ty) {
             return Ok(true);
         }
@@ -669,15 +645,15 @@ impl Compiler {
 
         // resolve the underlying newtype target to determine object shape
         let Some(target_ty_id) = self.alias_target_type_id_for_symbol(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             symbol,
             pattern_id.into_any(),
         ) else {
             return Ok(false);
         };
-        let target_ty_id = self.ensure_type_evaluated(&mut tables.reborrow(), target_ty_id)?;
+        let target_ty_id = self.ensure_type_evaluated(&mut ctx.reborrow(), target_ty_id)?;
 
-        let target_ty = tables.types.get_type(target_ty_id);
+        let target_ty = ctx.types.get_type(target_ty_id);
         let is_object = matches!(target_ty, Type::Object { .. });
         let is_struct_ref = matches!(
             target_ty,
@@ -689,44 +665,44 @@ impl Compiler {
     /// Infer a sequence of pattern fields (with spread syntax support).
     pub(crate) fn infer_pattern_sequence(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         fields: &Vec<LocalNodeId<PatternField>>,
         binding_ty_id: Option<LocalTypeId>,
         to_rest_type: impl Fn(Vec<LocalTypeId>) -> Type,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<()> {
         // use tuple union members directly when all fields are positional or elided
         if let Some(binding_ty_id) = binding_ty_id
             && fields.iter().all(|field_id| {
                 matches!(
-                    tables.tree.get(*field_id),
+                    ctx.tree.get(*field_id),
                     PatternField::Positional { .. } | PatternField::Elision
                 )
             })
         {
             let normalized_ty_id = self.normalize_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 binding_ty_id,
                 NormalizationMode::Flow,
             );
             let normalized_assignability_ty_id = self.normalize_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 binding_ty_id,
                 NormalizationMode::Assign,
             );
             let member_elements = self
-                .pattern_union_tuple_member_elements(normalized_ty_id, tables.types)
+                .pattern_union_tuple_member_elements(normalized_ty_id, ctx.types)
                 .or_else(|| {
                     self.pattern_union_tuple_member_elements(
                         normalized_assignability_ty_id,
-                        tables.types,
+                        ctx.types,
                     )
                 });
             if let Some(member_elements) = member_elements {
                 let mut candidate_indexes: Vec<usize> = (0..member_elements.len()).collect();
                 let mut tuple_index = 0;
                 for field_id in fields {
-                    let field = tables.tree.get(*field_id);
+                    let field = ctx.tree.get(*field_id);
                     let field_ty = match field {
                         PatternField::Positional { pattern, .. } => {
                             let field_ty = self.pattern_union_slot_type_for_candidates(
@@ -734,18 +710,18 @@ impl Compiler {
                                 &candidate_indexes,
                                 tuple_index,
                                 *field_id,
-                                tables.types,
+                                ctx.types,
                             );
 
-                            if let Some(coverage) = self
-                                .pattern_literal_coverage_for_tuple_pattern(*pattern, tables.tree)
+                            if let Some(coverage) =
+                                self.pattern_literal_coverage_for_tuple_pattern(*pattern, ctx.tree)
                             {
                                 self.pattern_filter_tuple_union_candidates(
                                     &member_elements,
                                     &mut candidate_indexes,
                                     tuple_index,
                                     &coverage,
-                                    tables.types,
+                                    ctx.types,
                                 );
                             }
 
@@ -758,7 +734,7 @@ impl Compiler {
                         }
                         _ => None,
                     };
-                    self.infer_pattern_field(&mut tables.reborrow(), *field_id, field_ty, ctx)?;
+                    self.infer_pattern_field(&mut ctx.reborrow(), *field_id, field_ty, state)?;
                 }
 
                 return Ok(());
@@ -769,11 +745,11 @@ impl Compiler {
         let (binding_ty_fields, binding_array_element) = binding_ty_id
             .map(|ty_id| {
                 let normalized_ty_id = self.normalize_type(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     ty_id,
                     NormalizationMode::Flow,
                 );
-                self.pattern_sequence_binding_types(normalized_ty_id, tables.types)
+                self.pattern_sequence_binding_types(normalized_ty_id, ctx.types)
             })
             .unwrap_or_else(|| (Vec::new(), None));
 
@@ -783,7 +759,7 @@ impl Compiler {
             && binding_array_element.is_none()
             && fields.len() == 1
             && !matches!(
-                tables.tree.get(fields[0]),
+                ctx.tree.get(fields[0]),
                 PatternField::Spread { .. } | PatternField::Elision
             );
         let direct_single_field_binding = allow_direct_single_field_binding
@@ -805,7 +781,7 @@ impl Compiler {
             let unknown_ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            let unknown_ty_id = tables.types.insert_type_from(unknown_ty, first_field_id);
+            let unknown_ty_id = ctx.types.insert_type_from(unknown_ty, first_field_id);
             let actual_elements = fields
                 .iter()
                 .map(|_| TypeElement::new(unknown_ty_id))
@@ -814,21 +790,19 @@ impl Compiler {
                 elements: actual_elements,
                 is_readonly: false,
             };
-            let actual_ty_id = tables.types.insert_type_from(actual_ty, first_field_id);
+            let actual_ty_id = ctx.types.insert_type_from(actual_ty, first_field_id);
             self.emit_unassignable_type_for_types(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 first_field_id.into_any(),
                 binding_ty_id,
                 actual_ty_id,
-                tables.types,
             );
         }
 
         let spread_len = binding_ty_fields.len().saturating_sub(fields.len() - 1);
         let mut ty_idx = 0;
         for field_id in fields {
-            let field = tables.tree.get(*field_id);
+            let field = ctx.tree.get(*field_id);
             let field_ty = match field {
                 PatternField::Named { .. }
                 | PatternField::Alias { .. }
@@ -852,10 +826,10 @@ impl Compiler {
                             .unwrap_or_default();
                         ty_idx += spread_len;
                         let rest_ty = to_rest_type(rest_types);
-                        Some(tables.types.insert_type_from(rest_ty, *field_id))
+                        Some(ctx.types.insert_type_from(rest_ty, *field_id))
                     } else if let Some(element_ty_id) = binding_array_element {
                         let rest_ty = to_rest_type(vec![element_ty_id]);
-                        Some(tables.types.insert_type_from(rest_ty, *field_id))
+                        Some(ctx.types.insert_type_from(rest_ty, *field_id))
                     } else {
                         None
                     }
@@ -868,12 +842,12 @@ impl Compiler {
                     None
                 }
             };
-            self.infer_pattern_field(&mut tables.reborrow(), *field_id, field_ty, ctx)?;
+            self.infer_pattern_field(&mut ctx.reborrow(), *field_id, field_ty, state)?;
         }
         Ok(())
     }
 
-    /// Resolve tuple member element tables.types for a union of fixed tuples.
+    /// Resolve tuple member element ctx.types for a union of fixed tuples.
     fn pattern_union_tuple_member_elements(
         &self,
         binding_ty_id: LocalTypeId,
@@ -1129,12 +1103,12 @@ impl Compiler {
     /// Infer a pattern field and propagate type to bound symbol.
     pub(crate) fn infer_pattern_field(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         field_id: LocalNodeId<PatternField>,
         binding_ty_id: Option<LocalTypeId>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<()> {
-        let field = tables.tree.get(field_id);
+        let field = ctx.tree.get(field_id);
         match field {
             PatternField::Named {
                 mutability: _,
@@ -1144,21 +1118,21 @@ impl Compiler {
             } => {
                 // resolve the field type from the binding type when possible
                 let field_ty_id = self.pattern_field_binding_type(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     field_id,
                     binding_ty_id,
                     StaticKey::Name(*name),
-                    ctx,
+                    state,
                 )?;
 
                 // infer default expressions for named fields
                 if let Some(default) = default {
-                    self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
+                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
                 }
 
                 // propagate the field type into nested patterns
                 if let Some(pattern_id) = pattern {
-                    self.infer_pattern(&mut tables.reborrow(), *pattern_id, field_ty_id, ctx)?;
+                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, field_ty_id, state)?;
                 }
             }
             PatternField::Computed {
@@ -1167,12 +1141,12 @@ impl Compiler {
                 default,
                 ..
             } => {
-                self.infer_expression(&mut tables.reborrow(), *key, ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), *key, state)?;
                 if let Some(default) = default {
-                    self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
+                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
                 }
                 if let Some(pattern_id) = pattern {
-                    self.infer_pattern(&mut tables.reborrow(), *pattern_id, None, ctx)?;
+                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, None, state)?;
                 }
             }
             PatternField::Alias {
@@ -1184,27 +1158,26 @@ impl Compiler {
             } => {
                 // resolve the field type from the binding type when possible
                 let field_ty_id = self.pattern_field_binding_type(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     field_id,
                     binding_ty_id,
                     StaticKey::Name(*name),
-                    ctx,
+                    state,
                 )?;
                 if let Some(ty_id) = field_ty_id {
-                    tables
-                        .types
-                        .set_value_type(symbol.into_global(tables.module.id), ty_id);
+                    ctx.types
+                        .set_value_type(symbol.into_global(ctx.module.id), ty_id);
                 }
 
                 if let Some(default) = default {
-                    self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
+                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
                 }
             }
             PatternField::Positional { pattern, default } => {
-                self.infer_pattern(&mut tables.reborrow(), *pattern, binding_ty_id, ctx)?;
+                self.infer_pattern(&mut ctx.reborrow(), *pattern, binding_ty_id, state)?;
 
                 if let Some(default) = default {
-                    self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
+                    self.infer_expression(&mut ctx.reborrow(), *default, state)?;
                 }
             }
             PatternField::Spread {
@@ -1212,7 +1185,7 @@ impl Compiler {
                 pattern,
             } => {
                 if let Some(pattern_id) = pattern {
-                    self.infer_pattern(&mut tables.reborrow(), *pattern_id, binding_ty_id, ctx)?;
+                    self.infer_pattern(&mut ctx.reborrow(), *pattern_id, binding_ty_id, state)?;
                 }
             }
             PatternField::Elision => {
@@ -1225,11 +1198,11 @@ impl Compiler {
     /// Resolve the binding type for a named pattern field.
     fn pattern_field_binding_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         field_id: LocalNodeId<PatternField>,
         binding_ty_id: Option<LocalTypeId>,
         field_key: StaticKey,
-        ctx: &InferContext,
+        state: &InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when there is no binding type to inspect
         let Some(binding_ty_id) = binding_ty_id else {
@@ -1237,10 +1210,10 @@ impl Compiler {
         };
 
         // resolve field types when the binding type is an object or reference
-        let receiver_ty = tables.types.get_type(binding_ty_id).clone();
+        let receiver_ty = ctx.types.get_type(binding_ty_id).clone();
         let mut visited = Vec::new();
         let field_ty_id = self.infer_member_of_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             field_id.into_any(),
             &receiver_ty,
             &field_key,
@@ -1250,21 +1223,21 @@ impl Compiler {
 
         // allow match patterns to bind fields from matching union variants
         let match_union_field =
-            if field_ty_id.is_none() && (ctx.in_match.is_some() || ctx.in_switch.is_some()) {
+            if field_ty_id.is_none() && (state.in_match.is_some() || state.in_switch.is_some()) {
                 let union_receiver_ty = match receiver_ty {
                     Type::Reference { symbol, .. } => self
-                        .apparent_instance_type(&mut tables.reborrow(), field_id.into_any(), symbol)
-                        .map(|type_id| tables.types.get_type(type_id).clone())
+                        .apparent_instance_type(&mut ctx.reborrow(), field_id.into_any(), symbol)
+                        .map(|type_id| ctx.types.get_type(type_id).clone())
                         .unwrap_or(receiver_ty.clone()),
-                    Type::Value { value } => tables.types.get_type(value).clone(),
+                    Type::Value { value } => ctx.types.get_type(value).clone(),
                     _ => receiver_ty.clone(),
                 };
                 if let Type::Union { elements } = union_receiver_ty {
                     let mut field_types = Vec::new();
                     for element_id in elements {
-                        let element_ty = tables.types.get_type(element_id).clone();
+                        let element_ty = ctx.types.get_type(element_id).clone();
                         if let Some(field_ty) = self.infer_member_of_type(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             field_id.into_any(),
                             &element_ty,
                             &field_key,
@@ -1279,7 +1252,7 @@ impl Compiler {
                     } else if field_types.len() == 1 {
                         Some(field_types[0])
                     } else {
-                        Some(self.union_type_from_list(field_types, binding_ty_id, tables.types))
+                        Some(self.union_type_from_list(field_types, binding_ty_id, ctx.types))
                     }
                 } else {
                     None
@@ -1297,19 +1270,15 @@ impl Compiler {
     /// Resolve a tagged pattern target type from an expression.
     fn evaluate_pattern_tag_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the tag expression as a type
-        let ty_id = self.resolve_declared_type_expression(
-            &mut tables.reborrow(),
-            expression_id,
-            true,
-            true,
-        )?;
+        let ty_id =
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), expression_id, true, true)?;
 
         // unwrap type-as-value wrappers when present
-        let ty_id = match tables.types.get_type(ty_id) {
+        let ty_id = match ctx.types.get_type(ty_id) {
             Type::Value { value } => *value,
             _ => ty_id,
         };
@@ -1318,18 +1287,18 @@ impl Compiler {
         let Type::Reference {
             symbol,
             static_arguments,
-        } = tables.types.get_type(ty_id).clone()
+        } = ctx.types.get_type(ty_id).clone()
         else {
             return Ok(ty_id);
         };
 
         // skip remote symbols
-        if symbol.module_id != tables.module.id {
+        if symbol.module_id != ctx.module.id {
             return Ok(ty_id);
         }
 
         // skip non-newtype symbols
-        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         if symbol_entry.ty != SymbolType::Newtype {
             return Ok(ty_id);
         }
@@ -1338,7 +1307,7 @@ impl Compiler {
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return Ok(ty_id);
         };
-        if primary_declaration.module_id != tables.module.id {
+        if primary_declaration.module_id != ctx.module.id {
             return Ok(ty_id);
         }
         let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>() else {
@@ -1349,29 +1318,29 @@ impl Compiler {
             kind: TypeKind::Nominal,
             value,
             ..
-        } = tables.tree.get(declaration_id)
+        } = ctx.tree.get(declaration_id)
         else {
             return Ok(ty_id);
         };
 
         // resolve the declared type for the nominal alias
-        let value_id = value.into_global_any(tables.module.id);
-        let Some(declared_ty_id) = tables.types.get_declared_type_id(value_id) else {
+        let value_id = value.into_global_any(ctx.module.id);
+        let Some(declared_ty_id) = ctx.types.get_declared_type_id(value_id) else {
             return Ok(ty_id);
         };
 
         // evaluate unevaluated declared types
-        if matches!(tables.types.get_type(declared_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(&mut tables.reborrow(), declared_ty_id)?;
+        if matches!(ctx.types.get_type(declared_ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.reborrow(), declared_ty_id)?;
         }
 
         let mut declared_ty_id = declared_ty_id;
 
         // apply static arguments when provided
         if let Some(static_arguments) = static_arguments {
-            let source_id = tables.types.get_type_source(ty_id);
+            let source_id = ctx.types.get_type_source(ty_id);
             let resolved_arguments = self.resolve_type_reference_static_arguments(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 symbol,
                 Some(static_arguments.as_slice()),
@@ -1381,7 +1350,7 @@ impl Compiler {
                 && !resolved_arguments.is_empty()
             {
                 let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     symbol,
                     source_id,
                     &resolved_arguments,
@@ -1391,7 +1360,7 @@ impl Compiler {
                     declared_ty_id = self.substitute_static_parameters(
                         declared_ty_id,
                         &substitutions,
-                        tables.types,
+                        ctx.types,
                         &mut cache,
                     );
                 }

@@ -465,7 +465,7 @@ impl Compiler {
     /// Infer the result type of a type unary operation.
     pub(crate) fn infer_type_unary_operation(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &TypeUnaryOperator,
         right_ty_id: LocalTypeId,
@@ -473,26 +473,26 @@ impl Compiler {
         match operator {
             TypeUnaryOperator::Not => {
                 // invert boolean literals and otherwise return boolean
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
-                let right_ty = tables.types.get_type(right_ty_id).clone();
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
+                let right_ty = ctx.types.get_type(right_ty_id).clone();
                 self.try_fold_not(&right_ty).unwrap_or(Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::Boolean),
                 })
             }
             TypeUnaryOperator::Must => {
                 // strip nullish types for must
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
-                let (non_nullish, _) = self.strip_nullish_from_union(right_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
+                let (non_nullish, _) = self.strip_nullish_from_union(right_ty_id, ctx.types);
                 let Some(non_nullish) = non_nullish else {
                     return Type::TypeLiteral {
                         value: TypeLiteral::Never,
                     };
                 };
-                tables.types.get_type(non_nullish).clone()
+                ctx.types.get_type(non_nullish).clone()
             }
             TypeUnaryOperator::Type => {
                 // normalize to a type descriptor for `type`
-                let right_ty = tables.types.get_type(right_ty_id).clone();
+                let right_ty = ctx.types.get_type(right_ty_id).clone();
                 if let Type::Value { value } = right_ty {
                     return Type::Value { value };
                 }
@@ -500,40 +500,40 @@ impl Compiler {
             }
             TypeUnaryOperator::Readonly => {
                 // normalize readonly modifiers
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
                 let deep_readonly = self
-                    .analyze_context_options_for_module(tables.module.id)
+                    .analyze_context_options_for_module(ctx.module.id)
                     .deep_readonly;
                 let readonly_id = self.materialize_readonly_type(
                     expression_id.into_any(),
                     right_ty_id,
-                    tables.types,
+                    ctx.types,
                     deep_readonly,
                 );
-                tables.types.get_type(readonly_id).clone()
+                ctx.types.get_type(readonly_id).clone()
             }
             TypeUnaryOperator::AsConst => {
                 // normalize const modifiers with deep readonly
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
                 let readonly_id = self.materialize_readonly_type(
                     expression_id.into_any(),
                     right_ty_id,
-                    tables.types,
+                    ctx.types,
                     true,
                 );
-                tables.types.get_type(readonly_id).clone()
+                ctx.types.get_type(readonly_id).clone()
             }
             TypeUnaryOperator::AsComptime => {
                 // as comptime only changes type-index interpretation
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
-                tables.types.get_type(right_ty_id).clone()
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
+                ctx.types.get_type(right_ty_id).clone()
             }
             TypeUnaryOperator::Keyof => {
                 // resolve keys for keyof expressions
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
                 let mut visited = Vec::new();
                 let key_type_id = self.normalize_keyof_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id.into_any(),
                     None,
                     right_ty_id,
@@ -541,7 +541,7 @@ impl Compiler {
                     RelationMode::TYPE_OPERATOR,
                     &mut visited,
                 );
-                tables.types.get_type(key_type_id).clone()
+                ctx.types.get_type(key_type_id).clone()
             }
             TypeUnaryOperator::Typeof => {
                 // typeof expressions evaluate to strings in value contexts
@@ -551,8 +551,8 @@ impl Compiler {
             }
             TypeUnaryOperator::Newtype => {
                 // newtype is a no-op in expression contexts
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
-                tables.types.get_type(right_ty_id).clone()
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
+                ctx.types.get_type(right_ty_id).clone()
             }
         }
     }
@@ -560,7 +560,7 @@ impl Compiler {
     /// Infer the result type of a type binary operation.
     pub(crate) fn infer_type_binary_operation(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &TypeBinaryOperator,
         left_ty_id: LocalTypeId,
@@ -571,8 +571,8 @@ impl Compiler {
                 // type assertion: `x as T`
                 // allow explicit raw pointer casts
                 let allow_pointer_cast = {
-                    let left_ty = tables.types.get_type(left_ty_id);
-                    let right_ty = tables.types.get_type(right_ty_id);
+                    let left_ty = ctx.types.get_type(left_ty_id);
+                    let right_ty = ctx.types.get_type(right_ty_id);
 
                     matches!(
                         (left_ty, right_ty),
@@ -590,30 +590,26 @@ impl Compiler {
 
                 // allow explicit enum backing casts
                 let allow_enum_cast = {
-                    let left_ty = tables.types.get_type(left_ty_id).clone();
-                    let right_ty = tables.types.get_type(right_ty_id).clone();
+                    let left_ty = ctx.types.get_type(left_ty_id).clone();
+                    let right_ty = ctx.types.get_type(right_ty_id).clone();
 
-                    self.is_enum_backing_cast(&mut tables.reborrow(), &left_ty, &right_ty)
+                    self.is_enum_backing_cast(&mut ctx.reborrow(), &left_ty, &right_ty)
                 };
-                let allow_record_cast = self.allow_record_like_cast(
-                    tables.profile,
-                    left_ty_id,
-                    right_ty_id,
-                    tables.types,
-                );
+                let allow_record_cast =
+                    self.allow_record_like_cast(ctx.profile, left_ty_id, right_ty_id, ctx.types);
 
                 // check if cast is valid (types overlap: at least one direction is assignable)
                 let left_to_right =
-                    self.is_type_assignable(&mut tables.reborrow(), right_ty_id, left_ty_id);
+                    self.is_type_assignable(&mut ctx.reborrow(), right_ty_id, left_ty_id);
                 let right_to_left =
-                    self.is_type_assignable(&mut tables.reborrow(), left_ty_id, right_ty_id);
+                    self.is_type_assignable(&mut ctx.reborrow(), left_ty_id, right_ty_id);
 
                 // reject unsafe type assertions when configured
-                if tables.options.no_unsafe_type_assertions
-                    && matches!(tables.module.source, ModuleSource::User)
+                if ctx.options.no_unsafe_type_assertions
+                    && matches!(ctx.module.source, ModuleSource::User)
                 {
                     // read the source type
-                    let left_ty = tables.types.get_type(left_ty_id);
+                    let left_ty = ctx.types.get_type(left_ty_id);
 
                     // check for any or unknown assertions
                     let is_any_or_unknown = matches!(
@@ -628,8 +624,8 @@ impl Compiler {
                     if is_unsafe_cast {
                         self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
                             node: expression_id
-                                .into_global_any(tables.module.id)
-                                .into_anchored(Some(tables.profile)),
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile)),
                         });
                     }
                 }
@@ -644,29 +640,29 @@ impl Compiler {
                     // neither direction works: illegal cast
                     self.error(AnalyzeError::InvalidCast {
                         node: expression_id
-                            .into_global_any(tables.module.id)
-                            .into_anchored(Some(tables.profile)),
-                        from_ty: left_ty_id.into_global(tables.module.id),
-                        to_ty: right_ty_id.into_global(tables.module.id),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        from_ty: left_ty_id.into_global(ctx.module.id),
+                        to_ty: right_ty_id.into_global(ctx.module.id),
                     });
                 }
                 // cast returns the target (right) type
-                tables.types.get_type(right_ty_id).clone()
+                ctx.types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
                 // satisfies returns the original (left) type, not the asserted type
-                tables.types.get_type(left_ty_id).clone()
+                ctx.types.get_type(left_ty_id).clone()
             }
             TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf => {
                 // unwrap type descriptor values to the underlying type
-                let target_ty_id = match tables.types.get_type(right_ty_id) {
+                let target_ty_id = match ctx.types.get_type(right_ty_id) {
                     Type::Value { value } => *value,
                     _ => right_ty_id,
                 };
 
                 // enforce class-only instanceof targets
                 if matches!(operator, TypeBinaryOperator::InstanceOf) {
-                    let is_class_target = tables
+                    let is_class_target = ctx
                         .types
                         .get_type(target_ty_id)
                         .symbol()
@@ -674,24 +670,22 @@ impl Compiler {
                     if !is_class_target {
                         self.error(AnalyzeError::InvalidInstanceOfTarget {
                             node: expression_id
-                                .into_global_any(tables.module.id)
-                                .into_anchored(Some(tables.profile)),
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile)),
                         });
                     }
                 }
 
                 // record runtime check kind for guard expressions
-                let value_type_id = self.unwrap_type_value(left_ty_id, tables.types);
+                let value_type_id = self.unwrap_type_value(left_ty_id, ctx.types);
                 let runtime_check_kind = self.runtime_check_kind_for_relation(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     value_type_id,
                     target_ty_id,
                 );
                 if let Some(kind) = runtime_check_kind {
-                    tables.types.set_runtime_check_kind(
-                        expression_id.into_global_any(tables.module.id),
-                        kind,
-                    );
+                    ctx.types
+                        .set_runtime_check_kind(expression_id.into_global_any(ctx.module.id), kind);
                 }
 
                 Type::TypeLiteral {
@@ -700,13 +694,13 @@ impl Compiler {
             }
             TypeBinaryOperator::In => {
                 // check if the left type is a member of the right type keys
-                let left_ty_id = self.unwrap_type_value(left_ty_id, tables.types);
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
+                let left_ty_id = self.unwrap_type_value(left_ty_id, ctx.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
 
                 // compute the key space for the right type
                 let mut visited = Vec::new();
                 let key_type_id = self.normalize_keyof_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id.into_any(),
                     None,
                     right_ty_id,
@@ -717,31 +711,25 @@ impl Compiler {
 
                 // compare the left type against the key space
                 let assignability =
-                    self.is_type_assignable(&mut tables.reborrow(), key_type_id, left_ty_id);
+                    self.is_type_assignable(&mut ctx.reborrow(), key_type_id, left_ty_id);
 
                 // only emit boolean literals when the relation is static
-                let is_decidable = self.type_operator_is_decidable(
-                    &mut tables.reborrow(),
-                    left_ty_id,
-                    right_ty_id,
-                );
+                let is_decidable =
+                    self.type_operator_is_decidable(&mut ctx.reborrow(), left_ty_id, right_ty_id);
                 self.boolean_type_for_assignability(assignability, is_decidable)
             }
             TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                 // check assignability for extends/implements
-                let left_ty_id = self.unwrap_type_value(left_ty_id, tables.types);
-                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
+                let left_ty_id = self.unwrap_type_value(left_ty_id, ctx.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
 
                 // compare the left type against the right type
                 let assignability =
-                    self.is_type_assignable(&mut tables.reborrow(), right_ty_id, left_ty_id);
+                    self.is_type_assignable(&mut ctx.reborrow(), right_ty_id, left_ty_id);
 
                 // only emit boolean literals when the relation is static
-                let is_decidable = self.type_operator_is_decidable(
-                    &mut tables.reborrow(),
-                    left_ty_id,
-                    right_ty_id,
-                );
+                let is_decidable =
+                    self.type_operator_is_decidable(&mut ctx.reborrow(), left_ty_id, right_ty_id);
                 self.boolean_type_for_assignability(assignability, is_decidable)
             }
         }
@@ -750,29 +738,17 @@ impl Compiler {
     /// Decide whether a type relation can be reduced to a boolean literal.
     fn type_operator_is_decidable(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
     ) -> bool {
         // static parameters make assignability depend on runtime values
         let mut static_visited = HashSet::new();
-        let left_contains_static = self.type_contains_static_parameters(
-            tables.module,
-            tables.profile,
-            left_ty_id,
-            tables.symbols,
-            tables.types,
-            &mut static_visited,
-        );
+        let left_contains_static =
+            self.type_contains_static_parameters(ctx.type_view(), left_ty_id, &mut static_visited);
         let mut static_visited = HashSet::new();
-        let right_contains_static = self.type_contains_static_parameters(
-            tables.module,
-            tables.profile,
-            right_ty_id,
-            tables.symbols,
-            tables.types,
-            &mut static_visited,
-        );
+        let right_contains_static =
+            self.type_contains_static_parameters(ctx.type_view(), right_ty_id, &mut static_visited);
         !(left_contains_static || right_contains_static)
     }
 

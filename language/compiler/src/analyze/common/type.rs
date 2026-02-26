@@ -3,16 +3,17 @@ use std::collections::HashSet;
 use destack_dir::{
     Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument,
-    walk_static_expression, walk_type,
+    StaticKey, StaticParameterKind, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument, walk_static_expression,
+    walk_type,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::Module;
 
 use super::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext, NormalizationMode,
-    RelationMode, TypeTablesContext, TypeWalkContext, TypeWalkKey,
+    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
+    NormalizationMode, RelationMode, SymbolTypeView, TypeContext, TypeView, TypeWalkContext,
+    TypeWalkKey,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
@@ -42,42 +43,22 @@ enum TypeContainmentKind<'a> {
     UnevaluatedValueStaticArgument {
         /// The compiler instance.
         compiler: &'a Compiler,
-        /// The current module.
-        module: &'a Module,
-        /// The active profile.
-        profile: ProfileId,
-        /// The node tree for the current module.
-        tree: &'a NodeTree,
-        /// The symbol table for the current module.
-        symbols: &'a SymbolTable,
-        /// The type table for the current module.
-        types: &'a TypeTable,
+        /// The type ctx view for the current module.
+        ctx: TypeView<'a>,
     },
     /// Detect static parameter usage.
     StaticParameter {
         /// The compiler instance.
         compiler: &'a Compiler,
-        /// The current module.
-        module: &'a Module,
-        /// The active profile.
-        profile: ProfileId,
-        /// The symbol table for the current module.
-        symbols: &'a SymbolTable,
-        /// The type table for the current module.
-        types: &'a TypeTable,
+        /// The symbol-and-type ctx view for the current module.
+        ctx: SymbolTypeView<'a>,
     },
     /// Detect free static parameters.
     FreeStaticParameter {
         /// The compiler instance.
         compiler: &'a Compiler,
-        /// The current module.
-        module: &'a Module,
-        /// The active profile.
-        profile: ProfileId,
-        /// The symbol table for the current module.
-        symbols: &'a SymbolTable,
-        /// The type table for the current module.
-        types: &'a TypeTable,
+        /// The symbol-and-type ctx view for the current module.
+        ctx: SymbolTypeView<'a>,
     },
     /// Detect conditional infer bindings.
     InferBinding,
@@ -102,12 +83,8 @@ enum TypeContainmentKind<'a> {
     ManagedType {
         /// The compiler instance.
         compiler: &'a Compiler,
-        /// The current module.
-        module: &'a Module,
-        /// The active profile.
-        profile: ProfileId,
-        /// The type table for the current module.
-        types: &'a TypeTable,
+        /// The module and type ctx view for this containment query.
+        ctx: ModuleTypeView<'a>,
     },
 }
 
@@ -147,22 +124,11 @@ impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for unevaluated value static arguments.
     fn new_unevaluated_value_static(
         compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        tree: &'a NodeTree,
-        symbols: &'a SymbolTable,
-        types: &'a TypeTable,
+        ctx: TypeView<'a>,
         visited: &'a mut HashSet<LocalTypeId>,
     ) -> Self {
         Self::new(
-            TypeContainmentKind::UnevaluatedValueStaticArgument {
-                compiler,
-                module,
-                profile,
-                tree,
-                symbols,
-                types,
-            },
+            TypeContainmentKind::UnevaluatedValueStaticArgument { compiler, ctx },
             visited,
             None,
         )
@@ -171,20 +137,11 @@ impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for static parameter detection.
     fn new_static_parameter(
         compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        symbols: &'a SymbolTable,
-        types: &'a TypeTable,
+        ctx: SymbolTypeView<'a>,
         visited: &'a mut HashSet<LocalTypeId>,
     ) -> Self {
         Self::new(
-            TypeContainmentKind::StaticParameter {
-                compiler,
-                module,
-                profile,
-                symbols,
-                types,
-            },
+            TypeContainmentKind::StaticParameter { compiler, ctx },
             visited,
             None,
         )
@@ -193,21 +150,12 @@ impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for free static parameter detection.
     fn new_free_static_parameter(
         compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        symbols: &'a SymbolTable,
-        types: &'a TypeTable,
+        ctx: SymbolTypeView<'a>,
         bound: &HashSet<GlobalSymbolId>,
         visited: &'a mut HashSet<LocalTypeId>,
     ) -> Self {
         Self::new(
-            TypeContainmentKind::FreeStaticParameter {
-                compiler,
-                module,
-                profile,
-                symbols,
-                types,
-            },
+            TypeContainmentKind::FreeStaticParameter { compiler, ctx },
             visited,
             None,
         )
@@ -255,19 +203,12 @@ impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for managed default detection.
     pub(super) fn new_managed_type(
         compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        types: &'a TypeTable,
+        ctx: ModuleTypeView<'a>,
         visited_types: &'a mut HashSet<LocalTypeId>,
         visited_symbols: &'a mut HashSet<GlobalSymbolId>,
     ) -> Self {
         Self::new(
-            TypeContainmentKind::ManagedType {
-                compiler,
-                module,
-                profile,
-                types,
-            },
+            TypeContainmentKind::ManagedType { compiler, ctx },
             visited_types,
             Some(visited_symbols),
         )
@@ -387,27 +328,16 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 }
             }
             TypeContainmentKind::UnevaluatedStaticArgument => {}
-            TypeContainmentKind::UnevaluatedValueStaticArgument {
-                compiler,
-                module,
-                profile,
-                tree,
-                symbols,
-                types: type_table,
-            } => {
+            TypeContainmentKind::UnevaluatedValueStaticArgument { compiler, ctx } => {
                 if let Type::Reference {
                     symbol,
                     static_arguments,
                 } = ty
                 {
                     if compiler.reference_has_unevaluated_value_arguments(
-                        module,
-                        *profile,
+                        *ctx,
                         *symbol,
                         static_arguments.as_deref(),
-                        tree,
-                        symbols,
-                        type_table,
                         self.visited,
                     ) {
                         self.found = true;
@@ -415,17 +345,9 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     return;
                 }
             }
-            TypeContainmentKind::StaticParameter {
-                compiler,
-                module,
-                profile,
-                symbols,
-                types: type_table,
-            } => match ty {
+            TypeContainmentKind::StaticParameter { compiler, ctx } => match ty {
                 Type::Reference { symbol, .. } => {
-                    if compiler
-                        .symbol_is_static_parameter(module, *profile, *symbol, symbols, type_table)
-                    {
+                    if compiler.symbol_is_static_parameter(*ctx, *symbol) {
                         self.found = true;
                         return;
                     }
@@ -438,13 +360,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 }
                 _ => {}
             },
-            TypeContainmentKind::FreeStaticParameter {
-                compiler,
-                module,
-                profile,
-                symbols,
-                types: type_table,
-            } => match ty {
+            TypeContainmentKind::FreeStaticParameter { compiler, ctx } => match ty {
                 Type::Reference {
                     symbol,
                     static_arguments,
@@ -454,9 +370,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                         return;
                     };
                     if static_arguments.is_none()
-                        && compiler.symbol_is_static_parameter(
-                            module, *profile, *symbol, symbols, type_table,
-                        )
+                        && compiler.symbol_is_static_parameter(*ctx, *symbol)
                         && !bound.contains(symbol)
                     {
                         self.found = true;
@@ -582,12 +496,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                 }
                 _ => {}
             },
-            TypeContainmentKind::ManagedType {
-                compiler,
-                module,
-                profile,
-                types: type_table,
-            } => match ty {
+            TypeContainmentKind::ManagedType { compiler, ctx } => match ty {
                 Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => {
                     return;
                 }
@@ -596,14 +505,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                         self.found = true;
                         return;
                     };
-                    if compiler.symbol_is_managed_inner(
-                        module,
-                        *profile,
-                        *symbol,
-                        type_table,
-                        visited_symbols,
-                        false,
-                    ) {
+                    if compiler.symbol_is_managed_inner(*ctx, *symbol, visited_symbols, false) {
                         self.found = true;
                     }
                     return;
@@ -686,7 +588,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Return true when a type is still solver-owned placeholder state.
+    /// Return true when a type is still solver-owned placeholder ctx.
     pub(crate) fn type_is_solver_placeholder(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
         types.get_type(ty_id).is_infer()
     }
@@ -703,21 +605,14 @@ impl Compiler {
     /// Emit one unassignable-type diagnostic unless either side already failed.
     pub(crate) fn emit_unassignable_type_for_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) {
-        let Some(error) = self.unassignable_type_error_for_types(
-            module,
-            profile,
-            node_id,
-            expected_ty_id,
-            actual_ty_id,
-            types,
-        ) else {
+        let Some(error) =
+            self.unassignable_type_error_for_types(ctx, node_id, expected_ty_id, actual_ty_id)
+        else {
             return;
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
@@ -727,44 +622,37 @@ impl Compiler {
     /// Build one unassignable-type error unless either side already failed.
     pub(crate) fn unassignable_type_error_for_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
-            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, ctx.types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, ctx.types)
         {
             return None;
         }
 
         Some(AnalyzeError::UnassignableType {
-            node: node_id.into_global(module.id).into_anchored(Some(profile)),
-            expected_ty: expected_ty_id.into_global(module.id),
-            actual_ty: actual_ty_id.into_global(module.id),
+            node: node_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
+            expected_ty: expected_ty_id.into_global(ctx.module.id),
+            actual_ty: actual_ty_id.into_global(ctx.module.id),
         })
     }
 
     /// Report one unsatisfied-type diagnostic unless either side already failed.
     pub(crate) fn report_unsatisfied_type_for_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) -> bool {
-        let Some(error) = self.unsatisfied_type_error_for_types(
-            module,
-            profile,
-            node_id,
-            expected_ty_id,
-            actual_ty_id,
-            types,
-        ) else {
+        let Some(error) =
+            self.unsatisfied_type_error_for_types(ctx, node_id, expected_ty_id, actual_ty_id)
+        else {
             return false;
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
@@ -776,44 +664,37 @@ impl Compiler {
     /// Build one unsatisfied-type error unless either side already failed.
     pub(crate) fn unsatisfied_type_error_for_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         actual_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_cascading_diagnostic(expected_ty_id, types)
-            || self.type_blocks_cascading_diagnostic(actual_ty_id, types)
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, ctx.types)
+            || self.type_blocks_cascading_diagnostic(actual_ty_id, ctx.types)
         {
             return None;
         }
 
         Some(AnalyzeError::UnsatisfiedType {
-            node: node_id.into_global(module.id).into_anchored(Some(profile)),
-            expected_ty: expected_ty_id.into_global(module.id),
-            actual_ty: actual_ty_id.into_global(module.id),
+            node: node_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
+            expected_ty: expected_ty_id.into_global(ctx.module.id),
+            actual_ty: actual_ty_id.into_global(ctx.module.id),
         })
     }
 
     /// Report one excess-property diagnostic unless the expected type already failed.
     pub(crate) fn report_excess_property_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         member_key: StaticKey,
-        types: &TypeTable,
     ) -> bool {
-        let Some(error) = self.excess_property_error_for_type(
-            module,
-            profile,
-            node_id,
-            expected_ty_id,
-            member_key,
-            types,
-        ) else {
+        let Some(error) =
+            self.excess_property_error_for_type(ctx, node_id, expected_ty_id, member_key)
+        else {
             return false;
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
@@ -825,20 +706,20 @@ impl Compiler {
     /// Build one excess-property error unless the expected type already failed.
     pub(crate) fn excess_property_error_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
         member_key: StaticKey,
-        types: &TypeTable,
     ) -> Option<AnalyzeError> {
-        if self.type_blocks_cascading_diagnostic(expected_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(expected_ty_id, ctx.types) {
             return None;
         }
 
         Some(AnalyzeError::ExcessProperty {
-            node: node_id.into_global(module.id).into_anchored(Some(profile)),
-            expected_ty: expected_ty_id.into_global(module.id),
+            node: node_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
+            expected_ty: expected_ty_id.into_global(ctx.module.id),
             member_key,
         })
     }
@@ -846,19 +727,19 @@ impl Compiler {
     /// Emit one no-overload diagnostic unless the receiver already failed.
     pub(crate) fn emit_no_overload_for_receiver_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) {
-        if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(receiver_ty_id, ctx.types) {
             return;
         }
 
         let error = AnalyzeError::NoOverload {
-            node: node_id.into_global(module.id).into_anchored(Some(profile)),
-            receiver_ty: receiver_ty_id.into_global(module.id),
+            node: node_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
+            receiver_ty: receiver_ty_id.into_global(ctx.module.id),
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
@@ -867,18 +748,18 @@ impl Compiler {
     /// Emit one non-callable diagnostic unless the callee already failed.
     pub(crate) fn emit_non_callable_for_callee_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         node_id: LocalNodeIdAny,
         callee_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) {
-        if self.type_blocks_cascading_diagnostic(callee_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(callee_ty_id, ctx.types) {
             return;
         }
 
         let error = AnalyzeError::NonCallable {
-            node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            node: node_id
+                .into_global(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
         self.error(error);
@@ -1079,24 +960,25 @@ impl Compiler {
     /// Check whether a symbol is a static parameter.
     pub(crate) fn symbol_is_static_parameter(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // honor cached constraints for mapped parameters
-        if types.get_static_parameter_constraint_type(symbol).is_some() {
+        if ctx
+            .types
+            .get_static_parameter_constraint_type(symbol)
+            .is_some()
+        {
             return true;
         }
 
         // rely on the declared parameter metadata
         let Some(symbol) = self
             .with_module_symbols_or_local_at_stage(
-                module,
-                profile,
+                ctx.module,
+                ctx.profile,
                 symbol.module_id,
-                symbols,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
                 |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
             )
@@ -1116,35 +998,31 @@ impl Compiler {
     /// Check whether a type contains a static parameter reference.
     pub(crate) fn type_contains_static_parameters(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let mut visitor = TypeContainmentVisitor::new_static_parameter(
-            self, module, profile, symbols, types, visited,
-        );
-        visitor.visit_type_id(types, type_id);
+        let mut visitor =
+            TypeContainmentVisitor::new_static_parameter(self, ctx.symbol_type_view(), visited);
+        visitor.visit_type_id(ctx.types, type_id);
         visitor.found
     }
 
     /// Check whether a type contains free static parameter references.
     pub(crate) fn type_contains_free_static_parameters(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
         bound: &HashSet<GlobalSymbolId>,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         let mut visitor = TypeContainmentVisitor::new_free_static_parameter(
-            self, module, profile, symbols, types, bound, visited,
+            self,
+            ctx.symbol_type_view(),
+            bound,
+            visited,
         );
-        visitor.visit_type_id(types, type_id);
+        visitor.visit_type_id(ctx.types, type_id);
         visitor.found
     }
 
@@ -1187,22 +1065,22 @@ impl Compiler {
     /// Check whether a type requires infer convergence before stable checking.
     pub(crate) fn type_requires_infer_convergence(
         &self,
-        _module: &Module,
-        _profile: ProfileId,
+        ctx: TypeView<'_>,
         type_id: LocalTypeId,
-        _symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // inference variables are not stable yet
         let mut infer_var_visited = HashSet::new();
-        if self.type_contains_infer_vars(type_id, types, &mut infer_var_visited) {
+        if self.type_contains_infer_vars(type_id, ctx.types, &mut infer_var_visited) {
             return true;
         }
 
         // unevaluated static arguments are not stable yet
         let mut static_argument_visited = HashSet::new();
-        if self.type_has_unevaluated_static_arguments(type_id, types, &mut static_argument_visited)
-        {
+        if self.type_has_unevaluated_static_arguments(
+            type_id,
+            ctx.types,
+            &mut static_argument_visited,
+        ) {
             return true;
         }
 
@@ -1212,11 +1090,11 @@ impl Compiler {
     /// Ensure a type id is evaluated when it is unevaluated.
     pub(crate) fn ensure_type_evaluated(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
-        if matches!(tables.types.get_type(type_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(&mut tables.reborrow(), type_id)?;
+        if matches!(ctx.types.get_type(type_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.reborrow(), type_id)?;
         }
         Ok(type_id)
     }
@@ -1224,11 +1102,11 @@ impl Compiler {
     /// Ensure one unwrapped value type id is evaluated before runtime and member reads.
     pub(crate) fn ensure_unwrapped_value_type_evaluated(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
-        let unwrapped_type_id = tables.types.unwrap_value_type_id(type_id);
-        self.ensure_type_evaluated(&mut tables.type_tables_reborrow(), unwrapped_type_id)
+        let unwrapped_type_id = ctx.types.unwrap_value_type_id(type_id);
+        self.ensure_type_evaluated(&mut ctx.type_context_reborrow(), unwrapped_type_id)
     }
 
     /// Return true when one unwrapped value type id remains unevaluated.
@@ -1329,18 +1207,11 @@ impl Compiler {
     /// Follow symbol forwarding edges until a stable symbol is reached.
     pub(crate) fn forwarded_symbol_id(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
     ) -> GlobalSymbolId {
-        let mut current_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
+        let mut current_symbol =
+            self.canonical_symbol_id(view, symbol, CanonicalSymbolMode::FollowAliases);
         let mut visited = HashSet::new();
 
         // chase forwarding edges with cycle protection
@@ -1351,10 +1222,10 @@ impl Compiler {
 
             let next_symbol = self
                 .with_module_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     current_symbol.module_id,
-                    symbols,
+                    view.symbols,
                     AnalyzeDependencyStage::Declare,
                     |_owner_module, owner_symbols| {
                         let symbol_entry = owner_symbols.get_symbol(current_symbol.local_id);
@@ -1367,13 +1238,8 @@ impl Compiler {
                 break;
             };
 
-            let next_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
-                next_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
+            let next_symbol =
+                self.canonical_symbol_id(view, next_symbol, CanonicalSymbolMode::FollowAliases);
             if next_symbol == current_symbol {
                 break;
             }
@@ -1387,7 +1253,7 @@ impl Compiler {
     /// Import the alias target type for a symbol when available.
     pub(crate) fn alias_target_type_id_for_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
     ) -> Option<LocalTypeId> {
@@ -1400,24 +1266,23 @@ impl Compiler {
             }
 
             // load the local alias target when the symbol is local
-            if current.module_id == tables.module.id {
-                let symbol_entry = tables.symbols.get_symbol(current.local_id);
+            if current.module_id == ctx.module.id {
+                let symbol_entry = ctx.symbols.get_symbol(current.local_id);
                 let typed_symbol = GlobalSymbolId::new(
                     current.module_id,
                     current.local_id.with_type(symbol_entry.ty),
                 );
 
                 // check the incoming symbol first, then the declaration-typed symbol
-                tables.types.record_normalization_symbol_dependency(current);
-                if let Some(target) = tables.types.get_alias_target_type_id(current) {
+                ctx.types.record_normalization_symbol_dependency(current);
+                if let Some(target) = ctx.types.get_alias_target_type_id(current) {
                     return Some(target);
                 }
 
                 if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                    tables
-                        .types
+                    ctx.types
                         .record_normalization_symbol_dependency(typed_symbol);
-                    if let Some(target) = tables.types.get_alias_target_type_id(typed_symbol) {
+                    if let Some(target) = ctx.types.get_alias_target_type_id(typed_symbol) {
                         return Some(target);
                     }
                 }
@@ -1432,13 +1297,13 @@ impl Compiler {
 
             // import the alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = match self
-                .with_module_tree_symbols_at_stage(
-                    tables.module,
-                    tables.profile,
+                .with_module_tree_symbol_view_at_stage(
+                    ctx.module,
+                    ctx.profile,
                     current.module_id,
                     AnalyzeDependencyStage::Declare,
-                    |owner_module, owner_tree, owner_symbols| {
-                        let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                    |view| {
+                        let symbol_entry = view.symbols.get_symbol(current.local_id);
                         if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                             let target_symbol =
                                 symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -1452,7 +1317,7 @@ impl Compiler {
 
                         // resolve the remote alias target id without holding a write lock
                         let remote_target_id = {
-                            let owner_types = owner_module.dir(tables.profile).types.read();
+                            let owner_types = view.module.dir(ctx.profile).types.read();
                             match owner_types.get_alias_target_type_id(typed_symbol) {
                                 Some(id) => id,
                                 None => {
@@ -1465,7 +1330,7 @@ impl Compiler {
                         };
 
                         // remote modules are read-only here: consume only published alias targets
-                        let owner_types = owner_module.dir(tables.profile).types.read();
+                        let owner_types = view.module.dir(ctx.profile).types.read();
                         if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_)) {
                             let target_symbol =
                                 symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -1474,12 +1339,8 @@ impl Compiler {
 
                         let needs_materialization = self
                             .type_has_unevaluated_value_static_arguments(
-                                owner_module,
-                                tables.profile,
+                                view.type_view(&owner_types),
                                 remote_target_id,
-                                owner_tree,
-                                owner_symbols,
-                                &owner_types,
                                 &mut HashSet::new(),
                             );
                         if needs_materialization {
@@ -1502,8 +1363,7 @@ impl Compiler {
                 }
             };
             if let Some(dependency_symbol) = dependency_symbol {
-                tables
-                    .types
+                ctx.types
                     .record_normalization_symbol_dependency(dependency_symbol);
             }
             if let Some((typed_symbol, remote_target_ty, remote_snapshot)) = remote_alias_target {
@@ -1511,10 +1371,9 @@ impl Compiler {
                     source_id,
                     &remote_target_ty,
                     &remote_snapshot,
-                    tables.types,
+                    ctx.types,
                 );
-                tables
-                    .types
+                ctx.types
                     .set_alias_target_type_id(typed_symbol, local_alias_target_id);
                 return Some(local_alias_target_id);
             }
@@ -1525,11 +1384,8 @@ impl Compiler {
     /// Query a committed alias target type for a symbol without triggering remote evaluation.
     pub(crate) fn committed_alias_target_type_id_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         let mut visited = HashSet::new();
         let mut current = symbol;
@@ -1541,21 +1397,21 @@ impl Compiler {
             }
 
             // resolve committed alias targets from the local table first
-            if let Some(target) = types.get_alias_target_type_id(current) {
+            if let Some(target) = ctx.types.get_alias_target_type_id(current) {
                 return Some(target);
             }
 
-            if current.module_id == module.id {
-                let symbol_entry = symbols.get_symbol(current.local_id);
+            if current.module_id == ctx.module.id {
+                let symbol_entry = ctx.symbols.get_symbol(current.local_id);
                 let typed_symbol = GlobalSymbolId::new(
                     current.module_id,
                     current.local_id.with_type(symbol_entry.ty),
                 );
 
-                if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                    if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
-                        return Some(target);
-                    }
+                if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+                    && let Some(target) = ctx.types.get_alias_target_type_id(typed_symbol)
+                {
+                    return Some(target);
                 }
 
                 let target_symbol = symbol_entry
@@ -1567,10 +1423,10 @@ impl Compiler {
 
             // read one remote symbol edge under declare-stage gating
             let (typed_symbol, next) = match self.with_module_symbols_or_local_at_stage(
-                module,
-                profile,
+                ctx.module,
+                ctx.profile,
                 current.module_id,
-                symbols,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
                 |_owner_module, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(current.local_id);
@@ -1593,10 +1449,10 @@ impl Compiler {
             ) {
                 let resolved = self
                     .with_module_types_or_local_at_stage(
-                        module,
-                        profile,
+                        ctx.module,
+                        ctx.profile,
                         current.module_id,
-                        types,
+                        ctx.types,
                         AnalyzeDependencyStage::Declare,
                         |_owner_module, owner_types| {
                             owner_types.get_alias_target_type_id(typed_symbol)
@@ -1616,7 +1472,7 @@ impl Compiler {
     /// Require an instance type for a symbol into the local type table.
     pub(crate) fn require_instance_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
@@ -1625,22 +1481,20 @@ impl Compiler {
             symbol
         } else {
             self.canonical_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
+                ctx.module_symbol_view(),
                 symbol,
                 CanonicalSymbolMode::PreserveAliases,
             )
         };
 
         // reuse local instance types when already available
-        tables.types.record_normalization_symbol_dependency(symbol);
-        if let Some(instance_id) = tables.types.get_instance_type_id(symbol) {
+        ctx.types.record_normalization_symbol_dependency(symbol);
+        if let Some(instance_id) = ctx.types.get_instance_type_id(symbol) {
             return Some(instance_id);
         }
 
         // load or import the instance type through the existing resolver
-        match self.resolve_instance_type_for_symbol(&mut tables.reborrow(), source_id, symbol) {
+        match self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), source_id, symbol) {
             Ok(instance_id) => instance_id,
             Err(error) => {
                 self.error(error);
@@ -1652,7 +1506,7 @@ impl Compiler {
     /// Resolve the apparent instance type for shape queries like `keyof`.
     pub(crate) fn apparent_instance_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
@@ -1661,9 +1515,7 @@ impl Compiler {
             symbol
         } else {
             self.canonical_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
+                ctx.module_symbol_view(),
                 symbol,
                 CanonicalSymbolMode::PreserveAliases,
             )
@@ -1672,13 +1524,13 @@ impl Compiler {
         // only aliases and newtypes expose apparent type through alias targets
         if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
             && let Some(alias_target_id) =
-                self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id)
+                self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), symbol, source_id)
         {
             return Some(alias_target_id);
         }
 
         // otherwise fall back to the instance type
-        self.require_instance_type(&mut tables.reborrow(), source_id, symbol)
+        self.require_instance_type(&mut ctx.reborrow(), source_id, symbol)
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.
@@ -1870,19 +1722,19 @@ impl Compiler {
     /// Determine the runtime check kind for a type guard relation.
     pub(crate) fn runtime_check_kind_for_relation(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         value_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
     ) -> Option<RuntimeCheckKind> {
         // normalize apparent types before relation checks
         let value_type_id = self.normalize_apparent_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             value_type_id,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
         let target_type_id = self.normalize_apparent_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             target_type_id,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
@@ -1890,43 +1742,43 @@ impl Compiler {
 
         // constant true when the guard is already satisfied
         let is_assignable = self
-            .is_type_assignable(&mut tables.reborrow(), target_type_id, value_type_id)
+            .is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id)
             .is_assignable();
         if is_assignable {
             return Some(RuntimeCheckKind::Constant(true));
         }
 
         // require a runtime checkable target type
-        if !self.type_is_runtime_checkable_target(&mut tables.reborrow(), target_type_id) {
+        if !self.type_is_runtime_checkable_target(&mut ctx.reborrow(), target_type_id) {
             return None;
         }
 
         // decide which runtime identity the value carries
-        self.runtime_check_kind_for_value_type(&mut tables.reborrow(), value_type_id)
+        self.runtime_check_kind_for_value_type(&mut ctx.reborrow(), value_type_id)
     }
 
     /// Check whether a target type can be validated at runtime.
     fn type_is_runtime_checkable_target(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> bool {
         // unwrap apparent types before inspection
         let type_id = self.normalize_apparent_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             type_id,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
 
         // accept unions when all members are runtime checkable
-        let union_elements = match tables.types.get_type(type_id) {
+        let union_elements = match ctx.types.get_type(type_id) {
             Type::Union { elements } => Some(elements.clone()),
             _ => None,
         };
         if let Some(elements) = union_elements {
             for element_id in elements {
-                if !self.type_is_runtime_checkable_target(&mut tables.reborrow(), element_id) {
+                if !self.type_is_runtime_checkable_target(&mut ctx.reborrow(), element_id) {
                     return false;
                 }
             }
@@ -1934,7 +1786,7 @@ impl Compiler {
         }
 
         // accept nominal reference targets
-        match tables.types.get_type(type_id) {
+        match ctx.types.get_type(type_id) {
             Type::Reference { symbol, .. } => matches!(
                 symbol.local_id.ty,
                 SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
@@ -1946,18 +1798,18 @@ impl Compiler {
     /// Determine the runtime identity carried by a value type.
     fn runtime_check_kind_for_value_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> Option<RuntimeCheckKind> {
         // unwrap apparent types before inspection
         let type_id = self.normalize_apparent_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             type_id,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
 
-        let ty = tables.types.get_type(type_id).clone();
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Union { .. } => Some(RuntimeCheckKind::UnionTag),
             Type::Reference { symbol, .. } => match symbol.local_id.ty {
@@ -1970,7 +1822,7 @@ impl Compiler {
                 value: TypeLiteral::Unknown,
             } => Some(RuntimeCheckKind::TypeDescriptor),
             Type::Value { value } => {
-                self.runtime_check_kind_for_value_type(&mut tables.reborrow(), value)
+                self.runtime_check_kind_for_value_type(&mut ctx.reborrow(), value)
             }
             _ => None,
         }
@@ -2001,30 +1853,20 @@ impl Compiler {
 
     pub(crate) fn type_has_unevaluated_value_static_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let mut visitor = TypeContainmentVisitor::new_unevaluated_value_static(
-            self, module, profile, tree, symbols, types, visited,
-        );
-        visitor.visit_type_id(types, ty_id);
+        let mut visitor = TypeContainmentVisitor::new_unevaluated_value_static(self, ctx, visited);
+        visitor.visit_type_id(ctx.types, ty_id);
         visitor.found
     }
 
     fn reference_has_unevaluated_value_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         symbol: GlobalSymbolId,
         arguments: Option<&[StaticArgument]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         let Some(arguments) = arguments else {
@@ -2037,9 +1879,7 @@ impl Compiler {
         }
 
         // resolve parameter kinds for the referenced declaration
-        let Some(parameter_symbols) =
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types)
-        else {
+        let Some(parameter_symbols) = self.collect_static_parameter_symbols(ctx, symbol) else {
             return false;
         };
 
@@ -2047,18 +1887,17 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    self.with_module_tree_symbols_or_local_at_stage(
-                        module,
-                        profile,
+                    self.with_module_tree_symbol_view_or_local_at_stage(
+                        ctx.module,
+                        ctx.profile,
                         parameter_symbol.module_id,
-                        tree,
-                        symbols,
+                        ctx.tree,
+                        ctx.symbols,
                         AnalyzeDependencyStage::Declare,
-                        |_, owner_tree, owner_symbols| {
+                        |view| {
                             self.static_parameter_metadata_for_symbol_in_module(
+                                view,
                                 *parameter_symbol,
-                                owner_tree,
-                                owner_symbols,
                             )
                             .0
                         },
@@ -2075,9 +1914,8 @@ impl Compiler {
 
             let has_unevaluated = match argument {
                 StaticArgument::Unevaluated { .. } => true,
-                StaticArgument::Evaluated { value, .. } => {
-                    self.static_expression_has_unevaluated_static_arguments(value, types, visited)
-                }
+                StaticArgument::Evaluated { value, .. } => self
+                    .static_expression_has_unevaluated_static_arguments(value, ctx.types, visited),
             };
             if has_unevaluated {
                 return true;

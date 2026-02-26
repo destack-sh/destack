@@ -1,6 +1,4 @@
-use crate::analyze::common::{
-    CanonicalSymbolMode, InferTablesContext, RelationMode, TypeTablesContext,
-};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext, RelationMode, TypeContext};
 use crate::analyze::infer::member::MemberResolution;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -63,9 +61,9 @@ impl Compiler {
     /// Discharge missing-member obligations in solve and write infer overlays directly.
     pub(in crate::analyze::solve) fn discharge_missing_member_obligations_in_solve(
         &self,
-        mut tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
     ) -> AnalyzeResult<()> {
-        let mut obligations = tables.infer.take_missing_member_obligations();
+        let mut obligations = ctx.infer.take_missing_member_obligations();
         obligations.sort_by_key(|obligation| {
             (obligation.expression_id, obligation.receiver_expression_id)
         });
@@ -73,19 +71,18 @@ impl Compiler {
             return Ok(());
         }
 
-        let actions =
-            match self.collect_missing_member_obligation_actions(&mut tables, &obligations) {
-                Ok(actions) => actions,
-                Err(AnalyzeError::Yield { dependency }) => {
-                    for obligation in obligations {
-                        tables.infer.push_missing_member_obligation(obligation);
-                    }
-                    return Err(AnalyzeError::Yield { dependency });
+        let actions = match self.collect_missing_member_obligation_actions(ctx, &obligations) {
+            Ok(actions) => actions,
+            Err(AnalyzeError::Yield { dependency }) => {
+                for obligation in obligations {
+                    ctx.infer.push_missing_member_obligation(obligation);
                 }
-                Err(error) => return Err(error),
-            };
+                return Err(AnalyzeError::Yield { dependency });
+            }
+            Err(error) => return Err(error),
+        };
 
-        self.apply_missing_member_obligation_actions_in_solve(&mut tables, actions)
+        self.apply_missing_member_obligation_actions_in_solve(ctx, actions)
     }
 
     /// Map one member-resolution result to obligation resolution form.
@@ -114,7 +111,7 @@ impl Compiler {
     /// Collect missing-member obligation actions from deferred obligations.
     fn collect_missing_member_obligation_actions(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         obligations: &[MissingMemberObligation],
     ) -> AnalyzeResult<Vec<MissingMemberObligationAction>> {
         let mut reported = HashSet::new();
@@ -123,8 +120,8 @@ impl Compiler {
         // discharge each obligation after solver convergence
         for obligation in obligations {
             // skip obligations attached to other modules
-            if obligation.expression_id.module_id != tables.module.id
-                || obligation.receiver_expression_id.module_id != tables.module.id
+            if obligation.expression_id.module_id != ctx.module.id
+                || obligation.receiver_expression_id.module_id != ctx.module.id
             {
                 continue;
             }
@@ -147,15 +144,15 @@ impl Compiler {
                 })?;
 
             // skip stale obligations once the expression already has a concrete inferred type
-            if let Some(current_expression_ty_id) = tables
+            if let Some(current_expression_ty_id) = ctx
                 .infer
                 .inferred_type_for_node(obligation.expression_id)
-                .or_else(|| tables.types.get_inferred_type_id(obligation.expression_id))
+                .or_else(|| ctx.types.get_inferred_type_id(obligation.expression_id))
             {
                 let current_expression_ty_id =
-                    tables.types.unwrap_value_type_id(current_expression_ty_id);
+                    ctx.types.unwrap_value_type_id(current_expression_ty_id);
                 if !matches!(
-                    tables.types.get_type(current_expression_ty_id),
+                    ctx.types.get_type(current_expression_ty_id),
                     Type::InferVar { .. }
                         | Type::Unevaluated(_)
                         | Type::Error
@@ -168,51 +165,46 @@ impl Compiler {
             }
 
             // recover and normalize the receiver type for discharged lookup
-            let mut receiver_ty_id = tables
+            let mut receiver_ty_id = ctx
                 .infer
                 .inferred_type_for_node(obligation.receiver_expression_id)
                 .or_else(|| {
-                    tables
-                        .types
+                    ctx.types
                         .get_inferred_type_id(obligation.receiver_expression_id)
                 })
                 .unwrap_or(obligation.receiver_type_id);
-            if self.type_is_solver_placeholder(receiver_ty_id, tables.types)
-                && let Some(receiver_symbol) =
-                    tables.tree.get(receiver_expression_id).target_symbol()
-                && let Some(symbol_type_id) = tables
+            if self.type_is_solver_placeholder(receiver_ty_id, ctx.types)
+                && let Some(receiver_symbol) = ctx.tree.get(receiver_expression_id).target_symbol()
+                && let Some(symbol_type_id) = ctx
                     .types
-                    .get_type_id_for_symbol(tables.symbols, receiver_symbol)
+                    .get_type_id_for_symbol(ctx.symbols, receiver_symbol)
             {
                 receiver_ty_id = symbol_type_id;
             }
             let receiver_ty_id =
-                self.materialize_infer_type_for_check(&mut tables.reborrow(), receiver_ty_id);
+                self.materialize_infer_type_for_check(&mut ctx.reborrow(), receiver_ty_id);
             let receiver_ty_id = self.normalize_apparent_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 receiver_ty_id,
                 NormalizationMode::Assign,
                 RelationMode::ASSIGN,
             );
-            if self.type_is_solver_placeholder(receiver_ty_id, tables.types) {
+            if self.type_is_solver_placeholder(receiver_ty_id, ctx.types) {
                 continue;
             }
 
             // suppress cascades after primary receiver failure
-            if self.type_blocks_cascading_diagnostic(receiver_ty_id, tables.types) {
+            if self.type_blocks_cascading_diagnostic(receiver_ty_id, ctx.types) {
                 continue;
             }
 
             // fail closed when discharge still depends on unsolved state
             if self.type_relation_requires_infer_convergence(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 receiver_ty_id,
                 receiver_ty_id,
-                tables.symbols,
-                tables.types,
             ) {
-                if self.type_blocks_cascading_diagnostic(receiver_ty_id, tables.types) {
+                if self.type_blocks_cascading_diagnostic(receiver_ty_id, ctx.types) {
                     continue;
                 }
 
@@ -223,14 +215,14 @@ impl Compiler {
             }
 
             // resolve member dispatch for the converged receiver
-            let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
+            let receiver_ty = ctx.types.get_type(receiver_ty_id).clone();
             let receiver_context = self.query_member_receiver_context_for_expression(
-                &tables.type_tables_reborrow(),
+                &ctx.type_context_reborrow(),
                 receiver_expression_id,
                 Some(receiver_ty_id),
             );
             let member_resolution = self.resolve_member_symbol_for_receiver(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_expression_id,
                 &receiver_ty,
@@ -251,7 +243,7 @@ impl Compiler {
             // resolve index signature value access path
             let mut index_visited = Vec::new();
             let index_type_id = self.resolve_index_signature_value_type_for_key(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id.into_any(),
                 &receiver_ty,
                 &obligation.member_key,
@@ -274,15 +266,12 @@ impl Compiler {
             // report missing member diagnostics for unresolved lookups
             let allow_associated_contract_blocker = self
                 .solve_projection_receiver_expression_for_missing_member_obligation(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     receiver_expression_id,
                 );
             let blocker = self.should_block_missing_member_diagnostic(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 receiver_ty_id,
-                tables.symbols,
-                tables.types,
                 allow_associated_contract_blocker,
             )?;
             if blocker.is_some() {
@@ -292,7 +281,7 @@ impl Compiler {
             actions.push(MissingMemberObligationAction::EmitMissingMemberDiagnostic {
                 expression_id,
                 receiver_ty_id,
-                member_key: obligation.member_key.clone(),
+                member_key: obligation.member_key,
             });
         }
 
@@ -302,45 +291,38 @@ impl Compiler {
     /// Return true when one receiver should be treated as an associated projection in solve.
     fn solve_projection_receiver_expression_for_missing_member_obligation(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         receiver_id: LocalNodeId<Expression>,
     ) -> bool {
-        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tables.tree);
-        if !tables
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, ctx.tree);
+        if ctx
             .tree
             .get(receiver_id)
             .static_arguments()
-            .is_some_and(|arguments| !arguments.is_empty())
+            .is_none_or(|arguments| arguments.is_empty())
         {
             return false;
         }
 
         let symbol = self
-            .resolve_direct_receiver_symbol_for_expression(&*tables, receiver_id)
+            .resolve_direct_receiver_symbol_for_expression(&*ctx, receiver_id)
             .or_else(|| {
                 let receiver_type_id = self
-                    .resolve_declared_type_expression(
-                        &mut tables.reborrow(),
-                        receiver_id,
-                        true,
-                        true,
-                    )
+                    .resolve_declared_type_expression(&mut ctx.reborrow(), receiver_id, true, true)
                     .ok()?;
-                self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, tables.types)
+                self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, ctx.types)
             });
         let Some(symbol) = symbol else {
             return false;
         };
 
         let symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let symbol = self
-            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, symbol)
+            .declaration_symbol_id(ctx.module_symbol_view(), symbol)
             .unwrap_or(symbol);
         matches!(
             symbol.ty(),
@@ -356,7 +338,7 @@ impl Compiler {
     /// Apply missing-member obligation actions in solve.
     fn apply_missing_member_obligation_actions_in_solve(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         actions: Vec<MissingMemberObligationAction>,
     ) -> AnalyzeResult<()> {
         for action in actions {
@@ -403,9 +385,8 @@ impl Compiler {
                             candidates: Vec::new(),
                         },
                     };
-                    let expression_global = expression_id.into_global_any(tables.module.id);
-                    tables
-                        .infer
+                    let expression_global = expression_id.into_global_any(ctx.module.id);
+                    ctx.infer
                         .set_provisional_resolution_for_node(expression_global, resolution);
                 }
                 MissingMemberObligationAction::EmitMissingMemberDiagnostic {
@@ -415,14 +396,14 @@ impl Compiler {
                 } => {
                     self.error(AnalyzeError::MissingMember {
                         node: expression_id
-                            .into_global_any(tables.module.id)
-                            .into_anchored(Some(tables.profile)),
-                        receiver_ty: receiver_ty_id.into_global(tables.module.id),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        receiver_ty: receiver_ty_id.into_global(ctx.module.id),
                         member_key,
                     });
-                    let error_type_id = tables.types.insert_type_from(Type::Error, expression_id);
-                    tables.infer.set_inferred_type_for_node(
-                        expression_id.into_global_any(tables.module.id),
+                    let error_type_id = ctx.types.insert_type_from(Type::Error, expression_id);
+                    ctx.infer.set_inferred_type_for_node(
+                        expression_id.into_global_any(ctx.module.id),
                         error_type_id,
                     );
                 }

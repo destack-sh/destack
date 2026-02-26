@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Annotation, Expression, LocalNodeId, NodeTree, NodeVisitor, NodeVisitorOptions, walk_expression,
@@ -8,7 +8,7 @@ impl Compiler {
     /// Validate a single annotation node.
     pub(super) fn validate_annotation(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         annotation_id: LocalNodeId<Annotation>,
         annotation: &Annotation,
     ) {
@@ -17,14 +17,14 @@ impl Compiler {
         };
 
         // destack decorators allow static arguments
-        if type_tables.module.language_type.is_destack() {
+        if ctx.module.language_type.is_destack() {
             return;
         }
 
-        if self.decorator_expression_has_static_arguments(type_tables.tree, *expression) {
+        if self.decorator_expression_has_static_arguments(ctx.tree, *expression) {
             let node = annotation_id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidDecoratorStaticArguments { node });
         }
     }

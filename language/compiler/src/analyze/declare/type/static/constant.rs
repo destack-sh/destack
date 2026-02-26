@@ -1,12 +1,11 @@
 use super::StaticEvaluationMode;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, RelationMode, TypeRewriteCache, TypeTablesContext,
+    AnalyzeDependencyStage, RelationMode, TreeSymbolTypeView, TypeContext, TypeRewriteCache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, Mutability,
-    NodeTree, NodeType, NormalizationMode, StaticExpression, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    NodeType, NormalizationMode, StaticExpression, Type, TypeLiteral, TypeTable,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -30,23 +29,64 @@ pub(super) enum StaticCycleDiagnosticMode {
     Suppress,
 }
 
+/// Select one static-constant resolution policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StaticConstantResolutionMode {
+    /// Parametric evaluation with infer-stage dependency reads and suppressed cycle diagnostics.
+    Parametric,
+    /// Instantiated evaluation with infer-stage dependency reads.
+    InstantiatedInfer,
+    /// Instantiated evaluation with declare-stage dependency reads.
+    InstantiatedDeclare,
+}
+
+impl StaticConstantResolutionMode {
+    /// Return the static evaluation mode for this resolution policy.
+    fn evaluation_mode(self) -> StaticEvaluationMode {
+        match self {
+            Self::Parametric => StaticEvaluationMode::Parametric,
+            Self::InstantiatedInfer | Self::InstantiatedDeclare => {
+                StaticEvaluationMode::Instantiated
+            }
+        }
+    }
+
+    /// Return the remote dependency stage for this resolution policy.
+    fn remote_dependency_stage(self) -> AnalyzeDependencyStage {
+        match self {
+            Self::Parametric | Self::InstantiatedInfer => AnalyzeDependencyStage::Infer,
+            Self::InstantiatedDeclare => AnalyzeDependencyStage::Declare,
+        }
+    }
+
+    /// Return the cycle diagnostic policy for this resolution policy.
+    fn cycle_diagnostic_mode(self) -> StaticCycleDiagnosticMode {
+        match self {
+            Self::Parametric => StaticCycleDiagnosticMode::Suppress,
+            Self::InstantiatedInfer | Self::InstantiatedDeclare => {
+                StaticCycleDiagnosticMode::Report
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Publish declared static constant values for all active symbols in one module.
     pub(crate) fn publish_declared_static_constant_values_for_module(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
     ) -> AnalyzeResult<()> {
         // declare publishes static constant commitments for static-capable declaration symbols
-        for local_symbol_id in tables.symbols.active_symbol_ids() {
-            let symbol_id = local_symbol_id.into_global(tables.module.id);
-            if !self.symbol_can_be_static_constant(&mut tables.reborrow(), symbol_id) {
+        for local_symbol_id in ctx.symbols.active_symbol_ids() {
+            let symbol_id = local_symbol_id.into_global(ctx.module.id);
+            if !self.symbol_can_be_static_constant(&mut ctx.reborrow(), symbol_id) {
                 continue;
             }
 
             let mut visited = HashSet::new();
             let value = self.resolve_static_constant_reference(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 symbol_id,
                 StaticEvaluationMode::Parametric,
                 None,
@@ -65,7 +105,7 @@ impl Compiler {
             };
 
             // publish one declared static constant commitment per symbol
-            tables.types.publish_static_constant_value(symbol_id, value);
+            ctx.types.publish_static_constant_value(symbol_id, value);
         }
 
         Ok(())
@@ -74,10 +114,10 @@ impl Compiler {
     /// Return whether one symbol can participate in static constant publication.
     fn symbol_can_be_static_constant(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
     ) -> bool {
-        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return false;
         };
@@ -86,7 +126,7 @@ impl Compiler {
         if primary_declaration.local_id.ty == NodeType::Member {
             let member_id = primary_declaration.local_id.into_typed::<Member>();
             if matches!(
-                tables.tree.get(member_id),
+                ctx.tree.get(member_id),
                 Member::ComptimeConst { value: Some(_), .. }
             ) {
                 return true;
@@ -101,14 +141,11 @@ impl Compiler {
         }
 
         // immutable direct bindings with initializers can publish
-        if let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-            tables.module,
-            symbol,
-            tables.tree,
-            tables.symbols,
-        ) && let Some(parent_id) = tables.tree.get_parent(declarator_id.id)
+        if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), symbol)
+            && let Some(parent_id) = ctx.tree.get_parent(declarator_id.id)
             && parent_id.ty == NodeType::Expression
-            && let Expression::Let { mutability, .. } = tables.tree.get(parent_id.into_typed())
+            && let Expression::Let { mutability, .. } = ctx.tree.get(parent_id.into_typed())
         {
             return *mutability == Mutability::Immutable;
         }
@@ -119,10 +156,8 @@ impl Compiler {
     /// Query one declared static constant lookup in one module-local symbol graph.
     fn query_published_static_constant_lookup_for_symbol(
         &self,
+        ctx: TreeSymbolTypeView<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<PublishedStaticConstantLookup> {
         let mut pending_symbols = vec![symbol];
         let mut visited_symbols = HashSet::new();
@@ -133,24 +168,30 @@ impl Compiler {
                 continue;
             }
 
-            if let Some(value) = types.query_published_static_constant_value(candidate_symbol) {
+            if let Some(value) = ctx
+                .types
+                .query_published_static_constant_value(candidate_symbol)
+            {
                 return Some(PublishedStaticConstantLookup::Found {
                     symbol: candidate_symbol,
                     value,
                 });
             }
 
-            if candidate_symbol.module_id != symbols.module_id {
+            if candidate_symbol.module_id != ctx.symbols.module_id {
                 forwarded_symbols.push(candidate_symbol);
                 continue;
             }
 
-            let symbol_entry = symbols.get_symbol(candidate_symbol.local_id);
+            let symbol_entry = ctx.symbols.get_symbol(candidate_symbol.local_id);
             let normalized_symbol = GlobalSymbolId::new(
-                symbols.module_id,
+                ctx.symbols.module_id,
                 candidate_symbol.local_id.with_type(symbol_entry.ty),
             );
-            if let Some(value) = types.query_published_static_constant_value(normalized_symbol) {
+            if let Some(value) = ctx
+                .types
+                .query_published_static_constant_value(normalized_symbol)
+            {
                 return Some(PublishedStaticConstantLookup::Found {
                     symbol: normalized_symbol,
                     value,
@@ -172,7 +213,7 @@ impl Compiler {
             if primary_declaration.local_id.ty == NodeType::DependencyItem {
                 let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
                 if let DependencyItem::Local { target_symbol, .. }
-                | DependencyItem::Remote { target_symbol, .. } = tree.get(dependency_id)
+                | DependencyItem::Remote { target_symbol, .. } = ctx.tree.get(dependency_id)
                 {
                     pending_symbols.push(*target_symbol);
                 }
@@ -180,7 +221,7 @@ impl Compiler {
 
             if primary_declaration.local_id.ty == NodeType::Expression {
                 let expression_id = primary_declaration.local_id.into_typed::<Expression>();
-                if let Expression::Export { items, .. } = tree.get(expression_id) {
+                if let Expression::Export { items, .. } = ctx.tree.get(expression_id) {
                     for item_id in items {
                         if let DependencyItem::Local {
                             symbol: Some(local_symbol),
@@ -191,7 +232,7 @@ impl Compiler {
                             symbol: Some(local_symbol),
                             target_symbol,
                             ..
-                        } = tree.get(*item_id)
+                        } = ctx.tree.get(*item_id)
                             && *local_symbol == candidate_symbol.local_id
                         {
                             pending_symbols.push(*target_symbol);
@@ -210,59 +251,22 @@ impl Compiler {
         })
     }
 
-    /// Resolve one constant reference in parametric evaluation mode.
-    pub(crate) fn resolve_static_constant_reference_parametric(
+    /// Resolve one static constant reference using one explicit resolution policy.
+    pub(crate) fn resolve_static_constant_reference_for_mode(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
+        substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         visited: &mut HashSet<GlobalSymbolId>,
+        resolution_mode: StaticConstantResolutionMode,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         self.resolve_static_constant_reference(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             symbol,
-            StaticEvaluationMode::Parametric,
-            None,
-            AnalyzeDependencyStage::Infer,
-            StaticCycleDiagnosticMode::Suppress,
-            visited,
-        )
-    }
-
-    /// Resolve one constant reference in instantiated evaluation mode.
-
-    pub(crate) fn resolve_static_constant_reference_instantiated(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        symbol: GlobalSymbolId,
-        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        visited: &mut HashSet<GlobalSymbolId>,
-    ) -> AnalyzeResult<Option<StaticExpression>> {
-        self.resolve_static_constant_reference(
-            &mut tables.reborrow(),
-            symbol,
-            StaticEvaluationMode::Instantiated,
-            Some(substitutions),
-            AnalyzeDependencyStage::Infer,
-            StaticCycleDiagnosticMode::Report,
-            visited,
-        )
-    }
-
-    /// Resolve one constant reference in instantiated mode using declared dependency ownership.
-    pub(crate) fn resolve_static_constant_reference_instantiated_declared(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        symbol: GlobalSymbolId,
-        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        visited: &mut HashSet<GlobalSymbolId>,
-    ) -> AnalyzeResult<Option<StaticExpression>> {
-        self.resolve_static_constant_reference(
-            &mut tables.reborrow(),
-            symbol,
-            StaticEvaluationMode::Instantiated,
-            Some(substitutions),
-            AnalyzeDependencyStage::Declare,
-            StaticCycleDiagnosticMode::Report,
+            resolution_mode.evaluation_mode(),
+            substitutions,
+            resolution_mode.remote_dependency_stage(),
+            resolution_mode.cycle_diagnostic_mode(),
             visited,
         )
     }
@@ -270,25 +274,25 @@ impl Compiler {
     /// Report a circular static-argument diagnostic and return one local error expression.
     fn static_cycle_error_expression(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         source_node: LocalNodeIdAny,
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
     ) -> StaticExpression {
-        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         let node = symbol_entry
             .primary_declaration
             .map(|primary_declaration| primary_declaration.local_id)
-            .unwrap_or(tables.module.dir(tables.profile).anchor_node);
+            .unwrap_or(ctx.module.dir(ctx.profile).anchor_node);
         if cycle_diagnostic_mode == StaticCycleDiagnosticMode::Report {
             self.error(AnalyzeError::CircularStaticArgument {
                 node: node
-                    .into_global(tables.module.id)
-                    .into_anchored(Some(tables.profile)),
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
         }
 
-        let error_type_id = tables.types.insert_type_from_any(Type::Error, source_node);
+        let error_type_id = ctx.types.insert_type_from_any(Type::Error, source_node);
         StaticExpression::Type { ty: error_type_id }
     }
 
@@ -307,10 +311,9 @@ impl Compiler {
     }
 
     /// Resolve constant bindings into static expressions when possible.
-
     pub(super) fn resolve_static_constant_reference(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
@@ -319,7 +322,7 @@ impl Compiler {
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         self.resolve_static_constant_reference_with_previsited(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             symbol,
             mode,
             substitutions,
@@ -333,7 +336,7 @@ impl Compiler {
     /// Resolve constant bindings into static expressions when possible.
     fn resolve_static_constant_reference_with_previsited(
         &self,
-        tables_ctx: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         mode: StaticEvaluationMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
@@ -360,7 +363,7 @@ impl Compiler {
             let is_constant_cycle_candidate = if mode == StaticEvaluationMode::Instantiated {
                 true
             } else {
-                let symbol_entry = tables_ctx.symbols.get_symbol(symbol.local_id);
+                let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
                 symbol_entry
                     .primary_declaration
                     .is_some_and(|primary_declaration| {
@@ -369,7 +372,7 @@ impl Compiler {
                         }
                         let member_id = primary_declaration.local_id.into_typed::<Member>();
                         matches!(
-                            tables_ctx.tree.get(member_id),
+                            ctx.tree.get(member_id),
                             Member::ComptimeConst { value: Some(_), .. }
                         )
                     })
@@ -377,9 +380,9 @@ impl Compiler {
             if !is_constant_cycle_candidate {
                 return Ok(None);
             }
-            let source_node = tables_ctx.module.dir(tables_ctx.profile).anchor_node;
+            let source_node = ctx.module.dir(ctx.profile).anchor_node;
             let error = self.static_cycle_error_expression(
-                &mut tables_ctx.reborrow(),
+                &mut ctx.reborrow(),
                 symbol,
                 source_node,
                 cycle_diagnostic_mode,
@@ -389,7 +392,7 @@ impl Compiler {
 
         // reject cross-module re-entry for a different symbol in an active module
         // this avoids deadlock and models module-level static cycles as circular arguments
-        let has_active_module_reentry = symbol.module_id != tables_ctx.module.id
+        let has_active_module_reentry = symbol.module_id != ctx.module.id
             && visited.iter().any(|visited_symbol| {
                 visited_symbol.module_id == symbol.module_id
                     && visited_symbol.local_id.id != symbol.local_id.id
@@ -397,21 +400,16 @@ impl Compiler {
         if has_active_module_reentry {
             let is_parametric_immutable_binding = mode == StaticEvaluationMode::Parametric
                 && self
-                    .direct_binding_declarator_for_symbol(
-                        tables_ctx.module,
-                        symbol,
-                        tables_ctx.tree,
-                        tables_ctx.symbols,
-                    )
+                    .direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), symbol)
                     .is_some_and(|declarator_id| {
-                        let Some(parent_id) = tables_ctx.tree.get_parent(declarator_id.id) else {
+                        let Some(parent_id) = ctx.tree.get_parent(declarator_id.id) else {
                             return false;
                         };
                         if parent_id.ty != NodeType::Expression {
                             return false;
                         }
                         matches!(
-                            tables_ctx.tree.get(parent_id.into_typed::<Expression>()),
+                            ctx.tree.get(parent_id.into_typed::<Expression>()),
                             Expression::Let {
                                 mutability: Mutability::Immutable,
                                 ..
@@ -425,9 +423,9 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let source_node = tables_ctx.module.dir(tables_ctx.profile).anchor_node;
+            let source_node = ctx.module.dir(ctx.profile).anchor_node;
             let error = self.static_cycle_error_expression(
-                &mut tables_ctx.reborrow(),
+                &mut ctx.reborrow(),
                 symbol,
                 source_node,
                 cycle_diagnostic_mode,
@@ -439,15 +437,15 @@ impl Compiler {
         }
 
         // evaluate cross-module constants from declare-published static constant values
-        if symbol.module_id != tables_ctx.module.id {
-            let source_node = tables_ctx.module.dir(tables_ctx.profile).anchor_node;
+        if symbol.module_id != ctx.module.id {
+            let source_node = ctx.module.dir(ctx.profile).anchor_node;
             let mut pending_symbols = vec![symbol];
             let mut visited_symbols = HashSet::new();
             let mut local_value = None;
             let can_use_published_lookup =
                 substitutions.is_none_or(|substitutions| substitutions.is_empty());
             let substitution_entries =
-                self.collect_remote_static_substitution_entries(substitutions, tables_ctx.types);
+                self.collect_remote_static_substitution_entries(substitutions, ctx.types);
 
             if can_use_published_lookup {
                 while let Some(candidate_symbol) = pending_symbols.pop() {
@@ -457,18 +455,21 @@ impl Compiler {
 
                     let (found_value, forwarded_symbols) = self
                         .with_module_tree_symbols_types_by_id_at_stage(
-                            tables_ctx.profile,
+                            ctx.profile,
                             candidate_symbol.module_id,
-                            tables_ctx.tree,
-                            tables_ctx.symbols,
-                            tables_ctx.types,
+                            ctx.tree,
+                            ctx.symbols,
+                            ctx.types,
                             remote_dependency_stage,
                             |owner_tree, owner_symbols, owner_types| match self
                                 .query_published_static_constant_lookup_for_symbol(
+                                    TreeSymbolTypeView::new(
+                                        ctx.profile,
+                                        owner_tree,
+                                        owner_symbols,
+                                        owner_types,
+                                    ),
                                     candidate_symbol,
-                                    owner_tree,
-                                    owner_symbols,
-                                    owner_types,
                                 ) {
                                 Some(PublishedStaticConstantLookup::Found {
                                     symbol: resolved_symbol,
@@ -490,7 +491,7 @@ impl Compiler {
                             source_node,
                             &value,
                             &remote_snapshot,
-                            tables_ctx.types,
+                            ctx.types,
                         ));
                         break;
                     }
@@ -506,16 +507,13 @@ impl Compiler {
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
                 let evaluated_remote_value = self
-                    .with_module_tree_symbols_at_stage(
-                        tables_ctx.module,
-                        tables_ctx.profile,
+                    .with_module_tree_symbol_view_at_stage(
+                        ctx.module,
+                        ctx.profile,
                         symbol.module_id,
                         remote_dependency_stage,
-                        |remote_module,
-                         remote_tree,
-                         remote_symbols|
-                         -> AnalyzeResult<Option<(StaticExpression, TypeTable)>> {
-                            let remote_types = remote_module.dir(tables_ctx.profile).types.read();
+                        |view| -> AnalyzeResult<Option<(StaticExpression, TypeTable)>> {
+                            let remote_types = view.module.dir(ctx.profile).types.read();
                             let mut remote_snapshot = remote_types.clone();
                             let mut remote_visited = visited.clone();
                             let remote_substitutions =
@@ -525,26 +523,25 @@ impl Compiler {
                                         let remote_type_id = self.import_remote_type_for_node(
                                             source_node,
                                             local_type,
-                                            tables_ctx.types,
+                                            ctx.types,
                                             &mut remote_snapshot,
                                         );
-                                    mapped.insert(*parameter_symbol, remote_type_id);
+                                        mapped.insert(*parameter_symbol, remote_type_id);
                                     }
                                     mapped
                                 });
 
                             let remote_options =
-                                self.analyze_context_options_for_module(remote_module.id);
-                            let mut remote_tables =
-                                tables_ctx.reborrow_for_module_with_options_and_types(
-                                    remote_module,
-                                    &remote_options,
-                                    remote_tree,
-                                    remote_symbols,
-                                    &mut remote_snapshot,
-                                );
+                                self.analyze_context_options_for_module(view.module.id);
+                            let mut view = ctx.reborrow_for_module_with_options_and_types(
+                                view.module,
+                                &remote_options,
+                                view.tree,
+                                view.symbols,
+                                &mut remote_snapshot,
+                            );
                             let value = self.resolve_static_constant_reference_with_previsited(
-                                &mut remote_tables,
+                                &mut view,
                                 symbol,
                                 mode,
                                 remote_substitutions.as_ref(),
@@ -564,7 +561,7 @@ impl Compiler {
                         source_node,
                         &value,
                         &remote_snapshot,
-                        tables_ctx.types,
+                        ctx.types,
                     )
                 });
             }
@@ -576,21 +573,18 @@ impl Compiler {
         }
 
         // ensure dependency items are resolved before evaluating local constants
-        if symbol.module_id == tables_ctx.module.id && mode == StaticEvaluationMode::Parametric {
-            self.require_resolve_module_direct(tables_ctx.module.id, tables_ctx.profile)
+        if symbol.module_id == ctx.module.id && mode == StaticEvaluationMode::Parametric {
+            self.require_resolve_module_direct(ctx.module.id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
-        let value = if let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-            tables_ctx.module,
-            symbol,
-            tables_ctx.tree,
-            tables_ctx.symbols,
-        ) {
-            let declarator = tables_ctx.tree.get(declarator_id);
+        let value = if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), symbol)
+        {
+            let declarator = ctx.tree.get(declarator_id);
 
             // require immutable bindings for static arguments
-            let parent_id = tables_ctx.tree.get_parent(declarator_id.id);
+            let parent_id = ctx.tree.get_parent(declarator_id.id);
             let Some(parent_id) = parent_id else {
                 if owns_visit_marker {
                     visited.remove(&symbol);
@@ -605,7 +599,7 @@ impl Compiler {
             }
 
             let expression_id = parent_id.into_typed::<Expression>();
-            let Expression::Let { mutability, .. } = tables_ctx.tree.get(expression_id) else {
+            let Expression::Let { mutability, .. } = ctx.tree.get(expression_id) else {
                 if owns_visit_marker {
                     visited.remove(&symbol);
                 }
@@ -626,7 +620,7 @@ impl Compiler {
                 return Ok(None);
             };
             self.evaluate_static_expression_value_inner(
-                &mut tables_ctx.reborrow(),
+                &mut ctx.reborrow(),
                 value_id,
                 None,
                 mode,
@@ -635,7 +629,7 @@ impl Compiler {
                 visited,
             )?
         } else {
-            let symbol_entry = tables_ctx.symbols.get_symbol(symbol.local_id);
+            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
 
             // evaluate associated comptime member initializers
             if let Some(primary_declaration) = symbol_entry.primary_declaration
@@ -645,12 +639,12 @@ impl Compiler {
                 if let Member::ComptimeConst {
                     value: Some(value_expression_id),
                     ..
-                } = tables_ctx.tree.get(member_id)
+                } = ctx.tree.get(member_id)
                 {
                     // evaluate literal/static forms directly first
                     let value = {
                         self.evaluate_static_expression_value_inner(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             *value_expression_id,
                             None,
                             mode,
@@ -669,7 +663,7 @@ impl Compiler {
 
                         // evaluate type-level forms through substitution and normalization
                         let mut value_type_id = self.resolve_declared_type_expression(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             *value_expression_id,
                             true,
                             true,
@@ -682,26 +676,26 @@ impl Compiler {
                             value_type_id = self.substitute_static_parameters(
                                 value_type_id,
                                 substitutions,
-                                tables_ctx.types,
+                                ctx.types,
                                 &mut substitution_cache,
                             );
                         }
 
                         let mut materialize_cache = TypeRewriteCache::new();
                         value_type_id = self.materialize_static_arguments_in_type(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             value_type_id,
                             &mut materialize_cache,
                         );
 
                         value_type_id = self.normalize_type_with_relation(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             value_type_id,
                             NormalizationMode::Assign,
                             RelationMode::STATIC_EVAL,
                         );
 
-                        let projected_value = match tables_ctx.types.get_type(value_type_id) {
+                        let projected_value = match ctx.types.get_type(value_type_id) {
                             Type::TypeLiteral {
                                 value: TypeLiteral::ScalarLiteral(value),
                             } => Some(StaticExpression::ScalarLiteral {
@@ -730,9 +724,9 @@ impl Compiler {
                 && primary_declaration.local_id.ty == NodeType::DependencyItem
                 && let item_id = primary_declaration.local_id.into_typed::<DependencyItem>()
                 && let DependencyItem::Local { target_symbol, .. }
-                | DependencyItem::Remote { target_symbol, .. } = tables_ctx.tree.get(item_id)
+                | DependencyItem::Remote { target_symbol, .. } = ctx.tree.get(item_id)
                 && let Some(value) = self.resolve_static_constant_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *target_symbol,
                     mode,
                     substitutions,
@@ -752,9 +746,9 @@ impl Compiler {
                 && primary_declaration.local_id.ty == NodeType::Expression
             {
                 let expression_id = primary_declaration.local_id.into_typed::<Expression>();
-                if let Expression::Export { items, .. } = tables_ctx.tree.get(expression_id) {
+                if let Expression::Export { items, .. } = ctx.tree.get(expression_id) {
                     for item_id in items {
-                        match tables_ctx.tree.get(*item_id) {
+                        match ctx.tree.get(*item_id) {
                             DependencyItem::Local {
                                 symbol: Some(local_symbol),
                                 target_symbol,
@@ -766,7 +760,7 @@ impl Compiler {
                                 ..
                             } if *local_symbol == symbol.local_id => {
                                 if let Some(value) = self.resolve_static_constant_reference(
-                                    &mut tables_ctx.reborrow(),
+                                    &mut ctx.reborrow(),
                                     *target_symbol,
                                     mode,
                                     substitutions,
@@ -788,7 +782,7 @@ impl Compiler {
 
             if let Some(target_symbol) = symbol_entry.target_symbol {
                 self.resolve_static_constant_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     target_symbol,
                     mode,
                     substitutions,
@@ -798,7 +792,7 @@ impl Compiler {
                 )?
             } else if let Some(canonical_symbol) = symbol_entry.canonical_symbol {
                 self.resolve_static_constant_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     canonical_symbol,
                     mode,
                     substitutions,
@@ -809,10 +803,10 @@ impl Compiler {
             } else {
                 // parametric mode may reuse inferred literal value snapshots
                 if mode == StaticEvaluationMode::Parametric
-                    && let Some(value_type_id) = tables_ctx.types.get_value_type_id(symbol)
+                    && let Some(value_type_id) = ctx.types.get_value_type_id(symbol)
                     && let Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(value),
-                    } = tables_ctx.types.get_type(value_type_id)
+                    } = ctx.types.get_type(value_type_id)
                 {
                     Some(StaticExpression::ScalarLiteral {
                         value: value.clone(),

@@ -1,4 +1,4 @@
-use crate::{AnalyzeOptions, InferContext};
+use crate::{AnalyzeOptions, InferState};
 use destack_dir::InferTable;
 use destack_workspace::ProfileId;
 
@@ -8,7 +8,7 @@ pub struct InferSession {
     /// Inference variables and constraints for this infer run.
     table: InferTable,
     /// Contextual and flow-sensitive infer state for this infer run.
-    context: InferContext,
+    context: InferState,
 }
 
 impl InferSession {
@@ -17,7 +17,7 @@ impl InferSession {
         // initialize infer-owned state
         Self {
             table: InferTable::default(),
-            context: InferContext::new(profile, options),
+            context: InferState::new(profile, options),
         }
     }
 
@@ -32,17 +32,17 @@ impl InferSession {
     }
 
     /// Borrow the infer context.
-    pub fn context(&self) -> &InferContext {
+    pub fn context(&self) -> &InferState {
         &self.context
     }
 
     /// Borrow the infer context mutably.
-    pub fn context_mut(&mut self) -> &mut InferContext {
+    pub fn context_mut(&mut self) -> &mut InferState {
         &mut self.context
     }
 
     /// Borrow infer table and context mutably as disjoint fields.
-    pub fn parts_mut(&mut self) -> (&mut InferTable, &mut InferContext) {
+    pub fn parts_mut(&mut self) -> (&mut InferTable, &mut InferState) {
         (&mut self.table, &mut self.context)
     }
 

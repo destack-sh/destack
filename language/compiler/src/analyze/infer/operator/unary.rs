@@ -4,78 +4,68 @@ use super::*;
 impl Compiler {
     pub(crate) fn infer_unary_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &UnaryOperator,
         right_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_OPERATOR);
 
-        let mut right_ctx = ctx.fork().with_expected_type(None);
-        let right_ty_id =
-            self.infer_expression(&mut tables.reborrow(), right_id, &mut right_ctx)?;
-        let right_ty = tables.types.get_type(right_ty_id).clone();
+        let mut right_ctx = state.fork().with_expected_type(None);
+        let right_ty_id = self.infer_expression(&mut ctx.reborrow(), right_id, &mut right_ctx)?;
+        let right_ty = ctx.types.get_type(right_ty_id).clone();
 
         let operator_item = operator.language_symbol();
 
         // use builtin rules when appropriate
-        if self.should_use_builtin_unary_operator(operator, &right_ty, tables.types) {
+        if self.should_use_builtin_unary_operator(operator, &right_ty, ctx.types) {
             if matches!(operator, UnaryOperator::Dereference)
                 && let Type::PointerOf { right, .. } = &right_ty
             {
                 self.record_provisional_builtin_resolution(
-                    expression_id.into_global_any(tables.module.id),
+                    expression_id.into_global_any(ctx.module.id),
                     Some(right_ty_id),
-                    tables.infer,
-                    tables.types,
+                    ctx.infer,
+                    ctx.types,
                 );
                 return Ok(*right);
             }
 
             let ty = self.infer_unary_operation(operator, &right_ty);
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(right_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // fall back to builtin inference when no operator interface exists
         let Some(operator_item) = operator_item else {
             let ty = self.infer_unary_operation(operator, &right_ty);
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         };
 
         // require explicit operator interface implementation
-        if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
-            &right_ty,
-            operator_item,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.is_interface_implemented(ctx.symbol_type_view(), &right_ty, operator_item) {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 right_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // resolve the operator member function
         let operator_key = self.operator_member_key(operator_item);
         let Some(resolved) = ({
             self.resolve_member_function(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 right_id,
                 Some(right_ty_id),
@@ -84,60 +74,54 @@ impl Compiler {
             )?
         }) else {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 right_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         };
 
         // handle missing member
         if !resolved.has_member {
             self.record_member_call_resolution(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 right_ty_id,
                 &resolved,
             )?;
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 right_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // unary operators expect no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 right_ty_id,
-                tables.types,
             );
         }
 
         // finalize resolution and instance registration
         self.record_member_call_resolution(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             right_ty_id,
             &resolved,
         )?;
 
         let return_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
-            tables.types.insert_type_from(
+            ctx.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 },
@@ -149,7 +133,6 @@ impl Compiler {
     }
 
     /// Infer a binary operator expression.
-
     fn should_use_builtin_unary_operator(
         &self,
         operator: &UnaryOperator,

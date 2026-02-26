@@ -5,7 +5,7 @@ use destack_dir::{
     TypeLiteral, TypeTable,
 };
 
-use super::{NormalizationMode, RelationMode, TypeTablesContext};
+use super::{NormalizationMode, RelationMode, TypeContext};
 use crate::{Assignability, Compiler};
 
 const TEMPLATE_LITERAL_KEY_EXPANSION_LIMIT: usize = 256;
@@ -171,13 +171,13 @@ impl Compiler {
     /// Check whether a string literal matches a template literal type.
     pub(crate) fn template_literal_matches_string(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         value: &str,
     ) -> bool {
         // treat `${string}` templates as string
-        if self.template_literal_is_string_supertype(&mut tables.reborrow(), strings, spans) {
+        if self.template_literal_is_string_supertype(&mut ctx.reborrow(), strings, spans) {
             return true;
         }
 
@@ -195,7 +195,7 @@ impl Compiler {
         let mut visited = HashSet::new();
         for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
             if !self.template_span_matches_string(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *span_ty_id,
                 span_value,
                 &mut visited,
@@ -211,7 +211,7 @@ impl Compiler {
     /// Check whether one template literal type is assignable to another.
     pub(crate) fn template_literal_matches_template(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         target_strings: &[StringId],
         target_spans: &[LocalTypeId],
         source_strings: &[StringId],
@@ -228,7 +228,7 @@ impl Compiler {
 
         // allow string supertype targets
         if self.template_literal_is_string_supertype(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             target_strings,
             target_spans,
         ) {
@@ -259,11 +259,7 @@ impl Compiler {
 
         // check each target span against its segment
         for (segment, span_ty_id) in segments.iter().zip(target_spans.iter()) {
-            if !self.template_segment_matches_span_type(
-                &mut tables.reborrow(),
-                *span_ty_id,
-                segment,
-            ) {
+            if !self.template_segment_matches_span_type(&mut ctx.reborrow(), *span_ty_id, segment) {
                 return false;
             }
         }
@@ -384,12 +380,12 @@ impl Compiler {
     /// Check whether a template literal segment fits within a span type.
     fn template_segment_matches_span_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
         segment: &TemplateSpanSegment,
     ) -> bool {
         // allow infer variables
-        if let Type::InferVar { .. } = tables.types.get_type(span_ty_id) {
+        if let Type::InferVar { .. } = ctx.types.get_type(span_ty_id) {
             return true;
         }
 
@@ -397,7 +393,7 @@ impl Compiler {
         if let Some(literal) = segment.literal_string() {
             let mut visited = HashSet::new();
             return self.template_span_matches_string(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 span_ty_id,
                 &literal,
                 &mut visited,
@@ -407,17 +403,17 @@ impl Compiler {
         // allow a single span segment when assignable
         if segment.literals.is_empty() && segment.spans.len() == 1 {
             // allow string spans to accept any stringifiable template span
-            if self.span_is_string_compatible_for_template(&mut tables.reborrow(), span_ty_id) {
+            if self.span_is_string_compatible_for_template(&mut ctx.reborrow(), span_ty_id) {
                 return true;
             }
 
-            return self.is_type_assignable(&mut tables.reborrow(), span_ty_id, segment.spans[0])
+            return self.is_type_assignable(&mut ctx.reborrow(), span_ty_id, segment.spans[0])
                 == Assignability::Assignable;
         }
 
         // require string like span types for mixed segments
         matches!(
-            tables.types.get_type(span_ty_id),
+            ctx.types.get_type(span_ty_id),
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
             } | Type::TypeLiteral {
@@ -429,41 +425,33 @@ impl Compiler {
     /// Check whether a span type can accept any string and a stringifiable template span.
     fn span_is_string_compatible_for_template(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
     ) -> bool {
         let mut visited = HashSet::new();
-
-        self.span_is_string_supertype(&mut tables.reborrow(), span_ty_id, &mut visited)
-            && self.span_is_template_stringifiable(&mut tables.reborrow(), span_ty_id, &mut visited)
+        self.span_is_string_supertype(&mut ctx.reborrow(), span_ty_id, &mut visited)
+            && self.span_is_template_stringifiable(&mut ctx.reborrow(), span_ty_id, &mut visited)
     }
 
     /// Resolve the span type used for template matching.
     fn resolve_template_span_match_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
         source_id: LocalNodeIdAny,
     ) -> TemplateSpanMatch {
         // resolve static parameter constraints when available
-        if let Type::Reference { symbol, .. } = tables.types.get_type(span_ty_id)
-            && self.symbol_is_static_parameter(
-                tables.module,
-                tables.profile,
-                *symbol,
-                tables.symbols,
-                tables.types,
-            )
+        if let Type::Reference { symbol, .. } = ctx.types.get_type(span_ty_id)
+            && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
         {
             let symbol = *symbol;
-            let mut module_tables = tables.reborrow();
-            let constraint_id =
-                self.static_parameter_constraint_type(&mut module_tables, symbol, source_id);
+            let mut ctx = ctx.reborrow();
+            let constraint_id = self.static_parameter_constraint_type(&mut ctx, symbol, source_id);
             let Some(constraint_id) = constraint_id else {
                 return TemplateSpanMatch::Any;
             };
             if matches!(
-                tables.types.get_type(constraint_id),
+                ctx.types.get_type(constraint_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown
                 }
@@ -480,14 +468,14 @@ impl Compiler {
     /// Check whether a span type can appear inside a template literal.
     fn span_is_template_stringifiable(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span type for matching
-        let source_id = tables.types.get_type_source(span_ty_id);
+        let source_id = ctx.types.get_type_source(span_ty_id);
         let span_match =
-            self.resolve_template_span_match_type(&mut tables.reborrow(), span_ty_id, source_id);
+            self.resolve_template_span_match_type(&mut ctx.reborrow(), span_ty_id, source_id);
 
         let span_ty_id = match span_match {
             TemplateSpanMatch::Any => return true,
@@ -501,8 +489,8 @@ impl Compiler {
 
         // normalize the span type
         let normalized_id =
-            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
-        let span_ty = tables.types.get_type(normalized_id).clone();
+            self.normalize_type(&mut ctx.reborrow(), span_ty_id, NormalizationMode::Flow);
+        let span_ty = ctx.types.get_type(normalized_id).clone();
 
         // check template string compatibility
         let stringifiable = match span_ty {
@@ -522,10 +510,10 @@ impl Compiler {
             },
             Type::TemplateLiteral { .. } => true,
             Type::Union { elements } => elements.iter().all(|element_id| {
-                self.span_is_template_stringifiable(&mut tables.reborrow(), *element_id, visited)
+                self.span_is_template_stringifiable(&mut ctx.reborrow(), *element_id, visited)
             }),
             Type::Intersection { elements } => elements.iter().all(|element_id| {
-                self.span_is_template_stringifiable(&mut tables.reborrow(), *element_id, visited)
+                self.span_is_template_stringifiable(&mut ctx.reborrow(), *element_id, visited)
             }),
             _ if span_ty.is_infer() => true,
             _ => false,
@@ -539,15 +527,15 @@ impl Compiler {
     /// Check whether a span type can match a string literal.
     pub(crate) fn template_span_matches_string(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
         value: &str,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span type for matching
-        let source_id = tables.types.get_type_source(span_ty_id);
+        let source_id = ctx.types.get_type_source(span_ty_id);
         let span_match =
-            self.resolve_template_span_match_type(&mut tables.reborrow(), span_ty_id, source_id);
+            self.resolve_template_span_match_type(&mut ctx.reborrow(), span_ty_id, source_id);
 
         let span_ty_id = match span_match {
             TemplateSpanMatch::Any => return true,
@@ -561,35 +549,22 @@ impl Compiler {
 
         // normalize the span type
         let normalized_id =
-            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
-        let span_ty = tables.types.get_type(normalized_id).clone();
+            self.normalize_type(&mut ctx.reborrow(), span_ty_id, NormalizationMode::Flow);
+        let span_ty = ctx.types.get_type(normalized_id).clone();
 
         // evaluate matching rules
         let matches = match span_ty {
             Type::TypeLiteral { value: literal } => {
                 self.literal_type_matches_string(&literal, value)
             }
-            Type::TemplateLiteral { strings, spans } => self.template_literal_matches_string(
-                &mut tables.reborrow(),
-                &strings,
-                &spans,
-                value,
-            ),
+            Type::TemplateLiteral { strings, spans } => {
+                self.template_literal_matches_string(&mut ctx.reborrow(), &strings, &spans, value)
+            }
             Type::Union { elements } => elements.iter().any(|element_id| {
-                self.template_span_matches_string(
-                    &mut tables.reborrow(),
-                    *element_id,
-                    value,
-                    visited,
-                )
+                self.template_span_matches_string(&mut ctx.reborrow(), *element_id, value, visited)
             }),
             Type::Intersection { elements } => elements.iter().all(|element_id| {
-                self.template_span_matches_string(
-                    &mut tables.reborrow(),
-                    *element_id,
-                    value,
-                    visited,
-                )
+                self.template_span_matches_string(&mut ctx.reborrow(), *element_id, value, visited)
             }),
             _ if span_ty.is_infer() => true,
             _ => false,
@@ -1136,7 +1111,7 @@ impl Compiler {
 
         // use exponential formatting for extreme values
         let abs = value.abs();
-        if abs >= 1e21 || abs < 1e-6 {
+        if !(1e-6..1e21).contains(&abs) {
             let mut formatted = format!("{value:e}");
             if let Some(exponent_index) = formatted.find('e') {
                 let exponent = &formatted[(exponent_index + 1)..];
@@ -1187,7 +1162,7 @@ impl Compiler {
     /// Check whether a template literal type accepts all strings.
     pub(crate) fn template_literal_is_string_supertype(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
     ) -> bool {
@@ -1207,7 +1182,7 @@ impl Compiler {
         // verify every span accepts all strings
         let mut visited = HashSet::new();
         for span in spans {
-            if !self.span_is_string_supertype(&mut tables.reborrow(), *span, &mut visited) {
+            if !self.span_is_string_supertype(&mut ctx.reborrow(), *span, &mut visited) {
                 return false;
             }
             has_span = true;
@@ -1219,7 +1194,7 @@ impl Compiler {
     /// Resolve the key shape for a template literal type.
     pub(super) fn template_literal_key_shape(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         relation_mode: RelationMode,
@@ -1230,7 +1205,7 @@ impl Compiler {
         }
 
         // template literals that accept all strings become string index keys
-        if self.template_literal_is_string_supertype(&mut tables.reborrow(), strings, spans) {
+        if self.template_literal_is_string_supertype(&mut ctx.reborrow(), strings, spans) {
             return Some(TemplateLiteralKeyShape::StringIndex);
         }
 
@@ -1239,7 +1214,7 @@ impl Compiler {
         let mut visited = HashSet::new();
         for span in spans {
             let Some(values) = self.template_literal_span_literal_values(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *span,
                 relation_mode,
                 &mut visited,
@@ -1282,15 +1257,15 @@ impl Compiler {
     /// Collect literal string values for a template literal span type.
     fn template_literal_span_literal_values(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_type_id: LocalTypeId,
         relation_mode: RelationMode,
         visited: &mut HashSet<LocalTypeId>,
     ) -> Option<Vec<String>> {
         // resolve static parameter constraints when available
-        let source_id = tables.types.get_type_source(span_type_id);
+        let source_id = ctx.types.get_type_source(span_type_id);
         let span_type_id = match self.resolve_template_span_match_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             span_type_id,
             source_id,
         ) {
@@ -1301,7 +1276,7 @@ impl Compiler {
         // normalize span types before extracting literals
         let mut normalize_visited = Vec::new();
         let normalized_id = self.normalize_type_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             span_type_id,
             NormalizationMode::Assign,
             relation_mode,
@@ -1309,7 +1284,7 @@ impl Compiler {
         );
         if normalized_id != span_type_id {
             return self.template_literal_span_literal_values(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 normalized_id,
                 relation_mode,
                 visited,
@@ -1322,7 +1297,7 @@ impl Compiler {
         }
 
         // collect literal values from the normalized span type
-        let result = match tables.types.get_type(span_type_id).clone() {
+        let result = match ctx.types.get_type(span_type_id).clone() {
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(literal),
             } => {
@@ -1350,7 +1325,7 @@ impl Compiler {
                 let mut values = Vec::new();
                 for element in elements {
                     let element_values = self.template_literal_span_literal_values(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         element,
                         relation_mode,
                         visited,
@@ -1360,7 +1335,7 @@ impl Compiler {
                 Some(values)
             }
             Type::TemplateLiteral { strings, spans } => self.template_literal_string_values(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 &strings,
                 &spans,
                 relation_mode,
@@ -1377,7 +1352,7 @@ impl Compiler {
     /// Expand template literal types into literal string values when possible.
     fn template_literal_string_values(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         relation_mode: RelationMode,
@@ -1392,7 +1367,7 @@ impl Compiler {
         let mut span_values = Vec::new();
         for span in spans {
             let values = self.template_literal_span_literal_values(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *span,
                 relation_mode,
                 visited,
@@ -1426,14 +1401,14 @@ impl Compiler {
     /// Check whether a span type can accept any string.
     fn span_is_string_supertype(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         span_ty_id: LocalTypeId,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span type for matching
-        let source_id = tables.types.get_type_source(span_ty_id);
+        let source_id = ctx.types.get_type_source(span_ty_id);
         let span_match =
-            self.resolve_template_span_match_type(&mut tables.reborrow(), span_ty_id, source_id);
+            self.resolve_template_span_match_type(&mut ctx.reborrow(), span_ty_id, source_id);
 
         let span_ty_id = match span_match {
             TemplateSpanMatch::Any => return true,
@@ -1447,8 +1422,8 @@ impl Compiler {
 
         // normalize the span type
         let normalized_id =
-            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
-        let span_ty = tables.types.get_type(normalized_id).clone();
+            self.normalize_type(&mut ctx.reborrow(), span_ty_id, NormalizationMode::Flow);
+        let span_ty = ctx.types.get_type(normalized_id).clone();
 
         // check for string like spans
         let accepts_all = match span_ty {
@@ -1459,10 +1434,10 @@ impl Compiler {
                 value: TypeLiteral::Any,
             } => true,
             Type::TemplateLiteral { strings, spans } => {
-                self.template_literal_is_string_supertype(&mut tables.reborrow(), &strings, &spans)
+                self.template_literal_is_string_supertype(&mut ctx.reborrow(), &strings, &spans)
             }
             Type::Union { elements } => elements.iter().any(|element_id| {
-                self.span_is_string_supertype(&mut tables.reborrow(), *element_id, visited)
+                self.span_is_string_supertype(&mut ctx.reborrow(), *element_id, visited)
             }),
             _ if span_ty.is_infer() => true,
             _ => false,

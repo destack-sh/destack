@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_base::StringId;
@@ -50,20 +50,20 @@ impl Compiler {
     /// Validate a declaration.
     pub(super) fn validate_declaration(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
     ) {
         // reject typescript-only declarations in javascript modules
-        if type_tables.module.language_type.is_javascript()
+        if ctx.module.language_type.is_javascript()
             && matches!(
                 declaration,
                 Declaration::Interface { .. } | Declaration::Type { .. } | Declaration::Enum { .. }
             )
         {
             let node = id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }
 
@@ -76,8 +76,8 @@ impl Compiler {
             } => {
                 // resolve the interface node for diagnostics
                 let node = id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
 
                 // interfaces cannot be abstract
                 if descriptor.abstraction == DeclarationAbstraction::Abstract {
@@ -90,8 +90,8 @@ impl Compiler {
                 }
 
                 // reject intrinsic type names as interface identifiers in typescript and destack
-                if (type_tables.module.language_type.is_typescript()
-                    || type_tables.module.language_type.is_destack())
+                if (ctx.module.language_type.is_typescript()
+                    || ctx.module.language_type.is_destack())
                     && let Some(name) = descriptor.name
                     && self.is_reserved_type_name(name)
                 {
@@ -124,20 +124,20 @@ impl Compiler {
             } => {
                 // resolve the function node for diagnostics
                 let node = id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
-                let is_destack = type_tables.module.language_type.is_destack();
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
+                let is_destack = ctx.module.language_type.is_destack();
 
                 // preserve reserved name validation for inner-only expression bindings
                 self.validate_inner_only_declaration_reserved_name(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     id,
                     descriptor,
                 );
 
                 // declare functions cannot have a body
                 let is_declare = descriptor.kind == DeclarationKind::Declaration
-                    || self.is_in_declare_namespace(type_tables.tree, id.into_any());
+                    || self.is_in_declare_namespace(ctx.tree, id.into_any());
                 if is_declare && body.is_some() {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
@@ -166,11 +166,9 @@ impl Compiler {
                 // strict directive prologues require simple parameter lists in JS/TS modes
                 if !is_destack
                     && let Some(body) = body
-                    && self.has_non_simple_dynamic_parameters(
-                        type_tables.tree,
-                        &signature.dynamic_parameters,
-                    )
-                    && self.body_declares_use_strict_directive(type_tables.tree, *body)
+                    && self
+                        .has_non_simple_dynamic_parameters(ctx.tree, &signature.dynamic_parameters)
+                    && self.body_declares_use_strict_directive(ctx.tree, *body)
                 {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
@@ -183,12 +181,12 @@ impl Compiler {
             } => {
                 // resolve the type alias node for diagnostics
                 let node = id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
 
                 // reject intrinsic type names as type alias identifiers in typescript and destack
-                if (type_tables.module.language_type.is_typescript()
-                    || type_tables.module.language_type.is_destack())
+                if (ctx.module.language_type.is_typescript()
+                    || ctx.module.language_type.is_destack())
                     && let Some(name) = descriptor.name
                     && self.is_reserved_type_name(name)
                 {
@@ -201,15 +199,15 @@ impl Compiler {
                 // reject invalid type parameter modifiers in type aliases
                 if let Some(static_parameters) = static_parameters {
                     for parameter_id in static_parameters {
-                        let parameter = type_tables.tree.get(*parameter_id);
+                        let parameter = ctx.tree.get(*parameter_id);
                         let modifiers = parameter.modifiers();
                         let has_const_modifier = modifiers.is_some_and(|modifiers| {
                             modifiers.operator == Some(BindingOperator::AsConst)
                         });
                         if has_const_modifier {
                             let node = parameter_id
-                                .into_global_any(type_tables.module.id)
-                                .into_anchored(Some(type_tables.profile));
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile));
                             self.error(AnalyzeError::InvalidTypeParameterModifier { node });
                         }
                     }
@@ -219,8 +217,8 @@ impl Compiler {
             Declaration::Struct { heritage, .. } => {
                 // resolve the struct node for diagnostics
                 let node = id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
 
                 // structs cannot use extends
                 let has_extends = heritage
@@ -228,11 +226,9 @@ impl Compiler {
                     .as_ref()
                     .is_some_and(|e| !e.is_empty());
                 if has_extends {
-                    let extends_symbols = type_tables
+                    let extends_symbols = ctx
                         .types
-                        .get_lineage_for_symbol(
-                            declaration.symbol().into_global(type_tables.module.id),
-                        )
+                        .get_lineage_for_symbol(declaration.symbol().into_global(ctx.module.id))
                         .and_then(|lineage| lineage.extends)
                         .into_iter()
                         .collect();
@@ -249,13 +245,13 @@ impl Compiler {
                 // import aliases cannot use import type
                 if *kind == DependencyKind::Type {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidTypeOnlyImportAlias { node });
                 }
 
                 // import alias targets must be qualified identifier paths
-                self.validate_import_alias_target(&mut type_tables.reborrow(), target);
+                self.validate_import_alias_target(&mut ctx.reborrow(), target);
             }
 
             Declaration::Class {
@@ -263,18 +259,18 @@ impl Compiler {
             } => {
                 // resolve the class node for diagnostics
                 let node = id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
 
                 // preserve reserved name validation for inner-only expression bindings
                 self.validate_inner_only_declaration_reserved_name(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     id,
                     declaration.descriptor(),
                 );
 
                 // reject typescript only class syntax in javascript modules
-                if type_tables.module.language_type.is_javascript() {
+                if ctx.module.language_type.is_javascript() {
                     let has_abstract =
                         declaration.descriptor().abstraction == DeclarationAbstraction::Abstract;
                     let has_implements = heritage.implements_types.is_some();
@@ -284,8 +280,8 @@ impl Compiler {
                 }
 
                 // reject intrinsic type names as class identifiers in typescript and destack
-                if (type_tables.module.language_type.is_typescript()
-                    || type_tables.module.language_type.is_destack())
+                if (ctx.module.language_type.is_typescript()
+                    || ctx.module.language_type.is_destack())
                     && let Some(name) = declaration.descriptor().name
                     && self.is_reserved_type_name(name)
                 {
@@ -299,9 +295,9 @@ impl Compiler {
                 let has_multiple_extends =
                     heritage.extends_types.as_ref().is_some_and(|e| e.len() > 1);
                 if has_multiple_extends {
-                    let lineage = type_tables.types.get_lineage_for_symbol(
-                        declaration.symbol().into_global(type_tables.module.id),
-                    );
+                    let lineage = ctx
+                        .types
+                        .get_lineage_for_symbol(declaration.symbol().into_global(ctx.module.id));
                     let extends_symbols = lineage.and_then(|l| l.extends).into_iter().collect();
                     let implements_symbols =
                         lineage.map(|l| l.implements.clone()).unwrap_or_default();
@@ -333,7 +329,7 @@ impl Compiler {
                 }
 
                 // class bodies can contain at most one constructor definition
-                self.validate_class_constructor_members(&mut type_tables.reborrow(), members);
+                self.validate_class_constructor_members(&mut ctx.reborrow(), members);
             }
 
             Declaration::Enum { .. } => {}
@@ -351,7 +347,7 @@ impl Compiler {
     /// Validate duplicate constructor definitions in class members.
     fn validate_class_constructor_members(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         members: &[LocalNodeId<Member>],
     ) {
         // track whether a concrete constructor implementation has been declared
@@ -365,7 +361,7 @@ impl Compiler {
                 signature,
                 body,
                 ..
-            } = type_tables.tree.get(*member_id)
+            } = ctx.tree.get(*member_id)
             else {
                 continue;
             };
@@ -387,8 +383,8 @@ impl Compiler {
             // report duplicate constructor implementations
             if has_constructor_implementation {
                 let node = (*member_id)
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile));
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile));
                 self.error(AnalyzeError::InvalidConstructor { node });
                 continue;
             }
@@ -441,12 +437,12 @@ impl Compiler {
     /// Validate reserved identifiers for declarations that do not publish a named symbol.
     fn validate_inner_only_declaration_reserved_name(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
     ) {
         // only user code can trigger this diagnostic
-        if !type_tables.module.is_user() {
+        if !ctx.module.is_user() {
             return;
         }
 
@@ -456,7 +452,7 @@ impl Compiler {
         };
 
         // regular declaration symbols are handled by scope-wide binding checks
-        let symbol = type_tables.symbols.get_symbol(descriptor.symbol);
+        let symbol = ctx.symbols.get_symbol(descriptor.symbol);
         if symbol.name().is_some() {
             return;
         }
@@ -468,27 +464,23 @@ impl Compiler {
         }
 
         let node = declaration_id
-            .into_global_any(type_tables.module.id)
-            .into_anchored(Some(type_tables.profile));
+            .into_global_any(ctx.module.id)
+            .into_anchored(Some(ctx.profile));
         self.error(AnalyzeError::ReservedIdentifier { node, name });
     }
 
     /// Validate an import alias target.
-    fn validate_import_alias_target(
-        &self,
-        type_tables: &mut TypeTablesContext<'_>,
-        target: &ImportAliasTarget,
-    ) {
+    fn validate_import_alias_target(&self, ctx: &mut TypeContext<'_>, target: &ImportAliasTarget) {
         // require targets are always valid
         let ImportAliasTarget::Path { value } = target else {
             return;
         };
 
         // validate qualified identifier paths
-        if !self.is_valid_import_alias_expression(type_tables.tree, *value) {
+        if !self.is_valid_import_alias_expression(ctx.tree, *value) {
             let node = value
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidImportAliasTarget { node });
         }
     }

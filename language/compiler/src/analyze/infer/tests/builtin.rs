@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::{TypeContext, TypeView};
 
 /// Analyze builtin Pick mapped types.
 #[test]
@@ -74,11 +75,9 @@ const bad: AgeOnly = { name: "Ada" };
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
-    let mut type_tables = crate::analyze::common::TypeTablesContext::new(
-        &module, profile, &options, &tree, &symbols, &mut types,
-    );
+    let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let normalized = test.compiler.normalize_type(
-        &mut type_tables.reborrow(),
+        &mut ctx.reborrow(),
         alias_target_id,
         NormalizationMode::Assign,
     );
@@ -113,7 +112,7 @@ type Alias = Pick<Person, "name">;
 "#,
     );
 
-    // run analyze pipeline to populate tables
+    // run analyze pipeline to populate ctx
     test.resolve_builtins();
     test.resolve_libs();
     test.analyze_module(module_id);
@@ -149,12 +148,8 @@ type Alias = Pick<Person, "name">;
     let parameter_symbols = test
         .compiler
         .collect_static_parameter_symbols(
-            &es5_module,
+            TypeView::new(&es5_module, es5_profile, &es5_tree, &es5_symbols, &types),
             pick_symbol,
-            es5_profile,
-            &es5_tree,
-            &es5_symbols,
-            &types,
         )
         .expect("expected Pick static parameters");
 
@@ -184,22 +179,22 @@ type Alias = Pick<Person, "name">;
         .expect("expected Person declaration");
     let source_id = person_declaration.local_id;
 
+    let tree = module.dir(profile).tree.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+
     // import the K constraint into the local type table
-    let k_constraint_id = test
-        .compiler
-        .static_parameter_constraint_type(
-            &module, profile, k_symbol, source_id, &symbols, &mut types,
-        )
-        .expect("expected K constraint type");
+    let k_constraint_id = {
+        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        test.compiler
+            .static_parameter_constraint_type(&mut ctx, k_symbol, source_id)
+            .expect("expected K constraint type")
+    };
 
     // the raw constraint should still reference static parameters
     let mut visited = HashSet::new();
     assert!(test.compiler.type_contains_static_parameters(
-        &module,
-        profile,
+        TypeView::new(&module, profile, &tree, &symbols, &types),
         k_constraint_id,
-        &symbols,
-        &types,
         &mut visited,
     ));
 
@@ -220,13 +215,9 @@ type Alias = Pick<Person, "name">;
         &mut types,
         &mut cache,
     );
-    let tree = module.dir(profile).tree.read();
-    let options = test.compiler.analyze_context_options_for_module(module.id);
-    let mut type_tables = crate::analyze::common::TypeTablesContext::new(
-        &module, profile, &options, &tree, &symbols, &mut types,
-    );
+    let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let normalized_constraint_id = test.compiler.normalize_type(
-        &mut type_tables.reborrow(),
+        &mut ctx.reborrow(),
         substituted_constraint_id,
         NormalizationMode::Assign,
     );

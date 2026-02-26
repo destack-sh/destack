@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -87,15 +87,15 @@ impl Compiler {
     /// Resolve a record-like index signature for the target symbol.
     pub(super) fn record_like_index_signature_for_target(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         target_symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
         target_id: LocalTypeId,
     ) -> Option<TypeIndexSignature> {
         // resolve record and map symbols
         let record_symbol =
-            self.get_well_known_type_symbol(tables.profile, WellKnownSymbol::Record)?;
-        let map_symbol = self.get_well_known_type_symbol(tables.profile, WellKnownSymbol::Map)?;
+            self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Record)?;
+        let map_symbol = self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Map)?;
         let is_record_like = target_symbol == record_symbol || target_symbol == map_symbol;
         if !is_record_like {
             return None;
@@ -103,19 +103,19 @@ impl Compiler {
 
         // resolve key and value arguments when available
         let static_arguments = static_arguments.unwrap_or(&[]);
-        let unknown_literal_type_id = tables
+        let unknown_literal_type_id = ctx
             .types
             .intern_literal_type(target_id, TypeLiteral::Unknown);
         let key_type_id = static_arguments
             .first()
             .and_then(|argument| {
-                self.record_like_type_id_for_static_argument(argument, tables.types, target_id)
+                self.record_like_type_id_for_static_argument(argument, ctx.types, target_id)
             })
             .unwrap_or(unknown_literal_type_id);
         let value_type_id = static_arguments
             .get(1)
             .and_then(|argument| {
-                self.record_like_type_id_for_static_argument(argument, tables.types, target_id)
+                self.record_like_type_id_for_static_argument(argument, ctx.types, target_id)
             })
             .unwrap_or(unknown_literal_type_id);
 
@@ -276,11 +276,11 @@ impl Compiler {
             match source_field {
                 Some(source_field) => {
                     let target_field_ty_id = self.prepare_assignability_type(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         target_field.ty,
                     );
                     let source_field_ty_id = self.prepare_assignability_type(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         source_field.ty,
                     );
                     let target_field_ty = ctx.types.get_type(target_field_ty_id);
@@ -303,7 +303,7 @@ impl Compiler {
 
                     let mut is_assignable = self
                         .is_type_assignable(
-                            &mut ctx.type_tables_reborrow(),
+                            &mut ctx.type_context_reborrow(),
                             target_field_ty_id,
                             source_field_ty_id,
                         )
@@ -312,7 +312,7 @@ impl Compiler {
                     if !ctx.options.exact_optional_property_types && target_field.is_optional {
                         is_assignable |= self
                             .is_type_assignable(
-                                &mut ctx.type_tables_reborrow(),
+                                &mut ctx.type_context_reborrow(),
                                 undefined_ty_id,
                                 source_field_ty_id,
                             )
@@ -322,7 +322,7 @@ impl Compiler {
                     if !ctx.options.exact_optional_property_types && source_field.is_optional {
                         let undefined_assignable = self
                             .is_type_assignable(
-                                &mut ctx.type_tables_reborrow(),
+                                &mut ctx.type_context_reborrow(),
                                 target_field_ty_id,
                                 undefined_ty_id,
                             )

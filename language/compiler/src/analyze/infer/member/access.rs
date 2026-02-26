@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext};
 use destack_dir::{FunctionKind, Property};
 
 #[allow(clippy::too_many_arguments)]
@@ -7,21 +7,21 @@ impl Compiler {
     /// Infer a member access expression.
     pub(crate) fn infer_member_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         member_name: StringId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_MEMBER);
 
         // query and normalize the receiver state
         let receiver = match self.query_member_access_receiver(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             left_id,
-            ctx,
+            state,
         )? {
             MemberAccessReceiverQuery::EarlyType(type_id) => return Ok(type_id),
             MemberAccessReceiverQuery::Receiver(receiver) => receiver,
@@ -42,8 +42,8 @@ impl Compiler {
                 value: TypeLiteral::Any,
             }
         ) {
-            let type_id = self.any_member_access_type(expression_id, &mut *tables.types);
-            return Ok(finish_result(type_id, &mut *tables.types));
+            let type_id = self.any_member_access_type(expression_id, &mut *ctx.types);
+            return Ok(finish_result(type_id, &mut *ctx.types));
         }
 
         // resolve the lookup key from member syntax
@@ -51,41 +51,41 @@ impl Compiler {
 
         // handle enum field access early to preserve nominal enum types
         if let Some(enum_reference_id) = self.resolve_enum_field_access(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver.receiver_id,
             receiver.receiver_ty_id,
             &receiver.receiver_ty,
             &member_key,
         )? {
-            return Ok(finish_result(enum_reference_id, &mut *tables.types));
+            return Ok(finish_result(enum_reference_id, &mut *ctx.types));
         }
 
         // resolve member symbol and substitution state for this receiver
         let lookup = self.resolve_member_access_lookup(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             &receiver,
             member_key,
-            ctx,
+            state,
         )?;
 
         // infer and commit the member access type from resolved lookup state
         let resolved_member_ty_id = self.infer_member_access_type_from_lookup(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             static_arguments,
             &receiver,
             &lookup,
-            ctx,
+            state,
         )?;
 
-        Ok(finish_result(resolved_member_ty_id, &mut *tables.types))
+        Ok(finish_result(resolved_member_ty_id, &mut *ctx.types))
     }
 
     /// Return true when the active function context uses lambda signature semantics.
-    fn context_function_uses_lambda_signature(&self, ctx: &InferContext, tree: &NodeTree) -> bool {
-        let Some(function_id) = ctx.in_function else {
+    fn context_function_uses_lambda_signature(&self, state: &InferState, tree: &NodeTree) -> bool {
+        let Some(function_id) = state.in_function else {
             return false;
         };
 
@@ -121,44 +121,43 @@ impl Compiler {
     /// Resolve one canonical infer-time receiver type for `import.meta`.
     fn resolve_import_meta_receiver_type_for_infer(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        ctx: &InferContext,
+        state: &InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(import_meta_symbol) =
-            self.get_language_symbol(tables.profile, LanguageSymbol::ImportMeta)
+            self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
         else {
             return Ok(None);
         };
 
         if let Some(import_meta_instance_ty_id) = self
             .apparent_instance_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 receiver_id.into_any(),
                 import_meta_symbol,
             )
             .or(self.import_instance_type_for_symbol(
-                tables.profile,
+                ctx.profile,
                 receiver_id.into_any(),
                 import_meta_symbol,
-                tables.types,
+                ctx.types,
             )?)
         {
             return Ok(Some(import_meta_instance_ty_id));
         }
 
-        if import_meta_symbol.module_id != tables.module.id {
+        if import_meta_symbol.module_id != ctx.module.id {
             let receiver_ty_id = self.resolve_remote_symbol_value_type_for_context(
-                tables.module,
-                ctx,
+                &mut ctx.reborrow(),
+                state,
                 receiver_id.into_any(),
                 import_meta_symbol,
-                tables.types,
             )?;
             return Ok(Some(receiver_ty_id));
         }
 
-        Ok(Some(tables.types.insert_type_from(
+        Ok(Some(ctx.types.insert_type_from(
             Type::Reference {
                 symbol: import_meta_symbol,
                 static_arguments: None,
@@ -170,11 +169,11 @@ impl Compiler {
     /// Recompute one receiver type from syntax without reusing inferred-expression cache.
     fn infer_member_receiver_type_without_cache(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let receiver_expression = tables.tree.get(receiver_id);
+        let receiver_expression = ctx.tree.get(receiver_id);
         let receiver_ty_id = match receiver_expression {
             Expression::LocalReference {
                 target_symbol,
@@ -191,28 +190,28 @@ impl Compiler {
                 static_arguments,
                 ..
             } => Some(self.infer_reference_expression(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 receiver_id,
                 *target_symbol,
                 static_arguments.as_deref(),
-                ctx,
+                state,
             )?),
 
             Expression::ImportMeta => {
                 if let Some(receiver_ty_id) = self.resolve_import_meta_receiver_type_for_infer(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     receiver_id,
-                    ctx,
+                    state,
                 )? {
                     Some(receiver_ty_id)
                 } else {
                     self.error(AnalyzeError::Internal {
                         message: format!(
                             "missing language symbol for import.meta: module={}, profile={:?}",
-                            tables.module.id, ctx.profile,
+                            ctx.module.id, state.profile,
                         ),
                     });
-                    Some(tables.types.insert_type_from(Type::Error, receiver_id))
+                    Some(ctx.types.insert_type_from(Type::Error, receiver_id))
                 }
             }
 
@@ -230,21 +229,21 @@ impl Compiler {
     /// Query and normalize the receiver state for member access.
     fn query_member_access_receiver(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<MemberAccessReceiverQuery> {
         // optional chain receivers must unwrap maybe before member lookup
         let optional_chain =
-            self.infer_optional_chain_receiver(&mut tables.reborrow(), left_id, ctx)?;
+            self.infer_optional_chain_receiver(&mut ctx.reborrow(), left_id, state)?;
         let (receiver_id, receiver_ty_id, has_optional_nullish) =
             if let Some(optional_chain) = optional_chain {
                 let Some(receiver_ty_id) = optional_chain.receiver_ty_id else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Undefined,
                     };
-                    let undefined_ty_id = tables.types.insert_type_from(ty, expression_id);
+                    let undefined_ty_id = ctx.types.insert_type_from(ty, expression_id);
                     return Ok(MemberAccessReceiverQuery::EarlyType(undefined_ty_id));
                 };
                 (
@@ -254,28 +253,28 @@ impl Compiler {
                 )
             } else {
                 let is_projection_receiver =
-                    self.is_projection_receiver_expression(&mut tables.reborrow(), left_id);
+                    self.is_projection_receiver_expression(&mut ctx.reborrow(), left_id);
                 let receiver_ty_id = if is_projection_receiver {
                     self.resolve_declared_type_expression(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         left_id,
                         true,
                         true,
                     )?
                 } else {
-                    self.infer_expression(&mut tables.reborrow(), left_id, ctx)?
+                    self.infer_expression(&mut ctx.reborrow(), left_id, state)?
                 };
                 (left_id, receiver_ty_id, false)
             };
         let mut receiver_ty_id = receiver_ty_id;
 
         // keep import.meta receivers anchored on the language import-meta type
-        if matches!(tables.tree.get(receiver_id), Expression::ImportMeta)
+        if matches!(ctx.tree.get(receiver_id), Expression::ImportMeta)
             && let Some(import_meta_receiver_ty_id) = self
                 .resolve_import_meta_receiver_type_for_infer(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     receiver_id,
-                    ctx,
+                    state,
                 )?
         {
             receiver_ty_id = import_meta_receiver_ty_id;
@@ -283,37 +282,37 @@ impl Compiler {
 
         // materialize and normalize the receiver before lookup
         receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             receiver_ty_id,
-            ctx,
+            state,
         )?;
 
         // recompute direct receiver references when cached receiver typing stayed unevaluated
-        if matches!(tables.types.get_type(receiver_ty_id), Type::Unevaluated(_))
+        if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
             && let Some(recomputed_receiver_ty_id) = self.infer_member_receiver_type_without_cache(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 receiver_id,
-                ctx,
+                state,
             )?
         {
             receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 recomputed_receiver_ty_id,
-                ctx,
+                state,
             )?;
         }
 
         // re-resolve receiver type expressions when receiver typing is still unevaluated
-        if matches!(tables.types.get_type(receiver_ty_id), Type::Unevaluated(_))
+        if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
             && let Ok(resolved_receiver_ty_id) = self.resolve_declared_type_expression(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 receiver_id,
                 true,
                 true,
             )
         {
             receiver_ty_id = self.normalize_type_with_relation(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 resolved_receiver_ty_id,
                 NormalizationMode::Assign,
                 RelationMode::ASSIGN,
@@ -321,28 +320,28 @@ impl Compiler {
         }
 
         // resolve unevaluated receivers through canonical reference symbols
-        if matches!(tables.types.get_type(receiver_ty_id), Type::Unevaluated(_))
+        if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
             && let Some(fallback_receiver_ty_id) = self.resolve_member_receiver_type_from_symbol(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 receiver_id,
-                ctx,
+                state,
             )?
         {
             receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 fallback_receiver_ty_id,
-                ctx,
+                state,
             )?;
         }
 
         // keep import.meta receivers anchored on the language import-meta instance
-        if matches!(tables.types.get_type(receiver_ty_id), Type::Unevaluated(_))
-            && matches!(tables.tree.get(receiver_id), Expression::ImportMeta)
+        if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && matches!(ctx.tree.get(receiver_id), Expression::ImportMeta)
             && let Some(import_meta_symbol) =
                 self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
             && let Some(import_meta_instance_ty_id) = self
                 .apparent_instance_type(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     receiver_id.into_any(),
                     import_meta_symbol,
                 )
@@ -350,11 +349,11 @@ impl Compiler {
                     ctx.profile,
                     receiver_id.into_any(),
                     import_meta_symbol,
-                    tables.types,
+                    ctx.types,
                 )?)
         {
             receiver_ty_id = self.normalize_type_with_relation(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 import_meta_instance_ty_id,
                 NormalizationMode::Assign,
                 RelationMode::ASSIGN,
@@ -362,37 +361,30 @@ impl Compiler {
         }
 
         // re-anchor local references through declared or inferred node commitments
-        if matches!(tables.types.get_type(receiver_ty_id), Type::Unevaluated(_))
-            && let Some(receiver_symbol) = self.reference_symbol_for_expression(
-                tables.module,
-                receiver_id,
-                ctx.profile,
-                tables.tree,
-                tables.symbols,
-            )
+        if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && let Some(receiver_symbol) =
+                self.reference_symbol_for_expression(ctx.tree_symbol_view(), receiver_id)
         {
             let receiver_symbol = self.canonical_symbol_id(
-                tables.module,
-                tables.symbols,
-                ctx.profile,
+                ctx.module_symbol_view(),
                 receiver_symbol,
                 CanonicalSymbolMode::FollowAliases,
             );
-            if receiver_symbol.module_id == tables.module.id
-                && let Some(primary_declaration) = tables
+            if receiver_symbol.module_id == ctx.module.id
+                && let Some(primary_declaration) = ctx
                     .symbols
                     .get_symbol(receiver_symbol.local_id)
                     .primary_declaration
-                && let Some(declared_or_inferred_ty_id) = tables
+                && let Some(declared_or_inferred_ty_id) = ctx
                     .types
                     .get_declared_or_inferred_type_id(primary_declaration)
             {
                 let declared_or_inferred_ty_id = self.ensure_unwrapped_value_type_evaluated(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     declared_or_inferred_ty_id,
                 )?;
                 receiver_ty_id = self.normalize_type_with_relation(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     declared_or_inferred_ty_id,
                     NormalizationMode::Assign,
                     RelationMode::ASSIGN,
@@ -400,26 +392,23 @@ impl Compiler {
             }
         }
 
-        let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
+        let receiver_ty = ctx.types.get_type(receiver_ty_id).clone();
         // classify receiver semantics once for member lookup and diagnostic deferral
         let receiver_context = self.query_member_receiver_context_for_expression(
-            &tables.type_tables_reborrow(),
+            &ctx.type_context_reborrow(),
             receiver_id,
             Some(receiver_ty_id),
         );
 
         // track whether member validation should wait for infer convergence
         let receiver_requires_infer_convergence = self.type_relation_requires_infer_convergence(
-            tables.module,
-            ctx.profile,
+            ctx.type_view(),
             receiver_ty_id,
             receiver_ty_id,
-            tables.symbols,
-            tables.types,
         ) || (receiver_context.has_this_receiver
             && matches!(receiver_ty, Type::This));
         let allow_missing_member_deferral =
-            self.context_function_uses_lambda_signature(ctx, tables.tree);
+            self.context_function_uses_lambda_signature(state, ctx.tree);
 
         Ok(MemberAccessReceiverQuery::Receiver(MemberAccessReceiver {
             receiver_id,
@@ -435,22 +424,22 @@ impl Compiler {
     /// Materialize and normalize one member receiver type for lookup.
     fn normalize_member_receiver_type_for_lookup(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_ty_id: LocalTypeId,
-        _ctx: &InferContext,
+        _state: &InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let receiver_ty_id =
-            self.materialize_infer_type_for_check(&mut tables.reborrow(), receiver_ty_id);
+            self.materialize_infer_type_for_check(&mut ctx.reborrow(), receiver_ty_id);
         let receiver_ty_id = self.normalize_type_with_relation(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             receiver_ty_id,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
         let receiver_ty_id =
-            self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), receiver_ty_id)?;
+            self.ensure_unwrapped_value_type_evaluated(&mut ctx.reborrow(), receiver_ty_id)?;
         let receiver_ty_id = self.normalize_type_with_relation(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             receiver_ty_id,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
@@ -462,17 +451,17 @@ impl Compiler {
     /// Resolve one unevaluated member receiver type through canonical symbol ownership.
     fn resolve_member_receiver_type_from_symbol(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        ctx: &InferContext,
+        state: &InferState,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // import.meta receivers resolve through the language import-meta symbol
-        if matches!(tables.tree.get(receiver_id), Expression::ImportMeta)
+        if matches!(ctx.tree.get(receiver_id), Expression::ImportMeta)
             && let Some(import_meta_symbol) =
                 self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
             && let Some(import_meta_receiver_ty_id) = self
                 .require_instance_type(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     receiver_id.into_any(),
                     import_meta_symbol,
                 )
@@ -480,67 +469,59 @@ impl Compiler {
                     ctx.profile,
                     receiver_id.into_any(),
                     import_meta_symbol,
-                    tables.types,
+                    ctx.types,
                 )?)
         {
             return Ok(Some(import_meta_receiver_ty_id));
         }
 
-        if matches!(tables.tree.get(receiver_id), Expression::ImportMeta)
+        if matches!(ctx.tree.get(receiver_id), Expression::ImportMeta)
             && let Some(import_meta_symbol) =
                 self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
-            && import_meta_symbol.module_id != tables.module.id
+            && import_meta_symbol.module_id != ctx.module.id
         {
             let import_meta_receiver_ty_id = self.resolve_remote_symbol_value_type_for_context(
-                tables.module,
-                ctx,
+                &mut ctx.reborrow(),
+                state,
                 receiver_id.into_any(),
                 import_meta_symbol,
-                tables.types,
             )?;
             return Ok(Some(import_meta_receiver_ty_id));
         }
 
         // resolve direct reference receivers through canonical symbols
-        let Some(receiver_symbol) = self.reference_symbol_for_expression(
-            tables.module,
-            receiver_id,
-            ctx.profile,
-            tables.tree,
-            tables.symbols,
-        ) else {
+        let Some(receiver_symbol) =
+            self.reference_symbol_for_expression(ctx.tree_symbol_view(), receiver_id)
+        else {
             return Ok(None);
         };
         let receiver_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            ctx.profile,
+            ctx.module_symbol_view(),
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
 
         // remote symbols use remote interface or surface value commitments
-        if receiver_symbol.module_id != tables.module.id {
+        if receiver_symbol.module_id != ctx.module.id {
             let receiver_type_id = self.resolve_remote_symbol_value_type_for_context(
-                tables.module,
-                ctx,
+                &mut ctx.reborrow(),
+                state,
                 receiver_id.into_any(),
                 receiver_symbol,
-                tables.types,
             )?;
             return Ok(Some(receiver_type_id));
         }
 
         // local symbols prefer committed value types then declared or inferred node commitments
-        if let Some(value_type_id) = tables.types.get_value_type_id(receiver_symbol) {
+        if let Some(value_type_id) = ctx.types.get_value_type_id(receiver_symbol) {
             return Ok(Some(value_type_id));
         }
 
-        let symbol_entry = tables.symbols.get_symbol(receiver_symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(receiver_symbol.local_id);
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return Ok(None);
         };
-        Ok(tables
+        Ok(ctx
             .types
             .get_declared_or_inferred_type_id(primary_declaration))
     }
@@ -548,33 +529,33 @@ impl Compiler {
     /// Resolve member lookup state for a prepared receiver.
     fn resolve_member_access_lookup(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver: &MemberAccessReceiver,
         member_key: StaticKey,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<MemberAccessLookup> {
         // ensure instance types are available for reference receivers
         self.ensure_reference_instance_types_for_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             receiver.receiver_ty_id,
         )?;
 
         // inherit static arguments and substitutions from the receiver
         let mut inherited = self.resolve_inherited_static_arguments(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             receiver.receiver_id.into_any(),
             Some(receiver.receiver_ty_id),
             &receiver.receiver_ty,
         )?;
 
         // classify receiver semantics once for all member lookup paths
-        let receiver_context = receiver.receiver_context.clone();
+        let receiver_context = receiver.receiver_context;
 
         // resolve member dispatch for the receiver type
         let resolution = self.resolve_member_symbol_for_receiver(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver.receiver_id,
             &receiver.receiver_ty,
@@ -584,12 +565,12 @@ impl Compiler {
 
         // reject implicit dynamic dispatch when configured
         if ctx.options.no_implicit_dynamic_dispatch
-            && matches!(tables.module.source, ModuleSource::User)
+            && matches!(ctx.module.source, ModuleSource::User)
             && matches!(resolution, MemberResolution::Dynamic { .. })
         {
             self.error(AnalyzeError::ImplicitDynamicDispatchDisabled {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
@@ -602,47 +583,38 @@ impl Compiler {
 
         // enforce visibility for resolved members
         self.check_member_resolution_visibility(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             &resolution,
             member_symbol,
             receiver.receiver_ty_id,
             &member_key,
-            ctx,
+            state,
         )?;
 
         // resolve enum field symbols for enum value receivers
         let member_symbol = self.resolve_enum_field_member_symbol(
-            tables.module,
+            &mut ctx.reborrow(),
             receiver.receiver_id,
             &member_key,
             member_symbol,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         )?;
         if let Some(member_symbol) = member_symbol {
             self.extend_owner_substitutions_from_inherited(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
                 &mut inherited.substitutions,
             );
         }
-        let enum_field_value_ty_id = self.enum_field_value_type_for_symbol(
-            tables.module,
-            tables.profile,
-            tables.symbols,
-            member_symbol,
-            tables.types,
-        )?;
+        let enum_field_value_ty_id =
+            self.enum_field_value_type_for_symbol(ctx.symbol_type_view(), member_symbol)?;
 
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
             self.resolve_extension_member_context(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
@@ -669,17 +641,17 @@ impl Compiler {
     /// Infer and commit the member access type from resolved lookup state.
     fn infer_member_access_type_from_lookup(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         receiver: &MemberAccessReceiver,
         lookup: &MemberAccessLookup,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the member type from the receiver shape
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             &receiver.receiver_ty,
             &lookup.member_key,
@@ -687,7 +659,7 @@ impl Compiler {
             &mut member_type_visited,
         )?;
         let member_ty_id = self.resolve_member_type_for_symbol(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             lookup.member_symbol,
             member_ty_id,
@@ -699,7 +671,7 @@ impl Compiler {
                 enum_field_value_ty_id
             } else if let Some(member_ty_id) = member_ty_id {
                 let resolved_member = self.resolve_member_access_type_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     lookup.member_symbol,
                     member_ty_id,
@@ -709,7 +681,7 @@ impl Compiler {
                 let member_instance_id = if static_arguments.is_some() {
                     if let Some(member_symbol) = lookup.member_symbol {
                         self.record_member_instance_for_arguments(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             expression_id,
                             member_symbol,
                             &lookup.inherited,
@@ -726,19 +698,19 @@ impl Compiler {
 
                 // record resolved member access for downstream passes
                 self.record_provisional_member_resolution(
-                    expression_id.into_global_any(tables.module.id),
+                    expression_id.into_global_any(ctx.module.id),
                     Some(receiver.receiver_ty_id),
                     &lookup.resolution,
                     member_instance_id,
                     None,
                     true,
-                    &mut *tables.infer,
-                    &mut *tables.types,
+                    &mut *ctx.infer,
+                    &mut *ctx.types,
                 );
                 resolved_member.type_id
             } else {
                 self.resolve_member_index_or_missing(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     super::resolve::MissingMemberResolutionContext {
                         expression_id,
                         receiver_id: receiver.receiver_id,
@@ -749,7 +721,7 @@ impl Compiler {
                         allow_missing_member_deferral: receiver.allow_missing_member_deferral,
                         member_key: &lookup.member_key,
                         member_resolution: &lookup.resolution,
-                        is_surface_inference: ctx.is_surface_inference,
+                        is_surface_inference: state.is_surface_inference,
                     },
                 )?
             };
@@ -760,12 +732,12 @@ impl Compiler {
             self.substitute_this_type(
                 resolved_member_ty_id,
                 receiver.receiver_ty_id,
-                &mut *tables.types,
+                &mut *ctx.types,
                 &mut cache,
             )
         };
         resolved_member_ty_id = self.materialize_associated_member_access_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             resolved_member_ty_id,
             lookup,
@@ -773,33 +745,30 @@ impl Compiler {
 
         // register associated comptime obligations until post infer convergence
         let obligation_member_symbol = self.projection_member_symbol_for_expression(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver.receiver_id,
             &lookup.member_key,
             lookup.member_symbol,
         )?;
         let receiver_is_projection_receiver =
-            self.is_projection_receiver_expression(&mut tables.reborrow(), receiver.receiver_id);
+            self.is_projection_receiver_expression(&mut ctx.reborrow(), receiver.receiver_id);
         let member_type_is_unevaluated = matches!(
-            tables.types.get_type(resolved_member_ty_id),
+            ctx.types.get_type(resolved_member_ty_id),
             Type::Unevaluated(_)
         );
         let requires_projection_obligation = if let Some(member_symbol) = obligation_member_symbol {
             self.projection_requires_associated_comptime_obligation(
-                tables.module,
-                ctx.profile,
+                ctx.tree_symbol_view(),
                 member_symbol,
                 lookup.receiver_context.has_static_arguments,
-                tables.tree,
-                tables.symbols,
             )?
         } else {
             (lookup.receiver_context.has_static_arguments || member_type_is_unevaluated)
                 && receiver_is_projection_receiver
         };
         if requires_projection_obligation {
-            tables.infer.push_associated_comptime_projection_obligation(
+            ctx.infer.push_associated_comptime_projection_obligation(
                 AssociatedComptimeProjectionObligation {
                     expression_id,
                     member_symbol: obligation_member_symbol,
@@ -816,7 +785,7 @@ impl Compiler {
     /// Resolve one associated-comptime member symbol for deferred projection obligations.
     fn projection_member_symbol_for_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         member_key: &StaticKey,
@@ -826,15 +795,15 @@ impl Compiler {
             return Ok(resolved_member_symbol);
         }
 
-        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tables.tree);
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, ctx.tree);
         let is_projection_receiver =
-            self.is_projection_receiver_expression(&mut tables.reborrow(), receiver_id);
+            self.is_projection_receiver_expression(&mut ctx.reborrow(), receiver_id);
         if !is_projection_receiver {
             return Ok(None);
         }
 
         let selection = self.select_associated_projection_member_symbol(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id,
             receiver_id,
             *member_key,
@@ -849,7 +818,7 @@ impl Compiler {
     /// Materialize one associated comptime member access after receiver substitution.
     fn materialize_associated_member_access_type(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_ty_id: LocalTypeId,
         lookup: &MemberAccessLookup,
@@ -858,13 +827,8 @@ impl Compiler {
             return Ok(member_ty_id);
         };
 
-        let kind = self.query_static_member_symbol_kind_for_symbol(
-            tables.module,
-            tables.profile,
-            member_symbol,
-            tables.tree,
-            tables.symbols,
-        )?;
+        let kind =
+            self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), member_symbol)?;
         if kind != Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
             return Ok(member_ty_id);
         }
@@ -872,18 +836,15 @@ impl Compiler {
         // defer projection materialization until receiver static arguments converge
         // unresolved obligations are reported after infer convergence
         if self.receiver_projection_arguments_require_deferral(
-            tables.module,
-            tables.profile,
+            ctx.type_view(),
             &lookup.inherited.arguments,
-            tables.symbols,
-            tables.types,
         ) {
             return Ok(member_ty_id);
         }
 
-        let member_ty = tables.types.get_type(member_ty_id).clone();
+        let member_ty = ctx.types.get_type(member_ty_id).clone();
         let materialized_ty = self.materialize_associated_member_projection(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             member_symbol,
             lookup.receiver_context.nominal_symbol,
@@ -892,7 +853,7 @@ impl Compiler {
             member_ty,
         )?;
 
-        Ok(tables
+        Ok(ctx
             .types
             .insert_type_from_type(materialized_ty, member_ty_id))
     }

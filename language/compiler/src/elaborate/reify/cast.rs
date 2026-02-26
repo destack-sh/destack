@@ -14,7 +14,8 @@ use super::r#type::{
     is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
-use crate::analyze::TypeTablesContext;
+use crate::analyze::TypeView;
+use crate::analyze::common::TypeContext;
 use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
 
 /// The resolved record-like target data for reification.
@@ -598,15 +599,14 @@ impl Compiler {
                 types,
             ) {
                 let options = self.analyze_context_options_for_module(module_id);
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+                let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
                 let to_outer = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     outer_target_type_id,
                     inner_target_type_id,
                 );
                 let to_inner = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     inner_target_type_id,
                     outer_target_type_id,
                 );
@@ -993,9 +993,8 @@ impl Compiler {
         let options = self.analyze_context_options_for_module(module.id);
         let target_type_source = types.get_type_source(target_type_id);
         let target_type_id = {
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
-            self.ensure_type_evaluated(&mut type_tables, target_type_id)
+            let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
+            self.ensure_type_evaluated(&mut ctx, target_type_id)
                 .map_err(|_| ElaborateError::UnsupportedConstruct {
                     node: target_type_source
                         .into_global(module_id)
@@ -1035,12 +1034,11 @@ impl Compiler {
 
         // skip when the types are mutually assignable
         let (to_target, to_source) = {
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+            let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
             let to_target =
-                self.is_type_assignable(&mut type_tables.reborrow(), target_type_id, value_type_id);
+                self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
             let to_source =
-                self.is_type_assignable(&mut type_tables.reborrow(), value_type_id, target_type_id);
+                self.is_type_assignable(&mut ctx.reborrow(), value_type_id, target_type_id);
             (to_target, to_source)
         };
 
@@ -1060,15 +1058,14 @@ impl Compiler {
                 self.type_id_for_type_expression(module_id, *target_type, tree, types)
         {
             let (to_target, to_source) = {
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+                let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
                 let to_target = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     target_type_id,
                     existing_target_type_id,
                 );
                 let to_source = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     existing_target_type_id,
                     target_type_id,
                 );
@@ -1106,18 +1103,11 @@ impl Compiler {
             CastOperator::UnionUpcast | CastOperator::NullableUpcast
         ) {
             let (to_target, to_source) = {
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
-                let to_target = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
-                    target_type_id,
-                    value_type_id,
-                );
-                let to_source = self.is_type_assignable(
-                    &mut type_tables.reborrow(),
-                    value_type_id,
-                    target_type_id,
-                );
+                let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
+                let to_target =
+                    self.is_type_assignable(&mut ctx.reborrow(), target_type_id, value_type_id);
+                let to_source =
+                    self.is_type_assignable(&mut ctx.reborrow(), value_type_id, target_type_id);
                 (to_target, to_source)
             };
             if to_target.is_assignable() && to_source.is_assignable() {
@@ -1367,9 +1357,8 @@ impl Compiler {
 
         // fall back to assignability based instance casts
         let options = self.analyze_context_options_for_module(module_id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
-        let assignable = self.is_type_assignable(&mut type_tables.reborrow(), target_id, source_id);
+        let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
+        let assignable = self.is_type_assignable(&mut ctx.reborrow(), target_id, source_id);
         if assignable.is_assignable() {
             CastOperator::InstanceUpcast
         } else {
@@ -1458,12 +1447,8 @@ impl Compiler {
         // register a concrete instance for Map.from<K, V>
         let parameter_symbols = self
             .collect_static_parameter_symbols(
-                module,
+                TypeView::new(module, profile, tree, symbols, types),
                 map_from_symbol,
-                profile,
-                tree,
-                symbols,
-                types,
             )
             .unwrap_or_default();
         let map_from_instance = Instance::with_environment(
@@ -1682,15 +1667,13 @@ impl Compiler {
                 let Some(well_known) = self.well_known_array_kind(profile, symbol) else {
                     return Ok(None);
                 };
+                let options = self.analyze_context_options_for_module(module.id);
+                let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
                 let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
-                    module,
-                    symbols,
-                    profile,
+                    &mut ctx.reborrow(),
                     origin_id.into_any(),
-                    symbol,
                     well_known,
                     static_arguments.as_deref(),
-                    types,
                 ) else {
                     return Ok(None);
                 };
@@ -1702,15 +1685,14 @@ impl Compiler {
         // ensure element compatibility when the target is explicit
         if let Some(target_element_type_id) = target_element_type_id {
             let options = self.analyze_context_options_for_module(module.id);
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+            let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
             let to_target = self.is_type_assignable(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 target_element_type_id,
                 element_type_id,
             );
             let to_source = self.is_type_assignable(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 element_type_id,
                 target_element_type_id,
             );
@@ -1736,12 +1718,8 @@ impl Compiler {
         })];
         let parameter_symbols = self
             .collect_static_parameter_symbols(
-                module,
+                TypeView::new(module, profile, tree, symbols, types),
                 from_sized_symbol,
-                profile,
-                tree,
-                symbols,
-                types,
             )
             .unwrap_or_default();
         let from_sized_instance = Instance::with_environment(

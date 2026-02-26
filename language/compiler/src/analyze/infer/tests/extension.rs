@@ -41,13 +41,7 @@ let distance = origin.distance(origin);
     let point_symbol = test.canonical_symbol_for_path("test.ds", "Point");
 
     // verify extension kinds
-    let extension_kinds = extension_kinds_for_target(
-        &test,
-        view.module_id,
-        view.symbols(),
-        view.types(),
-        point_symbol,
-    );
+    let extension_kinds = extension_kinds_for_target(&view, point_symbol);
     assert_eq!(extension_kinds.len(), 2);
     assert!(
         extension_kinds
@@ -133,13 +127,7 @@ let origin = Point { x: 0, y: 0 };
     let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the defining module
-    let extension_kinds = extension_kinds_for_target(
-        &test,
-        view.module_id,
-        view.symbols(),
-        view.types(),
-        point_symbol,
-    );
+    let extension_kinds = extension_kinds_for_target(&view, point_symbol);
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -148,13 +136,7 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not leak into other modules
-    let consumer_kinds = extension_kinds_for_target(
-        &test,
-        consumer_view.module_id,
-        consumer_view.symbols(),
-        consumer_view.types(),
-        consumer_point_symbol,
-    );
+    let consumer_kinds = extension_kinds_for_target(&consumer_view, consumer_point_symbol);
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type
@@ -230,13 +212,7 @@ let origin = Point { x: 0, y: 0 };
     let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the importing module
-    let extension_kinds = extension_kinds_for_target(
-        &test,
-        view.module_id,
-        view.symbols(),
-        view.types(),
-        point_symbol,
-    );
+    let extension_kinds = extension_kinds_for_target(&view, point_symbol);
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -245,13 +221,7 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not appear without an import
-    let consumer_kinds = extension_kinds_for_target(
-        &test,
-        consumer_view.module_id,
-        consumer_view.symbols(),
-        consumer_view.types(),
-        consumer_point_symbol,
-    );
+    let consumer_kinds = extension_kinds_for_target(&consumer_view, consumer_point_symbol);
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type

@@ -3,11 +3,12 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::AnalyzeDependencyStage;
+use crate::analyze::common::TreeSymbolView;
 use crate::{Compiler, TaskDependencyError};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Read tree and symbol tables for a module, reusing local tables when possible.
+    /// Read tree and symbol ctx for a module, reusing local ctx when possible.
     fn with_module_tree_symbols_read<R>(
         &self,
         module: &Module,
@@ -17,7 +18,7 @@ impl Compiler {
         local_symbols: Option<&SymbolTable>,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> R {
-        // reuse local tables for local reads
+        // reuse local ctx for local reads
         if module_id == module.id {
             if let (Some(local_tree), Some(local_symbols)) = (local_tree, local_symbols) {
                 return handle(module, local_tree, local_symbols);
@@ -37,7 +38,7 @@ impl Compiler {
         handle(&remote_module, &tree, &symbols)
     }
 
-    /// Read tree, symbol, and type tables for a module id, reusing local tables when possible.
+    /// Read tree, symbol, and type ctx for a module id, reusing local ctx when possible.
     fn with_module_tree_symbols_types_by_id_read<R>(
         &self,
         profile: ProfileId,
@@ -47,7 +48,7 @@ impl Compiler {
         types: &TypeTable,
         handle: impl FnOnce(&NodeTree, &SymbolTable, &TypeTable) -> R,
     ) -> R {
-        // reuse local tables when all table owners match the target module
+        // reuse local ctx when all table owners match the target module
         if module_id == symbols.module_id && module_id == types.module_id {
             return handle(tree, symbols, types);
         }
@@ -61,7 +62,7 @@ impl Compiler {
         handle(&remote_tree, &remote_symbols, &remote_types)
     }
 
-    /// Provide tree and symbol tables for a module with stage-gated cross-module reads.
+    /// Provide tree and symbol ctx for a module with stage-gated cross-module reads.
     pub(crate) fn with_module_tree_symbols_at_stage<R>(
         &self,
         module: &Module,
@@ -75,7 +76,7 @@ impl Compiler {
         Ok(self.with_module_tree_symbols_read(module, profile, module_id, None, None, handle))
     }
 
-    /// Provide tree and symbol tables with stage-gated cross-module reads and local reuse.
+    /// Provide tree and symbol ctx with stage-gated cross-module reads and local reuse.
     pub(crate) fn with_module_tree_symbols_or_local_at_stage<R>(
         &self,
         module: &Module,
@@ -98,7 +99,47 @@ impl Compiler {
         ))
     }
 
-    /// Provide tree and symbol tables by module id with a stage gate.
+    /// Provide one tree-symbol view with stage-gated cross-module reads.
+    pub(crate) fn with_module_tree_symbol_view_at_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        stage: AnalyzeDependencyStage,
+        handle: impl FnOnce(TreeSymbolView<'_>) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        self.with_module_tree_symbols_at_stage(
+            module,
+            profile,
+            module_id,
+            stage,
+            |module, tree, symbols| handle(TreeSymbolView::new(module, profile, tree, symbols)),
+        )
+    }
+
+    /// Provide one tree-symbol view with stage-gated cross-module reads and local reuse.
+    pub(crate) fn with_module_tree_symbol_view_or_local_at_stage<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        stage: AnalyzeDependencyStage,
+        handle: impl FnOnce(TreeSymbolView<'_>) -> R,
+    ) -> Result<R, TaskDependencyError> {
+        self.with_module_tree_symbols_or_local_at_stage(
+            module,
+            profile,
+            module_id,
+            tree,
+            symbols,
+            stage,
+            |module, tree, symbols| handle(TreeSymbolView::new(module, profile, tree, symbols)),
+        )
+    }
+
+    /// Provide tree and symbol ctx by module id with a stage gate.
     pub(crate) fn with_module_tree_symbols_by_id_at_stage<R>(
         &self,
         profile: ProfileId,
@@ -117,7 +158,7 @@ impl Compiler {
         Ok(handle(&remote_module, &tree, &symbols))
     }
 
-    /// Provide tree, symbol, and type tables by module id with stage-gated cross-module reads.
+    /// Provide tree, symbol, and type ctx by module id with stage-gated cross-module reads.
     pub(crate) fn with_module_tree_symbols_types_by_id_at_stage<R>(
         &self,
         profile: ProfileId,

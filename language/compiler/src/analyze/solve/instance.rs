@@ -1,4 +1,4 @@
-use crate::analyze::common::{TypeRewriteCache, TypeTablesContext};
+use crate::analyze::common::{TypeContext, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{GlobalSymbolId, InferTable, LocalTypeId, StaticArgument, StaticExpression};
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ impl Compiler {
     /// Rewrite inferred-type overlays using solved instance substitutions.
     pub(in crate::analyze::solve) fn rewrite_inferred_type_overlays_for_instance_substitutions(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         infer: &mut InferTable,
     ) -> AnalyzeResult<()> {
         // apply substitutions to inferred overlays using explicit instance obligations
@@ -17,7 +17,7 @@ impl Compiler {
         node_attachments.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, obligation_id) in node_attachments {
             // skip attachments that do not belong to this module
-            if node_id.module_id != type_tables.module.id {
+            if node_id.module_id != ctx.module.id {
                 continue;
             }
 
@@ -45,10 +45,7 @@ impl Compiler {
                 else {
                     continue;
                 };
-                substitutions.insert(
-                    *parameter_symbol,
-                    type_tables.types.unwrap_value_type_id(*ty),
-                );
+                substitutions.insert(*parameter_symbol, ctx.types.unwrap_value_type_id(*ty));
             }
             if substitutions.is_empty() {
                 continue;
@@ -58,7 +55,7 @@ impl Compiler {
             let mut materialize_cache = TypeRewriteCache::new();
             let mut substitution_cache = HashMap::new();
             let mapped_type_id = self.instantiate_type_with_substitutions(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id.local_id,
                 None,
                 inferred_type_id,

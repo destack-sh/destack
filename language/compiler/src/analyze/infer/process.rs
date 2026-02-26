@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::analyze::common::{InferTablesContext, NormalizationMode, TypeTablesContext};
+use crate::analyze::common::{InferContext, ModuleTreeView, NormalizationMode, TypeContext};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
@@ -75,26 +75,23 @@ impl Compiler {
             }
 
             let options = self.analyze_context_options_for_module(module.id);
-            let mut tables =
-                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+            let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
 
             // infer enum backing types when declaration validation is enabled
             for root_id in dir.roots.iter() {
-                let Expression::Declaration { declaration } = tables.tree.get(*root_id) else {
+                let Expression::Declaration { declaration } = ctx.tree.get(*root_id) else {
                     continue;
                 };
                 let Declaration::Enum {
                     descriptor, fields, ..
-                } = tables.tree.get(*declaration)
+                } = ctx.tree.get(*declaration)
                 else {
                     continue;
                 };
-                let enum_symbol = descriptor.symbol.into_global(tables.module.id);
+                let enum_symbol = descriptor.symbol.into_global(ctx.module.id);
                 let backing_type =
-                    self.infer_enum_field_values(&mut tables.reborrow(), enum_symbol, fields)?;
-                tables
-                    .types
-                    .set_enum_backing_type(enum_symbol, backing_type);
+                    self.infer_enum_field_values(&mut ctx.reborrow(), enum_symbol, fields)?;
+                ctx.types.set_enum_backing_type(enum_symbol, backing_type);
             }
 
             return Ok(());
@@ -106,7 +103,9 @@ impl Compiler {
 
         // require builtins before resolving type-import operator dependencies
         self.require_resolve_builtins(profile)?;
-        self.require_type_import_interface_dependencies(&module, profile, &tree)?;
+        self.require_type_import_interface_dependencies(ModuleTreeView::new(
+            &module, profile, &tree,
+        ))?;
 
         drop(types);
         drop(symbols);
@@ -128,7 +127,7 @@ impl Compiler {
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
-        let mut tables = InferTablesContext::new(
+        let mut ctx = InferContext::new(
             &module,
             profile,
             &options,
@@ -144,18 +143,18 @@ impl Compiler {
             runtime_roots
                 .iter()
                 .copied()
-                .filter(|root_id| self.expression_requires_flow(tables.tree, *root_id))
+                .filter(|root_id| self.expression_requires_flow(ctx.tree, *root_id))
                 .collect::<Vec<_>>()
         };
         if !flow_roots.is_empty() {
             let graph = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
-                FlowGraphBuilder::new(module.id, tables.tree).build_roots(&flow_roots)
+                FlowGraphBuilder::new(module.id, ctx.tree).build_roots(&flow_roots)
             };
             let flow = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
                 self.compute_flow_table_for_graph(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     &graph,
                     context,
                 )?
@@ -170,13 +169,13 @@ impl Compiler {
         // report expression form diagnostics once before type inference
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
-            for (expression_id, expression) in tables.tree.iter_nodes_of_type::<Expression>() {
-                if !self.is_node_active(tables.tree, tables.symbols, expression_id.into_any()) {
+            for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
+                if !self.is_node_active(ctx.tree, ctx.symbols, expression_id.into_any()) {
                     continue;
                 }
 
                 self.report_pre_infer_expression_form_diagnostics(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     expression_id,
                     expression,
                 );
@@ -187,12 +186,12 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
             // resolve declarator annotation types before runtime root inference
-            self.prepare_declarator_annotation_types_for_infer(&mut tables.reborrow())?;
+            self.prepare_declarator_annotation_types_for_infer(&mut ctx.reborrow())?;
 
             for root_id in infer_roots.iter() {
                 self.collect(
                     &mut collector,
-                    self.infer_expression(&mut tables.reborrow(), *root_id, context),
+                    self.infer_expression(&mut ctx.reborrow(), *root_id, context),
                 );
             }
         }
@@ -228,54 +227,50 @@ impl Compiler {
     /// Resolve and normalize concrete declarator annotations before expression inference.
     fn prepare_declarator_annotation_types_for_infer(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
     ) -> AnalyzeResult<()> {
-        for (declarator_id, declarator) in tables.tree.iter_nodes_of_type::<Declarator>() {
-            if !self.is_node_active(tables.tree, tables.symbols, declarator_id.into_any()) {
+        for (declarator_id, declarator) in ctx.tree.iter_nodes_of_type::<Declarator>() {
+            if !self.is_node_active(ctx.tree, ctx.symbols, declarator_id.into_any()) {
                 continue;
             }
             let Some(annotation_id) = declarator.ty else {
                 continue;
             };
-            let declarator_node_id = declarator_id.into_global_any(tables.module.id);
+            let declarator_node_id = declarator_id.into_global_any(ctx.module.id);
 
             // register one declared type id for all annotated declarators
             let annotation_ty_id = if let Some(annotation_ty_id) =
-                tables.types.get_declared_type_id(declarator_node_id)
+                ctx.types.get_declared_type_id(declarator_node_id)
             {
                 annotation_ty_id
             } else {
                 let annotation_ty_id = self.resolve_declared_type_expression(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     annotation_id,
                     true,
                     true,
                 )?;
-                tables
-                    .types
+                ctx.types
                     .set_declared_type(declarator_node_id, annotation_ty_id);
                 annotation_ty_id
             };
 
-            self.resolve_declared_type(&mut tables.type_tables_reborrow(), annotation_ty_id)?;
+            self.resolve_declared_type(&mut ctx.type_context_reborrow(), annotation_ty_id)?;
 
             if declarator.value.is_some() {
                 continue;
             }
 
             if self.type_contains_static_parameters(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 annotation_ty_id,
-                tables.symbols,
-                tables.types,
                 &mut HashSet::new(),
             ) {
                 continue;
             }
 
             let _ = self.normalize_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 annotation_ty_id,
                 NormalizationMode::Assign,
             );

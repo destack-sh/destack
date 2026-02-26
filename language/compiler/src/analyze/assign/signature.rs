@@ -17,7 +17,7 @@ impl Compiler {
             for source_signature in source_signatures {
                 if self
                     .is_type_assignable(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         *target_signature,
                         *source_signature,
                     )
@@ -134,7 +134,7 @@ impl Compiler {
 
         if !self
             .is_type_assignable(
-                &mut ctx.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 target_signature.value_type,
                 source_signature.value_type,
             )
@@ -184,12 +184,16 @@ impl Compiler {
         );
 
         let mut is_assignable = self
-            .is_type_assignable(&mut ctx.type_tables_reborrow(), value_type, field.ty)
+            .is_type_assignable(&mut ctx.type_context_reborrow(), value_type, field.ty)
             .is_assignable();
 
         if !ctx.options.exact_optional_property_types && field.is_optional {
             let undefined_assignable = self
-                .is_type_assignable(&mut ctx.type_tables_reborrow(), value_type, undefined_ty_id)
+                .is_type_assignable(
+                    &mut ctx.type_context_reborrow(),
+                    value_type,
+                    undefined_ty_id,
+                )
                 .is_assignable();
             is_assignable &= undefined_assignable;
         }
@@ -215,10 +219,10 @@ impl Compiler {
         // this parameter: contravariant when strict, bivariant otherwise
         if let (Some(target_this), Some(source_this)) = (target_this, source_this) {
             let strict_assignable = self
-                .is_type_assignable(&mut ctx.type_tables_reborrow(), *source_this, *target_this)
+                .is_type_assignable(&mut ctx.type_context_reborrow(), *source_this, *target_this)
                 .is_assignable();
             let loose_assignable = self
-                .is_type_assignable(&mut ctx.type_tables_reborrow(), *target_this, *source_this)
+                .is_type_assignable(&mut ctx.type_context_reborrow(), *target_this, *source_this)
                 .is_assignable();
             if ctx.options.strict_function_types {
                 if !strict_assignable {
@@ -231,12 +235,7 @@ impl Compiler {
                 && loose_assignable
                 && !reported_unsound_variance
             {
-                self.report_unsound_variance(
-                    ctx.module,
-                    ctx.profile,
-                    assignment_anchor,
-                    ctx.options,
-                );
+                self.report_unsound_variance(&*ctx, assignment_anchor);
                 reported_unsound_variance = true;
             }
         }
@@ -246,14 +245,14 @@ impl Compiler {
             for source_param in source_params {
                 let strict_assignable = self
                     .is_type_assignable(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         rest_element,
                         *source_param,
                     )
                     .is_assignable();
                 let loose_assignable = self
                     .is_type_assignable(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         *source_param,
                         rest_element,
                     )
@@ -269,12 +268,7 @@ impl Compiler {
                     && loose_assignable
                     && !reported_unsound_variance
                 {
-                    self.report_unsound_variance(
-                        ctx.module,
-                        ctx.profile,
-                        assignment_anchor,
-                        ctx.options,
-                    );
+                    self.report_unsound_variance(&*ctx, assignment_anchor);
                     reported_unsound_variance = true;
                 }
             }
@@ -288,14 +282,14 @@ impl Compiler {
             for (target_param, source_param) in target_params.iter().zip(source_params.iter()) {
                 let strict_assignable = self
                     .is_type_assignable(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         *source_param,
                         *target_param,
                     )
                     .is_assignable();
                 let loose_assignable = self
                     .is_type_assignable(
-                        &mut ctx.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         *target_param,
                         *source_param,
                     )
@@ -311,12 +305,7 @@ impl Compiler {
                     && loose_assignable
                     && !reported_unsound_variance
                 {
-                    self.report_unsound_variance(
-                        ctx.module,
-                        ctx.profile,
-                        assignment_anchor,
-                        ctx.options,
-                    );
+                    self.report_unsound_variance(&*ctx, assignment_anchor);
                     reported_unsound_variance = true;
                 }
             }
@@ -337,7 +326,7 @@ impl Compiler {
                 Assignability::Assignable
             }
             (Some(target_ret), Some(source_ret)) => {
-                self.is_type_assignable(&mut ctx.type_tables_reborrow(), *target_ret, *source_ret)
+                self.is_type_assignable(&mut ctx.type_context_reborrow(), *target_ret, *source_ret)
             }
             (None, _) => Assignability::Assignable,
             (Some(_), None) => Assignability::NotAssignable,

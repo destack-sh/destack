@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    CanonicalSymbolMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache,
-    TypeTablesContext, TypeWalkContext, rewrite_type_with_cache,
+    CanonicalSymbolMode, MaterializationMode, ModuleSymbolView, REWRITER_TAG_STATIC_ARGUMENT,
+    TypeContext, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler};
@@ -98,7 +98,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
 /// Return a cache key for static argument materialization.
 fn static_argument_context_key(argument_module: &Module, profile: ProfileId) -> u64 {
     // base module key
-    // TODO #Architecture: include substitution context in static argument cache keys
+    // NOTE #Architecture: this key currently omits substitution context
     let module_id = argument_module.id;
     let module_key = module_id.package_id.raw() ^ ((module_id.local_id as u64) << 32);
 
@@ -124,7 +124,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             let options = self
                 .compiler
                 .analyze_context_options_for_module(self.argument_module.id);
-            let mut type_tables = TypeTablesContext::new(
+            let mut ctx = TypeContext::new(
                 self.argument_module,
                 self.profile,
                 &options,
@@ -132,9 +132,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 self.argument_symbols,
                 types,
             );
-            let _ = self
-                .compiler
-                .resolve_declared_type(&mut type_tables.reborrow(), id);
+            let _ = self.compiler.resolve_declared_type(&mut ctx.reborrow(), id);
         }
 
         // stop when evaluation still yields an unevaluated type
@@ -170,8 +168,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
 
         // normalize to the type space symbol for the reference
         let symbol = self.compiler.normalize_reference_symbol_id(
-            self.argument_module,
-            self.profile,
+            ModuleSymbolView::new(self.argument_module, self.profile, self.argument_symbols),
             *symbol,
         );
 
@@ -186,7 +183,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             let options = self
                 .compiler
                 .analyze_context_options_for_module(self.argument_module.id);
-            let mut type_tables = TypeTablesContext::new(
+            let mut ctx = TypeContext::new(
                 self.argument_module,
                 self.profile,
                 &options,
@@ -194,13 +191,12 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 self.argument_symbols,
                 types,
             );
-            self.compiler
-                .materialize_static_arguments_for_reference_in_module(
-                    &mut type_tables.reborrow(),
-                    symbol,
-                    source_id,
-                    static_arguments,
-                )
+            self.compiler.materialize_static_arguments_for_reference(
+                &mut ctx.reborrow(),
+                symbol,
+                source_id,
+                static_arguments,
+            )
         } else {
             let reference_module = self.compiler.program.modules.get(symbol.module_id);
             let reference_module = reference_module.read();
@@ -209,7 +205,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             let reference_options = self
                 .compiler
                 .analyze_context_options_for_module(reference_module.id);
-            let mut type_tables = TypeTablesContext::new(
+            let mut ctx = TypeContext::new(
                 &reference_module,
                 self.profile,
                 &reference_options,
@@ -217,13 +213,12 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 &reference_symbols,
                 types,
             );
-            self.compiler
-                .materialize_static_arguments_for_reference_in_module(
-                    &mut type_tables.reborrow(),
-                    symbol,
-                    source_id,
-                    static_arguments,
-                )
+            self.compiler.materialize_static_arguments_for_reference(
+                &mut ctx.reborrow(),
+                symbol,
+                source_id,
+                static_arguments,
+            )
         };
 
         // rewrite nested static arguments
@@ -1023,69 +1018,50 @@ impl Compiler {
     /// Resolve one projection receiver reference from the projection source expression.
     fn projection_receiver_reference_from_type_source(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         projection_source_id: LocalNodeIdAny,
     ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
         let Ok(mut projection_expression_id) = projection_source_id.try_into_typed::<Expression>()
         else {
             return Ok(None);
         };
-        if !type_tables.tree.has_node_id(projection_expression_id.id) {
+        if !ctx.tree.has_node_id(projection_expression_id.id) {
             return Ok(None);
         }
 
-        if let Expression::Instantiation { left, .. } =
-            type_tables.tree.get(projection_expression_id)
-        {
+        if let Expression::Instantiation { left, .. } = ctx.tree.get(projection_expression_id) {
             projection_expression_id = *left;
         }
-        let Expression::Member { left, .. } = type_tables.tree.get(projection_expression_id) else {
+        let Expression::Member { left, .. } = ctx.tree.get(projection_expression_id) else {
             return Ok(None);
         };
 
-        let receiver_expression_id = self.unwrap_parenthesized_expression(*left, type_tables.tree);
-        match type_tables.tree.get(receiver_expression_id) {
+        let receiver_expression_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
+        match ctx.tree.get(receiver_expression_id) {
             Expression::Instantiation {
                 left,
                 static_arguments,
             } => {
-                let receiver_expression_id =
-                    self.unwrap_parenthesized_expression(*left, type_tables.tree);
+                let receiver_expression_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
                 let receiver_symbol = self
-                    .reference_symbol_for_expression(
-                        type_tables.module,
-                        receiver_expression_id,
-                        type_tables.profile,
-                        type_tables.tree,
-                        type_tables.symbols,
-                    )
-                    .or_else(|| type_tables.tree.get(receiver_expression_id).target_symbol());
+                    .reference_symbol_for_expression(ctx.tree_symbol_view(), receiver_expression_id)
+                    .or_else(|| ctx.tree.get(receiver_expression_id).target_symbol());
                 let Some(receiver_symbol) = receiver_symbol else {
                     return Ok(None);
                 };
 
                 let receiver_arguments = self
                     .evaluate_static_arguments(
-                        type_tables.module,
-                        type_tables.profile,
+                        &mut ctx.reborrow(),
                         Some(static_arguments.as_slice()),
-                        type_tables.tree,
-                        type_tables.symbols,
-                        type_tables.types,
                     )?
                     .unwrap_or_default();
                 Ok(Some((receiver_symbol, receiver_arguments)))
             }
             _ => {
                 let receiver_symbol = self
-                    .reference_symbol_for_expression(
-                        type_tables.module,
-                        receiver_expression_id,
-                        type_tables.profile,
-                        type_tables.tree,
-                        type_tables.symbols,
-                    )
-                    .or_else(|| type_tables.tree.get(receiver_expression_id).target_symbol());
+                    .reference_symbol_for_expression(ctx.tree_symbol_view(), receiver_expression_id)
+                    .or_else(|| ctx.tree.get(receiver_expression_id).target_symbol());
                 Ok(receiver_symbol.map(|receiver_symbol| (receiver_symbol, Vec::new())))
             }
         }
@@ -1094,7 +1070,7 @@ impl Compiler {
     /// Resolve one projection receiver reference from static-parameter substitutions and owner constraints.
     fn projection_receiver_reference_from_substitutions(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         owner_symbol: GlobalSymbolId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
@@ -1102,30 +1078,24 @@ impl Compiler {
         let mut candidates = Vec::<(GlobalSymbolId, Vec<StaticArgument>)>::new();
 
         for (parameter_symbol, substitution_type_id) in substitutions {
-            if !self.symbol_is_static_parameter(
-                type_tables.module,
-                type_tables.profile,
-                *parameter_symbol,
-                type_tables.symbols,
-                type_tables.types,
-            ) {
+            if !self.symbol_is_static_parameter(ctx.symbol_type_view(), *parameter_symbol) {
                 continue;
             }
 
             let Some(constraint_type_id) = self.static_parameter_constraint_type(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 *parameter_symbol,
                 source_id,
             ) else {
                 continue;
             };
             let constraint_symbol = self
-                .unwrap_type_symbol(type_tables.types, constraint_type_id)
+                .unwrap_type_symbol(ctx.types, constraint_type_id)
                 .map(|(symbol, _, _)| symbol)
-                .or_else(|| match type_tables.types.get_type(constraint_type_id) {
+                .or_else(|| match ctx.types.get_type(constraint_type_id) {
                     Type::Intersection { elements } | Type::Union { elements } => {
                         elements.iter().find_map(|element_id| {
-                            self.unwrap_type_symbol(type_tables.types, *element_id)
+                            self.unwrap_type_symbol(ctx.types, *element_id)
                                 .map(|(symbol, _, _)| symbol)
                         })
                     }
@@ -1135,22 +1105,15 @@ impl Compiler {
                 continue;
             };
             let constraint_symbol = self
-                .declaration_symbol_id(
-                    type_tables.module,
-                    type_tables.symbols,
-                    type_tables.profile,
-                    constraint_symbol,
-                )
+                .declaration_symbol_id(ctx.module_symbol_view(), constraint_symbol)
                 .unwrap_or(constraint_symbol);
             if constraint_symbol != owner_symbol {
                 continue;
             }
 
-            let substitution_type_id = type_tables
-                .types
-                .unwrap_value_type_id(*substitution_type_id);
+            let substitution_type_id = ctx.types.unwrap_value_type_id(*substitution_type_id);
             let Some((receiver_symbol, receiver_arguments, _)) =
-                self.unwrap_type_symbol(type_tables.types, substitution_type_id)
+                self.unwrap_type_symbol(ctx.types, substitution_type_id)
             else {
                 continue;
             };
@@ -1170,7 +1133,7 @@ impl Compiler {
     /// Materialize static arguments inside type references for substitution.
     pub(crate) fn materialize_static_arguments_in_type(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         ty_id: LocalTypeId,
         cache: &mut TypeRewriteCache,
     ) -> LocalTypeId {
@@ -1179,44 +1142,22 @@ impl Compiler {
         let local_cache = std::mem::take(cache);
         let mut materializer = StaticArgumentMaterializer::new(
             self,
-            type_tables.module,
-            type_tables.profile,
-            type_tables.tree,
-            type_tables.symbols,
+            ctx.module,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
             MaterializationMode::Surface,
             local_cache,
         );
-        let mapped = materializer.rewrite_type_id(type_tables.types, ty_id);
+        let mapped = materializer.rewrite_type_id(ctx.types, ty_id);
         *cache = materializer.into_cache();
         mapped
-    }
-
-    /// Instantiate one signature type by materializing, substituting, and rewriting projections.
-    pub(crate) fn instantiate_signature_type(
-        &self,
-        type_tables: &mut TypeTablesContext<'_>,
-        source_id: LocalNodeIdAny,
-        owner_symbol: Option<GlobalSymbolId>,
-        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        ty_id: LocalTypeId,
-        materialize_cache: &mut TypeRewriteCache,
-        substitute_cache: &mut HashMap<LocalTypeId, LocalTypeId>,
-    ) -> LocalTypeId {
-        self.instantiate_type_with_substitutions(
-            &mut type_tables.reborrow(),
-            source_id,
-            owner_symbol,
-            ty_id,
-            substitutions,
-            materialize_cache,
-            substitute_cache,
-        )
     }
 
     /// Instantiate one type with a substitution environment, then normalize projections.
     pub(crate) fn instantiate_type_with_substitutions(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         ty_id: LocalTypeId,
@@ -1226,7 +1167,7 @@ impl Compiler {
     ) -> LocalTypeId {
         // materialize source-level static arguments before substitution
         let materialized = self.materialize_static_arguments_in_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             ty_id,
             materialize_cache,
         );
@@ -1238,21 +1179,21 @@ impl Compiler {
             self.substitute_static_parameters(
                 materialized,
                 substitutions,
-                type_tables.types,
+                ctx.types,
                 substitute_cache,
             )
         };
 
         // normalize substituted static arguments
         let mut normalized = self.materialize_static_arguments_in_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             substituted,
             materialize_cache,
         );
 
         // resolve associated projections after substitution
         if let Some(projected) = self.instantiate_substituted_projection_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             normalized,
             substitutions,
         ) {
@@ -1262,7 +1203,7 @@ impl Compiler {
         // rewrite owner-scoped associated aliases
         if let Some(owner_symbol) = owner_symbol {
             normalized = self.rewrite_associated_aliases_for_owner(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 owner_symbol,
                 substitutions,
@@ -1275,14 +1216,14 @@ impl Compiler {
             normalized = self.substitute_static_parameters(
                 normalized,
                 substitutions,
-                type_tables.types,
+                ctx.types,
                 substitute_cache,
             );
         }
 
         // rematerialize projections exposed by the second substitution pass
         if let Some(projected) = self.instantiate_substituted_projection_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             normalized,
             substitutions,
         ) {
@@ -1290,7 +1231,7 @@ impl Compiler {
         }
 
         self.materialize_static_arguments_in_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             normalized,
             materialize_cache,
         )
@@ -1299,55 +1240,34 @@ impl Compiler {
     /// Materialize one substituted associated projection from its source member expression.
     pub(crate) fn instantiate_substituted_projection_type(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         ty_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // only projection-like references can be concretized in this pass
         let (projected_symbol, projected_arguments, projection_source_id) =
-            self.unwrap_type_symbol(type_tables.types, ty_id)?;
+            self.unwrap_type_symbol(ctx.types, ty_id)?;
         if self
-            .query_static_member_symbol_kind_for_symbol(
-                type_tables.module,
-                type_tables.profile,
-                projected_symbol,
-                type_tables.tree,
-                type_tables.symbols,
-            )
+            .query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), projected_symbol)
             .ok()?
             != Some(StaticMemberSymbolKind::AssociatedType)
         {
             return None;
         }
         let projected_symbol = self
-            .declaration_symbol_id(
-                type_tables.module,
-                type_tables.symbols,
-                type_tables.profile,
-                projected_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), projected_symbol)
             .unwrap_or(projected_symbol);
-        let owner_symbol = self.owner_symbol_for_member_symbol(
-            type_tables.module,
-            type_tables.profile,
-            projected_symbol,
-            type_tables.symbols,
-        );
+        let owner_symbol = self
+            .query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), projected_symbol)
+            .ok()
+            .flatten();
         let owner_symbol = owner_symbol.map(|owner_symbol| {
-            self.declaration_symbol_id(
-                type_tables.module,
-                type_tables.symbols,
-                type_tables.profile,
-                owner_symbol,
-            )
-            .unwrap_or(owner_symbol)
+            self.declaration_symbol_id(ctx.module_symbol_view(), owner_symbol)
+                .unwrap_or(owner_symbol)
         });
         let projected_member_key = self
-            .symbol_name_for_global(type_tables.module, type_tables.profile, projected_symbol)
-            .map(StaticKey::Name);
-        let Some(projected_member_key) = projected_member_key else {
-            return None;
-        };
+            .symbol_name_for_global(ctx.module, ctx.profile, projected_symbol)
+            .map(StaticKey::Name)?;
 
         // use projected reference arguments directly
         let source_id = projection_source_id;
@@ -1359,79 +1279,62 @@ impl Compiler {
 
         // first materialize the projected member directly if it already resolves to a concrete alias
         if let Ok(direct_materialized_type) = self.materialize_associated_member_projection(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             source_id,
             projected_symbol,
             None,
             &[],
             explicit_member_arguments.as_deref(),
             projected_member_type.clone(),
-        ) {
-            if direct_materialized_type != projected_member_type {
-                return Some(
-                    type_tables
-                        .types
-                        .insert_type_from_any(direct_materialized_type, source_id),
-                );
-            }
+        ) && direct_materialized_type != projected_member_type
+        {
+            return Some(
+                ctx.types
+                    .insert_type_from_any(direct_materialized_type, source_id),
+            );
         }
 
         // resolve one projection receiver from source syntax and substitutions
         let receiver_from_source = self
             .projection_receiver_reference_from_type_source(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 projection_source_id,
             )
             .ok()
             .flatten();
         let receiver_from_owner = owner_symbol.and_then(|owner_symbol| {
             self.projection_receiver_reference_from_substitutions(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 owner_symbol,
                 substitutions,
             )
         });
-        let Some((projection_receiver_symbol, projection_receiver_arguments)) =
-            receiver_from_source.or(receiver_from_owner)
-        else {
-            return None;
-        };
+        let (projection_receiver_symbol, projection_receiver_arguments) =
+            receiver_from_source.or(receiver_from_owner)?;
         let receiver_substitution =
             self.substitution_type_id_for_symbol(projection_receiver_symbol, substitutions);
         let (mut receiver_symbol, receiver_arguments) =
             if let Some(receiver_substitution) = receiver_substitution {
-                let receiver_substitution = type_tables
-                    .types
-                    .unwrap_value_type_id(receiver_substitution);
-                let Some((receiver_symbol, receiver_arguments, _)) =
-                    self.unwrap_type_symbol(type_tables.types, receiver_substitution)
-                else {
-                    return None;
-                };
+                let receiver_substitution = ctx.types.unwrap_value_type_id(receiver_substitution);
+                let (receiver_symbol, receiver_arguments, _) =
+                    self.unwrap_type_symbol(ctx.types, receiver_substitution)?;
                 (receiver_symbol, receiver_arguments.unwrap_or_default())
             } else {
                 (projection_receiver_symbol, projection_receiver_arguments)
             };
 
         receiver_symbol = self.canonical_symbol_id(
-            type_tables.module,
-            type_tables.symbols,
-            type_tables.profile,
+            ctx.module_symbol_view(),
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         receiver_symbol = self
-            .declaration_symbol_id(
-                type_tables.module,
-                type_tables.symbols,
-                type_tables.profile,
-                receiver_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), receiver_symbol)
             .unwrap_or(receiver_symbol);
         let target_symbol = self
             .resolve_associated_member_symbol_for_receiver(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 receiver_symbol,
                 projected_member_key,
                 StaticMemberSymbolKind::AssociatedType,
@@ -1443,7 +1346,7 @@ impl Compiler {
         };
         let projected_type = self
             .materialize_associated_member_projection(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 target_symbol,
                 Some(receiver_symbol),
@@ -1453,45 +1356,20 @@ impl Compiler {
             )
             .ok()?;
 
-        Some(
-            type_tables
-                .types
-                .insert_type_from_any(projected_type, source_id),
-        )
-    }
-
-    /// Materialize static arguments for one reference in one explicit owner module view.
-    fn materialize_static_arguments_for_reference_in_module(
-        &self,
-        type_tables: &mut TypeTablesContext<'_>,
-        symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
-        static_arguments: &[StaticArgument],
-    ) -> Vec<StaticArgument> {
-        self.materialize_static_arguments_for_reference(
-            &mut type_tables.reborrow(),
-            symbol,
-            source_id,
-            static_arguments,
-        )
+        Some(ctx.types.insert_type_from_any(projected_type, source_id))
     }
 
     pub(crate) fn materialize_static_arguments_for_reference(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
     ) -> Vec<StaticArgument> {
         // collect parameter symbols for the reference
-        let Some(parameter_symbols) = self.collect_static_parameter_symbols(
-            type_tables.module,
-            symbol,
-            type_tables.profile,
-            type_tables.tree,
-            type_tables.symbols,
-            type_tables.types,
-        ) else {
+        let Some(parameter_symbols) =
+            self.collect_static_parameter_symbols(ctx.type_view(), symbol)
+        else {
             return static_arguments.to_vec();
         };
         if parameter_symbols.is_empty() {
@@ -1503,8 +1381,8 @@ impl Compiler {
             .iter()
             .find_map(|argument| match argument {
                 StaticArgument::Unevaluated { node }
-                    if node.module_id == type_tables.module.id
-                        && type_tables.tree.has_node_id(node.local_id.id) =>
+                    if node.module_id == ctx.module.id
+                        && ctx.tree.has_node_id(node.local_id.id) =>
                 {
                     Some(node.local_id)
                 }
@@ -1516,11 +1394,8 @@ impl Compiler {
         let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
         let mut parameter_name_kinds = HashMap::new();
         for parameter_symbol in parameter_symbols {
-            let parameter = self.resolve_static_parameter(
-                &mut type_tables.reborrow(),
-                parameter_symbol,
-                source_id,
-            );
+            let parameter =
+                self.resolve_static_parameter(&mut ctx.reborrow(), parameter_symbol, source_id);
             let kind = parameter.kind;
             if let Some(name) = parameter.name {
                 parameter_name_kinds.insert(name, kind);
@@ -1535,19 +1410,15 @@ impl Compiler {
                 StaticArgument::Evaluated { name, .. } => (*name, None),
                 StaticArgument::Unevaluated { node } => {
                     let mut name = None;
-                    let mut owner_tables = type_tables.reborrow();
-                    let _ = self.with_static_argument_owner(
-                        &mut owner_tables,
-                        *node,
-                        |owner_tables, argument_id| {
-                            let argument_node = owner_tables.tree.get(argument_id);
-                            name = match argument_node {
-                                Argument::Named { name, .. } => Some(*name),
-                                _ => None,
-                            };
-                            Ok(())
-                        },
-                    );
+                    let mut ctx = ctx.reborrow();
+                    let _ = self.with_static_argument_owner(&mut ctx, *node, |ctx, argument_id| {
+                        let argument_node = ctx.tree.get(argument_id);
+                        name = match argument_node {
+                            Argument::Named { name, .. } => Some(*name),
+                            _ => None,
+                        };
+                        Ok(())
+                    });
                     (name, Some(*node))
                 }
             };
@@ -1563,7 +1434,7 @@ impl Compiler {
 
             let Some(argument_node) = argument_node else {
                 let resolved = if parameter_kind == StaticParameterKind::Value {
-                    self.normalize_value_static_argument(argument.clone(), type_tables.types)
+                    self.normalize_value_static_argument(argument.clone(), ctx.types)
                 } else {
                     argument.clone()
                 };
@@ -1573,62 +1444,47 @@ impl Compiler {
 
             let mut evaluated = None;
             let mut evaluated_name = argument_name;
-            let mut owner_tables = type_tables.reborrow();
-            let _ = self.with_static_argument_owner(
-                &mut owner_tables,
-                argument_node,
-                |owner_tables, argument_id| {
-                    let argument = owner_tables.tree.get(argument_id);
-                    evaluated_name = match argument {
-                        Argument::Named { name, .. } => Some(*name),
-                        _ => None,
-                    };
-                    let expression_id = argument.value();
-                    evaluated = match parameter_kind {
-                        StaticParameterKind::Type => {
-                            // preserve static parameter references during materialization
-                            if let Some(parameter_symbol) = self
-                                .static_parameter_symbol_for_reference(
-                                    owner_tables,
-                                    expression_id,
-                                )?
-                            {
-                                let reference_ty = Type::Reference {
-                                    symbol: parameter_symbol,
-                                    static_arguments: None,
-                                };
-                                let ty_id = owner_tables
-                                    .types
-                                    .insert_type_from_any(reference_ty, expression_id.into_any());
-                                Some(StaticExpression::Type { ty: ty_id })
-                            } else {
-                                if let Ok(ty_id) = self.resolve_declared_type_expression(
-                                    &mut owner_tables.reborrow(),
-                                    expression_id,
-                                    false,
-                                    true,
-                                ) && !matches!(
-                                    owner_tables.types.get_type(ty_id),
-                                    Type::Unevaluated(_)
-                                ) {
-                                    Some(StaticExpression::Type { ty: ty_id })
-                                } else {
-                                    None
-                                }
-                            }
+            let mut ctx = ctx.reborrow();
+            let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
+                let argument = ctx.tree.get(argument_id);
+                evaluated_name = match argument {
+                    Argument::Named { name, .. } => Some(*name),
+                    _ => None,
+                };
+                let expression_id = argument.value();
+                evaluated = match parameter_kind {
+                    StaticParameterKind::Type => {
+                        // preserve static parameter references during materialization
+                        if let Some(parameter_symbol) = self
+                            .static_parameter_symbol_for_reference(ctx.type_view(), expression_id)?
+                        {
+                            let reference_ty = Type::Reference {
+                                symbol: parameter_symbol,
+                                static_arguments: None,
+                            };
+                            let ty_id = ctx
+                                .types
+                                .insert_type_from_any(reference_ty, expression_id.into_any());
+                            Some(StaticExpression::Type { ty: ty_id })
+                        } else if let Ok(ty_id) = self.resolve_declared_type_expression(
+                            &mut ctx.reborrow(),
+                            expression_id,
+                            false,
+                            true,
+                        ) && !matches!(ctx.types.get_type(ty_id), Type::Unevaluated(_))
+                        {
+                            Some(StaticExpression::Type { ty: ty_id })
+                        } else {
+                            None
                         }
-                        StaticParameterKind::Value => self
-                            .evaluate_static_expression_value(
-                                &mut owner_tables.reborrow(),
-                                expression_id,
-                                None,
-                            )
-                            .ok()
-                            .flatten(),
-                    };
-                    Ok(())
-                },
-            );
+                    }
+                    StaticParameterKind::Value => self
+                        .evaluate_static_expression_value(&mut ctx.reborrow(), expression_id, None)
+                        .ok()
+                        .flatten(),
+                };
+                Ok(())
+            });
 
             let resolved = if let Some(value) = evaluated {
                 StaticArgument::Evaluated {
@@ -1641,7 +1497,7 @@ impl Compiler {
                 }
             };
             let resolved = if parameter_kind == StaticParameterKind::Value {
-                self.normalize_value_static_argument(resolved, type_tables.types)
+                self.normalize_value_static_argument(resolved, ctx.types)
             } else {
                 resolved
             };

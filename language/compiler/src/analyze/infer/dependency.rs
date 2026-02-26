@@ -1,38 +1,34 @@
 use std::collections::HashSet;
 
 use destack_builtin::BuiltinLibKind;
-use destack_dir::{DependencyKind, DependencySource, Expression, NodeTree, ScalarLiteral};
+use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleGraphKey, ModuleSource, ProfileId};
+use destack_workspace::{ModuleGraphKey, ModuleSource, ProfileId};
 
+use crate::analyze::common::ModuleTreeView;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 impl Compiler {
     /// Require interface analysis for the type-import dependency closure used during infer.
     pub(super) fn require_type_import_interface_dependencies(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        view: ModuleTreeView<'_>,
     ) -> AnalyzeResult<()> {
         // collect and require interface dependencies in deterministic module order
-        let required_modules =
-            self.collect_type_import_interface_dependencies(module, profile, tree)?;
-        self.require_interface_modules_for_infer(profile, required_modules)
+        let required_modules = self.collect_type_import_interface_dependencies(view)?;
+        self.require_interface_modules_for_infer(view.profile, required_modules)
     }
 
     /// Collect interface dependency modules for type-import expressions used during infer.
     fn collect_type_import_interface_dependencies(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        view: ModuleTreeView<'_>,
     ) -> AnalyzeResult<HashSet<ModuleId>> {
-        let dir = module.dir(profile);
+        let dir = view.module.dir(view.profile);
         let mut required = HashSet::new();
 
         // collect direct and projection-owner interface dependencies
-        for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+        for (expression_id, expression) in view.tree.iter_nodes_of_type::<Expression>() {
             let Expression::TypeImport {
                 target, qualifier, ..
             } = expression
@@ -41,17 +37,17 @@ impl Compiler {
             };
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(target_string),
-            } = tree.get(*target)
+            } = view.tree.get(*target)
             else {
                 continue;
             };
 
             // collect direct target-module interface dependency
-            let source_node_id = expression_id.into_global_any(module.id);
+            let source_node_id = expression_id.into_global_any(view.module.id);
             let target_module = match self.resolve_import(
-                module,
+                view.module,
                 dir,
-                profile,
+                view.profile,
                 source_node_id,
                 DependencySource::ImportStatement,
                 *target_string,
@@ -64,15 +60,14 @@ impl Compiler {
                 }
             };
             if let Some(target_module_id) = target_module.module_id()
-                && target_module_id != module.id
+                && target_module_id != view.module.id
             {
                 required.insert(target_module_id);
             }
 
             // collect transitive owner dependency for qualified projections
             let resolved_symbol = self.resolve_import_type_symbol(
-                module,
-                profile,
+                view,
                 expression_id.into_any(),
                 *target_string,
                 qualifier.as_ref(),
@@ -80,7 +75,7 @@ impl Compiler {
             let Some(resolved_symbol) = resolved_symbol else {
                 continue;
             };
-            if resolved_symbol.module_id != module.id {
+            if resolved_symbol.module_id != view.module.id {
                 required.insert(resolved_symbol.module_id);
             }
         }

@@ -7,7 +7,7 @@ struct LiteralWideningRewriter<'a> {
     /// The module providing language-specific widening defaults.
     module: &'a Module,
     /// The context controlling widening policy.
-    ctx: &'a InferContext,
+    ctx: &'a InferState,
     /// The rewriter options for caching.
     options: TypeRewriterOptions,
 }
@@ -17,7 +17,7 @@ impl<'a> LiteralWideningRewriter<'a> {
     fn new(
         compiler: &'a Compiler,
         module: &'a Module,
-        ctx: &'a InferContext,
+        ctx: &'a InferState,
         options: TypeRewriterOptions,
     ) -> Self {
         Self {
@@ -85,23 +85,23 @@ impl Compiler {
     /// Build the initializer inference context for one binding.
     pub(crate) fn binding_initializer_context(
         &self,
-        ctx: &InferContext,
+        state: &InferState,
         mutability: Option<Mutability>,
-    ) -> InferContext {
-        ctx.fork().with_binding_initializer(mutability)
+    ) -> InferState {
+        state.fork().with_binding_initializer(mutability)
     }
 
     pub(crate) fn materialize_binding_type(
         &self,
         module: &Module,
-        ctx: &InferContext,
+        state: &InferState,
         binding_ty_id: LocalTypeId,
         types: &mut TypeTable,
         is_const_asserted: bool,
     ) -> LocalTypeId {
         // preserve literal types for const contexts
         if matches!(
-            ctx.const_context,
+            state.const_context,
             ConstContext::Const | ConstContext::AsConst
         ) {
             return binding_ty_id;
@@ -113,15 +113,15 @@ impl Compiler {
         }
 
         // avoid widening when the context requests literal preservation
-        if matches!(ctx.widening_mode, WideningMode::Preserve) {
+        if matches!(state.widening_mode, WideningMode::Preserve) {
             return binding_ty_id;
         }
 
         // regularize fresh literals before widening
-        let regularized_ctx = ctx.for_widening_commit();
+        let regularized_ctx = state.for_widening_commit();
         let walk_ctx = TypeWalkContext::new(TypeWalkKey::BASE)
             .with_rewriter_tag(REWRITER_TAG_LITERAL_WIDENING);
-        let walk_ctx = walk_ctx.with_context_key(ctx.widening_cache_key());
+        let walk_ctx = walk_ctx.with_context_key(state.widening_cache_key());
         let options = walk_ctx.rewriter_options();
         let cache_key = options.cache_key();
         let mut cache = TypeRewriteCache::new();
@@ -132,29 +132,27 @@ impl Compiler {
     /// Commit one declarator initializer type using binding commitment rules.
     pub(crate) fn materialize_declarator_initializer_type(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         initializer_id: LocalNodeId<Expression>,
         initializer_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        ctx: &InferContext,
-        types: &mut TypeTable,
+        state: &InferState,
     ) -> LocalTypeId {
         // preserve literal precision when the initializer is a satisfies expression
-        let preserve_literals = self.expression_is_satisfies(tree, initializer_id);
+        let preserve_literals = self.expression_is_satisfies(ctx.tree, initializer_id);
         let materialize_ctx = if preserve_literals {
-            ctx.fork().with_preserve_literals()
+            state.fork().with_preserve_literals()
         } else {
-            ctx.fork()
+            state.fork()
         };
 
         // preserve literal precision when the declarator uses const assertion
-        let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
+        let is_const_asserted = self.declarator_is_const_assertion(declarator_id, ctx.tree);
         self.materialize_binding_type(
-            module,
+            ctx.module,
             &materialize_ctx,
             initializer_ty_id,
-            types,
+            ctx.types,
             is_const_asserted,
         )
     }

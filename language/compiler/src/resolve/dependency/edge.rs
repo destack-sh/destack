@@ -55,6 +55,7 @@ impl BuiltinNamespace {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Select import edge semantics from dependency source and source module kind.
     pub(crate) fn import_edge_kind_for_dependency(

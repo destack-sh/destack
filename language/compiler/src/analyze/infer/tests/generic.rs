@@ -437,7 +437,8 @@ let boxed: Box<Node> = value;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
-    let assignable = test.compiler.is_type_assignable(
+    let assignable = is_type_assignable(
+        &test.compiler,
         &module,
         profile,
         &symbols,
@@ -532,7 +533,8 @@ let number_value: number = value;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
-    let assignable = test.compiler.is_type_assignable(
+    let assignable = is_type_assignable(
+        &test.compiler,
         &module,
         profile,
         &symbols,
@@ -586,7 +588,8 @@ let ok: boolean = value;
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
-    let assignable = test.compiler.is_type_assignable(
+    let assignable = is_type_assignable(
+        &test.compiler,
         &module,
         profile,
         &symbols,
@@ -643,10 +646,10 @@ declare let value: Buffer<SIZE>;
         }
         let expression_id = expression_id.expect("expected SIZE reference");
         let options = test.compiler.analyze_context_options_for_module(module.id);
-        let mut tables = TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+        let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
         let value = test
             .compiler
-            .evaluate_static_expression_value(&mut tables, expression_id, None)
+            .evaluate_static_expression_value(&mut ctx, expression_id, None)
             .expect("static evaluation failed")
             .expect("expected SIZE reference to evaluate");
 

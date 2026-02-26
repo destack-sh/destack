@@ -1,27 +1,27 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use destack_dir::TypeIndexSignature;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn infer_index_access_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         index_id: Option<LocalNodeId<Expression>>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // optional chain receivers must unwrap maybe before index lookup
         let optional_chain =
-            self.infer_optional_chain_receiver(&mut tables.reborrow(), receiver_id, ctx)?;
+            self.infer_optional_chain_receiver(&mut ctx.reborrow(), receiver_id, state)?;
         let (receiver_id, receiver_ty_id, optional_chain_has_nullish) =
             if let Some(optional_chain) = optional_chain {
                 let Some(receiver_ty_id) = optional_chain.receiver_ty_id else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Undefined,
                     };
-                    return Ok(tables.types.insert_type_from(ty, expression_id));
+                    return Ok(ctx.types.insert_type_from(ty, expression_id));
                 };
                 (
                     optional_chain.receiver_id,
@@ -30,7 +30,7 @@ impl Compiler {
                 )
             } else {
                 let receiver_ty_id =
-                    self.infer_expression(&mut tables.reborrow(), receiver_id, ctx)?;
+                    self.infer_expression(&mut ctx.reborrow(), receiver_id, state)?;
                 (receiver_id, receiver_ty_id, false)
             };
         let finish_result = |type_id: LocalTypeId, types: &mut TypeTable| {
@@ -44,12 +44,12 @@ impl Compiler {
 
         // resolve receiver type
         let receiver_ty_id = self.normalize_apparent_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             receiver_ty_id,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
-        let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
+        let receiver_ty = ctx.types.get_type(receiver_ty_id).clone();
 
         // short circuit index access on any
         if matches!(
@@ -61,13 +61,13 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Any,
             };
-            let type_id = tables.types.insert_type_from(ty, expression_id);
-            return Ok(finish_result(type_id, tables.types));
+            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, ctx.types));
         }
 
         // ensure instance types for reference receivers
         self.ensure_reference_instance_types_for_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             receiver_ty_id,
         )?;
@@ -75,8 +75,8 @@ impl Compiler {
         // resolve index expression and literal string when possible
         let (index_ty_id, literal_string, literal_integer, static_key) =
             if let Some(index_id) = index_id {
-                let index_ty_id = self.infer_expression(&mut tables.reborrow(), index_id, ctx)?;
-                let (literal_string, literal_integer) = match tables.tree.get(index_id) {
+                let index_ty_id = self.infer_expression(&mut ctx.reborrow(), index_id, state)?;
+                let (literal_string, literal_integer) = match ctx.tree.get(index_id) {
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::String(name_id),
                     } => (Some(self.program.strings.get(*name_id)), None),
@@ -86,11 +86,8 @@ impl Compiler {
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
-                    ctx.profile,
+                    ctx.tree_symbol_type_view(),
                     DynamicKey::Expression(index_id),
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 );
                 (
                     Some(index_ty_id),
@@ -103,28 +100,25 @@ impl Compiler {
             };
 
         // reject computed property access when configured
-        if tables.options.no_computed_property_access
-            && matches!(tables.module.source, ModuleSource::User)
+        if ctx.options.no_computed_property_access
+            && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = index_id
         {
             let static_key = self.static_key_from_dynamic_key(
-                ctx.profile,
+                ctx.tree_symbol_type_view(),
                 DynamicKey::Expression(index_id),
-                tables.tree,
-                tables.symbols,
-                tables.types,
             );
             if static_key.is_none() {
                 self.error(AnalyzeError::ComputedPropertyAccessDisabled {
                     node: expression_id
-                        .into_global_any(tables.module.id)
+                        .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
-                let type_id = tables.types.insert_type_from(ty, expression_id);
-                return Ok(finish_result(type_id, tables.types));
+                let type_id = ctx.types.insert_type_from(ty, expression_id);
+                return Ok(finish_result(type_id, ctx.types));
             }
         }
 
@@ -136,60 +130,57 @@ impl Compiler {
             literal_string.as_deref(),
             literal_integer,
             static_key.as_ref(),
-            tables.types,
-            tables.options.no_unchecked_indexed_access,
+            ctx.types,
+            ctx.options.no_unchecked_indexed_access,
         );
         if let Some(builtin_ty_id) = builtin_ty_id {
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(receiver_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
-            return Ok(finish_result(builtin_ty_id, tables.types));
+            return Ok(finish_result(builtin_ty_id, ctx.types));
         }
 
         // treat indexed access with a literal key as a property lookup
         if let Some(static_key) = static_key.as_ref() {
             let mut visited = Vec::new();
             if let Some(member_ty_id) = self.infer_member_of_type(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id.into_any(),
                 &receiver_ty,
                 static_key,
                 MemberLookupMode::Any,
                 &mut visited,
             )? {
-                return Ok(finish_result(member_ty_id, tables.types));
+                return Ok(finish_result(member_ty_id, ctx.types));
             }
         }
 
         // guard non indexable receivers
         if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
+            ctx.symbol_type_view(),
             &receiver_ty,
             LanguageSymbol::Index,
-            tables.symbols,
-            tables.types,
         ) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            let type_id = tables.types.insert_type_from(ty, expression_id);
-            return Ok(finish_result(type_id, tables.types));
+            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, ctx.types));
         }
 
         // resolve the index member function
         let member_key = self.operator_member_key(LanguageSymbol::Index);
         let Some(resolved) = ({
             self.resolve_member_function(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_id,
                 Some(receiver_ty_id),
@@ -198,74 +189,69 @@ impl Compiler {
             )?
         }) else {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            let type_id = tables.types.insert_type_from(ty, expression_id);
-            return Ok(finish_result(type_id, tables.types));
+            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, ctx.types));
         };
 
         // handle missing member
         if !resolved.has_member {
             self.record_member_call_resolution(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_ty_id,
                 &resolved,
             )?;
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            let type_id = tables.types.insert_type_from(ty, expression_id);
-            return Ok(finish_result(type_id, tables.types));
+            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, ctx.types));
         }
 
         // resolve index parameter type
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
         }
 
         // check index argument assignability
         if let (Some(parameter_ty_id), Some(index_ty_id)) = (parameter_ty_id, index_ty_id) {
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: index_ty_id,
                 super_type: parameter_ty_id,
                 variance: None,
             });
 
+            let options = *ctx.options;
             self.enforce_assignability_or_defer_diagnostic(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id.into_any(),
                 parameter_ty_id,
                 index_ty_id,
-                &ctx.options,
+                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
         }
 
         // finalize resolution and instance registration
         self.record_member_call_resolution(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver_ty_id,
             &resolved,
@@ -273,7 +259,7 @@ impl Compiler {
 
         // resolve return type
         let value_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
-            tables.types.insert_type_from(
+            ctx.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
@@ -281,42 +267,42 @@ impl Compiler {
             )
         });
 
-        Ok(finish_result(value_ty_id, tables.types))
+        Ok(finish_result(value_ty_id, ctx.types))
     }
 
     /// Infer an index assignment expression.
     pub(crate) fn infer_index_assignment_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         index_expression_id: LocalNodeId<Expression>,
         value_expression_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // extract receiver and index expressions
         let Expression::Index {
             left: receiver_id,
             right: index_id,
-        } = tables.tree.get(index_expression_id)
+        } = ctx.tree.get(index_expression_id)
         else {
             unreachable!("index assignment expects an index expression");
         };
 
         // resolve receiver type
-        let receiver_ty_id = self.infer_expression(&mut tables.reborrow(), *receiver_id, ctx)?;
+        let receiver_ty_id = self.infer_expression(&mut ctx.reborrow(), *receiver_id, state)?;
         let receiver_ty_id = self.normalize_apparent_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             receiver_ty_id,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
-        let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
+        let receiver_ty = ctx.types.get_type(receiver_ty_id).clone();
 
         // reject assignments through immutable references
-        if self.type_is_immutable_reference(receiver_ty_id, tables.types) {
+        if self.type_is_immutable_reference(receiver_ty_id, ctx.types) {
             self.error(AnalyzeError::ImmutableReferenceAssignment {
                 node: receiver_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
@@ -324,8 +310,8 @@ impl Compiler {
         // resolve index expression and literal string when possible
         let (index_ty_id, literal_string, literal_integer, static_key) =
             if let Some(index_id) = index_id {
-                let index_ty_id = self.infer_expression(&mut tables.reborrow(), *index_id, ctx)?;
-                let (literal_string, literal_integer) = match tables.tree.get(*index_id) {
+                let index_ty_id = self.infer_expression(&mut ctx.reborrow(), *index_id, state)?;
+                let (literal_string, literal_integer) = match ctx.tree.get(*index_id) {
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::String(name_id),
                     } => (Some(self.program.strings.get(*name_id)), None),
@@ -335,11 +321,8 @@ impl Compiler {
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
-                    ctx.profile,
+                    ctx.tree_symbol_type_view(),
                     DynamicKey::Expression(*index_id),
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 );
                 (
                     Some(index_ty_id),
@@ -353,7 +336,7 @@ impl Compiler {
 
         // reject writes to readonly index targets
         if self.index_access_is_readonly(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
@@ -364,28 +347,25 @@ impl Compiler {
             });
             self.error(AnalyzeError::ReadonlyProperty {
                 node: index_expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
                 member_key,
             });
         }
 
         // reject computed property access when configured
-        if tables.options.no_computed_property_access
-            && matches!(tables.module.source, ModuleSource::User)
+        if ctx.options.no_computed_property_access
+            && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = *index_id
         {
             let static_key = self.static_key_from_dynamic_key(
-                ctx.profile,
+                ctx.tree_symbol_type_view(),
                 DynamicKey::Expression(index_id),
-                tables.tree,
-                tables.symbols,
-                tables.types,
             );
             if static_key.is_none() {
                 self.error(AnalyzeError::ComputedPropertyAccessDisabled {
                     node: expression_id
-                        .into_global_any(tables.module.id)
+                        .into_global_any(ctx.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -399,79 +379,75 @@ impl Compiler {
             literal_string.as_deref(),
             literal_integer,
             static_key.as_ref(),
-            tables.types,
+            ctx.types,
             false,
         );
         if let Some(builtin_value_ty_id) = builtin_value_ty_id {
-            let mut value_ctx = ctx.fork().with_expected_type(Some(builtin_value_ty_id));
+            let mut value_ctx = state.fork().with_expected_type(Some(builtin_value_ty_id));
             let value_ty_id =
-                self.infer_expression(&mut tables.reborrow(), value_expression_id, &mut value_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), value_expression_id, &mut value_ctx)?;
 
             // enforce explicit ownership when implicit managed values are disabled
             self.check_no_implicit_managed_value(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 value_expression_id,
                 builtin_value_ty_id,
                 value_ty_id,
-                tables.tree,
-                tables.types,
-                tables.options,
+                ctx.tree,
+                ctx.options,
             );
 
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: value_ty_id,
                 super_type: builtin_value_ty_id,
                 variance: None,
             });
 
+            let options = *ctx.options;
             self.enforce_assignability_or_defer_diagnostic(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id.into_any(),
                 builtin_value_ty_id,
                 value_ty_id,
-                &ctx.options,
+                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
 
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(receiver_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
 
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // guard non indexable receivers
         if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
+            ctx.symbol_type_view(),
             &receiver_ty,
             LanguageSymbol::IndexSet,
-            tables.symbols,
-            tables.types,
         ) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // resolve the index set member function
         let member_key = self.operator_member_key(LanguageSymbol::IndexSet);
         let Some(resolved) = ({
             self.resolve_member_function(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 *receiver_id,
                 Some(receiver_ty_id),
@@ -480,37 +456,33 @@ impl Compiler {
             )?
         }) else {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         };
 
         // handle missing member
         if !resolved.has_member {
             self.record_member_call_resolution(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_ty_id,
                 &resolved,
             )?;
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // resolve index set parameter types
@@ -518,17 +490,15 @@ impl Compiler {
         let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
         if resolved.signature.dynamic_parameters.len() != 2 {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                tables.types,
             );
         }
 
         // check key argument assignability
         if let (Some(key_param_ty_id), Some(index_ty_id)) = (key_param_ty_id, index_ty_id) {
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: index_ty_id,
                 super_type: key_param_ty_id,
                 variance: None,
@@ -536,45 +506,44 @@ impl Compiler {
         }
 
         // infer value expression with contextual typing
-        let mut value_ctx = ctx.fork().with_expected_type(value_param_ty_id);
+        let mut value_ctx = state.fork().with_expected_type(value_param_ty_id);
         let value_ty_id =
-            self.infer_expression(&mut tables.reborrow(), value_expression_id, &mut value_ctx)?;
+            self.infer_expression(&mut ctx.reborrow(), value_expression_id, &mut value_ctx)?;
 
         // enforce explicit ownership when implicit managed values are disabled
         if let Some(value_param_ty_id) = value_param_ty_id {
             self.check_no_implicit_managed_value(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 value_expression_id,
                 value_param_ty_id,
                 value_ty_id,
-                tables.tree,
-                tables.types,
-                tables.options,
+                ctx.tree,
+                ctx.options,
             );
         }
 
         // check value argument assignability
         if let Some(value_param_ty_id) = value_param_ty_id {
-            tables.infer.push_constraint(Constraint::Subtype {
+            ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: value_ty_id,
                 super_type: value_param_ty_id,
                 variance: None,
             });
 
+            let options = *ctx.options;
             self.enforce_assignability_or_defer_diagnostic(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id.into_any(),
                 value_param_ty_id,
                 value_ty_id,
-                &ctx.options,
+                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
         }
 
         // finalize resolution and instance registration
         self.record_member_call_resolution(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver_ty_id,
             &resolved,
@@ -584,11 +553,10 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
-        Ok(tables.types.insert_type_from(ty, expression_id))
+        Ok(ctx.types.insert_type_from(ty, expression_id))
     }
 
     /// Infer a try unwrap expression.
-
     fn infer_builtin_index_access(
         &self,
         receiver_ty: &Type,
@@ -750,7 +718,7 @@ impl Compiler {
     /// Check whether an index access target is readonly for assignment.
     fn index_access_is_readonly(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
         literal_string: Option<&str>,
@@ -767,7 +735,7 @@ impl Compiler {
             }
             visited.push(current_id);
 
-            let current_ty = tables.types.get_type(current_id).clone();
+            let current_ty = ctx.types.get_type(current_id).clone();
             match current_ty {
                 Type::Value { value } => {
                     pending.push(value);
@@ -805,7 +773,7 @@ impl Compiler {
                     if let Some(index_ty_id) = index_ty_id
                         && let Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(index)),
-                        } = tables.types.get_type(index_ty_id)
+                        } = ctx.types.get_type(index_ty_id)
                         && *index >= 0
                     {
                         let index = *index as usize;
@@ -827,14 +795,13 @@ impl Compiler {
                     let Some(key_kind) = index_key_kind_for_index(
                         index_ty_id,
                         literal_string,
-                        tables.types,
+                        ctx.types,
                         &self.program.strings,
                     ) else {
                         continue;
                     };
                     for signature in index_signatures {
-                        let signature_kind =
-                            index_key_kind_for_type(signature.key_type, tables.types);
+                        let signature_kind = index_key_kind_for_type(signature.key_type, ctx.types);
                         if index_key_kinds_compatible_for_access(signature_kind, key_kind) {
                             found = true;
                             if signature.is_readonly {
@@ -844,13 +811,13 @@ impl Compiler {
                     }
                 }
                 Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = tables.types.get_instance_type_id(symbol) {
+                    if let Some(instance_id) = ctx.types.get_instance_type_id(symbol) {
                         pending.push(instance_id);
                         continue;
                     }
-                    let source_id = tables.types.get_type_source(current_id);
+                    let source_id = ctx.types.get_type_source(current_id);
                     if let Some(apparent_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending.push(apparent_id);
                     }
