@@ -636,21 +636,19 @@ pub(crate) fn argument_has_separator_line_comment_annotation(
                 let has_following_separator =
                     next_non_whitespace_token_after_annotation(context, *annotation_id)
                         .is_some_and(|token| token.token.ty == TokenType::Comma);
-                let has_trailing_boundary_without_separator =
-                    matches!(position, AnnotationPosition::LinePostfixBoundary)
-                        && next_non_whitespace_token_after_annotation(context, *annotation_id)
-                            .is_some_and(|token| {
-                                matches!(
-                                    token.token.ty,
-                                    TokenType::CloseBrace
-                                        | TokenType::CloseBracket
-                                        | TokenType::CloseParenthesis
-                                )
-                            });
+                let has_virtual_trailing_separator = position
+                    == AnnotationPosition::LinePostfixBoundary
+                    && next_non_whitespace_token_after_annotation(context, *annotation_id)
+                        .is_some_and(|token| {
+                            matches!(
+                                token.token.ty,
+                                TokenType::CloseBrace
+                                    | TokenType::CloseBracket
+                                    | TokenType::CloseParenthesis
+                            )
+                        });
 
-                has_preceding_separator
-                    || has_following_separator
-                    || has_trailing_boundary_without_separator
+                has_preceding_separator || has_following_separator || has_virtual_trailing_separator
             })
         })
         .unwrap_or(false)

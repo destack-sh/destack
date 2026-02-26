@@ -295,6 +295,32 @@ impl CommentSeamData {
     }
 }
 
+/// Return whether one seam appears directly after `${`.
+pub(crate) fn seam_is_template_interpolation_open_brace(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> bool {
+    if !seam.token_before_is(TokenType::OpenBrace) {
+        return false;
+    }
+
+    let Some(token_before_index) = context.token_before else {
+        return false;
+    };
+    if token_before_index == 0 {
+        return false;
+    }
+
+    let previous_token_type = context.semantic_tokens[token_before_index - 1].token.ty;
+    matches!(
+        previous_token_type,
+        TokenType::TemplateString
+            | TokenType::TemplateStringStart
+            | TokenType::TemplateStringMiddle
+            | TokenType::TemplateStringEnd
+    )
+}
+
 /// Mutable caches for one seam attachment evaluation.
 #[derive(Default)]
 pub(crate) struct CommentEnclosingOwnerCache {

@@ -12,7 +12,7 @@ use super::attachment::{
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
-    CommentSeamData, comment_enclosing_owner,
+    CommentSeamData, comment_enclosing_owner, seam_is_template_interpolation_open_brace,
 };
 use super::operator::try_attach_comment_expression_operator;
 use super::ownership::{
@@ -256,6 +256,15 @@ pub(crate) fn try_attach_comment_expression(
         return None;
     }
 
+    // line comments right after `${` stay on the interpolation expression owner
+    if comment_is_line
+        && seam_is_template_interpolation_open_brace(context, seam)
+        && let Some(target_node) = following_token_owner.or(following_owner)
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
     // inline block comments between a tag expression and template literal stay on the tagged seam
     if is_inline_star_comment
         && seam.token_after_is(TokenType::TemplateString)
@@ -492,8 +501,23 @@ pub(crate) fn try_attach_comment_expression(
         return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
-    // declaration generic head seams should stay on the declaration head
-    if !has_leading_newline && has_trailing_newline && token_after_is_less_than {
+    // declaration generic head seams should stay on declaration heads, not jsx trees
+    let token_after_starts_tree_expression = [following_token_owner, following_owner]
+        .into_iter()
+        .flatten()
+        .any(|owner| {
+            let owner = promote_owner_to_tree_expression_parent(tree, parents, owner);
+            tree.get_node_type(owner) == NodeType::Expression
+                && matches!(
+                    tree.get(LocalNodeId::<Expression>::new(owner)),
+                    Expression::TreeExpression { .. }
+                )
+        });
+    if !has_leading_newline
+        && has_trailing_newline
+        && token_after_is_less_than
+        && !token_after_starts_tree_expression
+    {
         let declaration_target = context
             .token_after
             .and_then(|token_after_index| {
@@ -753,7 +777,12 @@ pub(crate) fn try_attach_comment_expression(
         && is_ternary_seam
         && let Some(target_owner) = ternary_following_owner
     {
-        return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+        let position = if has_leading_newline || has_trailing_newline {
+            AnnotationPosition::BlockPrefix
+        } else {
+            AnnotationPosition::LinePrefix
+        };
+        return Some((Some(target_owner), position));
     }
 
     // inline comments before `)` in do-while conditions should stay on the condition expression

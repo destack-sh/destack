@@ -16,14 +16,16 @@ use super::boundary::{
 use super::declaration::try_attach_comment_declaration;
 use super::endofline::attach_end_of_line_comment;
 use super::expression::try_attach_comment_expression;
+use super::facts::previous_non_trivia_token_index;
 use super::operator::try_attach_comment_assignment;
 use super::ownership::{
-    find_owner_at_or_after_token_with_node_type, find_preferred_owner_starting_at,
-    find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token,
-    is_trivia_excluded_owner_node_id, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
-    promote_owner_to_node_type_ancestor,
+    find_owner_at_or_after_token, find_owner_at_or_after_token_with_node_type,
+    find_preferred_owner_starting_at, find_smallest_owner_enclosing_range,
+    find_smallest_owner_enclosing_token, is_trivia_excluded_owner_node_id,
+    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+    promote_rhs_expression_owner,
 };
 use super::ownline::attach_own_line_comment;
 use super::placement::{CommentPlacement, classify_comment_placement};
@@ -35,6 +37,106 @@ use super::statement::{
 use crate::format::context::{Annotation, FormatterAnnotationEntry};
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
+
+/// Return rhs owner for one doc annotation that belongs to an assignment seam.
+fn assignment_like_rhs_owner_for_doc_annotation(
+    file: &File,
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_index: &FormatterTriviaOwnerIndex,
+    tokens: &[TokenSpan],
+    annotation_span: Span,
+) -> Option<(u32, AnnotationPosition)> {
+    let annotation_token_index =
+        tokens.partition_point(|token| token.span.start < annotation_span.start);
+    if annotation_token_index >= tokens.len() {
+        return None;
+    }
+
+    let previous_index = previous_non_trivia_token_index(tokens, annotation_token_index)?;
+    let previous_token_type = tokens[previous_index].token.ty;
+    if previous_token_type != TokenType::Assign {
+        return None;
+    }
+    let previous_token_span = tokens[previous_index].span;
+
+    let token_after_annotation_index =
+        tokens.partition_point(|token| token.span.start < annotation_span.end);
+    let expression_owner = find_owner_at_or_after_token_with_node_type(
+        tree,
+        owner_index,
+        token_after_annotation_index,
+        NodeType::Expression,
+    )?;
+    let token_after_span = tokens
+        .get(token_after_annotation_index)
+        .map(|token| token.span);
+    let expression_owner =
+        promote_rhs_expression_owner(tree, parents, expression_owner, token_after_span);
+    let expression_span = tree.get_span_by_id(expression_owner);
+    if annotation_span.start >= expression_span.start {
+        return None;
+    }
+
+    let annotation_starts_on_assignment_line =
+        file.is_same_line(previous_token_span.start, annotation_span.start);
+    let position = if annotation_starts_on_assignment_line {
+        AnnotationPosition::LinePrefix
+    } else {
+        AnnotationPosition::BlockPrefix
+    };
+
+    Some((expression_owner, position))
+}
+
+/// Return trailing statement owner for one doc annotation after terminal semicolon.
+fn trailing_statement_owner_for_doc_annotation(
+    file: &File,
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_index: &FormatterTriviaOwnerIndex,
+    tokens: &[TokenSpan],
+    annotation_span: Span,
+) -> Option<(u32, AnnotationPosition)> {
+    let annotation_token_index =
+        tokens.partition_point(|token| token.span.start < annotation_span.start);
+    if annotation_token_index >= tokens.len() {
+        return None;
+    }
+
+    let previous_index = previous_non_trivia_token_index(tokens, annotation_token_index)?;
+    if tokens[previous_index].token.ty != TokenType::Semicolon {
+        return None;
+    }
+
+    let token_after_annotation_index =
+        tokens.partition_point(|token| token.span.start < annotation_span.end);
+    let has_following_owner =
+        find_owner_at_or_after_token(tree, tokens, token_after_annotation_index).is_some()
+            || find_owner_at_or_after_token_with_node_type(
+                tree,
+                owner_index,
+                token_after_annotation_index,
+                NodeType::Declaration,
+            )
+            .is_some();
+    if has_following_owner {
+        return None;
+    }
+
+    let semicolon_span = tokens[previous_index].span;
+    let owner = find_smallest_owner_enclosing_token(tree, semicolon_span)?;
+    let owner = normalize_owner_with_shared_end(tree, parents, owner, Some(semicolon_span));
+    let is_same_line =
+        file.is_same_line(semicolon_span.end.saturating_sub(1), annotation_span.start);
+    let position = if is_same_line {
+        AnnotationPosition::LinePostfixBoundary
+    } else {
+        AnnotationPosition::BlockPostfix
+    };
+
+    Some((owner, position))
+}
 
 struct FormatterTokenNeighborIndex {
     previous_attachable: Vec<Option<usize>>,
@@ -617,6 +719,7 @@ pub(crate) fn formatter_annotation_projection(
             let ast_annotation = tree.get(annotation_id);
             let annotation_span = tree.get_span(annotation_id);
             let mut target_node_id = target_id;
+            let mut doc_position_override = None;
 
             // doc comments that sit directly before decorators should bind to the decorated declaration
             if matches!(ast_annotation, ast::Annotation::Doc { .. }) {
@@ -640,6 +743,32 @@ pub(crate) fn formatter_annotation_projection(
                     }
 
                     break;
+                }
+
+                if let Some((trailing_owner, trailing_position)) =
+                    trailing_statement_owner_for_doc_annotation(
+                        file,
+                        tree,
+                        parents,
+                        &owner_index,
+                        tokens,
+                        annotation_span,
+                    )
+                {
+                    target_node_id = trailing_owner;
+                    doc_position_override = Some(trailing_position);
+                } else if let Some((rhs_owner, rhs_position)) =
+                    assignment_like_rhs_owner_for_doc_annotation(
+                        file,
+                        tree,
+                        parents,
+                        &owner_index,
+                        tokens,
+                        annotation_span,
+                    )
+                {
+                    target_node_id = rhs_owner;
+                    doc_position_override = Some(rhs_position);
                 }
             }
 
@@ -704,7 +833,7 @@ pub(crate) fn formatter_annotation_projection(
             let annotation = match ast_annotation {
                 ast::Annotation::Doc { node, position } => Annotation::Doc {
                     node: *node,
-                    position: *position,
+                    position: doc_position_override.unwrap_or(*position),
                 },
                 ast::Annotation::Decorator { node, position } => {
                     let mut position = *position;
@@ -1090,15 +1219,17 @@ fn attach_default_end_of_line_comment(
     let tree = context.tree;
     if let Some(target_node) = owners.preceding {
         let token_before_span = context.token_before_span.map(|token| token.span);
-        let should_keep_terminal_preceding_owner = seam.token_after_is(TokenType::CloseParenthesis)
+        let keep_literal_before_close_parenthesis = seam
+            .token_after_is(TokenType::CloseParenthesis)
             && seam.token_before_is(TokenType::Literal)
             && !seam.token_before_is(TokenType::Comma);
+        let should_keep_terminal_preceding_owner = keep_literal_before_close_parenthesis;
         let target_node = if should_keep_terminal_preceding_owner {
             target_node
         } else {
             normalize_owner_with_shared_end(tree, context.parents, target_node, token_before_span)
         };
-        let position = if should_keep_terminal_preceding_owner {
+        let position = if keep_literal_before_close_parenthesis {
             AnnotationPosition::LinePostfix
         } else {
             AnnotationPosition::LinePostfixBoundary
@@ -1142,7 +1273,6 @@ fn attach_default_remaining_comment(
     if let Some(target_node) = fallback_preceding_owner(context, owners) {
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
     }
-
     if let Some(target_node) = fallback_following_owner(context, owners) {
         return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
