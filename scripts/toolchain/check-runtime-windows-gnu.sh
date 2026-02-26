@@ -5,6 +5,11 @@ target="x86_64-pc-windows-gnu"
 primary_exe_directory="../target/${target}/debug"
 fallback_exe_directory="target/${target}/debug"
 
+# ensure target std is available before cargo check
+if command -v rustup >/dev/null 2>&1; then
+    rustup target add "${target}" >/dev/null
+fi
+
 if ! command -v zig >/dev/null 2>&1; then
     echo "missing zig: install zig to build windows gnu targets"
     exit 1

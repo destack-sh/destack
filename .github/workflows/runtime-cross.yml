@@ -35,6 +35,11 @@ jobs:
         with:
           version: 0.15.2
 
+      - name: Install Linux cross dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libdbus-1-dev
+
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 

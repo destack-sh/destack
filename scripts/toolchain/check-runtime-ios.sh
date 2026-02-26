@@ -25,6 +25,11 @@ if [ -z "${platform_path}" ] || [ ! -d "${platform_path}" ]; then
     exit 1
 fi
 
+# ensure target std is available before cargo check
+if command -v rustup >/dev/null 2>&1; then
+    rustup target add aarch64-apple-ios >/dev/null
+fi
+
 run_ios_command() {
     LC_ALL=C \
     LANG=C \

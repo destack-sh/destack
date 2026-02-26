@@ -2,14 +2,21 @@
 set -euo pipefail
 
 api_level="${ANDROID_API_LEVEL:-24}"
-ndk_root="${ANDROID_NDK_ROOT:-${ANDROID_NDK_HOME:-}}"
+script_directory="$(cd "$(dirname "$0")" && pwd)"
+ndk_root=""
 
-if [ -z "${ndk_root}" ]; then
-    echo "missing ANDROID_NDK_ROOT (or ANDROID_NDK_HOME)"
+# resolve ndk root through explicit env or host sdk defaults
+if ndk_root="$("${script_directory}/resolve-android-ndk-root.sh" 2>/dev/null)"; then
+    :
+else
+    echo "missing android ndk root"
+    echo "run: just runtime-toolchain-bootstrap"
+    echo "or set ANDROID_NDK_ROOT"
     exit 1
 fi
+echo "android ndk root: ${ndk_root}"
 
-toolchain_bin="$("$(dirname "$0")/android-ndk-toolchain-bin.sh" "${ndk_root}")"
+toolchain_bin="$("${script_directory}/android-ndk-toolchain-bin.sh" "${ndk_root}")"
 
 linker="${toolchain_bin}/aarch64-linux-android${api_level}-clang"
 archiver="${toolchain_bin}/llvm-ar"
@@ -28,6 +35,11 @@ fi
 if [ ! -x "${ranlib}" ]; then
     echo "missing android ranlib: ${ranlib}"
     exit 1
+fi
+
+# ensure target std is available before cargo check
+if command -v rustup >/dev/null 2>&1; then
+    rustup target add aarch64-linux-android >/dev/null
 fi
 
 run_android_command() {

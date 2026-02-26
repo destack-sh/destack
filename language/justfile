@@ -181,13 +181,17 @@ test-runtime-privileged:
     DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
     DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
 
+# inspect runtime target toolchain readiness on this host
+runtime-toolchain-doctor:
+    ../scripts/toolchain/runtime-toolchain-doctor.sh
+
+# bootstrap runtime target toolchains and host prerequisites where possible
+runtime-toolchain-bootstrap:
+    ../scripts/toolchain/runtime-toolchain-bootstrap.sh
 
 # check runtime for cross targets using Zig as the C toolchain
 check-runtime-cross-targets:
-    # note: wasi is tracked separately until unsupported host modules are wired coherently
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-unknown-linux-gnu
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
+    ../scripts/toolchain/check-runtime-cross-targets.sh
 
 # check runtime for android target using one configured ndk toolchain
 check-runtime-android:

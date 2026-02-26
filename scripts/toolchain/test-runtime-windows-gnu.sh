@@ -5,6 +5,11 @@ target="x86_64-pc-windows-gnu"
 primary_exe_directory="../target/${target}/debug"
 fallback_exe_directory="target/${target}/debug"
 
+# ensure target std is available before cargo test
+if command -v rustup >/dev/null 2>&1; then
+    rustup target add "${target}" >/dev/null
+fi
+
 # run executable windows gnu tests only on linux hosts
 host_kernel="$(uname -s)"
 if [ "${host_kernel}" != "Linux" ]; then

@@ -32,12 +32,14 @@ Generator validation enforces one effective scope per module.
 
 | Module | Description |
 |-----------|--------|
-| [`audio`](./src/platform/audio) | Audio clocks, devices, streams, events, and MIDI I/O. |\| [`crypto`](./src/platform/crypto) | Cryptographic algorithms, keys, stores, certificates, and randomness. |
+| [`audio`](./src/platform/audio) | Audio clocks, devices, streams, events, and MIDI I/O. |
+| [`crypto`](./src/platform/crypto) | Cryptographic algorithms, keys, stores, certificates, and randomness. |
 | [`debug`](./src/platform/debug) | Runtime tracing, profiling, inspector, and debug control hooks. |
 | [`device`](./src/platform/device) | Host peripheral buses and device classes: serial, USB, Bluetooth, and camera. |
 | [`display`](./src/platform/display) | Monitor discovery, display topology, and native window integration. |
 | [`error`](./src/platform/error) | Runtime error bridge and structured host error conversion helpers. |
-| [`ffi`](./src/platform/ffi) | Dynamic library loading, symbol lookup, pointer primitives, and foreign calls. |\| [`fs`](./src/platform/fs) | Filesystem paths, files, directories, metadata, watches, mapping, and extended attributes. |
+| [`ffi`](./src/platform/ffi) | Dynamic library loading, symbol lookup, pointer primitives, and foreign calls. |
+| [`fs`](./src/platform/fs) | Filesystem paths, files, directories, metadata, watches, mapping, and extended attributes. |
 | [`gpu`](./src/platform/gpu) | GPU adapters, devices, resources, pipelines, commands, presentation, and synchronization. |
 | [`input`](./src/platform/input) | Input devices and streams: keyboard, pointer, touch, gamepad, raw HID, sensors, and text. |
 | [`io`](./src/platform/io) | Generic host I/O primitives: control, polling, events, completions, and device endpoints. |
@@ -50,7 +52,8 @@ Generator validation enforces one effective scope per module.
 | [`resource`](./src/platform/resource) | Runtime resource identifiers and handle lifecycle operations. |
 | [`security`](./src/platform/security) | Capability checks, policy state, sandbox controls, and enforcement hooks. |
 | [`thread`](./src/platform/thread) | Thread creation, synchronization, local storage, affinity, and priority controls. |
-| [`time`](./src/platform/time) | Clock reads, sleep primitives, and timer scheduling operations. |\| [`tls`](./src/platform/tls) | TLS context and session operations for transport security and certificate flows. |
+| [`time`](./src/platform/time) | Clock reads, sleep primitives, and timer scheduling operations. |
+| [`tls`](./src/platform/tls) | TLS context and session operations for transport security and certificate flows. |
 | [`tty`](./src/platform/tty) | Terminal I/O, mode management, pseudo-terminal pairs, and size control. |
 
 
@@ -64,5 +67,10 @@ cargo test -p destack_runtime
 
 Target coverage:
 ```sh
-just language/test-runtime-* # (see justfile)
+just runtime-toolchain-doctor
+just check-runtime-macos # or linux/windows-host on matching hosts
+just check-runtime-ios
+just check-runtime-android
+just check-runtime-windows-gnu
+just check-runtime-wasip1
 ```

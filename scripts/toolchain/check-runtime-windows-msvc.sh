@@ -6,6 +6,11 @@ if [ "${OS:-}" != "Windows_NT" ]; then
     exit 1
 fi
 
+# ensure target std is available before cargo check
+if command -v rustup >/dev/null 2>&1; then
+    rustup target add x86_64-pc-windows-msvc >/dev/null
+fi
+
 # check and lint runtime on windows host
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
 LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
