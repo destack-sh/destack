@@ -1,10 +1,10 @@
 use destack_dir::{
-    Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, DynamicKey,
+    Argument, BinaryOperator, Block, CastOperator, CastSource, Declaration, Declarator, DynamicKey,
     EnumBackingType, Expression, GlobalSymbolId, IfCondition, IfKind, Instance, LocalNodeId,
-    LocalTypeId, MatchCase, NodeTree, NodeType, Path, Resolution, ResolutionCandidate,
-    ResolvedSignature, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeLiteral, TypeTable,
-    UnaryOperator, WellKnownSymbol,
+    LocalTypeId, MatchCase, Member, NodeTree, NodeType, Path, Property, Resolution,
+    ResolutionCandidate, ResolvedSignature, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
+    TypeLiteral, TypeTable, UnaryOperator, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
@@ -138,6 +138,11 @@ impl Compiler {
         types: &mut TypeTable,
         module: &Module,
     ) -> ElaborateResult<()> {
+        // skip references that live in type positions
+        if self.reference_is_non_value_operand(expression_id, tree) {
+            return Ok(());
+        }
+
         // skip references used by guard operators
         if self.reference_is_guard_operand(expression_id, tree) {
             return Ok(());
@@ -268,6 +273,79 @@ impl Compiler {
         types.set_inferred_type(expression_id.into_global_any(module_id), target_type_id);
 
         Ok(())
+    }
+
+    /// Return true when a reference expression is used in a known non-value position.
+    fn reference_is_non_value_operand(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let mut current_id = expression_id;
+
+        loop {
+            let Some(parent_id) = tree.get_parent(current_id.id) else {
+                return false;
+            };
+
+            if let Ok(parent_expression_id) = parent_id.try_into_typed::<Expression>() {
+                let parent_expression = tree.get(parent_expression_id);
+                match parent_expression {
+                    Expression::Parenthesized { expression } if *expression == current_id => {
+                        current_id = parent_expression_id;
+                        continue;
+                    }
+                    Expression::Cast { target_type, .. } => return *target_type == current_id,
+                    Expression::TaggedScalarExpression { ty, .. }
+                    | Expression::TaggedTupleExpression { ty, .. }
+                    | Expression::TaggedObjectExpression { ty, .. } => return *ty == current_id,
+                    Expression::TypeBinary {
+                        operator, right, ..
+                    } => {
+                        return match operator {
+                            TypeBinaryOperator::Cast => *right == current_id,
+                            _ => false,
+                        };
+                    }
+                    _ => return false,
+                }
+            }
+
+            match parent_id.ty {
+                NodeType::Declarator => {
+                    let parent_declarator = tree.get(parent_id.into_typed::<Declarator>());
+                    return parent_declarator.ty == Some(current_id);
+                }
+                NodeType::Declaration => {
+                    let parent_declaration = tree.get(parent_id.into_typed::<Declaration>());
+                    return match parent_declaration {
+                        Declaration::Function { signature, .. } => {
+                            signature.return_type == Some(current_id)
+                        }
+                        _ => false,
+                    };
+                }
+                NodeType::Member => {
+                    let parent_member = tree.get(parent_id.into_typed::<Member>());
+                    return match parent_member {
+                        Member::Method { signature, .. } => {
+                            signature.return_type == Some(current_id)
+                        }
+                        _ => false,
+                    };
+                }
+                NodeType::Property => {
+                    let parent_property = tree.get(parent_id.into_typed::<Property>());
+                    return match parent_property {
+                        Property::Method { signature, .. } => {
+                            signature.return_type == Some(current_id)
+                        }
+                        _ => false,
+                    };
+                }
+                _ => return false,
+            }
+        }
     }
 
     /// Return true when a reference is used by a guard operator.
@@ -3546,10 +3624,7 @@ function test(): int32 | null | undefined {
         test.assert_elaborated(
             module_id,
             r#"
-function accept(value): 
-    | int32
-    | null
-    | undefined {
+function accept(value): int32 | null | undefined {
     return value;
 }
 
@@ -3557,16 +3632,8 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(): 
-    | int32
-    | null
-    | undefined {
-    return accept(
-        (intValue() as 
-                | int32
-                | null
-                | undefined),
-    );
+function test(): int32 | null | undefined {
+    return accept((intValue() as int32 | null | undefined));
 }
 "#,
         );
