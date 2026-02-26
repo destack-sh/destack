@@ -17,9 +17,6 @@ Component-wise, the runtime is organized into a few main areas:
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `host/`: host adapters, host event bridges, host ffi entrypoints, and host state integration
 
-## Hosts
-Host integration lives in [`src/host`](./src/host).
-
 ## Modules
 
 The platform module scope matrix is listed below.

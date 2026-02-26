@@ -3,11 +3,15 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostBridge, HostBridgeRegistration, HostStateStore, register_host_bridge};
+use crate::host::core::{
+    HostBridge, HostBridgeRegistration, HostStateStore, default_host_capabilities,
+    register_host_bridge,
+};
 use crate::host::{
     HostAdapter, HostEvent, HostLifecycleState, HostPermissionService, HostPlatform, HostServices,
     HostStateReader,
 };
+use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
 
 /// iOS host adapter implementation.
@@ -61,6 +65,10 @@ impl HostAdapter for IosHostAdapter {
 
     fn take_dropped_event_count(&self) -> u64 {
         self.bridge.take_dropped_event_count()
+    }
+
+    fn host_capabilities(&self) -> PlatformCapabilitySet {
+        default_host_capabilities(self.platform())
     }
 
     fn services(&self) -> &HostServices {

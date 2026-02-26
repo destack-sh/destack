@@ -205,15 +205,11 @@ fn enforce_capacity_before_enqueue(payload: &mut HostEventQueuePayload, event: &
 
 /// Remove stale semantic events that are modeled as latest-state signals.
 fn coalesce_semantic_event(events: &mut VecDeque<HostEvent>, event: &HostEvent) {
-    let Some(kind) = event.kind() else {
+    let Some(coalescing_key) = event.coalescing_key() else {
         return;
     };
 
-    if !event.is_coalescing() {
-        return;
-    }
-
-    events.retain(|queued_event| queued_event.kind() != Some(kind));
+    events.retain(|queued_event| queued_event.coalescing_key() != Some(coalescing_key));
 }
 
 /// Return the oldest event index that is eligible for drop-on-pressure policy.

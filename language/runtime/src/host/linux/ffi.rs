@@ -33,35 +33,43 @@ pub unsafe extern "C" fn destack_host_linux_notify_application_lifecycle(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_window_available(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_available(runtime_id))
+    unix_runtime_status(linux_notify_window_available(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one linux window terminated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_window_terminated(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_terminated(runtime_id))
+    unix_runtime_status(linux_notify_window_terminated(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one linux window resized.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_resized(runtime_id, width_px, height_px))
+    unix_runtime_status(linux_notify_window_resized(
+        runtime_id, window_id, width_px, height_px,
+    ))
 }
 
 /// Notify the runtime host bridge that one linux window focus changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_linux_notify_window_focus_changed(
     runtime_id: u64,
+    window_id: u64,
     is_focused: bool,
 ) -> RuntimeStatus {
-    unix_runtime_status(linux_notify_window_focus_changed(runtime_id, is_focused))
+    unix_runtime_status(linux_notify_window_focus_changed(
+        runtime_id, window_id, is_focused,
+    ))
 }
 
 /// Notify the runtime host bridge with one linux permission result.

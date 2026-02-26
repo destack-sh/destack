@@ -35,9 +35,7 @@ pub trait HostAdapter: std::fmt::Debug + Send + Sync {
     }
 
     /// Return host platform capabilities for this adapter target.
-    fn host_capabilities(&self) -> PlatformCapabilitySet {
-        PlatformCapabilitySet::new()
-    }
+    fn host_capabilities(&self) -> PlatformCapabilitySet;
 
     /// Return service surfaces exposed by this host adapter.
     fn services(&self) -> &HostServices;

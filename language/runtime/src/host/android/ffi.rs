@@ -58,27 +58,30 @@ pub unsafe extern "C" fn destack_host_android_notify_activity_lifecycle(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_available(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    runtime_status(android_notify_window_available(runtime_id))
+    runtime_status(android_notify_window_available(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one Android window terminated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_terminated(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    runtime_status(android_notify_window_terminated(runtime_id))
+    runtime_status(android_notify_window_terminated(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one Android window resized.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeStatus {
     runtime_status(android_notify_window_resized(
-        runtime_id, width_px, height_px,
+        runtime_id, window_id, width_px, height_px,
     ))
 }
 
@@ -86,9 +89,12 @@ pub unsafe extern "C" fn destack_host_android_notify_window_resized(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_focus_changed(
     runtime_id: u64,
+    window_id: u64,
     is_focused: bool,
 ) -> RuntimeStatus {
-    runtime_status(android_notify_window_focus_changed(runtime_id, is_focused))
+    runtime_status(android_notify_window_focus_changed(
+        runtime_id, window_id, is_focused,
+    ))
 }
 
 /// Notify the runtime host bridge that one Android permission request changed state.

@@ -40,12 +40,14 @@ fn test_notify_window_available_enqueues_window_event_for_runtime_bridge() {
     let registration = register_host_bridge(HostPlatform::Linux, &bridge);
     let runtime_id = registration.runtime_id();
 
-    unix_notify_window_available(runtime_id, HostPlatform::Linux).unwrap();
+    unix_notify_window_available(runtime_id, HostPlatform::Linux, 7).unwrap();
 
     let events = bridge.poll_events(Some(0)).unwrap();
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Window(HostWindowEvent::WindowAvailable)]
+        [HostEvent::Window(HostWindowEvent::WindowAvailable {
+            window_id: 7,
+        })]
     );
 }
 
@@ -56,7 +58,7 @@ fn test_notify_window_available_rejects_platform_mismatch_for_runtime_bridge() {
     let registration = register_host_bridge(HostPlatform::Linux, &bridge);
     let runtime_id = registration.runtime_id();
 
-    let result = unix_notify_window_available(runtime_id, HostPlatform::FreeBsd);
+    let result = unix_notify_window_available(runtime_id, HostPlatform::FreeBsd, 7);
     assert!(result.is_err());
 
     let resolved_bridge = host_bridge_for_runtime(runtime_id, HostPlatform::Linux).unwrap();

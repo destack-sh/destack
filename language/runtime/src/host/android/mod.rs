@@ -12,6 +12,8 @@ mod credentials;
 mod crypto;
 #[cfg(any(test, target_os = "android"))]
 mod ffi;
+#[cfg(any(test, target_os = "android"))]
+mod registry;
 #[cfg(test)]
 mod tests;
 
@@ -24,10 +26,7 @@ pub use abi::{
 #[cfg(target_os = "android")]
 pub(super) use adapter::AndroidHostAdapter;
 #[cfg(any(test, target_os = "android"))]
-pub use bindings::{
-    AndroidHostBindings, android_host_crypto_callbacks_snapshot,
-    destack_host_android_register_bindings,
-};
+pub use bindings::{AndroidHostBindings, destack_host_android_register_bindings};
 #[cfg(any(test, target_os = "android"))]
 pub use callback::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
@@ -68,7 +67,10 @@ pub use crypto::{
     destack_host_android_crypto_generate_hardware_key_pair,
     destack_host_android_crypto_generate_hardware_secret_key,
     destack_host_android_crypto_import_certificate, destack_host_android_crypto_sign_hardware_key,
+    destack_host_android_crypto_supports_certificate_write,
     destack_host_android_crypto_supports_hardware_key,
+    destack_host_android_crypto_supports_hardware_key_pair,
+    destack_host_android_crypto_supports_hardware_secret_key,
 };
 #[cfg(any(test, target_os = "android"))]
 pub use ffi::{
@@ -82,3 +84,5 @@ pub use ffi::{
     destack_host_android_notify_window_focus_changed, destack_host_android_notify_window_resized,
     destack_host_android_notify_window_terminated,
 };
+#[cfg(any(test, target_os = "android"))]
+pub(crate) use registry::unregister_android_bindings;

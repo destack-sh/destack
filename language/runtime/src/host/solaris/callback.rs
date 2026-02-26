@@ -20,22 +20,29 @@ pub fn solaris_notify_application_lifecycle(
 }
 
 /// Submit one solaris window-available callback.
-pub fn solaris_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::Solaris)
+pub fn solaris_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::Solaris, window_id)
 }
 
 /// Submit one solaris window-terminated callback.
-pub fn solaris_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::Solaris)
+pub fn solaris_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::Solaris, window_id)
 }
 
 /// Submit one solaris window-resized callback.
 pub fn solaris_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::Solaris, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::Solaris,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one solaris permission-result callback.
@@ -56,8 +63,12 @@ pub fn solaris_notify_interruption_changed(
 }
 
 /// Submit one solaris window focus callback.
-pub fn solaris_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::Solaris, is_focused)
+pub fn solaris_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::Solaris, window_id, is_focused)
 }
 
 /// Submit one solaris memory pressure callback.

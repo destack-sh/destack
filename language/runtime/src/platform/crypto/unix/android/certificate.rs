@@ -1,7 +1,11 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HOST_STATUS_NOT_FOUND, android_host_crypto_callbacks_snapshot};
+use crate::host::{
+    HOST_STATUS_NOT_FOUND, HOST_STATUS_OK, destack_host_android_crypto_delete_certificate,
+    destack_host_android_crypto_import_certificate,
+    destack_host_android_crypto_supports_certificate_write,
+};
 use crate::platform::NativeSlice;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
@@ -10,7 +14,6 @@ use crate::runtime::BindingCallContext;
 use super::core::{
     callback_runtime_id, configured_system_certificate_directories,
     configured_system_certificate_files, host_status_result, host_store_kind, invalid_data,
-    not_supported,
 };
 
 /// Return whether one host store lane supports certificate write operations.
@@ -30,11 +33,13 @@ pub(crate) fn host_store_supports_certificate_write(
     let Some(runtime_id) = context.host().callback_runtime_id() else {
         return false;
     };
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+    let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
+    let status =
+        unsafe { destack_host_android_crypto_supports_certificate_write(runtime_id, encoded_kind) };
 
-    callbacks.import_certificate.is_some() && callbacks.delete_certificate.is_some()
+    status == HOST_STATUS_OK
 }
 
 /// Import one certificate into one host store lane.
@@ -44,16 +49,10 @@ pub(crate) fn host_store_import_certificate(
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve runtime id and callback entrypoint
+    // resolve runtime id
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(import_callback) = callbacks.import_certificate else {
-        return Err(not_supported(operation));
-    };
 
-    // encode callback arguments
+    // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
     let certificate_der = certificate
         .to_der()
@@ -63,8 +62,10 @@ pub(crate) fn host_store_import_certificate(
         len: certificate_der.len() as u32,
     };
 
-    // route host callback
-    let status = unsafe { import_callback(runtime_id, encoded_kind, certificate_der) };
+    // route host entrypoint
+    let status = unsafe {
+        destack_host_android_crypto_import_certificate(runtime_id, encoded_kind, certificate_der)
+    };
     host_status_result(status, operation, "import_certificate")
 }
 
@@ -75,16 +76,10 @@ pub(crate) fn host_store_delete_certificate(
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    // resolve runtime id and callback entrypoint
+    // resolve runtime id
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(delete_callback) = callbacks.delete_certificate else {
-        return Err(not_supported(operation));
-    };
 
-    // encode callback arguments
+    // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
     let certificate_der = certificate
         .to_der()
@@ -94,8 +89,10 @@ pub(crate) fn host_store_delete_certificate(
         len: certificate_der.len() as u32,
     };
 
-    // route host callback and treat missing-certificate delete as success
-    let status = unsafe { delete_callback(runtime_id, encoded_kind, certificate_der) };
+    // route host entrypoint and treat missing-certificate delete as success
+    let status = unsafe {
+        destack_host_android_crypto_delete_certificate(runtime_id, encoded_kind, certificate_der)
+    };
     if status == HOST_STATUS_NOT_FOUND {
         return Ok(());
     }
