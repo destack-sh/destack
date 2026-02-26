@@ -7,7 +7,7 @@ use destack_source::glob;
 use crate::console;
 
 const FILE_GLOBS_TO_UPDATE: &[&str] = &[
-    "version.txt",
+    "VERSION",
     "README.md",
     "Cargo.toml",
     "package.json",
@@ -221,7 +221,7 @@ fn update_readme_badge_version(text: &str, new_version: &str) -> Option<String> 
 
 /// Read the current version from the version file.
 fn read_current_version() -> Option<String> {
-    fs::read_to_string("version.txt")
+    fs::read_to_string("VERSION")
         .ok()
         .map(|s| s.trim().to_string())
 }

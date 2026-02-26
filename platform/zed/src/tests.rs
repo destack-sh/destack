@@ -27,7 +27,7 @@ const QUERY_MIR_OUTLINE: &str = include_str!("../languages/mir/outline.scm");
 const EXTENSION_TOML: &str = include_str!("../extension.toml");
 const LANGUAGE_CONFIG_TOML: &str = include_str!("../languages/destack/config.toml");
 const LANGUAGE_MIR_CONFIG_TOML: &str = include_str!("../languages/mir/config.toml");
-const ROOT_VERSION: &str = include_str!("../../../version.txt");
+const ROOT_VERSION: &str = include_str!("../../../VERSION");
 
 fn collect_query_captures_for_language(
     language_function: LanguageFn,
