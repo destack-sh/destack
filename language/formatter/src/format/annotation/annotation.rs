@@ -1364,4 +1364,21 @@ type d= {
             DestackFormatOptions::default(),
         );
     }
+
+    /// Inline comments between semicolons and guard heads should stay idempotent.
+    #[test]
+    fn test_format_inline_comment_between_semicolon_and_guard_head_is_idempotent() {
+        let source = r#"{
+    let values = [1]
+
+    ;/* keep guard seam */[values[0]] = [2]
+}
+"#;
+
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::JavaScript,
+            DestackFormatOptions::default(),
+        );
+    }
 }

@@ -18,6 +18,5 @@ mod statement;
 pub(crate) use attachment::formatter_annotation_projection;
 pub use render::{AnnotationCapture, Annotations};
 pub(crate) use semicolon::{
-    classify_semicolon_guard_comment_seam, expression_needs_statement_terminator,
-    statement_wrapper_needs_semicolon,
+    expression_needs_statement_terminator, statement_wrapper_needs_semicolon,
 };

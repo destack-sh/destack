@@ -11,7 +11,7 @@ use super::ownership::{
     find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
     normalize_owner_with_shared_end, promote_owner_by_shared_start,
 };
-use super::semicolon::token_type_is_semicolon_guard_head;
+use super::semicolon::{SemicolonGuardCommentSeam, classify_semicolon_guard_comment_seam};
 
 /// Attach remaining comments before empty-statement semicolons.
 fn attach_before_empty_statement_semicolon(
@@ -72,16 +72,21 @@ fn attach_token_after_prefers_preceding(
 fn attach_after_semicolon_guard_head(
     tree: &NodeTree,
     parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     following_owner: Option<u32>,
     token_after_span: Option<Span>,
 ) -> Option<CommentAttachment> {
-    if !seam.token_before_is(TokenType::Semicolon) {
-        return None;
-    }
-
-    let token_after_type = seam.token_after_type?;
-    if !token_type_is_semicolon_guard_head(token_after_type) {
+    let semicolon_guard_seam = classify_semicolon_guard_comment_seam(
+        context.semantic_tokens,
+        seam.token_before_type,
+        seam.token_after_type,
+        context.token_after,
+    );
+    if !matches!(
+        semicolon_guard_seam,
+        SemicolonGuardCommentSeam::BeforeComment { .. }
+    ) {
         return None;
     }
 
@@ -141,9 +146,14 @@ pub(crate) fn attach_remaining_comment(
     }
 
     // semicolon guard head ownership
-    if let Some(attachment) =
-        attach_after_semicolon_guard_head(tree, parents, seam, following_owner, token_after_span)
-    {
+    if let Some(attachment) = attach_after_semicolon_guard_head(
+        tree,
+        parents,
+        context,
+        seam,
+        following_owner,
+        token_after_span,
+    ) {
         return Some(attachment);
     }
 

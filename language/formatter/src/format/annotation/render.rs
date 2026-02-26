@@ -1297,6 +1297,19 @@ fn boundary_comment_requires_semicolon_guard_continuation(
         .is_some_and(token_type_is_semicolon_guard_boundary_continuation)
 }
 
+/// Return whether one boundary slash comment should be indented as one continuation seam.
+fn should_indent_boundary_line_postfix_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+    flow: AnnotationFlow,
+) -> bool {
+    let semicolon_guard_requires_continuation =
+        boundary_comment_requires_semicolon_guard_continuation(context, annotation_id);
+    let separator_requires_continuation = flow.next_token_type == Some(TokenType::Dot);
+
+    semicolon_guard_requires_continuation || separator_requires_continuation
+}
+
 /// Emit special indentation for own line line-postfix-boundary slash comments.
 pub(crate) fn write_boundary_line_postfix_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1312,10 +1325,7 @@ pub(crate) fn write_boundary_line_postfix_comment<'ast>(
         return Ok(false);
     }
 
-    let requires_guard_continuation =
-        boundary_comment_requires_semicolon_guard_continuation(f.context(), annotation_id);
-    let separator_requires_boundary_continuation = flow.next_token_type == Some(TokenType::Dot);
-    if requires_guard_continuation || separator_requires_boundary_continuation {
+    if should_indent_boundary_line_postfix_comment(f.context(), annotation_id, flow) {
         write!(
             f,
             [
@@ -1646,6 +1656,25 @@ fn trailing_line_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
     AnnotationSpacing::None
 }
 
+/// Return trailing-spacing for one inline star comment seam.
+fn trailing_inline_star_comment_spacing(
+    flow: AnnotationFlow,
+    allows_tight_separator: bool,
+) -> AnnotationSpacing {
+    let keep_space_before_adjacent_block_comment =
+        should_keep_space_before_adjacent_block_comment(flow);
+    let should_write_space = should_write_space_after_inline_star_comment(
+        flow,
+        allows_tight_separator,
+        keep_space_before_adjacent_block_comment,
+    );
+    if should_write_space {
+        return AnnotationSpacing::Space;
+    }
+
+    AnnotationSpacing::None
+}
+
 /// Return trailing-spacing decision for one block infix annotation.
 fn trailing_block_infix_spacing(
     capture: AnnotationCapture,
@@ -1659,8 +1688,6 @@ fn trailing_block_infix_spacing(
         return AnnotationSpacing::HardLine;
     }
 
-    let keep_space_before_adjacent_block_comment =
-        should_keep_space_before_adjacent_block_comment(flow);
     let is_new_head_or_method_parameter_parenthesis_seam = matches!(
         capture,
         AnnotationCapture::DeclarationNewHead | AnnotationCapture::MethodParameterHeadInfix
@@ -1671,16 +1698,7 @@ fn trailing_block_infix_spacing(
         let allows_tight_separator =
             inline_block_comment_allows_tight_separator(flow.next_token_type)
                 || is_new_head_or_method_parameter_parenthesis_seam;
-        let should_write_space = should_write_space_after_inline_star_comment(
-            flow,
-            allows_tight_separator,
-            keep_space_before_adjacent_block_comment,
-        );
-        if should_write_space {
-            return AnnotationSpacing::Space;
-        }
-
-        return AnnotationSpacing::None;
+        return trailing_inline_star_comment_spacing(flow, allows_tight_separator);
     }
 
     AnnotationSpacing::HardLine
@@ -1688,21 +1706,10 @@ fn trailing_block_infix_spacing(
 
 /// Return trailing-spacing decision for one block postfix annotation.
 fn trailing_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
-    let keep_space_before_adjacent_block_comment =
-        should_keep_space_before_adjacent_block_comment(flow);
     if flow.is_inline_delimited_block_postfix_star_comment {
         let allows_tight_separator =
             inline_block_comment_allows_tight_separator(flow.next_token_type);
-        let should_write_space = should_write_space_after_inline_star_comment(
-            flow,
-            allows_tight_separator,
-            keep_space_before_adjacent_block_comment,
-        );
-        if should_write_space {
-            return AnnotationSpacing::Space;
-        }
-
-        return AnnotationSpacing::None;
+        return trailing_inline_star_comment_spacing(flow, allows_tight_separator);
     }
 
     AnnotationSpacing::HardLine
@@ -1710,21 +1717,10 @@ fn trailing_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 
 /// Return trailing-spacing decision for one block prefix annotation.
 fn trailing_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
-    let keep_space_before_adjacent_block_comment =
-        should_keep_space_before_adjacent_block_comment(flow);
     if flow.is_inline_block_star_comment {
         let allows_tight_separator =
             inline_block_comment_allows_tight_separator(flow.next_token_type);
-        let should_write_space = should_write_space_after_inline_star_comment(
-            flow,
-            allows_tight_separator,
-            keep_space_before_adjacent_block_comment,
-        );
-        if should_write_space {
-            return AnnotationSpacing::Space;
-        }
-
-        return AnnotationSpacing::None;
+        return trailing_inline_star_comment_spacing(flow, allows_tight_separator);
     }
 
     if flow.is_inline_decorator_prefix {

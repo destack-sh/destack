@@ -10,6 +10,15 @@ use crate::format::context::{
 };
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return whether one annotation position is one prefix position.
+    #[inline]
+    fn is_prefix_annotation_position(position: AnnotationPosition) -> bool {
+        matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        )
+    }
+
     /// Get one formatter-owned annotation by id.
     #[inline]
     pub fn annotation(&self, annotation_id: LocalNodeId<Annotation>) -> Annotation {
@@ -115,6 +124,38 @@ impl<'a> DestackFormatContext<'a> {
             .map(|token| token.token.ty)
     }
 
+    /// Record one annotation cache hit when instrumentation is enabled.
+    #[inline]
+    fn increment_annotation_cache_hits(&self) {
+        if self.instrumentation_enabled {
+            self.cache_stats
+                .annotation_cache_hits
+                .set(self.cache_stats.annotation_cache_hits.get() + 1);
+        }
+    }
+
+    /// Record one annotation cache miss when instrumentation is enabled.
+    #[inline]
+    fn increment_annotation_cache_misses(&self) {
+        if self.instrumentation_enabled {
+            self.cache_stats
+                .annotation_cache_misses
+                .set(self.cache_stats.annotation_cache_misses.get() + 1);
+        }
+    }
+
+    /// Return cached annotation data for one node index.
+    #[inline]
+    fn annotation_data_from_cache(&self, node_index: usize) -> Ref<'_, AnnotationData> {
+        let cache = self.annotation_data_by_node_id.borrow();
+        Ref::map(cache, |cache| {
+            cache
+                .get(node_index)
+                .and_then(|entry| entry.as_ref())
+                .expect("annotation cache should contain requested node")
+        })
+    }
+
     /// Return borrowed cached annotation data for a node.
     #[inline]
     fn annotation_data_for_node<T>(
@@ -127,35 +168,20 @@ impl<'a> DestackFormatContext<'a> {
     {
         let node_index = node_id.id as usize;
         let state = self.annotation_state_by_node_id[node_index].get();
+
+        // node has no annotations
         if state == ANNOTATION_STATE_NONE {
-            if self.instrumentation_enabled {
-                self.cache_stats
-                    .annotation_cache_hits
-                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            }
+            self.increment_annotation_cache_hits();
             return None;
         }
 
+        // cached metadata is already available
         if state == ANNOTATION_STATE_CACHED {
-            if self.instrumentation_enabled {
-                self.cache_stats
-                    .annotation_cache_hits
-                    .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            }
-            let cache = self.annotation_data_by_node_id.borrow();
-            return Some(Ref::map(cache, |cache| {
-                cache
-                    .get(node_index)
-                    .and_then(|entry| entry.as_ref())
-                    .expect("annotation cache should contain requested node")
-            }));
+            self.increment_annotation_cache_hits();
+            return Some(self.annotation_data_from_cache(node_index));
         }
 
-        if self.instrumentation_enabled {
-            self.cache_stats
-                .annotation_cache_misses
-                .set(self.cache_stats.annotation_cache_misses.get() + 1);
-        }
+        self.increment_annotation_cache_misses();
 
         // load annotations once and cache metadata
         let annotation_ids = self
@@ -172,13 +198,7 @@ impl<'a> DestackFormatContext<'a> {
         }
         self.annotation_state_by_node_id[node_index].set(ANNOTATION_STATE_CACHED);
 
-        let cache = self.annotation_data_by_node_id.borrow();
-        Some(Ref::map(cache, |cache| {
-            cache
-                .get(node_index)
-                .and_then(|entry| entry.as_ref())
-                .expect("annotation cache should contain requested node")
-        }))
+        Some(self.annotation_data_from_cache(node_index))
     }
 
     /// Get annotations for a node. Annotations are sorted by position.
@@ -214,23 +234,23 @@ impl<'a> DestackFormatContext<'a> {
         let node_index = node_id.id as usize;
         let state = self.annotation_state_by_node_id[node_index].get();
 
+        // fast path when instrumentation is off
         if !self.instrumentation_enabled {
             return state != ANNOTATION_STATE_NONE;
         }
 
-        if state == ANNOTATION_STATE_NONE {
-            self.cache_stats
-                .annotation_cache_hits
-                .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            return false;
+        // state lookup is one cache hit regardless of the presence result
+        match state {
+            ANNOTATION_STATE_NONE => {
+                self.increment_annotation_cache_hits();
+                false
+            }
+            ANNOTATION_STATE_PRESENT | ANNOTATION_STATE_CACHED => {
+                self.increment_annotation_cache_hits();
+                true
+            }
+            _ => false,
         }
-        if state == ANNOTATION_STATE_PRESENT || state == ANNOTATION_STATE_CACHED {
-            self.cache_stats
-                .annotation_cache_hits
-                .set(self.cache_stats.annotation_cache_hits.get() + 1);
-            return true;
-        }
-        false
     }
 
     /// Check if a node has a prefix annotation.
@@ -502,6 +522,92 @@ impl<'a> DestackFormatContext<'a> {
     }
 
     /// Compute annotation data for one argument node.
+    fn update_argument_annotation_cache_from_argument_annotations(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+        argument_end: u32,
+        annotation_cache: &mut ArgumentAnnotationCache,
+    ) {
+        // argument annotations
+        if !self.has_annotation(argument_id) {
+            return;
+        }
+
+        self.visit_annotations(argument_id, |annotations| {
+            for annotation_id in annotations {
+                let annotation = self.annotation(*annotation_id);
+
+                match annotation {
+                    Annotation::Blank { .. } => {}
+                    Annotation::Doc { position, .. }
+                    | Annotation::Decorator { position, .. }
+                    | Annotation::Comment { position, .. } => {
+                        if Self::is_prefix_annotation_position(position) {
+                            annotation_cache.has_prefix_annotation = true;
+                        }
+
+                        let Annotation::Comment { node, .. } = annotation else {
+                            continue;
+                        };
+                        annotation_cache.has_comment = true;
+
+                        let comment = self.tree.get::<Comment>(node);
+                        if comment.style != ast::CommentStyle::Slash {
+                            continue;
+                        }
+
+                        let annotation_span = self.annotation_span(*annotation_id);
+                        if annotation_span.start >= argument_end {
+                            annotation_cache.has_line_comment = true;
+                        }
+                        if Self::is_prefix_annotation_position(position) {
+                            annotation_cache.has_prefix_line_comment = true;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /// Update one argument annotation cache from one argument value expression.
+    fn update_argument_annotation_cache_from_value_annotations(
+        &self,
+        argument_id: LocalNodeId<Argument>,
+        annotation_cache: &mut ArgumentAnnotationCache,
+    ) {
+        // value annotations
+        let argument_value_expression = match self.tree.get(argument_id) {
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value, .. }
+            | Argument::Spread { value, .. } => *value,
+        };
+        let value_id = self.transparent_inner_expression(argument_value_expression);
+        let declaration_annotation_target = match self.tree.get(value_id) {
+            Expression::Declaration(declaration_id) => Some(*declaration_id),
+            _ => None,
+        };
+
+        // direct value annotation state
+        if self.has_annotation(value_id) {
+            annotation_cache.has_comment = true;
+            if self.has_prefix_annotation(value_id) {
+                annotation_cache.has_prefix_annotation = true;
+            }
+        }
+
+        // wrapped declaration annotation state
+        if let Some(declaration_id) = declaration_annotation_target
+            && self.has_annotation(declaration_id)
+        {
+            annotation_cache.has_comment = true;
+            if self.has_prefix_annotation(declaration_id) {
+                annotation_cache.has_prefix_annotation = true;
+            }
+        }
+    }
+
+    /// Compute annotation data for one argument node.
     fn compute_argument_annotation_cache(
         &self,
         argument_id: LocalNodeId<Argument>,
@@ -510,82 +616,15 @@ impl<'a> DestackFormatContext<'a> {
         let argument_span = self.span(argument_id);
         let argument_end = argument_span.end;
 
-        // argument annotations
-        if self.has_annotation(argument_id) {
-            self.visit_annotations(argument_id, |annotations| {
-                for annotation_id in annotations {
-                    let annotation = self.annotation(*annotation_id);
-
-                    match annotation {
-                        Annotation::Blank { .. } => {}
-                        Annotation::Doc { position, .. }
-                        | Annotation::Decorator { position, .. }
-                        | Annotation::Comment { position, .. } => {
-                            if matches!(
-                                position,
-                                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                            ) {
-                                annotation_cache.has_prefix_annotation = true;
-                            }
-
-                            let Annotation::Comment { node, .. } = annotation else {
-                                continue;
-                            };
-                            annotation_cache.has_comment = true;
-
-                            let comment = self.tree.get::<Comment>(node);
-                            if comment.style != ast::CommentStyle::Slash {
-                                continue;
-                            }
-
-                            let annotation_span = self.annotation_span(*annotation_id);
-                            if annotation_span.start >= argument_end {
-                                annotation_cache.has_line_comment = true;
-                            }
-                            if matches!(
-                                position,
-                                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                            ) {
-                                annotation_cache.has_prefix_line_comment = true;
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // value annotations
-        let argument_value_expression = match self.tree.get(argument_id) {
-            Argument::Named { value, .. }
-            | Argument::Labeled { value, .. }
-            | Argument::Positional { value, .. }
-            | Argument::Spread { value, .. } => Some(*value),
-        };
-        if let Some(value_id) = argument_value_expression {
-            let value_id = self.transparent_inner_expression(value_id);
-            let declaration_annotation_target = match self.tree.get(value_id) {
-                Expression::Declaration(declaration_id) => Some(*declaration_id),
-                _ => None,
-            };
-
-            // direct value annotation state
-            if self.has_annotation(value_id) {
-                annotation_cache.has_comment = true;
-                if self.has_prefix_annotation(value_id) {
-                    annotation_cache.has_prefix_annotation = true;
-                }
-            }
-
-            // wrapped declaration annotation state
-            if let Some(declaration_id) = declaration_annotation_target
-                && self.has_annotation(declaration_id)
-            {
-                annotation_cache.has_comment = true;
-                if self.has_prefix_annotation(declaration_id) {
-                    annotation_cache.has_prefix_annotation = true;
-                }
-            }
-        }
+        self.update_argument_annotation_cache_from_argument_annotations(
+            argument_id,
+            argument_end,
+            &mut annotation_cache,
+        );
+        self.update_argument_annotation_cache_from_value_annotations(
+            argument_id,
+            &mut annotation_cache,
+        );
 
         annotation_cache
     }
