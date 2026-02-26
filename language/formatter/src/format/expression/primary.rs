@@ -7,20 +7,23 @@ use crate::format::directive::{
 use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     HugOptions, IfCondition, IfKind, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode,
-    TypeModifier, TypePredicateSubject, argument_value_id, array_elements_are_fill_candidates,
-    array_has_only_boundary_comments, block_indent, format_boundary_comment_array,
-    format_expression, format_fill_array, format_hugged, format_scalar_literal,
-    format_static_argument_list, format_struct_literal, format_template_literal,
-    format_type_index_expression, format_type_template_literal, format_with, group,
-    hard_line_break, indent, is_assignment_left_target, is_call_like_argument, is_complex_argument,
-    is_expression_breakable, is_expression_chain, is_simple_static_argument, is_trivial_argument,
-    line_postfix_boundary, list_like, parenthesized_boundary_comments,
+    SeparatorLineCommentSource, TypeModifier, TypePredicateSubject,
+    argument_can_render_without_separator_line_comment, argument_value_id,
+    array_elements_are_fill_candidates, array_has_only_boundary_comments, block_indent,
+    format_boundary_comment_array, format_expression, format_fill_array, format_hugged,
+    format_scalar_literal, format_static_argument_list, format_struct_literal,
+    format_template_literal, format_type_index_expression, format_type_template_literal,
+    format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
+    is_complex_argument, is_expression_breakable, is_expression_chain, is_simple_static_argument,
+    is_trivial_argument, line_postfix_boundary, list_like, parenthesized_boundary_comments,
     parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
     parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
     should_drop_parenthesized, should_force_multiline_mapped_type,
-    should_hoist_parenthesized_inner_cast_prefix_comments, soft_block_indent, soft_line_break,
+    should_hoist_parenthesized_inner_cast_prefix_comments,
+    single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
     soft_line_break_or_space, space, token, transparent_inner_expression,
-    tree_literal_should_break,
+    tree_literal_should_break, write_argument_without_separator_line_comment,
+    write_separator_line_comment_after_comma,
 };
 use crate::format::tree::format_tree_literal_expression;
 use destack_ast::{AnnotationPosition, NodeTree};
@@ -123,7 +126,10 @@ pub(crate) fn format_primary_array_expression<'ast>(
     let should_use_fill_layout =
         !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
 
-    if can_keep_inline_boundary_comment_array {
+    if format_array_with_last_separator_line_comment(f, node_id, elements_ids)? {
+        // formatter-owned trailing separator comments around close brackets need
+        // explicit comma-before-comment emission to stay source-idempotent
+    } else if can_keep_inline_boundary_comment_array {
         format_boundary_comment_array(f, elements_ids)?;
     } else if should_use_fill_layout {
         format_fill_array(f, elements_ids)?;
@@ -137,6 +143,69 @@ pub(crate) fn format_primary_array_expression<'ast>(
     }
 
     Ok(())
+}
+
+/// Return one own-line trailing separator comment source on the last array element.
+fn array_last_separator_line_comment_source(
+    context: &DestackFormatContext<'_>,
+    array_node_id: LocalNodeId<Expression>,
+    elements_ids: &[LocalNodeId<Argument>],
+) -> Option<(LocalNodeId<Argument>, SeparatorLineCommentSource)> {
+    let last_argument_id = elements_ids.last().copied()?;
+    if !argument_can_render_without_separator_line_comment(context, last_argument_id) {
+        return None;
+    }
+
+    let comment_source =
+        single_argument_separator_line_comment_source(context, array_node_id, last_argument_id)?;
+    if !comment_source.is_own_line {
+        return None;
+    }
+
+    Some((last_argument_id, comment_source))
+}
+
+/// Format one array with the last separator line comment emitted after the trailing comma.
+fn format_array_with_last_separator_line_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    array_node_id: LocalNodeId<Expression>,
+    elements_ids: &[LocalNodeId<Argument>],
+) -> FormatResult<bool> {
+    let Some((last_argument_id, comment_source)) =
+        array_last_separator_line_comment_source(f.context(), array_node_id, elements_ids)
+    else {
+        return Ok(false);
+    };
+
+    write!(
+        f,
+        [group(&format_args![
+            token("["),
+            soft_block_indent(&format_with(
+                |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+                    for (index, argument_id) in elements_ids.iter().copied().enumerate() {
+                        if index > 0 {
+                            write!(f, [token(","), space()])?;
+                        }
+
+                        if argument_id == last_argument_id {
+                            if !write_argument_without_separator_line_comment(f, argument_id)? {
+                                write!(f, [argument_id])?;
+                            }
+                            write_separator_line_comment_after_comma(f, &comment_source)?;
+                        } else {
+                            write!(f, [argument_id])?;
+                        }
+                    }
+
+                    Ok(())
+                }
+            )),
+            token("]")
+        ])]
+    )?;
+
+    Ok(true)
 }
 
 /// Format a tuple literal primary expression.
@@ -377,7 +446,7 @@ pub(crate) fn format_primary_expression<'ast>(
 
         // tagged template literal
         Expression::TaggedTemplateExpression { tag, value } => {
-            write!(f, [tag])?;
+            write!(f, [tag, f.context().block_infix_annotations(node_id)])?;
             format_template_literal(value, tree.get_span(node_id), f)?;
         }
 
@@ -916,7 +985,9 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 ..
             }
         ) {
-            let should_keep_multiline = f.context().has_annotation(*expression)
+            let should_keep_multiline = f.context().has_annotation(node_id)
+                || f.context().has_annotation(*expression)
+                || f.context().has_comment(f.context().span(node_id))
                 || f.context().has_comment(f.context().span(*expression));
             if should_keep_multiline {
                 write!(

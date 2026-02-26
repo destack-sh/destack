@@ -80,6 +80,35 @@ fn expression_prefix_start(
     start
 }
 
+/// Return the latest end offset for postfix comment annotations on an expression.
+fn expression_postfix_end(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    default_end: u32,
+) -> u32 {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return default_end;
+    };
+
+    let mut end = default_end;
+    for annotation_id in annotation_ids {
+        let annotation = context.annotation(annotation_id);
+        if !matches!(
+            annotation.position(),
+            AnnotationPosition::BlockPostfix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+        ) {
+            continue;
+        }
+
+        let annotation_span = context.annotation_span(annotation_id);
+        end = end.max(annotation_span.end);
+    }
+
+    end
+}
+
 /// Write postfix annotations for one block expression.
 fn write_expression_postfix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -582,7 +611,9 @@ pub(crate) fn format_block_of_statements<'ast>(
         if is_import_expr {
             prev_import_id = Some(expression_id);
         }
-        previous_output_end = Some((expression_span.file, expression_span.end));
+        let expression_output_end =
+            expression_postfix_end(f.context(), expression_id, expression_span.end);
+        previous_output_end = Some((expression_span.file, expression_output_end));
     }
     Ok(())
 }

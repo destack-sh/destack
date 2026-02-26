@@ -364,51 +364,6 @@ fn chain_has_newline_optional_call_boundary_trivia(
     })
 }
 
-/// Return whether the next non-whitespace token after one annotation starts on the same line.
-fn annotation_next_token_is_on_same_line(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = context.annotation_span(annotation_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace => {
-                index += 1;
-                continue;
-            }
-            TokenType::Newline => return false,
-            _ => return true,
-        }
-    }
-
-    false
-}
-
-/// Return the first non-whitespace token kind after one annotation.
-fn annotation_next_non_whitespace_token_type(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> Option<TokenType> {
-    let span = context.annotation_span(annotation_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace | TokenType::Newline => {
-                index += 1;
-                continue;
-            }
-            token_type => return Some(token_type),
-        }
-    }
-
-    None
-}
-
 /// Return whether one annotation should not force multiline chain breaking.
 pub(crate) fn chain_annotation_is_inline_non_breaking(
     context: &DestackFormatContext<'_>,
@@ -448,17 +403,17 @@ pub(crate) fn chain_annotation_is_inline_non_breaking(
     }
 
     if position == AnnotationPosition::LinePostfixBoundary {
-        return annotation_next_token_is_on_same_line(context, annotation_id);
+        return context.annotation_next_token_is_on_same_line(annotation_id);
     }
 
     if position == AnnotationPosition::LinePostfix
-        && annotation_next_non_whitespace_token_type(context, annotation_id)
+        && context.annotation_next_non_whitespace_token_type(annotation_id)
             == Some(TokenType::Maybe)
     {
         return true;
     }
 
-    annotation_next_token_is_on_same_line(context, annotation_id)
+    context.annotation_next_token_is_on_same_line(annotation_id)
 }
 
 /// Return whether one annotation is an internal call argument infix marker.

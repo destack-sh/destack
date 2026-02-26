@@ -1,4 +1,3 @@
-use crate::format::analysis::next_non_whitespace_after_annotation;
 use crate::format::collection::list_like;
 use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
 use crate::format::declaration::signature::format_where_clause_with_break;
@@ -18,7 +17,7 @@ use destack_ast::{
     AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
     DependencyKind, DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind,
     ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind,
-    NodeType, Parameter, TypeKind, Visibility,
+    NodeType, Parameter, TokenType, TypeKind, Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -526,8 +525,11 @@ fn single_line_type_grouping_prefix_comment_cluster(
         }
 
         let last_annotation_id = *cluster.last()?;
-        let next_character = next_non_whitespace_after_annotation(context, last_annotation_id);
-        if !matches!(next_character, Some('|' | '&')) {
+        let next_token_type = context.annotation_next_non_whitespace_token_type(last_annotation_id);
+        if !matches!(
+            next_token_type,
+            Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
+        ) {
             return None;
         }
         return Some(InlineTypePrefixCommentCluster {

@@ -1,14 +1,12 @@
-use crate::format::analysis::{
-    next_non_whitespace_after_span, next_non_whitespace_token_after_span,
-    previous_non_whitespace_before_annotation, token_is_keyword,
-};
+use super::facts::token_type_is_comment_trivia;
+use super::semicolon::token_type_is_semicolon_guard_boundary_continuation;
 use crate::format::directive::{
     comment_node_is_any_ignore_directive, comment_node_is_ignore_directive,
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Comment, CommentStyle, Declaration, Doc, DocStyle, Keyword, LocalNodeId,
-    Node, NodeTree, NodeTreeImpl, NodeType,
+    AnnotationPosition, Comment, CommentStyle, Declaration, Doc, DocStyle, Expression, Keyword,
+    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenType,
 };
 use destack_fir::format::{Format, FormatResult, hard_line_break};
 use destack_fir::prelude::*;
@@ -69,20 +67,56 @@ pub(crate) fn annotation_precedes_separator<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    // inspect the concrete annotation content span for stable inline spacing choices
-    let span = annotation_content_span(context, annotation_id);
+    context
+        .annotation_next_non_whitespace_token_type(annotation_id)
+        .is_some_and(token_type_is_separator_after_annotation)
+}
+
+/// Return whether one token type is a separator for annotation seams.
+#[inline]
+fn token_type_is_separator_after_annotation(token_type: TokenType) -> bool {
     matches!(
-        next_non_whitespace_after_span(context, span),
-        Some(',' | ';' | '(' | ')' | '[' | ']' | '}' | '>' | '?' | '.' | ':' | '=')
+        token_type,
+        TokenType::Comma
+            | TokenType::Semicolon
+            | TokenType::OpenParenthesis
+            | TokenType::CloseParenthesis
+            | TokenType::OpenBracket
+            | TokenType::CloseBracket
+            | TokenType::CloseBrace
+            | TokenType::GreaterThan
+            | TokenType::Maybe
+            | TokenType::Dot
+            | TokenType::Colon
+            | TokenType::Assign
+            | TokenType::ElementwiseOr
+            | TokenType::ElementwiseAnd
     )
 }
 
 /// Return whether inline block comments can remain tightly bound to the next separator.
 #[inline]
-pub(crate) fn inline_block_comment_allows_tight_separator(next_character: Option<char>) -> bool {
+pub(crate) fn inline_block_comment_allows_tight_separator(
+    next_token_type: Option<TokenType>,
+) -> bool {
+    let Some(next_token_type) = next_token_type else {
+        return false;
+    };
+
     matches!(
-        next_character,
-        Some(',' | ';' | ')' | ']' | '}' | '>' | '?' | '.' | ':' | '=')
+        next_token_type,
+        TokenType::Comma
+            | TokenType::Semicolon
+            | TokenType::CloseParenthesis
+            | TokenType::CloseBracket
+            | TokenType::CloseBrace
+            | TokenType::GreaterThan
+            | TokenType::Maybe
+            | TokenType::Dot
+            | TokenType::Colon
+            | TokenType::Assign
+            | TokenType::ElementwiseOr
+            | TokenType::ElementwiseAnd
     )
 }
 
@@ -91,12 +125,12 @@ pub(crate) fn annotation_next_token_is_on_same_line(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    let span = annotation_content_span(context, annotation_id);
-    let Some(next_token) = next_non_whitespace_token_after_span(context, span) else {
+    let annotation_span = annotation_content_span(context, annotation_id);
+    let Some(next_token) = context.annotation_next_non_whitespace_token(annotation_id) else {
         return false;
     };
 
-    let anchor_offset = span.end.saturating_sub(1);
+    let anchor_offset = annotation_span.end.saturating_sub(1);
     context
         .file
         .is_same_line(anchor_offset, next_token.span.start)
@@ -107,12 +141,7 @@ pub(crate) fn annotation_next_token_is_else_keyword(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    let span = annotation_content_span(context, annotation_id);
-    let Some(next_token) = next_non_whitespace_token_after_span(context, span) else {
-        return false;
-    };
-
-    token_is_keyword(context, next_token, Keyword::Else)
+    context.annotation_next_token_is_keyword(annotation_id, Keyword::Else)
 }
 
 /// Return whether an annotation directly follows a colon in source.
@@ -120,13 +149,19 @@ fn annotation_follows_colon<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    previous_non_whitespace_before_annotation(context, annotation_id) == Some(':')
+    context.annotation_previous_non_whitespace_token_type(annotation_id) == Some(TokenType::Colon)
 }
 
-/// Return whether an annotation directly follows an opening delimiter in source.
+/// Return whether one token type is an opening delimiter.
 #[inline]
-fn is_opening_delimiter_character(character: char) -> bool {
-    matches!(character, '(' | '[' | '{' | '<')
+fn token_type_is_opening_delimiter(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::OpenParenthesis
+            | TokenType::OpenBracket
+            | TokenType::OpenBrace
+            | TokenType::LessThan
+    )
 }
 
 /// Return whether an annotation directly follows an opening delimiter in source.
@@ -134,8 +169,21 @@ fn annotation_follows_opening_delimiter<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    previous_non_whitespace_before_annotation(context, annotation_id)
-        .is_some_and(is_opening_delimiter_character)
+    context
+        .annotation_previous_non_whitespace_token_type(annotation_id)
+        .is_some_and(token_type_is_opening_delimiter)
+}
+
+/// Return whether one token type is a closing delimiter.
+#[inline]
+fn token_type_is_closing_delimiter(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::CloseParenthesis
+            | TokenType::CloseBracket
+            | TokenType::CloseBrace
+            | TokenType::GreaterThan
+    )
 }
 
 /// Return whether one annotation ends right before a closing delimiter in source.
@@ -143,10 +191,9 @@ fn annotation_precedes_closing_delimiter<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    matches!(
-        next_non_whitespace_after_span(context, annotation_content_span(context, annotation_id)),
-        Some(')' | ']' | '}' | '>')
-    )
+    context
+        .annotation_next_non_whitespace_token_type(annotation_id)
+        .is_some_and(token_type_is_closing_delimiter)
 }
 
 /// Return whether one annotation is one delimiter-interior infix comment.
@@ -173,7 +220,7 @@ fn annotation_follows_separator<'ast>(
     context: &DestackFormatContext<'ast>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    previous_non_whitespace_before_annotation(context, annotation_id) == Some(',')
+    context.annotation_previous_non_whitespace_token_type(annotation_id) == Some(TokenType::Comma)
 }
 
 /// Return whether an annotation starts on a line with only leading whitespace.
@@ -292,11 +339,8 @@ pub(crate) fn annotation_is_declaration_new_head_comment<T: Node>(
         return false;
     };
 
-    let annotation_span = context.annotation_span(annotation_id);
-    matches!(
-        next_non_whitespace_after_span(context, annotation_span),
-        Some('(')
-    )
+    context.annotation_next_non_whitespace_token_type(annotation_id)
+        == Some(TokenType::OpenParenthesis)
 }
 
 /// Return whether one annotation is one lambda-arrow infix seam comment.
@@ -340,11 +384,8 @@ pub(crate) fn annotation_is_method_name_infix_comment<T: Node>(
         return false;
     };
 
-    let annotation_span = context.annotation_span(annotation_id);
-    !matches!(
-        next_non_whitespace_after_span(context, annotation_span),
-        Some('(')
-    )
+    context.annotation_next_non_whitespace_token_type(annotation_id)
+        != Some(TokenType::OpenParenthesis)
 }
 
 /// Return whether one annotation is one method parameter-head seam infix comment.
@@ -366,11 +407,8 @@ pub(crate) fn annotation_is_method_parameter_head_infix_comment<T: Node>(
         return false;
     };
 
-    let annotation_span = context.annotation_span(annotation_id);
-    matches!(
-        next_non_whitespace_after_span(context, annotation_span),
-        Some('(')
-    )
+    context.annotation_next_non_whitespace_token_type(annotation_id)
+        == Some(TokenType::OpenParenthesis)
 }
 
 /// Return whether one annotation is an export-head seam comment for a declaration.
@@ -407,16 +445,9 @@ pub(crate) fn annotation_is_declaration_export_head_comment<T: Node>(
         return false;
     }
 
-    let declaration_start_line = context
+    context
         .file
-        .get_position(declaration_span.start)
-        .map_or(0, |position| position.0);
-    let annotation_start_line = context
-        .file
-        .get_position(annotation_span.start)
-        .map_or(0, |position| position.0);
-
-    annotation_start_line == declaration_start_line
+        .is_same_line(declaration_span.start, annotation_span.start)
 }
 
 /// Return whether one annotation is a generic-head seam comment for a declaration.
@@ -442,11 +473,7 @@ pub(crate) fn annotation_is_declaration_generic_head_comment<T: Node>(
         return false;
     }
 
-    let annotation_span = context.annotation_span(annotation_id);
-    matches!(
-        next_non_whitespace_after_span(context, annotation_span),
-        Some('<')
-    )
+    context.annotation_next_non_whitespace_token_type(annotation_id) == Some(TokenType::LessThan)
 }
 
 /// Return whether one annotation is a declaration-body seam comment before `{`.
@@ -470,11 +497,7 @@ pub(crate) fn annotation_is_declaration_body_head_comment<T: Node>(
         return false;
     }
 
-    let annotation_span = context.annotation_span(annotation_id);
-    matches!(
-        next_non_whitespace_after_span(context, annotation_span),
-        Some('{')
-    )
+    context.annotation_next_non_whitespace_token_type(annotation_id) == Some(TokenType::OpenBrace)
 }
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -754,47 +777,86 @@ pub(crate) fn annotation_capture_includes_position(
     position: AnnotationPosition,
 ) -> bool {
     match position {
-        AnnotationPosition::BlockInfix => {
-            capture == AnnotationCapture::BlockInfix
-                || capture == AnnotationCapture::DelimitedInterior
-                || capture == AnnotationCapture::DeclarationNewHead
-                || capture == AnnotationCapture::DeclarationArrowInfix
-                || capture == AnnotationCapture::MethodNameInfix
-                || capture == AnnotationCapture::MethodParameterHeadInfix
-                || capture == AnnotationCapture::AnyInfixOrPostfix
-        }
-        AnnotationPosition::BlockPrefix => {
-            capture == AnnotationCapture::BlockPrefix
-                || capture == AnnotationCapture::AnyPrefix
-                || capture == AnnotationCapture::DeclarationPrefix
-                || capture == AnnotationCapture::DeclarationExportHead
-                || capture == AnnotationCapture::DeclarationGenericHead
-                || capture == AnnotationCapture::DeclarationBodyHead
-        }
-        AnnotationPosition::BlockPostfix => {
-            capture == AnnotationCapture::BlockPostfix
-                || capture == AnnotationCapture::AnyPostfix
-                || capture == AnnotationCapture::AnyInfixOrPostfix
-        }
-        AnnotationPosition::LinePrefix => {
-            capture == AnnotationCapture::LinePrefix
-                || capture == AnnotationCapture::AnyPrefix
-                || capture == AnnotationCapture::DeclarationPrefix
-                || capture == AnnotationCapture::DeclarationExportHead
-                || capture == AnnotationCapture::DeclarationGenericHead
-                || capture == AnnotationCapture::DeclarationBodyHead
-        }
-        AnnotationPosition::LinePostfix => {
-            capture == AnnotationCapture::LinePostfix
-                || capture == AnnotationCapture::AnyPostfix
-                || capture == AnnotationCapture::AnyInfixOrPostfix
-        }
-        AnnotationPosition::LinePostfixBoundary => {
-            capture == AnnotationCapture::LinePostfixBoundary
-                || capture == AnnotationCapture::AnyPostfix
-                || capture == AnnotationCapture::AnyInfixOrPostfix
-        }
+        AnnotationPosition::BlockInfix => matches!(
+            capture,
+            AnnotationCapture::BlockInfix
+                | AnnotationCapture::DelimitedInterior
+                | AnnotationCapture::DeclarationNewHead
+                | AnnotationCapture::DeclarationArrowInfix
+                | AnnotationCapture::MethodNameInfix
+                | AnnotationCapture::MethodParameterHeadInfix
+                | AnnotationCapture::AnyInfixOrPostfix
+        ),
+        AnnotationPosition::BlockPrefix => matches!(
+            capture,
+            AnnotationCapture::BlockPrefix
+                | AnnotationCapture::AnyPrefix
+                | AnnotationCapture::DeclarationPrefix
+                | AnnotationCapture::DeclarationExportHead
+                | AnnotationCapture::DeclarationGenericHead
+                | AnnotationCapture::DeclarationBodyHead
+        ),
+        AnnotationPosition::BlockPostfix => matches!(
+            capture,
+            AnnotationCapture::BlockPostfix
+                | AnnotationCapture::AnyPostfix
+                | AnnotationCapture::AnyInfixOrPostfix
+        ),
+        AnnotationPosition::LinePrefix => matches!(
+            capture,
+            AnnotationCapture::LinePrefix
+                | AnnotationCapture::AnyPrefix
+                | AnnotationCapture::DeclarationPrefix
+                | AnnotationCapture::DeclarationExportHead
+                | AnnotationCapture::DeclarationGenericHead
+                | AnnotationCapture::DeclarationBodyHead
+        ),
+        AnnotationPosition::LinePostfix => matches!(
+            capture,
+            AnnotationCapture::LinePostfix
+                | AnnotationCapture::AnyPostfix
+                | AnnotationCapture::AnyInfixOrPostfix
+        ),
+        AnnotationPosition::LinePostfixBoundary => matches!(
+            capture,
+            AnnotationCapture::LinePostfixBoundary
+                | AnnotationCapture::AnyPostfix
+                | AnnotationCapture::AnyInfixOrPostfix
+        ),
     }
+}
+
+/// Return whether one any-infix-or-postfix capture should drop tagged-template head comments.
+fn any_infix_or_postfix_skips_tagged_template_head_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    let is_tagged_template_expression = matches!(
+        context.tree.get(expression_id),
+        Expression::TaggedTemplateExpression { .. }
+    );
+    if !is_tagged_template_expression {
+        return false;
+    }
+
+    let is_tagged_template_head_comment = matches!(
+        annotation,
+        Annotation::Comment {
+            position: AnnotationPosition::BlockInfix,
+            ..
+        }
+    ) && context
+        .annotation_next_non_whitespace_token_type(annotation_id)
+        == Some(TokenType::TemplateString);
+
+    is_tagged_template_head_comment
 }
 
 /// Return whether capture mode keeps this declaration annotation in the active stream.
@@ -805,142 +867,90 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
     annotation: Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    if capture == AnnotationCapture::DeclarationPrefix
-        && annotation_is_declaration_export_head_comment(
+    let node_raw_id = node_id.id;
+    let is_delimited_interior_comment =
+        annotation_is_delimited_interior_comment(context, annotation, annotation_id);
+
+    match capture {
+        AnnotationCapture::DeclarationPrefix => {
+            !annotation_is_declaration_export_head_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            ) && !annotation_is_declaration_generic_head_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            ) && !annotation_is_declaration_body_head_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            )
+        }
+        AnnotationCapture::DeclarationExportHead => annotation_is_declaration_export_head_comment(
             context,
-            LocalNodeId::<T>::new(node_id.id),
+            LocalNodeId::<T>::new(node_raw_id),
             annotation,
             annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationPrefix
-        && annotation_is_declaration_generic_head_comment(
+        ),
+        AnnotationCapture::DeclarationBodyHead => annotation_is_declaration_body_head_comment(
             context,
-            LocalNodeId::<T>::new(node_id.id),
+            LocalNodeId::<T>::new(node_raw_id),
             annotation,
             annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationPrefix
-        && annotation_is_declaration_body_head_comment(
+        ),
+        AnnotationCapture::DeclarationGenericHead => {
+            annotation_is_declaration_generic_head_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            )
+        }
+        AnnotationCapture::DeclarationNewHead => annotation_is_declaration_new_head_comment(
             context,
-            LocalNodeId::<T>::new(node_id.id),
+            LocalNodeId::<T>::new(node_raw_id),
             annotation,
             annotation_id,
-        )
-    {
-        return false;
+        ),
+        AnnotationCapture::DeclarationArrowInfix => {
+            annotation_is_declaration_arrow_infix_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            ) && !is_delimited_interior_comment
+        }
+        AnnotationCapture::MethodNameInfix => {
+            annotation_is_method_name_infix_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            ) && !is_delimited_interior_comment
+        }
+        AnnotationCapture::MethodParameterHeadInfix => {
+            annotation_is_method_parameter_head_infix_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            )
+        }
+        AnnotationCapture::DelimitedInterior => is_delimited_interior_comment,
+        AnnotationCapture::AnyInfixOrPostfix => {
+            !any_infix_or_postfix_skips_tagged_template_head_comment(
+                context,
+                LocalNodeId::<T>::new(node_raw_id),
+                annotation,
+                annotation_id,
+            ) && !(T::TYPE == NodeType::Pattern && is_delimited_interior_comment)
+        }
+        _ => true,
     }
-
-    if capture == AnnotationCapture::DeclarationExportHead
-        && !annotation_is_declaration_export_head_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationBodyHead
-        && !annotation_is_declaration_body_head_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationGenericHead
-        && !annotation_is_declaration_generic_head_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationNewHead
-        && !annotation_is_declaration_new_head_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationArrowInfix
-        && !annotation_is_declaration_arrow_infix_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DeclarationArrowInfix
-        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::MethodNameInfix
-        && !annotation_is_method_name_infix_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::MethodNameInfix
-        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::MethodParameterHeadInfix
-        && !annotation_is_method_parameter_head_infix_comment(
-            context,
-            LocalNodeId::<T>::new(node_id.id),
-            annotation,
-            annotation_id,
-        )
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::DelimitedInterior
-        && !annotation_is_delimited_interior_comment(context, annotation, annotation_id)
-    {
-        return false;
-    }
-
-    if capture == AnnotationCapture::AnyInfixOrPostfix
-        && T::TYPE == NodeType::Pattern
-        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
-    {
-        return false;
-    }
-
-    true
 }
 
 /// One annotation item eligible for one capture pass.
@@ -1019,8 +1029,6 @@ pub(crate) struct AnnotationFlow {
     pub(crate) follows_separator: bool,
     /// Whether annotation precedes a separator.
     pub(crate) precedes_separator: bool,
-    /// First non-whitespace character after the annotation.
-    pub(crate) next_character: Option<char>,
     /// Whether this annotation starts on its own line.
     pub(crate) starts_on_own_line: bool,
     /// Whether the next captured annotation is an inline star comment.
@@ -1041,10 +1049,58 @@ pub(crate) struct AnnotationFlow {
     pub(crate) is_inline_decorator_prefix: bool,
     /// Whether the next token after the annotation is on the same line.
     pub(crate) next_token_is_on_same_line: bool,
+    /// The next non-whitespace token type after the annotation.
+    pub(crate) next_token_type: Option<TokenType>,
     /// Whether the next token after the annotation is `else`.
     pub(crate) next_token_is_else_keyword: bool,
-    /// Whether this annotation is a block prefix before a type grouping operator.
-    pub(crate) is_block_prefix_before_type_grouping_operator: bool,
+}
+
+/// Return next-annotation spacing signals in one capture pass.
+fn next_annotation_spacing_signals(
+    context: &DestackFormatContext<'_>,
+    items: &[AnnotationRenderItem],
+    annotation_index: usize,
+) -> (bool, bool) {
+    let Some(next_item) = items.get(annotation_index + 1).copied() else {
+        return (false, false);
+    };
+
+    let next_starts_on_own_line = annotation_starts_on_own_line(context, next_item.annotation_id);
+    match context.annotation(next_item.annotation_id) {
+        Annotation::Comment { node, .. } => {
+            let comment = context.tree.get::<Comment>(node);
+            let next_annotation_is_inline_star_comment =
+                comment.style == CommentStyle::Star && !next_starts_on_own_line;
+            let next_annotation_is_own_line_comment = next_starts_on_own_line;
+            (
+                next_annotation_is_inline_star_comment,
+                next_annotation_is_own_line_comment,
+            )
+        }
+        _ => (false, false),
+    }
+}
+
+/// Return whether the previous rendered annotation is one own-line slash comment.
+fn previous_annotation_is_own_line_slash_comment(
+    context: &DestackFormatContext<'_>,
+    items: &[AnnotationRenderItem],
+    annotation_index: usize,
+) -> bool {
+    let Some(previous_item) = annotation_index
+        .checked_sub(1)
+        .and_then(|previous_index| items.get(previous_index).copied())
+    else {
+        return false;
+    };
+
+    let Annotation::Comment { node, .. } = context.annotation(previous_item.annotation_id) else {
+        return false;
+    };
+
+    let comment = context.tree.get::<Comment>(node);
+    comment.style == CommentStyle::Slash
+        && annotation_starts_on_own_line(context, previous_item.annotation_id)
 }
 
 /// Build flow signals for one annotation item.
@@ -1066,44 +1122,12 @@ where
     let follows_opening_delimiter =
         annotation_follows_opening_delimiter(context, item.annotation_id);
     let precedes_separator = annotation_precedes_separator(context, item.annotation_id);
-    let next_character = next_non_whitespace_after_span(
-        context,
-        annotation_content_span(context, item.annotation_id),
-    );
+    let next_token_type = context.annotation_next_non_whitespace_token_type(item.annotation_id);
     let starts_on_own_line = annotation_starts_on_own_line(context, item.annotation_id);
-    let next_item = items.get(annotation_index + 1).copied();
-    let (next_annotation_is_inline_star_comment, next_annotation_is_own_line_comment) = next_item
-        .map(|next_item| {
-            let next_starts_on_own_line =
-                annotation_starts_on_own_line(context, next_item.annotation_id);
-            match context.annotation(next_item.annotation_id) {
-                Annotation::Comment { node, .. } => {
-                    let comment = context.tree.get::<Comment>(node);
-                    let next_annotation_is_inline_star_comment =
-                        comment.style == CommentStyle::Star && !next_starts_on_own_line;
-                    let next_annotation_is_own_line_comment = next_starts_on_own_line;
-                    (
-                        next_annotation_is_inline_star_comment,
-                        next_annotation_is_own_line_comment,
-                    )
-                }
-                _ => (false, false),
-            }
-        })
-        .unwrap_or((false, false));
-    let previous_annotation_is_own_line_slash_comment = annotation_index
-        .checked_sub(1)
-        .and_then(|previous_index| items.get(previous_index).copied())
-        .map(|previous_item| {
-            let Annotation::Comment { node, .. } = context.annotation(previous_item.annotation_id)
-            else {
-                return false;
-            };
-            let comment = context.tree.get::<Comment>(node);
-            comment.style == CommentStyle::Slash
-                && annotation_starts_on_own_line(context, previous_item.annotation_id)
-        })
-        .unwrap_or(false);
+    let (next_annotation_is_inline_star_comment, next_annotation_is_own_line_comment) =
+        next_annotation_spacing_signals(context, items, annotation_index);
+    let previous_annotation_is_own_line_slash_comment =
+        previous_annotation_is_own_line_slash_comment(context, items, annotation_index);
     let is_ignore_directive_postfix_comment = annotation_is_ignore_directive_postfix_comment(
         context,
         annotation,
@@ -1134,7 +1158,7 @@ where
     let is_inline_delimited_block_postfix_star_comment = item.position
         == AnnotationPosition::BlockPostfix
         && is_star_comment
-        && next_character == Some(',');
+        && next_token_type == Some(TokenType::Comma);
     let inline_block_comment_follows_opening_delimiter =
         is_inline_block_star_comment && follows_opening_delimiter;
     let is_inline_decorator_prefix = annotation_is_inline_decorator_prefix::<T>(
@@ -1148,12 +1172,6 @@ where
         follows_separator,
         previous_annotation_is_own_line_slash_comment,
     );
-    let is_block_prefix_before_type_grouping_operator = item.position
-        == AnnotationPosition::BlockPrefix
-        && T::TYPE == NodeType::Expression
-        && matches!(annotation, Annotation::Comment { .. })
-        && matches!(next_character, Some('|' | '&'));
-
     AnnotationFlow {
         is_slash_comment,
         is_star_comment,
@@ -1161,7 +1179,6 @@ where
         follows_opening_delimiter,
         follows_separator,
         precedes_separator,
-        next_character,
         starts_on_own_line,
         next_annotation_is_inline_star_comment,
         next_annotation_is_own_line_comment,
@@ -1172,8 +1189,8 @@ where
         inline_block_comment_follows_opening_delimiter,
         is_inline_decorator_prefix,
         next_token_is_on_same_line,
+        next_token_type,
         next_token_is_else_keyword,
-        is_block_prefix_before_type_grouping_operator,
     }
 }
 
@@ -1271,6 +1288,16 @@ where
 }
 
 /// Emit special indentation for own line line-postfix-boundary slash comments.
+fn boundary_comment_requires_semicolon_guard_continuation(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    context
+        .annotation_semicolon_guard_target_token_type(annotation_id)
+        .is_some_and(token_type_is_semicolon_guard_boundary_continuation)
+}
+
+/// Emit special indentation for own line line-postfix-boundary slash comments.
 pub(crate) fn write_boundary_line_postfix_comment<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     annotation: Annotation,
@@ -1285,12 +1312,10 @@ pub(crate) fn write_boundary_line_postfix_comment<'ast>(
         return Ok(false);
     }
 
-    let separator_starts_expression = matches!(flow.next_character, Some('(' | '[' | '{' | '<'));
-    let separator_requires_boundary_continuation =
-        matches!(flow.next_character, Some(',' | ';' | ':' | '=' | '?' | '.'));
-
-    // separator leading boundary markers keep one continuation level
-    if separator_requires_boundary_continuation {
+    let requires_guard_continuation =
+        boundary_comment_requires_semicolon_guard_continuation(f.context(), annotation_id);
+    let separator_requires_boundary_continuation = flow.next_token_type == Some(TokenType::Dot);
+    if requires_guard_continuation || separator_requires_boundary_continuation {
         write!(
             f,
             [
@@ -1303,11 +1328,7 @@ pub(crate) fn write_boundary_line_postfix_comment<'ast>(
                 hard_line_break()
             ]
         )?;
-        return Ok(true);
-    }
-
-    // expression leading boundary comments stay flush with current indent
-    if separator_starts_expression {
+    } else {
         write!(
             f,
             [
@@ -1318,10 +1339,9 @@ pub(crate) fn write_boundary_line_postfix_comment<'ast>(
                 hard_line_break()
             ]
         )?;
-        return Ok(true);
     }
 
-    Ok(false)
+    Ok(true)
 }
 
 /// Emit slash postfix comments through line_postfix to preserve suffix behavior.
@@ -1388,6 +1408,161 @@ pub(crate) fn write_line_prefix_ignore_directive_comment<'ast>(
     Ok(true)
 }
 
+/// One concrete spacing decision for one annotation seam.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AnnotationSpacing {
+    None,
+    Space,
+    HardLine,
+    SoftLine,
+}
+
+/// Emit one concrete annotation spacing decision.
+fn write_annotation_spacing<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    spacing: AnnotationSpacing,
+) -> FormatResult<()> {
+    match spacing {
+        AnnotationSpacing::None => {}
+        AnnotationSpacing::Space => {
+            write!(f, [space()])?;
+        }
+        AnnotationSpacing::HardLine => {
+            write!(f, [hard_line_break()])?;
+        }
+        AnnotationSpacing::SoftLine => {
+            write!(f, [soft_line_break()])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Return first-spacing decision for one block infix annotation.
+fn first_block_infix_spacing(
+    capture: AnnotationCapture,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if capture == AnnotationCapture::DeclarationArrowInfix {
+        if flow.is_inline_block_star_comment && !flow.starts_on_own_line {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::HardLine;
+    }
+
+    if flow.is_inline_block_star_comment
+        && !flow.inline_block_comment_follows_opening_delimiter
+        && !flow.starts_on_own_line
+        && capture != AnnotationCapture::DeclarationNewHead
+    {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_inline_block_star_comment {
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return first-spacing decision for one block postfix annotation.
+fn first_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    if flow.is_inline_delimited_block_postfix_star_comment && !flow.follows_opening_delimiter {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_inline_delimited_block_postfix_star_comment {
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return first-spacing decision for one block prefix annotation.
+fn first_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let is_block_prefix_after_colon =
+        flow.is_star_comment && flow.follows_colon && !flow.starts_on_own_line;
+
+    if flow.is_inline_block_star_comment
+        && !flow.inline_block_comment_follows_opening_delimiter
+        && !flow.starts_on_own_line
+    {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_inline_block_star_comment {
+        return AnnotationSpacing::None;
+    }
+
+    if flow.is_inline_decorator_prefix
+        && !flow.starts_on_own_line
+        && !flow.follows_colon
+        && !flow.follows_opening_delimiter
+    {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_inline_decorator_prefix {
+        return AnnotationSpacing::None;
+    }
+
+    if is_block_prefix_after_colon {
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return first-spacing decision for one line postfix annotation.
+fn first_line_postfix_spacing(
+    position: AnnotationPosition,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if position == AnnotationPosition::LinePostfixBoundary && flow.starts_on_own_line {
+        return AnnotationSpacing::HardLine;
+    }
+
+    AnnotationSpacing::Space
+}
+
+/// Return first-spacing decision for one line prefix annotation.
+fn first_line_prefix_spacing(
+    capture: AnnotationCapture,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if capture == AnnotationCapture::DeclarationGenericHead {
+        return AnnotationSpacing::Space;
+    }
+
+    if capture == AnnotationCapture::DeclarationBodyHead && flow.starts_on_own_line {
+        return AnnotationSpacing::HardLine;
+    }
+
+    if capture == AnnotationCapture::DeclarationBodyHead {
+        return AnnotationSpacing::Space;
+    }
+
+    AnnotationSpacing::None
+}
+
+/// Return first-spacing decision for one annotation.
+fn first_annotation_spacing(
+    capture: AnnotationCapture,
+    position: AnnotationPosition,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    match position {
+        AnnotationPosition::BlockInfix => first_block_infix_spacing(capture, flow),
+        AnnotationPosition::BlockPostfix => first_block_postfix_spacing(flow),
+        AnnotationPosition::BlockPrefix => first_block_prefix_spacing(flow),
+        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
+            first_line_postfix_spacing(position, flow)
+        }
+        AnnotationPosition::LinePrefix => first_line_prefix_spacing(capture, flow),
+    }
+}
+
 /// Emit spacing before the first annotation in one render group.
 pub(crate) fn write_first_annotation_spacing<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1398,91 +1573,18 @@ pub(crate) fn write_first_annotation_spacing<'ast>(
     is_blank_annotation: bool,
     flow: AnnotationFlow,
 ) -> FormatResult<()> {
+    if is_blank_annotation {
+        return Ok(());
+    }
+
     if state.first_node_type.is_some() {
         return Ok(());
     }
 
     state.first_node_type = Some(node_type);
 
-    let is_block_prefix_after_colon =
-        position == AnnotationPosition::BlockPrefix && flow.is_star_comment && flow.follows_colon;
-
-    if is_blank_annotation {
-        return Ok(());
-    }
-
-    match position {
-        AnnotationPosition::BlockInfix => {
-            if capture == AnnotationCapture::DeclarationArrowInfix {
-                if flow.is_inline_block_star_comment {
-                    if !flow.starts_on_own_line {
-                        write!(f, [space()])?;
-                    }
-                } else {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                return Ok(());
-            }
-
-            if flow.is_inline_block_star_comment {
-                if !flow.inline_block_comment_follows_opening_delimiter
-                    && !flow.starts_on_own_line
-                    && capture != AnnotationCapture::DeclarationNewHead
-                {
-                    write!(f, [space()])?;
-                }
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::BlockPostfix => {
-            if flow.is_inline_delimited_block_postfix_star_comment {
-                if !flow.follows_opening_delimiter {
-                    write!(f, [space()])?;
-                }
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::BlockPrefix => {
-            if flow.is_inline_block_star_comment {
-                if !flow.inline_block_comment_follows_opening_delimiter && !flow.starts_on_own_line
-                {
-                    write!(f, [space()])?;
-                }
-            } else if flow.is_inline_decorator_prefix {
-                if !flow.starts_on_own_line
-                    && !flow.follows_colon
-                    && !flow.follows_opening_delimiter
-                {
-                    write!(f, [space()])?;
-                }
-            } else if !is_block_prefix_after_colon {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
-            if position == AnnotationPosition::LinePostfixBoundary && flow.starts_on_own_line {
-                write!(f, [hard_line_break()])?;
-            } else {
-                write!(f, [space()])?;
-            }
-        }
-        AnnotationPosition::LinePrefix => {
-            if capture == AnnotationCapture::DeclarationGenericHead {
-                write!(f, [space()])?;
-            } else if capture == AnnotationCapture::DeclarationBodyHead {
-                if flow.starts_on_own_line {
-                    write!(f, [hard_line_break()])?;
-                } else {
-                    write!(f, [space()])?;
-                }
-            }
-        }
-    }
-
-    Ok(())
+    let spacing = first_annotation_spacing(capture, position, flow);
+    write_annotation_spacing(f, spacing)
 }
 
 /// Return whether one blank annotation should be skipped before an own line comment.
@@ -1497,6 +1599,176 @@ pub(crate) fn should_skip_blank_annotation_before_own_line_comment(
         && flow.next_annotation_is_own_line_comment
 }
 
+/// Return trailing-spacing decision for one line prefix annotation.
+fn trailing_line_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let operator_owns_spacing = flow.is_star_comment
+        && flow.next_token_is_on_same_line
+        && matches!(
+            flow.next_token_type,
+            Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
+        );
+    if operator_owns_spacing {
+        return AnnotationSpacing::None;
+    }
+
+    if flow.is_slash_comment && flow.next_token_is_on_same_line {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_slash_comment {
+        return AnnotationSpacing::HardLine;
+    }
+
+    if flow.is_star_comment && flow.next_token_is_else_keyword {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.next_token_is_on_same_line {
+        return AnnotationSpacing::Space;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return trailing-spacing decision for one line postfix annotation.
+fn trailing_line_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let keep_space_before_adjacent_block_comment =
+        should_keep_space_before_adjacent_block_comment(flow);
+    let should_suppress_space = flow.is_star_comment
+        && flow.precedes_separator
+        && !flow
+            .next_token_type
+            .is_some_and(token_type_is_slash_like_separator);
+    if keep_space_before_adjacent_block_comment || !should_suppress_space {
+        return AnnotationSpacing::Space;
+    }
+
+    AnnotationSpacing::None
+}
+
+/// Return trailing-spacing decision for one block infix annotation.
+fn trailing_block_infix_spacing(
+    capture: AnnotationCapture,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if capture == AnnotationCapture::DeclarationArrowInfix {
+        if flow.is_inline_block_star_comment {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::HardLine;
+    }
+
+    let keep_space_before_adjacent_block_comment =
+        should_keep_space_before_adjacent_block_comment(flow);
+    let is_new_head_or_method_parameter_parenthesis_seam = matches!(
+        capture,
+        AnnotationCapture::DeclarationNewHead | AnnotationCapture::MethodParameterHeadInfix
+    ) && flow.next_token_type
+        == Some(TokenType::OpenParenthesis);
+
+    if flow.is_inline_block_star_comment {
+        let allows_tight_separator =
+            inline_block_comment_allows_tight_separator(flow.next_token_type)
+                || is_new_head_or_method_parameter_parenthesis_seam;
+        let should_write_space = should_write_space_after_inline_star_comment(
+            flow,
+            allows_tight_separator,
+            keep_space_before_adjacent_block_comment,
+        );
+        if should_write_space {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return trailing-spacing decision for one block postfix annotation.
+fn trailing_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let keep_space_before_adjacent_block_comment =
+        should_keep_space_before_adjacent_block_comment(flow);
+    if flow.is_inline_delimited_block_postfix_star_comment {
+        let allows_tight_separator =
+            inline_block_comment_allows_tight_separator(flow.next_token_type);
+        let should_write_space = should_write_space_after_inline_star_comment(
+            flow,
+            allows_tight_separator,
+            keep_space_before_adjacent_block_comment,
+        );
+        if should_write_space {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return trailing-spacing decision for one block prefix annotation.
+fn trailing_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let keep_space_before_adjacent_block_comment =
+        should_keep_space_before_adjacent_block_comment(flow);
+    if flow.is_inline_block_star_comment {
+        let allows_tight_separator =
+            inline_block_comment_allows_tight_separator(flow.next_token_type);
+        let should_write_space = should_write_space_after_inline_star_comment(
+            flow,
+            allows_tight_separator,
+            keep_space_before_adjacent_block_comment,
+        );
+        if should_write_space {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::None;
+    }
+
+    if flow.is_inline_decorator_prefix {
+        return AnnotationSpacing::Space;
+    }
+
+    AnnotationSpacing::HardLine
+}
+
+/// Return trailing-spacing decision for one line postfix boundary annotation.
+fn trailing_line_postfix_boundary_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    let should_keep_inline_slash_separator_comment =
+        flow.is_slash_comment && flow.follows_separator && flow.next_token_is_on_same_line;
+    if should_keep_inline_slash_separator_comment {
+        return AnnotationSpacing::Space;
+    }
+
+    if flow.is_star_comment && !flow.starts_on_own_line {
+        if should_keep_space_before_adjacent_block_comment(flow) {
+            return AnnotationSpacing::Space;
+        }
+
+        return AnnotationSpacing::None;
+    }
+
+    AnnotationSpacing::SoftLine
+}
+
+/// Return trailing-spacing decision for one annotation.
+fn trailing_annotation_spacing(
+    capture: AnnotationCapture,
+    position: AnnotationPosition,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    match position {
+        AnnotationPosition::LinePrefix => trailing_line_prefix_spacing(flow),
+        AnnotationPosition::LinePostfix => trailing_line_postfix_spacing(flow),
+        AnnotationPosition::BlockInfix => trailing_block_infix_spacing(capture, flow),
+        AnnotationPosition::BlockPostfix => trailing_block_postfix_spacing(flow),
+        AnnotationPosition::BlockPrefix => trailing_block_prefix_spacing(flow),
+        AnnotationPosition::LinePostfixBoundary => trailing_line_postfix_boundary_spacing(flow),
+    }
+}
+
 /// Emit spacing after one annotation.
 pub(crate) fn write_annotation_trailing_spacing<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1504,138 +1776,32 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
     position: AnnotationPosition,
     flow: AnnotationFlow,
 ) -> FormatResult<()> {
-    match position {
-        AnnotationPosition::LinePrefix => {
-            if flow.is_slash_comment {
-                if flow.next_token_is_on_same_line {
-                    write!(f, [space()])?;
-                } else {
-                    write!(f, [hard_line_break()])?;
-                }
-            } else if flow.is_star_comment && flow.next_token_is_else_keyword {
-                write!(f, [space()])?;
-            } else if flow.next_token_is_on_same_line {
-                write!(f, [space()])?;
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::LinePostfix => {
-            let is_operator_separator = matches!(
-                flow.next_character,
-                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
-            );
-            let defer_spacing_to_operator =
-                flow.is_star_comment && !flow.starts_on_own_line && is_operator_separator;
-            let should_suppress_space =
-                flow.is_star_comment && flow.precedes_separator && !is_operator_separator;
-            if !should_suppress_space && !defer_spacing_to_operator {
-                write!(f, [space()])?;
-            }
-        }
-        AnnotationPosition::BlockInfix => {
-            if capture == AnnotationCapture::DeclarationArrowInfix {
-                if flow.is_inline_block_star_comment {
-                    write!(f, [space()])?;
-                } else {
-                    write!(f, [hard_line_break()])?;
-                }
+    let spacing = trailing_annotation_spacing(capture, position, flow);
+    write_annotation_spacing(f, spacing)
+}
 
-                return Ok(());
-            }
+/// Return whether one inline star comment should keep one trailing space.
+fn should_write_space_after_inline_star_comment(
+    flow: AnnotationFlow,
+    allows_tight_separator: bool,
+    keep_space_before_adjacent_block_comment: bool,
+) -> bool {
+    !flow.precedes_separator || !allows_tight_separator || keep_space_before_adjacent_block_comment
+}
 
-            let keep_space_before_adjacent_block_comment =
-                should_keep_space_before_adjacent_block_comment(flow);
-            let is_new_head_or_method_parameter_parenthesis_seam = matches!(
-                capture,
-                AnnotationCapture::DeclarationNewHead | AnnotationCapture::MethodParameterHeadInfix
-            ) && flow.next_character
-                == Some('(');
-            let defer_spacing_to_operator = matches!(
-                flow.next_character,
-                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
-            );
-
-            if flow.is_inline_block_star_comment {
-                let allows_tight_separator =
-                    self::inline_block_comment_allows_tight_separator(flow.next_character)
-                        || is_new_head_or_method_parameter_parenthesis_seam;
-                let should_write_space = !flow.precedes_separator
-                    || !allows_tight_separator
-                    || keep_space_before_adjacent_block_comment;
-                if should_write_space
-                    && (!defer_spacing_to_operator || keep_space_before_adjacent_block_comment)
-                {
-                    write!(f, [space()])?;
-                }
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::BlockPostfix => {
-            let keep_space_before_adjacent_block_comment =
-                should_keep_space_before_adjacent_block_comment(flow);
-            let defer_spacing_to_operator = matches!(
-                flow.next_character,
-                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
-            );
-            if flow.is_inline_delimited_block_postfix_star_comment {
-                let allows_tight_separator =
-                    self::inline_block_comment_allows_tight_separator(flow.next_character);
-                let should_write_space = !flow.precedes_separator
-                    || !allows_tight_separator
-                    || keep_space_before_adjacent_block_comment;
-                if should_write_space
-                    && (!defer_spacing_to_operator || keep_space_before_adjacent_block_comment)
-                {
-                    write!(f, [space()])?;
-                }
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::BlockPrefix => {
-            let keep_space_before_adjacent_block_comment =
-                should_keep_space_before_adjacent_block_comment(flow);
-            if flow.is_inline_block_star_comment {
-                let allows_tight_separator =
-                    self::inline_block_comment_allows_tight_separator(flow.next_character);
-                let should_write_space = !flow.precedes_separator
-                    || !allows_tight_separator
-                    || keep_space_before_adjacent_block_comment;
-                if should_write_space {
-                    write!(f, [space()])?;
-                }
-            } else if flow.is_inline_decorator_prefix
-                || flow.is_block_prefix_before_type_grouping_operator
-            {
-                write!(f, [space()])?;
-            } else {
-                write!(f, [hard_line_break()])?;
-            }
-        }
-        AnnotationPosition::LinePostfixBoundary => {
-            let should_keep_inline_slash_separator_comment =
-                flow.is_slash_comment && flow.follows_separator && flow.next_token_is_on_same_line;
-            if should_keep_inline_slash_separator_comment {
-                write!(f, [space()])?;
-            } else if flow.is_star_comment && !flow.starts_on_own_line {
-                if should_keep_space_before_adjacent_block_comment(flow) {
-                    write!(f, [space()])?;
-                }
-            } else {
-                write!(f, [soft_line_break()])?;
-            }
-        }
-    }
-
-    Ok(())
+/// Return whether spacing should be preserved before a neighboring block comment.
+#[inline]
+fn token_type_is_slash_like_separator(token_type: TokenType) -> bool {
+    token_type == TokenType::Divide || token_type_is_comment_trivia(token_type)
 }
 
 /// Return whether spacing should be preserved before a neighboring block comment.
 fn should_keep_space_before_adjacent_block_comment(flow: AnnotationFlow) -> bool {
     flow.next_annotation_is_inline_star_comment
-        || (flow.next_character == Some('/') && flow.next_token_is_on_same_line)
+        || (flow.next_token_is_on_same_line
+            && flow
+                .next_token_type
+                .is_some_and(token_type_is_comment_trivia))
 }
 
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
@@ -1643,6 +1809,7 @@ where
     T: Node + Clone,
     NodeTree: NodeTreeImpl<T>,
 {
+    /// Format captured annotations at one node and position.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let items = annotation_render_items(f.context(), self.position, self.node_id);
         if items.is_empty() {

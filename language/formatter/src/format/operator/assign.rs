@@ -25,29 +25,6 @@ fn is_assignment_operator_token(token_type: TokenType) -> bool {
     AssignOperator::from_token(token_type).is_some()
 }
 
-/// Return whether the next non-whitespace token after one annotation starts on the same line.
-fn annotation_next_token_is_on_same_line(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    let span = context.annotation_span(annotation_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        match token.token.ty {
-            TokenType::Whitespace => {
-                index += 1;
-                continue;
-            }
-            TokenType::Newline => return false,
-            _ => return true,
-        }
-    }
-
-    false
-}
-
 /// Return whether one expression has an inline prefix comment on an assignment seam.
 pub(crate) fn expression_has_assignment_seam_inline_prefix_comment(
     context: &DestackFormatContext<'_>,
@@ -76,7 +53,7 @@ pub(crate) fn expression_has_assignment_seam_inline_prefix_comment(
                     CommentStyle::Star => {
                         let annotation_span = context.annotation_span(*annotation_id);
                         !context.has_newline(annotation_span)
-                            && annotation_next_token_is_on_same_line(context, *annotation_id)
+                            && context.annotation_next_token_is_on_same_line(*annotation_id)
                     }
                 }
             })
@@ -675,8 +652,7 @@ pub(crate) fn format_assign_expression<'ast>(
             // rhs assignment
             (right_is_assign && (right_has_forced_break_trivia || node_is_call_argument))
                 // rhs lambda
-                || (right_is_lambda
-                    && (right_has_forced_break_trivia || right_is_compact_multiline))
+                || (right_is_lambda && right_has_forced_break_trivia)
                 // rhs chain
                 || (right_is_chain
                     && !right_is_lambda

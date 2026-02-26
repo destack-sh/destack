@@ -181,6 +181,24 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
     assert_format_output_eq(&first_output, &second_output);
 }
 
+/// Assert formatter idempotence for one whole program.
+pub(crate) fn assert_format_program_idempotent_with_file_type(
+    input: &str,
+    file_type: FileType,
+    options: DestackFormatOptions,
+) {
+    let (first_formatter, first_roots) =
+        TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
+            .expect("parse first-pass source");
+    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+
+    let (second_formatter, second_roots) =
+        TestFormatter::parse_with_file_type(&first_output, file_type, |p| Ok(p.parse()))
+            .expect("parse second-pass source");
+    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
 /// Assert that some input string formats to some output string as expected.
 ///
 /// Examples:

@@ -1,5 +1,4 @@
 use crate::Annotation;
-use crate::format::analysis::next_non_whitespace_token_after_span;
 use crate::format::expression::{
     AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TypeLiteral, format_with, group,
@@ -9,7 +8,6 @@ use crate::format::expression::{
 use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
-use destack_source::Span;
 
 /// Return the value expression for an argument.
 pub(crate) fn argument_value(
@@ -474,16 +472,7 @@ fn template_interpolation_has_boundary_newline(
         return true;
     }
 
-    let expression_span = context.span(node_id);
-    next_non_whitespace_token_after_span(context, expression_span).is_some_and(|token| {
-        token.span.file == expression_span.file
-            && token.span.start > expression_span.end
-            && context.has_newline(Span::new(
-                expression_span.file,
-                expression_span.end,
-                token.span.start,
-            ))
-    })
+    context.span_has_newline_before_next_non_whitespace_token(context.span(node_id))
 }
 
 /// Format a ternary expression with Prettier-style breaking.

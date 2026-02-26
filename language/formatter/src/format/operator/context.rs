@@ -9,6 +9,7 @@ use crate::format::expression::{
     WhereClause, block_indent, format_expression, hard_line_break, is_trivial_expression,
     parenthesized_has_leading_inner_trivia, token, transparent_inner_expression,
 };
+use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 use smallvec::SmallVec;
@@ -615,6 +616,8 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
         || needs_precedence_parentheses
         || needs_mixed_logical_grouping_parentheses;
     let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
+    let operand_has_line_postfix_slash_comment =
+        expression_has_line_postfix_slash_comment(f.context(), operand_id);
 
     if needs_grouping_parentheses {
         if operand_has_prefix_annotation {
@@ -624,6 +627,16 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
             )?;
             format_expression_without_prefix_annotations(f, operand_id)?;
             write!(f, [token(")")])?;
+        } else if operand_has_line_postfix_slash_comment {
+            write!(
+                f,
+                [
+                    token("("),
+                    block_indent(&operand_id),
+                    hard_line_break(),
+                    token(")")
+                ]
+            )?;
         } else {
             write!(f, [token("("), operand_id, token(")")])?;
         }
@@ -632,6 +645,32 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
     }
 
     Ok(())
+}
+
+/// Return whether one expression ends with one slash line postfix annotation.
+fn expression_has_line_postfix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.iter().copied().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            return false;
+        };
+
+        if !matches!(
+            position,
+            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<Comment>(node);
+        comment.style == CommentStyle::Slash
+    })
 }
 
 /// Format one expression while omitting prefix annotation emission.

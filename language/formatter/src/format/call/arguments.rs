@@ -602,8 +602,20 @@ fn separator_line_comment_annotation_info(
         following_token.is_some_and(|token| token.token.ty == TokenType::Comma);
     let following_close_brace =
         following_token.is_some_and(|token| token.token.ty == TokenType::CloseBrace);
+    let following_close_delimiter = following_token.is_some_and(|token| {
+        matches!(
+            token.token.ty,
+            TokenType::CloseBrace | TokenType::CloseBracket | TokenType::CloseParenthesis
+        )
+    });
+    let has_trailing_boundary_without_separator =
+        matches!(position, AnnotationPosition::LinePostfixBoundary)
+            && preceding_comma.is_none()
+            && !following_separator
+            && following_close_delimiter;
 
-    if preceding_comma.is_none() && !following_separator {
+    if preceding_comma.is_none() && !following_separator && !has_trailing_boundary_without_separator
+    {
         return None;
     }
 
@@ -617,6 +629,7 @@ fn separator_line_comment_annotation_info(
         annotation_span,
         preceding_comma,
         following_separator,
+        has_trailing_boundary_without_separator,
     );
 
     Some((node, is_own_line))
@@ -629,6 +642,7 @@ fn separator_line_comment_is_own_line(
     annotation_span: Span,
     preceding_comma: Option<TokenSpan>,
     following_separator: bool,
+    trailing_boundary_without_separator: bool,
 ) -> bool {
     if let Some(separator_token) = preceding_comma {
         let before_comment_span = Span::new(
@@ -653,6 +667,21 @@ fn separator_line_comment_is_own_line(
             separator_token.span.start,
         );
         return context.has_newline(after_comment_span);
+    }
+
+    if trailing_boundary_without_separator {
+        let Some(previous_token) =
+            previous_non_whitespace_token_before_annotation(context, annotation_id)
+        else {
+            return false;
+        };
+
+        let before_comment_span = Span::new(
+            annotation_span.file,
+            previous_token.span.end,
+            annotation_span.start,
+        );
+        return context.has_newline(before_comment_span);
     }
 
     false

@@ -10,6 +10,7 @@ use destack_ast::{
 };
 
 impl<'ast> FormatNode<'ast, Annotation> for Annotation {
+    /// Format one annotation wrapper node.
     fn format_node(
         &self,
         node_id: LocalNodeId<Annotation>,
@@ -33,6 +34,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
 }
 
 impl<'ast> FormatNode<'ast, Blank> for Blank {
+    /// Format one blank annotation node.
     fn format_node(
         &self,
         _node_id: LocalNodeId<Blank>,
@@ -45,6 +47,7 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
 }
 
 impl<'ast> FormatNode<'ast, Doc> for Doc {
+    /// Format one documentation comment annotation.
     fn format_node(
         &self,
         _node_id: LocalNodeId<Doc>,
@@ -105,6 +108,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
 }
 
 impl<'ast> FormatNode<'ast, Comment> for Comment {
+    /// Format one comment annotation.
     fn format_node(
         &self,
         node_id: LocalNodeId<Comment>,
@@ -163,7 +167,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                         }
                     }
                 } else {
-                    // preserve single-line block comments as parsed to avoid rewriting inline spacing
+                    // preserve single line block comments as parsed so inline spacing stays stable
                     write!(f, [text(raw_comment)])?;
                 }
             }
@@ -286,6 +290,7 @@ fn inline_block_comment_prefers_spaced_form(content: &str) -> bool {
 }
 
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
+    /// Format one decorator annotation.
     fn format_node(
         &self,
         _node_id: LocalNodeId<Decorator>,
@@ -346,10 +351,11 @@ fn is_identifier_or_static_member_only(
 
 #[cfg(test)]
 mod tests {
-    use crate::format::annotation::render::annotation_precedes_separator;
+    use super::super::render::annotation_precedes_separator;
     use crate::{
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
-        TestFormatter, assert_format, statement_list,
+        TestFormatter, assert_format, assert_format_program_idempotent_with_file_type,
+        statement_list,
     };
     use destack_ast::{
         AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex, NodeType,
@@ -1232,6 +1238,130 @@ export class Board {
 }",
             |p| p.eat_block(destack_ast::BlockContext::Expression),
             DestackFormatOptions::default()
+        );
+    }
+
+    /// Own-line comments before block closers should stay attached to the preceding statement.
+    #[test]
+    fn test_format_own_line_comment_before_block_closer_stays_trailing() {
+        assert_format!(
+            r#"{
+    compute();
+    // marker-own-line-before-closer
+}"#,
+            r#"{
+    compute();
+    // marker-own-line-before-closer
+}"#,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// End-of-line comments at statement tails should keep trailing ownership across passes.
+    #[test]
+    fn test_format_terminal_end_of_line_comment_stays_trailing() {
+        assert_format!(
+            r#"{
+    const value = 1; // marker-terminal-end-of-line
+}"#,
+            r#"{
+    const value = 1; // marker-terminal-end-of-line
+}"#,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// TypeScript mapped-type prettier-ignore seams should stay idempotent.
+    #[test]
+    fn test_format_typescript_mapped_type_ignore_directives_are_idempotent() {
+        let source = r#"
+type a= {
+    // prettier-ignore
+    [A in B]: C  |  D
+  }
+
+type b= {
+    [
+      // prettier-ignore
+      A in B
+    ]: C  |  D
+  }
+
+type c= {
+    [
+      A in
+      // prettier-ignore
+      B
+    ]: C  |  D
+  }
+
+type d= {
+    [A in B]:
+      // prettier-ignore
+      C  |  D
+  }
+"#;
+
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::TypeScript,
+            DestackFormatOptions::default(),
+        );
+    }
+
+    /// Own-line comments before ASI guard semicolons should stay idempotent.
+    #[test]
+    fn test_format_semicolon_guard_own_line_comment_before_asi_array_is_idempotent() {
+        let source = r#"{
+    let foo = 42
+
+    // keep with guarded statement
+    ;[foo] = [1]
+}
+"#;
+
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::JavaScript,
+            DestackFormatOptions::default(),
+        );
+    }
+
+    /// Own-line comments before ASI guard semicolons for parenthesized calls should stay idempotent.
+    #[test]
+    fn test_format_semicolon_guard_own_line_comment_before_asi_call_is_idempotent() {
+        let source = r#"{
+    const fn = (value) => value
+
+    // keep with guarded call
+    ;(fn)(1)
+}
+"#;
+
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::JavaScript,
+            DestackFormatOptions::default(),
+        );
+    }
+
+    /// Own-line comments before non-guard semicolon starts should stay idempotent.
+    #[test]
+    fn test_format_own_line_comment_before_non_guard_semicolon_is_idempotent() {
+        let source = r#"{
+    run()
+
+    // keep with following statement
+    ;next()
+}
+"#;
+
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::JavaScript,
+            DestackFormatOptions::default(),
         );
     }
 }
