@@ -43,11 +43,43 @@ platform satisfies
     | "windows"
     | "macos"
     | "linux"
+    | "freebsd"
+    | "openbsd"
+    | "netbsd"
+    | "dragonfly"
+    | "solaris"
+    | "illumos"
+    | "haiku"
+    | "fuchsia"
+    | "redox"
+    | "hermit"
     | "ios"
     | "android"
     | "wasi"
+    | "emscripten"
     | "bare-metal"
     | "universal";
+```
+
+### target metadata is typed
+
+> `import.meta.target` exposes structured target metadata.
+
+```ds
+const family = import.meta.target.family;
+family satisfies
+    | "web"
+    | "windows"
+    | "unix"
+    | "wasm"
+    | "bare-metal"
+    | "universal"
+    | "other";
+
+const vendor: string = import.meta.target.vendor;
+const env: string | undefined = import.meta.target.env;
+const abi: string | undefined = import.meta.target.abi;
+const arch: string | undefined = import.meta.target.arch;
 ```
 
 ### debug and test are booleans

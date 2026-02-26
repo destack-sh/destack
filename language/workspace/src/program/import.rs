@@ -15,6 +15,21 @@ pub enum ImportEdgeKind {
     Require,
 }
 
+/// Structured target metadata exposed to `import.meta.target`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportMetaTarget {
+    /// Coarse target family tag.
+    pub family: String,
+    /// Target vendor tag.
+    pub vendor: String,
+    /// Target environment tag when one exists.
+    pub env: Option<String>,
+    /// Target ABI tag when one exists.
+    pub abi: Option<String>,
+    /// Target architecture tag when one exists.
+    pub arch: Option<String>,
+}
+
 /// Metadata about the current module and build configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportMeta {
@@ -36,6 +51,8 @@ pub struct ImportMeta {
     pub platform: Platform,
     /// The runtime environment that will execute the code.
     pub runtime: Runtime,
+    /// Structured target metadata.
+    pub target: ImportMetaTarget,
     /// True if this is a debug build.
     pub debug: bool,
     /// True if this is a test build.

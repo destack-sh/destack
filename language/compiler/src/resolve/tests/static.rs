@@ -1,5 +1,5 @@
 use destack_dir::{FunctionMode, Member};
-use destack_workspace::OutputFormat;
+use destack_workspace::{OutputFormat, Platform};
 
 use crate::tests::TestProgram;
 
@@ -8,6 +8,17 @@ fn test_program_js() -> TestProgram {
     let default_profile = test.program.profile(test.default_profile_id_for_root());
     let mut key = default_profile.key.clone();
     key.output = OutputFormat::Js;
+    let profile_id = test.program.profiles.get_or_create(key);
+    test.default_profile_override = Some(profile_id);
+    test
+}
+
+fn test_program_js_for_platform(platform: Platform) -> TestProgram {
+    let mut test = TestProgram::memory_sequential();
+    let default_profile = test.program.profile(test.default_profile_id_for_root());
+    let mut key = default_profile.key.clone();
+    key.output = OutputFormat::Js;
+    key.platform = platform;
     let profile_id = test.program.profiles.get_or_create(key);
     test.default_profile_override = Some(profile_id);
     test
@@ -292,6 +303,165 @@ fn test_static_if_env_index_requires_string_key() {
         "test.ds",
         r#"
 @if(import.meta.env[1] == "x")
+const value = 1;
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile();
+
+    // confirm the static if diagnostic
+    test.check_has_diagnostic("ER901");
+}
+
+/// Gate declarations based on target-family static if conditions.
+#[test]
+fn test_static_if_gates_declaration_with_target_family() {
+    // build the test program
+    let test = test_program_js_for_platform(Platform::Linux);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target.family == "unix")
+const visible = 1;
+
+@if(import.meta.target.family == "windows")
+const hidden = missing_symbol();
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    // confirm the expected symbol visibility
+    assert!(test.resolve_to_symbol("test.ds", "visible").is_some());
+}
+
+/// Gate declarations based on target-vendor static if conditions.
+#[test]
+fn test_static_if_gates_declaration_with_target_vendor() {
+    // build the test program
+    let test = test_program_js_for_platform(Platform::MacOS);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target.vendor == "apple")
+const visible = 1;
+
+@if(import.meta.target.vendor == "pc")
+const hidden = missing_symbol();
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    // confirm the expected symbol visibility
+    assert!(test.resolve_to_symbol("test.ds", "visible").is_some());
+}
+
+/// Treat missing import.meta.target env as undefined values.
+#[test]
+fn test_static_if_missing_target_env_is_undefined() {
+    // build the test program
+    let test = test_program_js_for_platform(Platform::Web);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target.env == undefined)
+const visible = 1;
+
+@if(import.meta.target.env == "gnu")
+const hidden = missing_symbol();
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    // confirm the expected symbol visibility
+    assert!(test.resolve_to_symbol("test.ds", "visible").is_some());
+}
+
+/// Resolve import.meta.target index lookups in static if conditions.
+#[test]
+fn test_static_if_target_index_lookup() {
+    // build the test program
+    let test = test_program_js_for_platform(Platform::Linux);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target["family"] == "unix")
+const visible = 1;
+
+@if(import.meta.target["family"] == "windows")
+const hidden = missing_symbol();
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    // confirm the expected symbol visibility
+    assert!(test.resolve_to_symbol("test.ds", "visible").is_some());
+}
+
+/// Reject non-string import.meta.target index lookups in static if conditions.
+#[test]
+fn test_static_if_target_index_requires_string_key() {
+    // build the test program
+    let test = test_program_js();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target[1] == "x")
+const value = 1;
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile();
+
+    // confirm the static if diagnostic
+    test.check_has_diagnostic("ER901");
+}
+
+/// Reject unknown import.meta.target member lookups in static if conditions.
+#[test]
+fn test_static_if_target_member_rejects_unknown_key() {
+    // build the test program
+    let test = test_program_js();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target.not_defined == undefined)
+const value = 1;
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile();
+
+    // confirm the static if diagnostic
+    test.check_has_diagnostic("ER901");
+}
+
+/// Reject unknown import.meta.target index lookups in static if conditions.
+#[test]
+fn test_static_if_target_index_rejects_unknown_key() {
+    // build the test program
+    let test = test_program_js();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.target["not_defined"] == undefined)
 const value = 1;
 "#,
     );
