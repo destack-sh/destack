@@ -25,7 +25,7 @@ pub struct Microtask {
     /// Microtask identifier used for ordering and logging.
     pub id: MicrotaskId,
     /// Runnable continuation for this microtask.
-    pub runnable: EngineContinuation,
+    pub continuation: EngineContinuation,
     /// Resume payload passed back into the executor.
     pub resume_value: RuntimeValue,
     /// Current scheduling status.

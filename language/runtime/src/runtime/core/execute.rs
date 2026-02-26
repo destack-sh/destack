@@ -405,7 +405,8 @@ impl Runtime {
         // run the microtask runnable
         let _guard =
             enter_event_loop_scope(EventLoopScope::for_microtask(microtask.id, next_depth));
-        let outcome = self.execute_runnable(engine, microtask.runnable, microtask.resume_value)?;
+        let outcome =
+            self.execute_runnable(engine, microtask.continuation, microtask.resume_value)?;
 
         // ensure microtasks run to completion
         match outcome {
@@ -424,7 +425,7 @@ impl Runtime {
         }
     }
 
-    /// Drain all pending microtasks.
+    /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
     fn drain_microtasks<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
         &mut self,
         engine: &mut E,
@@ -444,11 +445,11 @@ impl Runtime {
             .unwrap_or(usize::MAX);
 
         // drain microtasks until the queue or budget is exhausted
-        let mut drained_microtasks = 0usize;
+        let mut num_drained_microtasks = 0usize;
         let mut budget_exhausted = false;
         loop {
             // stop when the configured budget is consumed
-            if drained_microtasks >= microtask_budget {
+            if num_drained_microtasks >= microtask_budget {
                 budget_exhausted = self.event_loop.has_microtasks();
                 break;
             }
@@ -466,10 +467,10 @@ impl Runtime {
                 ..RuntimeHookState::empty()
             });
             self.execute_microtask(engine, microtask, max_microtask_depth)?;
-            drained_microtasks = drained_microtasks.saturating_add(1);
+            num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
 
-        Ok((drained_microtasks, budget_exhausted))
+        Ok((num_drained_microtasks, budget_exhausted))
     }
 
     /// Resume one engine continuation with one runtime value.

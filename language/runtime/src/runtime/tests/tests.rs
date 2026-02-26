@@ -179,7 +179,7 @@ impl TestRuntime {
     pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
         self.runtime.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
-            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+            continuation: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
             resume_value: RuntimeValue::VOID,
             status: TaskStatus::Ready,
         });

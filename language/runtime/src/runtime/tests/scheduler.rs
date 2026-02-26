@@ -316,7 +316,7 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
-        runnable: EngineContinuation::Native(NativeContinuation::new(602)),
+        continuation: EngineContinuation::Native(NativeContinuation::new(602)),
         resume_value: RuntimeValue::VOID,
         status: TaskStatus::Ready,
     });

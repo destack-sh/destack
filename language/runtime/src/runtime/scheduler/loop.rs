@@ -45,6 +45,7 @@ pub struct EventLoop {
     timers: Mutex<TimerQueue>,
     /// Timer handles canceled after scheduling and before dispatch.
     canceled_timers: Mutex<FxHashSet<ResourceId>>,
+
     /// Timer watch dispatch table keyed by timer handle.
     timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
     /// External event watch dispatch table keyed by poller token.
