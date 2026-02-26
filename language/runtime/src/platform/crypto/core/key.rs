@@ -2613,6 +2613,19 @@ pub(super) fn nid_from_named_curve(curve: CryptoNamedCurve) -> RuntimeResult<Nid
     Ok(nid)
 }
 
+/// Resolve one NIST P-curve lane into normalized metadata.
+#[cfg(windows)]
+pub(crate) fn resolve_nist_p_curve(
+    curve: CryptoNamedCurve,
+) -> Option<(CryptoNamedCurve, u32, Nid)> {
+    match curve {
+        CryptoNamedCurve::P256 => Some((CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)),
+        CryptoNamedCurve::P384 => Some((CryptoNamedCurve::P384, 384, Nid::SECP384R1)),
+        CryptoNamedCurve::P521 => Some((CryptoNamedCurve::P521, 521, Nid::SECP521R1)),
+        _ => None,
+    }
+}
+
 /// Build one key descriptor payload from one key resource.
 pub(super) fn key_descriptor_from_resource(
     context: &BindingCallContext,

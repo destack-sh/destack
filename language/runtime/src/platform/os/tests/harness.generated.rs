@@ -20,13 +20,13 @@ use crate::platform::os::{
     ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm, ContactVm,
     CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationOptions,
     CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
-    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
-    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
-    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
-    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityVm, IntentEvent,
-    IntentEventVm, IntentKind, IntentOpenOptions, IntentOpenOptionsVm, IntentPayload,
-    IntentPayloadVm, LifecycleEvent, LifecycleEventKind, LifecycleEventPayload,
-    LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
+    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
+    CredentialAuthenticationResultVm, CredentialQuery, CredentialQueryVm, CredentialRecord,
+    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm, DocumentAccess,
+    DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
+    HostIdentity, HostIdentityVm, IntentEvent, IntentEventVm, IntentKind, IntentOpenOptions,
+    IntentOpenOptionsVm, IntentPayload, IntentPayloadVm, LifecycleEvent, LifecycleEventKind,
+    LifecycleEventPayload, LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
     LifecycleLowMemoryPayloadVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
     LifecycleState, LoadAverage, LoadAverageVm, LocationAccuracy, LocationSample, LocationSampleVm,
     LocationWatchOptions, LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm,
@@ -1167,7 +1167,10 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses LocalAuthentication and biometric manager APIs when available.
+    /// Uses keychain authentication prompts on Apple platforms, host callback bridge lanes on Android, and Windows CredUI prompt lanes for `BiometricOrDeviceCredential`.
+    /// Windows `Biometric` requests use Windows Biometric Framework lanes where available.
+    /// Windows `DeviceCredential` requests use CredUI prompt plus host logon verification lanes.
+    /// Linux and other unsupported Unix hosts return `notSupported`.
     ///
     /// # Errors
     /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
@@ -1215,7 +1218,8 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host credential-query APIs.
-    /// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
+    /// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
+    /// Returns `notSupported` on backends without access-group lanes.
     ///
     /// # Errors
     /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1272,7 +1276,8 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host credential-delete APIs.
-    /// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
+    /// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
+    /// Returns `notSupported` on backends without access-group lanes.
     ///
     /// # Errors
     /// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.

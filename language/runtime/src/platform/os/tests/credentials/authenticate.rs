@@ -1,11 +1,12 @@
 use super::super::with_harness_context;
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(target_os = "linux")]
 use super::core::assert_platform_error_code;
 use super::core::credential_authentication_options_value;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::os::CredentialAuthenticationRequirement;
 
 /// Return notSupported on platforms where authenticate lane is intentionally unavailable.
-#[cfg(any(target_os = "linux", windows))]
+#[cfg(target_os = "linux")]
 #[test]
 fn test_credentials_authenticate_reports_not_supported() {
     with_harness_context(|mut context| {
@@ -14,7 +15,7 @@ fn test_credentials_authenticate_reports_not_supported() {
             "Destack Test",
             "Credentials",
             "Authenticate to continue",
-            true,
+            CredentialAuthenticationRequirement::BiometricOrDeviceCredential,
         );
         let result = context.destack_os_credentials_authenticate(options);
         let error = match result {
@@ -28,7 +29,7 @@ fn test_credentials_authenticate_reports_not_supported() {
 }
 
 /// Avoid notSupported on platforms that implement host authentication lanes.
-#[cfg(any(target_vendor = "apple", target_os = "android"))]
+#[cfg(any(target_vendor = "apple", target_os = "android", windows))]
 #[test]
 fn test_credentials_authenticate_does_not_report_not_supported() {
     with_harness_context(|mut context| {
@@ -37,7 +38,7 @@ fn test_credentials_authenticate_does_not_report_not_supported() {
             "Destack Test",
             "Credentials",
             "Authenticate to continue",
-            true,
+            CredentialAuthenticationRequirement::BiometricOrDeviceCredential,
         );
         let result = context.destack_os_credentials_authenticate(options);
 

@@ -27,10 +27,13 @@ pub(crate) fn host_store_supports_certificate_write(
     }
 
     // require one callback runtime id and both certificate callbacks
-    if context.host().callback_runtime_id().is_none() {
+    let Some(runtime_id) = context.host().callback_runtime_id() else {
         return false;
-    }
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    };
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return false;
+    };
+
     callbacks.import_certificate.is_some() && callbacks.delete_certificate.is_some()
 }
 
@@ -43,7 +46,9 @@ pub(crate) fn host_store_import_certificate(
 ) -> RuntimeResult<()> {
     // resolve runtime id and callback entrypoint
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(import_callback) = callbacks.import_certificate else {
         return Err(not_supported(operation));
     };
@@ -72,7 +77,9 @@ pub(crate) fn host_store_delete_certificate(
 ) -> RuntimeResult<()> {
     // resolve runtime id and callback entrypoint
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(delete_callback) = callbacks.delete_certificate else {
         return Err(not_supported(operation));
     };
