@@ -5,12 +5,13 @@ use destack_ast as ast;
 
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
-    CommentSeamData, CommentSeamKeyword, comment_enclosing_owner,
+    CommentSeamData, CommentSeamKeyword, comment_enclosing_owner, previous_non_newline_token_index,
 };
+use super::facts::token_type_is_comment_trivia;
 use super::ownership::{
     find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
-    promote_owner_by_shared_start, promote_owner_to_satisfies_expression_ancestor,
-    promote_rhs_expression_owner,
+    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
+    promote_owner_to_satisfies_expression_ancestor, promote_rhs_expression_owner,
 };
 
 /// Promote one owner to the nearest elementwise binary expression ancestor.
@@ -66,32 +67,81 @@ fn descend_owner_through_transparent_expression_wrappers(tree: &NodeTree, owner_
     }
 }
 
-/// Return whether one owner is a mapped type expression.
-fn owner_is_type_mapped_expression(tree: &NodeTree, owner_id: u32) -> bool {
+/// Return whether one owner is one cast-like type-binary expression.
+fn owner_is_cast_or_satisfies_type_binary_expression(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) != NodeType::Expression {
         return false;
     }
 
     let expression_id = LocalNodeId::<Expression>::new(owner_id);
-    matches!(tree.get(expression_id), Expression::TypeMapped { .. })
+    matches!(
+        tree.get(expression_id),
+        Expression::TypeBinary {
+            operator: ast::TypeBinaryOperator::Cast | ast::TypeBinaryOperator::Satisfies,
+            ..
+        }
+    )
 }
 
-/// Return whether one owner has a mapped-type expression ancestor.
-fn owner_has_type_mapped_expression_ancestor(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner_id: u32,
-) -> bool {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
-        if owner_is_type_mapped_expression(tree, node_id) {
-            return true;
-        }
-
-        current_id = parents.get_by_id(node_id);
+/// Return assignment token index for one seam when comments follow `=`.
+fn assignment_token_index_for_seam(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> Option<usize> {
+    if seam.token_before_is(TokenType::Assign) {
+        return context.token_before;
     }
 
-    false
+    let token_before_index = context.token_before?;
+    let token_before_type = context.semantic_tokens[token_before_index].token.ty;
+    if !token_type_is_comment_trivia(token_before_type) {
+        return None;
+    }
+
+    let previous_index =
+        previous_non_newline_token_index(context.semantic_tokens, token_before_index)?;
+    let previous_type = context.semantic_tokens[previous_index].token.ty;
+    (previous_type == TokenType::Assign).then_some(previous_index)
+}
+
+/// Return rhs owner for one assignment seam.
+fn assignment_rhs_owner_for_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+    enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
+) -> Option<u32> {
+    let assignment_owner = assignment_token_index_for_seam(context, seam)
+        .and_then(|token_index| {
+            let token_span = context.semantic_tokens[token_index].span;
+            find_smallest_owner_enclosing_token(tree, token_span)
+        })
+        .and_then(|owner_id| {
+            if tree.get_node_type(owner_id) == NodeType::Expression {
+                Some(owner_id)
+            } else {
+                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+            }
+        })
+        .and_then(|expression_owner| {
+            let expression_id = LocalNodeId::<Expression>::new(expression_owner);
+            match tree.get(expression_id) {
+                Expression::Assign { right, .. } => Some(right.id),
+                _ => None,
+            }
+        });
+    let target_node = assignment_owner.or_else(|| {
+        following_owner.or_else(|| comment_enclosing_owner(context, enclosing_owner_cache))
+    })?;
+
+    Some(promote_rhs_expression_owner(
+        tree,
+        parents,
+        target_node,
+        context.token_after_span.map(|token| token.span),
+    ))
 }
 
 /// Resolve assignment seam comment rules.
@@ -108,41 +158,39 @@ pub(crate) fn try_attach_comment_assignment(
     let has_trailing_newline = seam.has_trailing_newline;
     let comment_is_line = seam.comment_is_line;
     let comment_is_star = seam.comment_is_star;
-    let token_before_is_assign = seam.token_before_is(TokenType::Assign);
-    let token_after_span = context.token_after_span;
+    let seam_follows_assignment = assignment_token_index_for_seam(context, seam).is_some();
     let token_before_span = context.token_before_span;
 
     // inline block comments between assignment and rhs should stay inline with the rhs expression
     if !has_leading_newline
         && !has_trailing_newline
         && comment_is_star
-        && token_before_is_assign
-        && let Some(target_node) =
-            following_owner.or_else(|| comment_enclosing_owner(context, enclosing_owner_cache))
-    {
-        let target_node = promote_rhs_expression_owner(
+        && seam_follows_assignment
+        && let Some(target_node) = assignment_rhs_owner_for_seam(
             tree,
             parents,
-            target_node,
-            token_after_span.map(|token| token.span),
-        );
+            context,
+            seam,
+            following_owner,
+            enclosing_owner_cache,
+        )
+    {
         return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
     // comments between assignment and rhs should bind to the rhs seam
     if !has_leading_newline
         && has_trailing_newline
-        && token_before_is_assign
-        && let Some(target_node) =
-            following_owner.or_else(|| comment_enclosing_owner(context, enclosing_owner_cache))
-    {
-        let target_node = promote_rhs_expression_owner(
+        && seam_follows_assignment
+        && let Some(target_node) = assignment_rhs_owner_for_seam(
             tree,
             parents,
-            target_node,
-            token_after_span.map(|token| token.span),
-        );
-
+            context,
+            seam,
+            following_owner,
+            enclosing_owner_cache,
+        )
+    {
         let comment_starts_on_assign_line = token_before_span.is_some_and(|before_token| {
             context
                 .file
@@ -158,16 +206,16 @@ pub(crate) fn try_attach_comment_assignment(
 
     // own-line comments between assignment and rhs stay on the rhs value region
     if has_leading_newline
-        && token_before_is_assign
-        && let Some(target_node) =
-            following_owner.or_else(|| comment_enclosing_owner(context, enclosing_owner_cache))
-    {
-        let target_node = promote_rhs_expression_owner(
+        && seam_follows_assignment
+        && let Some(target_node) = assignment_rhs_owner_for_seam(
             tree,
             parents,
-            target_node,
-            token_after_span.map(|token| token.span),
-        );
+            context,
+            seam,
+            following_owner,
+            enclosing_owner_cache,
+        )
+    {
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
@@ -213,6 +261,69 @@ pub(crate) fn try_attach_comment_expression_operator(
     let token_before_is_elementwise_or =
         matches!(seam.token_before_type, Some(TokenType::ElementwiseOr));
     let enclosing_owner = comment_enclosing_owner(context, enclosing_owner_cache);
+    let seam_is_cast_or_satisfies_operator_context =
+        [enclosing_owner, preceding_owner, following_owner]
+            .into_iter()
+            .flatten()
+            .any(|owner_id| {
+                let expression_owner = if tree.get_node_type(owner_id) == NodeType::Expression {
+                    Some(owner_id)
+                } else {
+                    promote_owner_to_node_type_ancestor(
+                        tree,
+                        parents,
+                        owner_id,
+                        NodeType::Expression,
+                    )
+                };
+
+                expression_owner.is_some_and(|expression_owner| {
+                    owner_is_cast_or_satisfies_type_binary_expression(tree, expression_owner)
+                })
+            });
+    let cast_or_satisfies_rhs_owner = [enclosing_owner, preceding_owner, following_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner_id| {
+            let expression_owner = if tree.get_node_type(owner_id) == NodeType::Expression {
+                Some(owner_id)
+            } else {
+                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+            }?;
+
+            let expression_id = LocalNodeId::<Expression>::new(expression_owner);
+            match tree.get(expression_id) {
+                Expression::TypeBinary {
+                    operator: ast::TypeBinaryOperator::Cast | ast::TypeBinaryOperator::Satisfies,
+                    right,
+                    ..
+                } => Some(right.id),
+                Expression::TypeUnary {
+                    operator: ast::TypeUnaryOperator::AsConst,
+                    right,
+                } => Some(right.id),
+                _ => None,
+            }
+        });
+    let as_const_type_unary_owner = [enclosing_owner, preceding_owner, following_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner_id| {
+            let expression_owner = if tree.get_node_type(owner_id) == NodeType::Expression {
+                Some(owner_id)
+            } else {
+                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+            }?;
+
+            let expression_id = LocalNodeId::<Expression>::new(expression_owner);
+            match tree.get(expression_id) {
+                Expression::TypeUnary {
+                    operator: ast::TypeUnaryOperator::AsConst,
+                    ..
+                } => Some(expression_owner),
+                _ => None,
+            }
+        });
     let starts_leading_type_grouping_operator = token_before_is_open_parenthesis
         || token_before_is_assign
         || token_before_is_colon
@@ -239,7 +350,7 @@ pub(crate) fn try_attach_comment_expression_operator(
             promote_owner_to_elementwise_binary_expression_ancestor(tree, parents, target_node)
                 .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        let position = if has_trailing_newline {
+        let position = if has_trailing_newline || comment_is_multiline_star {
             AnnotationPosition::BlockPrefix
         } else {
             AnnotationPosition::LinePrefix
@@ -298,67 +409,46 @@ pub(crate) fn try_attach_comment_expression_operator(
     if (token_before_is_as || token_before_is_satisfies)
         && comment_is_multiline_star
         && (has_leading_newline || has_trailing_newline)
+        && seam_is_cast_or_satisfies_operator_context
         && let Some(target_node) = following_owner
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
-    // comments after `as` stay on cast seams, except mapped-type remap seams
-    if token_before_is_as && !has_leading_newline && has_trailing_newline && comment_is_line {
-        if let Some(target_node) = following_owner
-            && tree.get_node_type(target_node) == NodeType::Expression
-            && owner_has_type_mapped_expression_ancestor(tree, parents, target_node)
-        {
-            let target_expression = LocalNodeId::<Expression>::new(target_node);
-            if let Expression::TypeTemplateLiteral { spans, .. } = tree.get(target_expression)
-                && let Some(first_span) = spans.first()
-            {
-                let target_node = normalize_formatter_trivia_target_owner(tree, first_span.id);
-                return Some((Some(target_node), AnnotationPosition::LinePostfix));
-            }
-
-            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            return Some((Some(target_node), AnnotationPosition::LinePrefix));
-        }
-
-        if let Some(target_node) = comment_enclosing_owner(context, enclosing_owner_cache) {
-            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
-        }
+    // line comments after `as` and `satisfies` stay on rhs prefixes
+    if (token_before_is_as || token_before_is_satisfies)
+        && !has_leading_newline
+        && has_trailing_newline
+        && comment_is_line
+        && seam_is_cast_or_satisfies_operator_context
+        && !token_after_is_const
+        && let Some(target_node) = cast_or_satisfies_rhs_owner.or(following_owner).or_else(|| {
+            context
+                .token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        })
+    {
+        let target_node = context
+            .token_after_span
+            .map(|token| {
+                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
+            })
+            .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
-    // line comments after `satisfies` only move to rhs prefixes for multi-argument type paths
-    if token_before_is_satisfies && !has_leading_newline && has_trailing_newline && comment_is_line
+    // line comments between `as` and `const` stay as infix seams on `as const` unary expressions
+    if token_before_is_as
+        && token_after_is_const
+        && !has_leading_newline
+        && has_trailing_newline
+        && comment_is_line
+        && let Some(target_node) = as_const_type_unary_owner
     {
-        if let Some(right_target) = following_owner {
-            let mut prefix_target = None;
-
-            if tree.get_node_type(right_target) == NodeType::Expression {
-                let right_expression = LocalNodeId::<Expression>::new(right_target);
-                if matches!(
-                    tree.get(right_expression),
-                    Expression::Path {
-                        static_arguments: Some(static_arguments),
-                        ..
-                    } if static_arguments.len() > 1
-                ) {
-                    prefix_target = Some(right_target);
-                }
-            }
-
-            if let Some(prefix_target) = prefix_target {
-                let prefix_target = normalize_formatter_trivia_target_owner(tree, prefix_target);
-                return Some((Some(prefix_target), AnnotationPosition::LinePrefix));
-            }
-        }
-
-        if let Some(target_node) =
-            comment_enclosing_owner(context, enclosing_owner_cache).or(preceding_owner)
-        {
-            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
-        }
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockInfix));
     }
 
     // line comments after `<` in satisfies rhs type arguments stay with the rhs type

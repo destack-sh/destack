@@ -282,6 +282,20 @@ pub(crate) fn try_attach_comment_statement_suffix(
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
 
+    // inline line comments between `else` and its body stay with the else body
+    if !seam.has_leading_newline
+        && seam.comment_is_line
+        && seam.token_before_is_keyword(CommentSeamKeyword::Else)
+        && let Some(target_owner) = else_body_comment_target_owner(tree, parents, following_owner)
+    {
+        let position = if tree.get_node_type(target_owner) == NodeType::Block {
+            AnnotationPosition::BlockPrefix
+        } else {
+            AnnotationPosition::LinePrefix
+        };
+        return Some((Some(target_owner), position));
+    }
+
     // inline block comments between `else` and its body stay with the else body
     if !seam.has_leading_newline
         && seam.comment_is_star
@@ -362,6 +376,33 @@ pub(crate) fn try_attach_comment_statement_suffix(
         }
     }
 
+    // trailing line comments after switch label `:` should stay before the case body
+    if !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && seam.comment_is_line
+        && seam.token_before_is(TokenType::Colon)
+        && !seam.token_after_is_case_or_default()
+    {
+        let in_match_case = preceding_owner
+            .and_then(|owner| {
+                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
+            })
+            .is_some()
+            || following_owner
+                .and_then(|owner| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
+                })
+                .is_some();
+        if in_match_case {
+            let target_owner = following_owner
+                .or(preceding_owner)
+                .map(|owner| normalize_formatter_trivia_target_owner(tree, owner));
+            if let Some(target_owner) = target_owner {
+                return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+            }
+        }
+    }
+
     // return type seam comments should stay between `:` and the return type
     if let Some(attachment) = try_attach_comment_declaration_return_type_seam(tree, seam, owners) {
         return Some(attachment);
@@ -383,6 +424,8 @@ pub(crate) fn try_attach_comment_statement_suffix(
         && seam.token_before_is(TokenType::Comma)
         && !seam.token_after_is(TokenType::CloseParenthesis)
         && let Some(target_owner) = preceding_owner
+        && promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
+            .is_some()
     {
         let target_owner = normalize_argument_owner(tree, parents, target_owner);
         let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);

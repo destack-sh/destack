@@ -427,5 +427,9 @@ pub(crate) fn statement_wrapper_needs_semicolon(
         return false;
     }
 
+    if matches!(expression, Expression::Stub | Expression::Error) {
+        return false;
+    }
+
     true
 }

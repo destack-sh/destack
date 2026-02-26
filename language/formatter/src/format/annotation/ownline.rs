@@ -192,6 +192,40 @@ fn attach_before_jsx_statement_head_comment(
     None
 }
 
+/// Handle own-line import or export specifier separator comments as dependency-item prefixes.
+fn attach_dependency_item_separator_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    let seam_follows_comma = seam.token_before_is(TokenType::Comma)
+        || context
+            .token_before
+            .and_then(|token_before| {
+                previous_non_newline_token_index(context.semantic_tokens, token_before)
+            })
+            .and_then(|token_index| context.semantic_tokens.get(token_index))
+            .is_some_and(|token| token.token.ty == TokenType::Comma);
+    if !seam_follows_comma {
+        return None;
+    }
+
+    let token_after_owner = context
+        .token_after_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let target_owner = [following_owner, token_after_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::DependencyItem)
+        })?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
+}
+
 /// Handle own-line seams before separators and closers that prefer preceding owners.
 fn attach_separator_or_closer_comment(
     tree: &NodeTree,
@@ -363,6 +397,13 @@ pub(crate) fn attach_own_line_comment(
         following_owner,
         token_after_span,
     ) {
+        return Some(attachment);
+    }
+
+    // import and export specifier separator ownership
+    if let Some(attachment) =
+        attach_dependency_item_separator_comment(tree, parents, context, seam, following_owner)
+    {
         return Some(attachment);
     }
 
