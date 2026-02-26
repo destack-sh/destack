@@ -17,8 +17,6 @@ Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and pla
     <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 
-**[The Destack](#the-destack) • [Higher-Order Programming](#higher-order-programming) • [Getting Started](#getting-started) • [Targets](#targets) • [Contributing](CONTRIBUTING.md) • [Discord](https://discord.gg/xUFQ45TWYd)**
-
 </div>
 
 ---
