@@ -24,7 +24,7 @@ mod walk;
 
 pub(crate) use super::AnalyzeDependencyStage;
 pub(crate) use canonical::CanonicalSymbolMode;
-pub(crate) use context::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
+pub(crate) use context::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use literal::evaluate_numeric_literal;
 pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};

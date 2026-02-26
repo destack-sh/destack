@@ -1,9 +1,9 @@
-/// The freshness state for literal types.
+/// The freshness mode for inference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LiteralFreshness {
-    /// Literal types are still fresh.
+pub enum FreshnessMode {
+    /// Freshness is preserved.
     Fresh,
-    /// Literal types have been regularized.
+    /// Freshness is regularized.
     Regularized,
 }
 

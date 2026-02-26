@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    IntType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, StringId, Type,
-    TypeLiteral, TypeTable,
+    Freshness, IntType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey,
+    StringId, Type, TypeLiteral, TypeTable,
 };
 
 use super::{NormalizationMode, RelationMode, TypeContext};
@@ -624,12 +624,14 @@ impl Compiler {
                 value: TypeLiteral::Primitive(PrimitiveType::Number),
             }) => {
                 if let Some(literal) = self.number_literal_from_string(value) {
-                    return Some(types.insert_type_from_any(
+                    let type_id = types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(literal),
                         },
                         source_id,
-                    ));
+                    );
+                    self.set_type_freshness(types, type_id, Freshness::Regular);
+                    return Some(type_id);
                 }
 
                 if self.string_is_number_literal(value) {
@@ -652,12 +654,14 @@ impl Compiler {
                         other => other,
                     };
 
-                    return Some(types.insert_type_from_any(
+                    let type_id = types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(literal),
                         },
                         source_id,
-                    ));
+                    );
+                    self.set_type_freshness(types, type_id, Freshness::Regular);
+                    return Some(type_id);
                 }
 
                 if self.string_is_number_literal(value) {
@@ -676,12 +680,14 @@ impl Compiler {
             }) => {
                 // prefer literal inference when possible
                 if let Some(literal) = self.bigint_literal_from_string(value) {
-                    return Some(types.insert_type_from_any(
+                    let type_id = types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(literal),
                         },
                         source_id,
-                    ));
+                    );
+                    self.set_type_freshness(types, type_id, Freshness::Regular);
+                    return Some(type_id);
                 }
 
                 // fall back to primitive bigint for non canonical strings
@@ -704,12 +710,14 @@ impl Compiler {
             }) => {
                 // prefer literal inference when possible
                 if let Some(literal) = self.int_literal_from_string(value, &int_type) {
-                    return Some(types.insert_type_from_any(
+                    let type_id = types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(literal),
                         },
                         source_id,
-                    ));
+                    );
+                    self.set_type_freshness(types, type_id, Freshness::Regular);
+                    return Some(type_id);
                 }
 
                 // fall back to primitive int for non canonical strings
@@ -727,12 +735,14 @@ impl Compiler {
             _ => Some(ScalarLiteral::String(self.program.strings.intern(value))),
         }?;
 
-        Some(types.insert_type_from_any(
+        let type_id = types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(scalar),
             },
             source_id,
-        ))
+        );
+        self.set_type_freshness(types, type_id, Freshness::Regular);
+        Some(type_id)
     }
 
     /// Check whether a type literal matches a string literal value.

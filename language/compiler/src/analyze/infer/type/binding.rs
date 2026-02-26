@@ -56,6 +56,10 @@ impl TypeRewriter for LiteralWideningRewriter<'_> {
             return None;
         };
 
+        if !types.is_fresh_type(id) {
+            return None;
+        }
+
         if !self.compiler.should_widen_scalar_literal(self.ctx) {
             return None;
         }
@@ -134,23 +138,14 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
-        initializer_id: LocalNodeId<Expression>,
         initializer_ty_id: LocalTypeId,
         state: &InferState,
     ) -> LocalTypeId {
-        // preserve literal precision when the initializer is a satisfies expression
-        let preserve_literals = self.expression_is_satisfies(ctx.tree, initializer_id);
-        let materialize_ctx = if preserve_literals {
-            state.fork().with_preserve_literals()
-        } else {
-            state.fork()
-        };
-
         // preserve literal precision when the declarator uses const assertion
         let is_const_asserted = self.declarator_is_const_assertion(declarator_id, ctx.tree);
         self.materialize_binding_type(
             ctx.module,
-            &materialize_ctx,
+            state,
             initializer_ty_id,
             ctx.types,
             is_const_asserted,

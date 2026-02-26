@@ -1069,6 +1069,9 @@ impl Compiler {
         if ctx.types.is_normalization_alias_in_progress(symbol) {
             let alias_target_id =
                 self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), symbol, source_id);
+            if alias_target_id.is_none() {
+                return None;
+            }
             let is_direct_self_reference = alias_target_id.is_some_and(|alias_target_id| {
                 matches!(
                     ctx.types.get_type(alias_target_id),

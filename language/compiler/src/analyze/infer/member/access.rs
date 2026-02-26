@@ -564,7 +564,7 @@ impl Compiler {
         )?;
 
         // reject implicit dynamic dispatch when configured
-        if ctx.options.no_implicit_dynamic_dispatch
+        if state.options.no_implicit_dynamic_dispatch
             && matches!(ctx.module.source, ModuleSource::User)
             && matches!(resolution, MemberResolution::Dynamic { .. })
         {

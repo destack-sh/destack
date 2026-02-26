@@ -5,7 +5,7 @@ use super::declaration::DeclaratorConstraint;
 
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
-    CanonicalSymbolMode, ConstContext, ContextualTypingMode, InferContext, LiteralFreshness,
+    CanonicalSymbolMode, ConstContext, ContextualTypingMode, FreshnessMode, InferContext,
     ModuleSymbolView, RelationMode, TreeSymbolView, TypeContext, TypeRewriteCache, WideningMode,
 };
 use crate::timing::tags;
@@ -17,10 +17,10 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, FunctionKind,
-    FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, ImportTarget, InferOrigin,
-    InferScope, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase,
-    MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
+    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, Freshness, FunctionCardinality,
+    FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, ImportTarget,
+    InferOrigin, InferScope, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind,
+    MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
     NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ResolvedSignature,
     ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, Type, TypeBinaryOperator,
     TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic, TypeTable,
@@ -298,7 +298,7 @@ impl Compiler {
         if !matches!(state.widening_mode, WideningMode::Widen) {
             return false;
         }
-        if !matches!(state.literal_freshness, LiteralFreshness::Regularized) {
+        if !matches!(state.freshness_mode, FreshnessMode::Regularized) {
             return false;
         }
         matches!(state.const_context, ConstContext::None)
@@ -708,7 +708,6 @@ impl Compiler {
         let committed_ty_id = self.materialize_declarator_initializer_type(
             &mut ctx.type_context_reborrow(),
             declarator_id,
-            value_id,
             inferred_ty_id,
             &value_ctx,
         );
@@ -760,30 +759,6 @@ impl Compiler {
         }
 
         Ok(Some(inferred_type_id))
-    }
-
-    /// Return true when the expression is a satisfies type binary expression.
-    pub(crate) fn expression_is_satisfies(
-        &self,
-        tree: &NodeTree,
-        mut expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        loop {
-            match tree.get(expression_id) {
-                Expression::Parenthesized { expression } => {
-                    expression_id = *expression;
-                }
-                Expression::TypeBinary {
-                    operator: TypeBinaryOperator::Satisfies,
-                    ..
-                } => {
-                    return true;
-                }
-                _ => {
-                    return false;
-                }
-            }
-        }
     }
 
     /// Instantiate one inferred expression type from infer-local instance obligations.
@@ -939,7 +914,7 @@ impl Compiler {
                 arguments,
             } => {
                 // reject dynamic imports when configured
-                if ctx.options.no_dynamic_import
+                if state.options.no_dynamic_import
                     && matches!(ctx.module.source, ModuleSource::User)
                     && matches!(
                         source,
@@ -976,7 +951,7 @@ impl Compiler {
                 ..
             } => {
                 // reject dynamic imports when configured
-                if ctx.options.no_dynamic_import
+                if state.options.no_dynamic_import
                     && matches!(ctx.module.source, ModuleSource::User)
                     && matches!(
                         source,
@@ -1186,14 +1161,18 @@ impl Compiler {
                     }
                 };
 
-                let ty = self.infer_type_binary_operation(
-                    &mut ctx.type_context_reborrow(),
-                    expression_id,
-                    operator,
-                    left_ty_id,
-                    right_ty_id,
-                );
-                ctx.types.insert_type_from(ty, expression_id)
+                if matches!(operator, TypeBinaryOperator::Satisfies) {
+                    left_ty_id
+                } else {
+                    let ty = self.infer_type_binary_operation(
+                        &mut ctx.type_context_reborrow(),
+                        expression_id,
+                        operator,
+                        left_ty_id,
+                        right_ty_id,
+                    );
+                    ctx.types.insert_type_from(ty, expression_id)
+                }
             }
             Expression::TypeConditional { .. }
             | Expression::TypeMapped { .. }
@@ -1230,7 +1209,7 @@ impl Compiler {
                 target_type,
             } => {
                 // reject unsafe explicit casts when configured
-                if ctx.options.no_unsafe_type_assertions
+                if state.options.no_unsafe_type_assertions
                     && matches!(source, CastSource::Explicit)
                     && self.is_unsafe_type_assertion(*operator)
                     && matches!(ctx.module.source, ModuleSource::User)
@@ -1322,7 +1301,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce strict mode delete restrictions on bindings
-        let enforce_strict_mode = ctx.module.source_type.is_module() || ctx.options.always_strict;
+        let enforce_strict_mode = ctx.module.source_type.is_module() || state.options.always_strict;
         if enforce_strict_mode && matches!(ctx.module.source, ModuleSource::User) {
             let target_id = self.unwrap_parenthesized_expression(value, ctx.tree);
 
@@ -1342,7 +1321,7 @@ impl Compiler {
         }
 
         // reject delete in dynamic shape restricted mode
-        if ctx.options.no_dynamic_shapes && matches!(ctx.module.source, ModuleSource::User) {
+        if state.options.no_dynamic_shapes && matches!(ctx.module.source, ModuleSource::User) {
             self.error(AnalyzeError::DynamicShapesDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -1441,7 +1420,7 @@ impl Compiler {
                     this_ty_id
                 } else {
                     // report implicit this in functions and scripts
-                    if ctx.options.no_implicit_this
+                    if state.options.no_implicit_this
                         && !matches!(ctx.module.source, ModuleSource::Builtin(_))
                     {
                         let is_script = ctx.module.source_type.is_script();
@@ -1679,6 +1658,9 @@ impl Compiler {
                 // apply contextual typing when a matching expected type is available
                 let allow_contextual_literal =
                     !matches!(state.contextual_typing, ContextualTypingMode::Satisfies);
+                let should_preserve_scalar_literal =
+                    matches!(state.contextual_typing, ContextualTypingMode::Satisfies)
+                        && self.expected_type_is_scalar_literal_union(state.expected_type, types);
                 if allow_contextual_literal
                     && let Some(expected_ty_id) = self.expected_type_for_scalar_literal(
                         value,
@@ -1695,7 +1677,13 @@ impl Compiler {
                         self.infer_scalar_literal(value)
                     };
                     let ty = Type::TypeLiteral { value: literal };
-                    types.insert_type_from(ty, expression_id)
+                    let ty_id = types.insert_type_from(ty, expression_id);
+                    if should_preserve_scalar_literal {
+                        self.set_type_freshness(types, ty_id, Freshness::Regular);
+                    } else {
+                        self.apply_infer_state_type_freshness(types, ty_id, state);
+                    }
+                    ty_id
                 }
             }
 
@@ -1977,6 +1965,11 @@ impl Compiler {
             _ => unreachable!("aggregate helper called with non aggregate literal"),
         };
 
+        // stamp freshness only for the aggregate type synthesized at this node
+        if ctx.types.get_type_source(ty_id) == expression_id.into_any() {
+            self.apply_infer_state_type_freshness(ctx.types, ty_id, state);
+        }
+
         Ok(ty_id)
     }
 
@@ -2125,7 +2118,7 @@ impl Compiler {
         let ty_id = ctx.types.insert_type_from(ty, expression_id);
 
         // reject managed array types when managed memory is disabled
-        if ctx.options.no_managed
+        if state.options.no_managed
             && !state.is_explicit_ownership
             && matches!(ctx.module.source, ModuleSource::User)
             && self.type_contains_managed(ctx.module_type_view(), ty_id)
@@ -2242,7 +2235,7 @@ impl Compiler {
         let expected_object_ty_id = if expected_object_ty_id.is_some() {
             expected_object_ty_id
         } else {
-            let options = *ctx.options;
+            let options = state.options;
             self.expected_object_type_for_literal_union(
                 &mut ctx.reborrow(),
                 state.expected_type,
@@ -2299,7 +2292,7 @@ impl Compiler {
         };
 
         // reject managed object types when managed memory is disabled
-        if ctx.options.no_managed
+        if state.options.no_managed
             && !state.is_explicit_ownership
             && matches!(ctx.module.source, ModuleSource::User)
             && self.type_contains_managed(ctx.module_type_view(), ty_id)
@@ -3261,7 +3254,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // reject try/catch forms when exceptions are disabled
-        if ctx.options.no_exceptions {
+        if state.options.no_exceptions {
             self.error(AnalyzeError::ExceptionsDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -3311,7 +3304,7 @@ impl Compiler {
                 let catch_error_type_id = if let Some(catch_binding_ty_id) = catch_binding_ty_id {
                     catch_binding_ty_id
                 } else if try_error_types.is_empty() {
-                    let value = if ctx.options.use_unknown_in_catch_variables {
+                    let value = if state.options.use_unknown_in_catch_variables {
                         TypeLiteral::Unknown
                     } else {
                         TypeLiteral::Any
@@ -3459,7 +3452,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce no-exceptions mode
-        if ctx.options.no_exceptions {
+        if state.options.no_exceptions {
             self.error(AnalyzeError::ExceptionsDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -3489,7 +3482,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // reject await when runtime is disabled
-        if ctx.options.no_runtime && matches!(ctx.module.source, ModuleSource::User) {
+        if state.options.no_runtime && matches!(ctx.module.source, ModuleSource::User) {
             self.error(AnalyzeError::RuntimeDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -3533,7 +3526,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // reject yield when runtime is disabled
-        if ctx.options.no_runtime && matches!(ctx.module.source, ModuleSource::User) {
+        if state.options.no_runtime && matches!(ctx.module.source, ModuleSource::User) {
             self.error(AnalyzeError::RuntimeDisabled {
                 node: expression_id
                     .into_global_any(ctx.module.id)
@@ -4056,7 +4049,7 @@ impl Compiler {
                     ctx,
                     property_id.into_any(),
                     signature,
-                    *ctx.options,
+                    state.options,
                 );
 
                 // infer the method signature with contextual typing
@@ -4492,7 +4485,7 @@ impl Compiler {
         }
 
         // reject globalThis references when configured
-        if ctx.options.no_global_this && matches!(ctx.module.source, ModuleSource::User) {
+        if state.options.no_global_this && matches!(ctx.module.source, ModuleSource::User) {
             let global_this_name = self.program.strings.intern("globalThis");
             if self.symbol_name_for_global(ctx.module, state.profile, canonical_symbol)
                 == Some(global_this_name)
@@ -4917,11 +4910,11 @@ impl Compiler {
                     return_ty_id,
                     value_ty_id,
                     ctx.tree,
-                    ctx.options,
+                    &state.options,
                 );
 
                 // constrain the return value to the declared return type
-                let options = *ctx.options;
+                let options = state.options;
                 self.constrain_return_value_type(
                     &mut ctx.reborrow(),
                     value_id,

@@ -8,7 +8,7 @@ use crate::analyze::common::{
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
     FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId,
@@ -807,6 +807,7 @@ impl Compiler {
         dynamic_arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
+        options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
         // check argument assignability against parameters
         for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
@@ -823,7 +824,7 @@ impl Compiler {
                     *param_ty_id,
                     *argument_ty_id,
                     ctx.tree,
-                    ctx.options,
+                    options,
                 );
             }
 
@@ -1659,6 +1660,7 @@ impl Compiler {
             dynamic_arguments,
             &argument_ty_ids,
             resolved_dynamic_parameters,
+            &state.options,
         )?;
 
         let resolved_return_type = resolved_signature.return_type;
@@ -2793,7 +2795,7 @@ impl Compiler {
         };
 
         // reject managed allocations when managed memory is disabled
-        if ctx.options.no_managed
+        if state.options.no_managed
             && !state.is_explicit_ownership
             && matches!(ctx.module.source, ModuleSource::User)
             && self.type_contains_managed(ctx.module_type_view(), ty_id)
@@ -2891,6 +2893,7 @@ impl Compiler {
             dynamic_arguments,
             &argument_ty_ids,
             resolved_dynamic_parameters,
+            &state.options,
         )?;
 
         let resolved_return_type = resolved_signature.return_type;

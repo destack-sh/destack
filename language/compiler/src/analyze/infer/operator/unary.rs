@@ -1,5 +1,4 @@
 use super::*;
-
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn infer_unary_expression(
@@ -39,13 +38,17 @@ impl Compiler {
                 ctx.infer,
                 ctx.types,
             );
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            let ty_id = ctx.types.insert_type_from(ty, expression_id);
+            self.apply_infer_state_type_freshness(ctx.types, ty_id, state);
+            return Ok(ty_id);
         }
 
         // fall back to builtin inference when no operator interface exists
         let Some(operator_item) = operator_item else {
             let ty = self.infer_unary_operation(operator, &right_ty);
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            let ty_id = ctx.types.insert_type_from(ty, expression_id);
+            self.apply_infer_state_type_freshness(ctx.types, ty_id, state);
+            return Ok(ty_id);
         };
 
         // require explicit operator interface implementation

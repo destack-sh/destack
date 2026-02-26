@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_dir::{Export, GlobalSymbolId, StaticKey, SymbolSpace, Type, TypeLiteral, TypeTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ProfileId};
+use destack_workspace::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSource, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
@@ -412,6 +412,15 @@ impl Compiler {
         for component_module_id in component_modules.iter().copied() {
             let module = self.program.modules.get(component_module_id);
             let module = module.read();
+            let module_checks = self.module_check_options_for_module(component_module_id);
+            let skip_declaration_unknown_warnings = module.language_type.is_declaration()
+                && (module_checks.skip_lib_check
+                    || (matches!(module.source, ModuleSource::Builtin(_))
+                        && !self.options.validate_builtin_libs));
+            if skip_declaration_unknown_warnings {
+                continue;
+            }
+
             let dir = module.dir(profile);
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
