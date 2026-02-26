@@ -24,7 +24,7 @@ Start Zed from a terminal with `zed --foreground` to inspect extension logs.
 
 ## Release
 
-The extension version in `extension.toml` must match the repository `version.txt`.
+The extension version in `extension.toml` must match the repository `VERSION`.
 `destack dev version` updates both files.
 
 You can prepare a dry-run registry update from the repository root.

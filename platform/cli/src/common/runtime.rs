@@ -279,6 +279,7 @@ impl RuntimeArgs {
             gc,
             rules: None,
             platform: None,
+            ..Default::default()
         })
     }
 }

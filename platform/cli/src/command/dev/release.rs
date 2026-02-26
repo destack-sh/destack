@@ -36,7 +36,7 @@ pub struct ReleaseArgs {
     #[arg(long, value_enum)]
     pub bump: Option<ReleaseBumpKind>,
 
-    /// Explicit release version override (defaults to version.txt when unset).
+    /// Explicit release version override (defaults to VERSION when unset).
     #[arg(long)]
     pub version: Option<String>,
 
@@ -121,8 +121,8 @@ pub fn run(args: &ReleaseArgs) -> i32 {
 /// Validate that the current directory looks like the repository root.
 fn validate_repository_root() -> Result<(), String> {
     // ensure the version file exists
-    if !Path::new("version.txt").exists() {
-        return Err("version.txt not found, run this command from the repository root".to_string());
+    if !Path::new("VERSION").exists() {
+        return Err("VERSION not found, run this command from the repository root".to_string());
     }
 
     // ensure the platform justfile exists
