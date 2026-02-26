@@ -6,8 +6,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
-    CredentialAuthenticationPolicy, CredentialQuery, CredentialQueryVm, CredentialRecord,
-    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm,
+    CredentialAuthenticationPolicy, CredentialAuthenticationRequirement, CredentialQuery,
+    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
+    CredentialWriteOptionsVm,
 };
 use crate::platform::{NativeStringRef, VmSlice};
 
@@ -138,7 +139,7 @@ pub(super) fn credential_authentication_options_value(
     title: &str,
     subtitle: &str,
     message: &str,
-    allow_passcode_fallback: bool,
+    requirement: CredentialAuthenticationRequirement,
 ) -> HarnessValue<CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm> {
     // build one vm authentication-options payload for vm runs
     if let Some(vm_context) = vm_context_pointer(context) {
@@ -147,7 +148,7 @@ pub(super) fn credential_authentication_options_value(
             title: vm::StringHandle::new(vm_context.intern_string(title)),
             subtitle: vm::StringHandle::new(vm_context.intern_string(subtitle)),
             message: vm::StringHandle::new(vm_context.intern_string(message)),
-            allow_passcode_fallback,
+            requirement,
         };
 
         return HarnessValue::Vm(options);
@@ -158,7 +159,7 @@ pub(super) fn credential_authentication_options_value(
         title: context.call_context.store_string(title),
         subtitle: context.call_context.store_string(subtitle),
         message: context.call_context.store_string(message),
-        allow_passcode_fallback,
+        requirement,
     };
 
     HarnessValue::Native(options)

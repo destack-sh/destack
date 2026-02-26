@@ -6,7 +6,9 @@ use parking_lot::{Mutex, MutexGuard};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
+use crate::platform::os::{
+    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 
@@ -80,8 +82,8 @@ pub(crate) struct CredentialAuthenticationOptionsOwned {
     pub subtitle: String,
     /// Host prompt message.
     pub message: String,
-    /// Whether passcode fallback is allowed.
-    pub allow_passcode_fallback: bool,
+    /// Required host authentication policy.
+    pub requirement: CredentialAuthenticationRequirement,
 }
 
 /// Decode one native string argument into owned text.
@@ -303,6 +305,7 @@ pub(crate) fn would_block(
 }
 
 /// Build one ioInterrupted runtime error.
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 pub(crate) fn interrupted(
     operation: &'static str,
     message: impl Into<String>,
@@ -361,8 +364,8 @@ fn validate_service_account(
 fn validate_authentication_prompt(
     options: &CredentialAuthenticationOptionsOwned,
 ) -> RuntimeResult<()> {
-    // read fallback policy here so prompt validation owns the full option contract
-    let _allow_passcode_fallback = options.allow_passcode_fallback;
+    // read requirement here so prompt validation owns the full option contract
+    let _requirement = options.requirement;
 
     // normalize each prompt field for validation
     let title = options.title.trim();

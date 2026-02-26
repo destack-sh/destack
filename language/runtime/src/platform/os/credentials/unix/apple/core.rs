@@ -2,7 +2,9 @@ use std::os::raw::c_void;
 use std::ptr;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
+use crate::platform::os::{
+    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+};
 use core_foundation_sys::base::{CFRelease, CFTypeRef, OSStatus, kCFAllocatorDefault};
 use core_foundation_sys::data::CFDataCreate;
 use core_foundation_sys::dictionary::{
@@ -65,7 +67,7 @@ pub(crate) fn create_optional_access_control(
         CredentialAuthenticationPolicy::None => 0,
         CredentialAuthenticationPolicy::UserPresence => kSecAccessControlUserPresence,
         CredentialAuthenticationPolicy::Biometric => kSecAccessControlBiometryCurrentSet,
-        CredentialAuthenticationPolicy::DevicePasscode => kSecAccessControlDevicePasscode,
+        CredentialAuthenticationPolicy::DeviceCredential => kSecAccessControlDevicePasscode,
     };
     let accessible = accessibility_value(options.accessibility);
 
@@ -96,14 +98,16 @@ pub(crate) fn create_optional_access_control(
 
 /// Create one access-control object for an explicit authentication prompt lane.
 pub(crate) fn create_authentication_access_control(
-    allow_passcode_fallback: bool,
+    requirement: CredentialAuthenticationRequirement,
     operation: &'static str,
 ) -> RuntimeResult<OwnedCfReference> {
-    // map fallback policy to one sec access-control flag value
-    let access_control_flags = if allow_passcode_fallback {
-        kSecAccessControlUserPresence
-    } else {
-        kSecAccessControlBiometryCurrentSet
+    // map required policy to one sec access-control flag value
+    let access_control_flags = match requirement {
+        CredentialAuthenticationRequirement::BiometricOrDeviceCredential => {
+            kSecAccessControlUserPresence
+        }
+        CredentialAuthenticationRequirement::Biometric => kSecAccessControlBiometryCurrentSet,
+        CredentialAuthenticationRequirement::DeviceCredential => kSecAccessControlDevicePasscode,
     };
 
     // create one keychain access-control object

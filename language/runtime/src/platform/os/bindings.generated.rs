@@ -17,13 +17,14 @@ use crate::platform::os::{
     ContactNameVm, ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhoneVm, ContactQuery,
     ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationOptions,
     CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
-    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
-    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
-    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
-    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityReplayRecord,
-    HostIdentityVm, IntentEvent, IntentEventReplayRecord, IntentEventVm, IntentOpenOptions,
-    IntentOpenOptionsVm, IntentPayload, IntentPayloadReplayRecord, IntentPayloadVm, LifecycleEvent,
-    LifecycleEventPayload, LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
+    CredentialAuthenticationRequirement, CredentialAuthenticationResult,
+    CredentialAuthenticationResultVm, CredentialQuery, CredentialQueryVm, CredentialRecord,
+    CredentialRecordVm, CredentialWriteOptions, CredentialWriteOptionsVm, DocumentAccess,
+    DocumentDescriptor, DocumentDescriptorVm, DocumentPickOptions, DocumentPickOptionsVm,
+    HostIdentity, HostIdentityReplayRecord, HostIdentityVm, IntentEvent, IntentEventReplayRecord,
+    IntentEventVm, IntentOpenOptions, IntentOpenOptionsVm, IntentPayload,
+    IntentPayloadReplayRecord, IntentPayloadVm, LifecycleEvent, LifecycleEventPayload,
+    LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
     LifecycleLowMemoryPayloadVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
     LifecycleState, LoadAverage, LoadAverageVm, LocationAccuracy, LocationSample, LocationSampleVm,
     LocationWatchOptions, LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm,
@@ -1583,16 +1584,25 @@ fn decode_destack_os_credentials_authenticate_args(
         let options_title = decode_string(slots[0], "options_title", "title")?;
         let options_subtitle = decode_string(slots[1], "options_subtitle", "subtitle")?;
         let options_message = decode_string(slots[2], "options_message", "message")?;
-        let options_allow_passcode_fallback = decode_bool(
-            slots[3],
-            "options_allow_passcode_fallback",
-            "allowPasscodeFallback",
-        )?;
+        let options_requirement_raw =
+            decode_uint8(slots[3], "options_requirement_raw", "requirement")?;
+        let options_requirement = match options_requirement_raw {
+            1u8 => CredentialAuthenticationRequirement::BiometricOrDeviceCredential,
+            2u8 => CredentialAuthenticationRequirement::Biometric,
+            3u8 => CredentialAuthenticationRequirement::DeviceCredential,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_requirement",
+                    "unknown CredentialAuthenticationRequirement value",
+                ))
+                .boxed());
+            }
+        };
         CredentialAuthenticationOptionsVm {
             title: options_title,
             subtitle: options_subtitle,
             message: options_message,
-            allow_passcode_fallback: options_allow_passcode_fallback,
+            requirement: options_requirement,
         }
     };
     Ok((options,))
@@ -1767,7 +1777,7 @@ fn decode_destack_os_credentials_write_args(
             1u8 => CredentialAuthenticationPolicy::None,
             2u8 => CredentialAuthenticationPolicy::UserPresence,
             3u8 => CredentialAuthenticationPolicy::Biometric,
-            4u8 => CredentialAuthenticationPolicy::DevicePasscode,
+            4u8 => CredentialAuthenticationPolicy::DeviceCredential,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_authentication",

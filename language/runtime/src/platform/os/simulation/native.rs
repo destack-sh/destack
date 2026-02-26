@@ -1185,7 +1185,10 @@ pub(crate) unsafe fn destack_os_contact_update(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses LocalAuthentication and biometric manager APIs when available.
+/// Uses keychain authentication prompts on Apple platforms, host callback bridge lanes on Android, and Windows CredUI prompt lanes for `BiometricOrDeviceCredential`.
+/// Windows `Biometric` requests use Windows Biometric Framework lanes where available.
+/// Windows `DeviceCredential` requests use CredUI prompt plus host logon verification lanes.
+/// Linux and other unsupported Unix hosts return `notSupported`.
 ///
 /// # Errors
 /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
@@ -1218,7 +1221,8 @@ pub(crate) unsafe fn destack_os_credentials_authenticate(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-query APIs.
-/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
+/// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
+/// Returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
 /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1253,7 +1257,8 @@ pub(crate) unsafe fn destack_os_credentials_contains(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-delete APIs.
-/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
+/// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
+/// Returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
 /// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.

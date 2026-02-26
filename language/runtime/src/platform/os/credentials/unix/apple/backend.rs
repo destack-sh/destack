@@ -15,7 +15,10 @@ use security_framework_sys::item::{
 use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
+use crate::platform::os::{
+    CredentialAuthenticationMechanism, CredentialAuthenticationRequirement,
+    CredentialAuthenticationResult,
+};
 use crate::runtime::BindingCallContext;
 
 use super::super::super::core::{
@@ -356,7 +359,7 @@ pub(crate) fn authenticate_credentials(
         OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     )?;
     let access_control = create_authentication_access_control(
-        options.allow_passcode_fallback,
+        options.requirement,
         OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     )?;
     let payload = create_cf_data(
@@ -428,10 +431,11 @@ pub(crate) fn authenticate_credentials(
     let _cleanup = delete_authentication_probe_item(&service, &account);
 
     // map successful host authentication
+    let mechanism = authentication_mechanism_for_requirement(options.requirement);
     if read_status == errSecSuccess {
         return Ok(CredentialAuthenticationResult {
             authenticated: true,
-            mechanism: CredentialAuthenticationMechanism::Unknown,
+            mechanism,
         });
     }
 
@@ -441,7 +445,7 @@ pub(crate) fn authenticate_credentials(
     {
         return Ok(CredentialAuthenticationResult {
             authenticated: false,
-            mechanism: CredentialAuthenticationMechanism::Unknown,
+            mechanism,
         });
     }
 
@@ -449,6 +453,23 @@ pub(crate) fn authenticate_credentials(
         OS_CREDENTIALS_AUTHENTICATE_OPERATION,
         read_status,
     ))
+}
+
+/// Return the effective authentication mechanism for one requirement policy.
+fn authentication_mechanism_for_requirement(
+    requirement: CredentialAuthenticationRequirement,
+) -> CredentialAuthenticationMechanism {
+    match requirement {
+        CredentialAuthenticationRequirement::Biometric => {
+            CredentialAuthenticationMechanism::Biometric
+        }
+        CredentialAuthenticationRequirement::DeviceCredential => {
+            CredentialAuthenticationMechanism::DeviceCredential
+        }
+        CredentialAuthenticationRequirement::BiometricOrDeviceCredential => {
+            CredentialAuthenticationMechanism::Unknown
+        }
+    }
 }
 
 /// Build one best-effort authentication prompt string.

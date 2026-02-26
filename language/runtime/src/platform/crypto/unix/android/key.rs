@@ -265,7 +265,9 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 
     // resolve runtime id and host callback table
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(generate_callback) = callbacks.generate_hardware_secret_key else {
         return Err(not_supported(operation));
     };
@@ -328,7 +330,9 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     };
 
     // require at least one complete hardware lane callback set
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return false;
+    };
     let has_rsa_pair_lane = callbacks.generate_hardware_key_pair.is_some()
         && callbacks.export_hardware_public_key.is_some()
         && callbacks.sign_hardware_key.is_some()
@@ -375,7 +379,12 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
     }
 
     // require complete callback sets for each pair algorithm lane
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(runtime_id) = context.host().callback_runtime_id() else {
+        return false;
+    };
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return false;
+    };
     if algorithm == CryptoKeyAlgorithm::Rsa {
         return callbacks.generate_hardware_key_pair.is_some()
             && callbacks.export_hardware_public_key.is_some()
@@ -411,7 +420,12 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
     }
 
     // require complete callback sets for each secret algorithm lane
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(runtime_id) = context.host().callback_runtime_id() else {
+        return false;
+    };
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return false;
+    };
     if algorithm == CryptoKeyAlgorithm::Aes {
         return callbacks.generate_hardware_secret_key.is_some()
             && callbacks.encrypt_hardware_secret_key.is_some()
@@ -459,7 +473,9 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 
     // resolve runtime id and host callback table
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(generate_callback) = callbacks.generate_hardware_key_pair else {
         return Err(not_supported(operation));
     };
@@ -647,7 +663,9 @@ pub(crate) fn host_key_sign(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let callbacks = android_host_crypto_callbacks_snapshot();
+        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+            return Err(not_supported(operation));
+        };
         let Some(sign_callback) = callbacks.sign_hardware_key else {
             return Err(not_supported(operation));
         };
@@ -710,7 +728,9 @@ pub(crate) fn host_key_decrypt(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let callbacks = android_host_crypto_callbacks_snapshot();
+        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+            return Err(not_supported(operation));
+        };
         let Some(decrypt_callback) = callbacks.decrypt_hardware_key else {
             return Err(not_supported(operation));
         };
@@ -780,7 +800,9 @@ pub(crate) fn host_key_delete(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let callbacks = android_host_crypto_callbacks_snapshot();
+        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+            return Err(not_supported(operation));
+        };
         let Some(delete_callback) = callbacks.delete_hardware_key else {
             return Err(not_supported(operation));
         };
@@ -827,7 +849,9 @@ pub(crate) fn host_key_derive_shared_secret(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let callbacks = android_host_crypto_callbacks_snapshot();
+        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+            return Err(not_supported(operation));
+        };
         let Some(derive_callback) = callbacks.derive_hardware_shared_secret else {
             return Err(not_supported(operation));
         };
@@ -888,7 +912,9 @@ pub(crate) fn host_key_cipher_encrypt(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(encrypt_callback) = callbacks.encrypt_hardware_secret_key else {
         return Err(not_supported(operation));
     };
@@ -950,7 +976,9 @@ pub(crate) fn host_key_cipher_decrypt(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(decrypt_callback) = callbacks.decrypt_hardware_secret_key else {
         return Err(not_supported(operation));
     };
@@ -1014,7 +1042,9 @@ pub(crate) fn host_key_mac_compute(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_callbacks_snapshot();
+    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+        return Err(not_supported(operation));
+    };
     let Some(mac_callback) = callbacks.compute_hardware_mac else {
         return Err(not_supported(operation));
     };

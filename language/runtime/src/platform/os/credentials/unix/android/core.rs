@@ -12,8 +12,8 @@ use super::super::super::core::{invalid_data, not_found, not_supported, permissi
 const AUTHENTICATION_MECHANISM_UNKNOWN_CODE: u32 = 1;
 /// Mechanism code for one biometric host authentication method.
 const AUTHENTICATION_MECHANISM_BIOMETRIC_CODE: u32 = 2;
-/// Mechanism code for one device-passcode host authentication method.
-const AUTHENTICATION_MECHANISM_DEVICE_PASSCODE_CODE: u32 = 3;
+/// Mechanism code for one device-credential host authentication method.
+const AUTHENTICATION_MECHANISM_DEVICE_CREDENTIAL_CODE: u32 = 3;
 
 /// Return one callback runtime identifier for Android host callback routing.
 pub(super) fn callback_runtime_id(
@@ -35,8 +35,8 @@ pub(super) fn decode_authentication_mechanism(
     let mechanism = match mechanism_code {
         AUTHENTICATION_MECHANISM_UNKNOWN_CODE => CredentialAuthenticationMechanism::Unknown,
         AUTHENTICATION_MECHANISM_BIOMETRIC_CODE => CredentialAuthenticationMechanism::Biometric,
-        AUTHENTICATION_MECHANISM_DEVICE_PASSCODE_CODE => {
-            CredentialAuthenticationMechanism::DevicePasscode
+        AUTHENTICATION_MECHANISM_DEVICE_CREDENTIAL_CODE => {
+            CredentialAuthenticationMechanism::DeviceCredential
         }
         _ => {
             return Err(invalid_data(

@@ -4,7 +4,9 @@ use super::core::{
     credential_write_options_value, string_value,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::os::{CredentialAccessibility, CredentialAuthenticationPolicy};
+use crate::platform::os::{
+    CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
+};
 
 /// Verify credentials write rejects empty payload bytes.
 #[cfg(any(unix, windows))]
@@ -76,7 +78,13 @@ fn test_credentials_contains_rejects_empty_account() {
 #[test]
 fn test_credentials_authenticate_rejects_empty_prompt() {
     with_harness_context(|mut context| {
-        let options = credential_authentication_options_value(&mut context, "", "", "", true);
+        let options = credential_authentication_options_value(
+            &mut context,
+            "",
+            "",
+            "",
+            CredentialAuthenticationRequirement::BiometricOrDeviceCredential,
+        );
         let result = context.destack_os_credentials_authenticate(options);
         let error = match result {
             Ok(_) => panic!("authenticate with empty prompt should fail"),

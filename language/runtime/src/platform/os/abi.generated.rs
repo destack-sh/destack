@@ -403,8 +403,8 @@ pub enum CredentialAuthenticationMechanism {
     Unknown = 1,
     /// Biometric.
     Biometric = 2,
-    /// DevicePasscode.
-    DevicePasscode = 3,
+    /// DeviceCredential.
+    DeviceCredential = 3,
 }
 
 impl VmValueCodec for CredentialAuthenticationMechanism {
@@ -413,7 +413,7 @@ impl VmValueCodec for CredentialAuthenticationMechanism {
         let decoded = match raw {
             1u8 => Self::Unknown,
             2u8 => Self::Biometric,
-            3u8 => Self::DevicePasscode,
+            3u8 => Self::DeviceCredential,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -440,8 +440,8 @@ pub enum CredentialAuthenticationPolicy {
     UserPresence = 2,
     /// Biometric.
     Biometric = 3,
-    /// DevicePasscode.
-    DevicePasscode = 4,
+    /// DeviceCredential.
+    DeviceCredential = 4,
 }
 
 impl VmValueCodec for CredentialAuthenticationPolicy {
@@ -451,11 +451,46 @@ impl VmValueCodec for CredentialAuthenticationPolicy {
             1u8 => Self::None,
             2u8 => Self::UserPresence,
             3u8 => Self::Biometric,
-            4u8 => Self::DevicePasscode,
+            4u8 => Self::DeviceCredential,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown CredentialAuthenticationPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CredentialAuthenticationRequirement.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CredentialAuthenticationRequirement {
+    /// BiometricOrDeviceCredential.
+    BiometricOrDeviceCredential = 1,
+    /// Biometric.
+    Biometric = 2,
+    /// DeviceCredential.
+    DeviceCredential = 3,
+}
+
+impl VmValueCodec for CredentialAuthenticationRequirement {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::BiometricOrDeviceCredential,
+            2u8 => Self::Biometric,
+            3u8 => Self::DeviceCredential,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CredentialAuthenticationRequirement value",
                 ))
                 .boxed());
             }
@@ -3301,8 +3336,8 @@ pub struct CredentialAuthenticationOptionsAbi<A: BindingAbi> {
     pub subtitle: A::String,
     /// The message field.
     pub message: A::String,
-    /// The allow_passcode_fallback field.
-    pub allow_passcode_fallback: bool,
+    /// The requirement field.
+    pub requirement: CredentialAuthenticationRequirement,
 }
 
 pub type CredentialAuthenticationOptions = CredentialAuthenticationOptionsAbi<NativeAbi>;
@@ -3357,13 +3392,15 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_message =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_allow_passcode_fallback =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_requirement =
+            <CredentialAuthenticationRequirement as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
             title: field_title,
             subtitle: field_subtitle,
             message: field_message,
-            allow_passcode_fallback: field_allow_passcode_fallback,
+            requirement: field_requirement,
         })
     }
 
@@ -3375,7 +3412,10 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subtitle, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.allow_passcode_fallback, context)?,
+            <CredentialAuthenticationRequirement as VmAggregateCodec>::encode_with_context(
+                self.requirement,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6594,8 +6634,8 @@ pub struct CredentialAuthenticationOptionsReplayRecord {
     pub subtitle: String,
     /// The message field.
     pub message: String,
-    /// The allow_passcode_fallback field.
-    pub allow_passcode_fallback: bool,
+    /// The requirement field.
+    pub requirement: CredentialAuthenticationRequirement,
 }
 
 /// Replay struct for CredentialQuery.

@@ -136,3 +136,30 @@ fn test_credentials_delete_and_contains_access_group_policy_on_linux_and_windows
         Ok(())
     });
 }
+
+/// Verify Windows read with require-authentication does not report notSupported.
+#[cfg(windows)]
+#[test]
+fn test_credentials_read_require_authentication_lane_on_windows() {
+    with_harness_context(|mut context| {
+        // run one read with host authentication enabled
+        let query = credential_query_value(
+            &mut context,
+            "destack.policy.read",
+            "read-authentication-required",
+            "",
+            true,
+        );
+        let result = context.destack_os_credentials_read(query);
+
+        // verify the lane is implemented even when host auth fails or record is missing
+        if let Err(error) = result {
+            let platform_error = error
+                .platform_error()
+                .expect("expected one platform error payload");
+            assert_ne!(platform_error.code, PlatformErrorCode::NotSupported);
+        }
+
+        Ok(())
+    });
+}

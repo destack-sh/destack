@@ -13,7 +13,7 @@ use super::super::super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,
     CredentialWriteOptionsOwned, OS_CREDENTIALS_AUTHENTICATE_OPERATION,
     OS_CREDENTIALS_CONTAINS_OPERATION, OS_CREDENTIALS_DELETE_OPERATION,
-    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, invalid_data, not_supported,
+    OS_CREDENTIALS_READ_OPERATION, OS_CREDENTIALS_WRITE_OPERATION, invalid_data,
 };
 use super::core::{callback_runtime_id, decode_authentication_mechanism, host_status_result};
 
@@ -162,20 +162,17 @@ pub(crate) fn delete_credentials(
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<()> {
-    // reject access-group routes because android callback ABI has no access-group lane
-    if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_DELETE_OPERATION));
-    }
-
     // resolve callback runtime identifier and callback function
     let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_DELETE_OPERATION)?;
 
     // encode string arguments for host callback ABI
     let service = context.store_string(service);
     let account = context.store_string(account);
+    let access_group = context.store_string_option(access_group);
 
-    let status =
-        unsafe { destack_runtime_host_android_credentials_delete(runtime_id, service, account) };
+    let status = unsafe {
+        destack_runtime_host_android_credentials_delete(runtime_id, service, account, access_group)
+    };
 
     // map host callback status into runtime result
     host_status_result(status, OS_CREDENTIALS_DELETE_OPERATION, "delete")
@@ -188,17 +185,13 @@ pub(crate) fn contains_credentials(
     account: &str,
     access_group: Option<&str>,
 ) -> RuntimeResult<bool> {
-    // reject access-group routes because android callback ABI has no access-group lane
-    if access_group.is_some() {
-        return Err(not_supported(OS_CREDENTIALS_CONTAINS_OPERATION));
-    }
-
     // resolve callback runtime identifier and callback function
     let runtime_id = callback_runtime_id(context, OS_CREDENTIALS_CONTAINS_OPERATION)?;
 
     // encode string arguments for host callback ABI
     let service = context.store_string(service);
     let account = context.store_string(account);
+    let access_group = context.store_string_option(access_group);
 
     let mut is_present = false;
     let status = unsafe {
@@ -206,6 +199,7 @@ pub(crate) fn contains_credentials(
             runtime_id,
             service,
             account,
+            access_group,
             &mut is_present,
         )
     };
@@ -237,7 +231,7 @@ pub(crate) fn authenticate_credentials(
             title,
             subtitle,
             message,
-            options.allow_passcode_fallback,
+            options.requirement as u32,
             &mut authenticated,
             &mut mechanism_code,
         )
