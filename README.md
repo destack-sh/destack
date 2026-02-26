@@ -41,14 +41,15 @@ It's all open source, open standards, zero lock-in.
 
 ### Higher-Order Programming
 
-It is over 50 years since the invention of higher order programming with the introduction of the C programming language, yet programming is still astoundingly immature. 
+It has been over 50 years since C introduced higher order programming as we still know it, yet programming is still astoundingly immature. 
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
-Software is very useful, we have a lot of it, and there is about to be much, much more, with many more exciting possibilities to marry symbolic and probabilistic computation.
-We believe the opaqueness, inefficiency, and fragmentation of software as a whole can only be solved by reimagining all software processes; in the limit, this means unifying the disparate parts that have remained separate purely for historical reasons.
+Software is very useful, we have a lot of it, and there is about to be much, much more.
+There are even new exciting possibilities to marry symbolic and probabilistic computation.
+But we believe the deep opaqueness, inefficiency, and fragmentation of software can only be solved by reimagining the full software process; in the limit, that means unifying the disparate parts that have remained separate purely for historical reasons.
 
 The more we can express in software, the higher order the abstractions we can program.
-At the start, software was the digital shadow of "real" systems, but at its best, software becomes an enabling technology for new systems that weren't possible before.
+In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.
 There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to enable them.
 
 ---
@@ -69,18 +70,19 @@ Create a new app with `npm create destack@latest my-app` or `bun create destack 
 ## Targets
 
 Destack supports Linux, MacOS and Windows as TIer 1 targets, with mobile (iOS, Android) still coming online. 
-See [TARGETS.md](TARGETS.md).
 
-| Tier | Target triples | Notes | 
-|-----------|--------|-----|
-| Tier 1 | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | Full support |
-| Tier 2 | `aarch64-apple-ios`, `aarch64-linux-android` | Pending support |
-| Tier 3 | `wasm32-wasip1` | Eventual support |
+| Tier | Target triples |\|-----------|--------|
+| **Tier 1: full support** | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
+| **Tier 2: pending support** | `aarch64-apple-ios`, `aarch64-linux-android` |
+| **Tier 3: eventual support** | `wasm32-wasip1` |\
+
+See [TARGETS.md](TARGETS.md).
 
 ## Contributing
 
 Destack is in [very active development](CONTRIBUTING.md) with a singular focus: a fully integrated software stack for optimal, correct, integrated software systems.
 We welcome feedback, issues, ideas, and small fixes, but please reach out first for non-trivial contributions.
+Large unsolicited PRs will be closed.
 See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
