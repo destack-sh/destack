@@ -7,7 +7,7 @@ use crate::format::analysis::{
 };
 use crate::format::call::arguments::{
     argument_is_plain_call_argument,
-    can_format_multiline_call_argument_list_with_last_separator_line_comment,
+    can_format_multiline_call_argument_list_with_separator_line_comment,
     single_argument_separator_line_comment_source,
 };
 use crate::format::expression::{
@@ -691,18 +691,45 @@ pub(crate) fn single_argument_requires_expanded_list(
     context: &DestackFormatContext<'_>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
+    // only single argument calls can use this path
     if dynamic_arguments.len() != 1 {
         return false;
     }
 
+    // require a chain shaped argument value
     let argument_id = dynamic_arguments[0];
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-    if !is_expression_chain(context.tree, value_id) {
+    let raw_value_id = argument_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, raw_value_id);
+    if !expression_is_chain_layout_candidate(context, value_id) {
         return false;
     }
 
-    context.node_has_newline(value_id)
+    // force expand only from owned annotation signals
+    let has_annotation_signal = context.has_non_blank_annotation(argument_id)
+        || context.has_non_blank_annotation(raw_value_id)
+        || context.has_non_blank_annotation(value_id);
+    has_annotation_signal
+}
+
+/// Return whether an expression should use chain-aware single-argument call layout rules.
+fn expression_is_chain_layout_candidate(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // regular member/call chain expressions
+    if is_expression_chain(context.tree, expression_id) {
+        return true;
+    }
+
+    // path-chain calls normalize from `(a).b()` to `a.b()` across passes
+    match context.tree.get(expression_id) {
+        Expression::Path { path, .. } => path.segments.len() > 1,
+        Expression::Call { left, .. } | Expression::Instantiation { left, .. } => matches!(
+            context.tree.get(*left),
+            Expression::Path { path, .. } if path.segments.len() > 1
+        ),
+        _ => false,
+    }
 }
 
 /// Build expansion data for one single-argument call.
@@ -726,22 +753,6 @@ fn single_argument_expansions(
         && (argument_has_callback_blocking_comment_annotation(context, argument_id)
             || has_call_infix_annotations);
 
-    let argument_value_id = argument_value_id(context.tree, argument_id);
-    let argument_value_id = transparent_inner_expression(context, argument_value_id);
-    let argument_value_is_tree_expression = matches!(
-        context.tree.get(argument_value_id),
-        Expression::TreeExpression { .. }
-    );
-
-    let force_expand_single_multiline_argument = !is_expression_chain(context.tree, call_node_id)
-        && context.node_has_newline(argument_id)
-        && !argument_is_collection_literal(context, argument_id)
-        && !argument_is_lambda_expression(context, argument_id)
-        && !argument_is_function_expression(context, argument_id)
-        && !argument_value_is_tree_expression
-        && (!argument_is_template_literal(context, argument_id)
-            || argument_is_interpolated_template_literal(context, argument_id));
-
     let force_expand_single_multiline_with_static_arguments =
         call_force_expand_single_multiline_with_static_arguments(
             context,
@@ -762,7 +773,6 @@ fn single_argument_expansions(
     let regular_force_expand = force_expand_jsx
         || has_line_comment_annotations
         || force_expand_single_commented_callback
-        || force_expand_single_multiline_argument
         || force_expand_single_multiline_with_static_arguments
         || force_expand_single_chain_argument
         || force_expand_single_collection_for_type_binary_callee
@@ -844,8 +854,12 @@ pub(crate) fn call_argument_layout(
     let layout_cache = call_argument_layout_cache(context, call_node_id, dynamic_arguments);
     let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
     let has_any_argument_annotation = layout_cache.has_any_argument_annotation;
+    let has_multiline_jsx_argument_signal =
+        has_multiline_jsx_argument(context.tree, dynamic_arguments);
+
     // single function expression arguments can stay inline
     let use_single_function_argument_inline = dynamic_arguments.len() == 1
+        && !has_multiline_jsx_argument_signal
         && !has_call_infix_annotations
         && !force_expand_single_multiline_with_static_arguments
         && !force_expand_single_collection_for_type_binary_callee
@@ -855,6 +869,7 @@ pub(crate) fn call_argument_layout(
             let value_id = argument_value_id(context.tree, argument_id);
             !context.has_non_blank_annotation(argument_id)
                 && !context.has_non_blank_annotation(value_id)
+                && !context.node_has_newline(value_id)
                 && !argument_has_callback_blocking_comment_annotation(context, argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
                 && argument_is_function_expression(context, argument_id)
@@ -866,6 +881,7 @@ pub(crate) fn call_argument_layout(
 
     // single callback arguments can stay inline
     let use_single_callback_argument_inline = dynamic_arguments.len() == 1
+        && !has_multiline_jsx_argument_signal
         && !has_call_infix_annotations
         && !call_has_await_ancestor(context, call_node_id)
         && !force_expand_single_multiline_with_static_arguments
@@ -876,6 +892,7 @@ pub(crate) fn call_argument_layout(
             let value_id = argument_value_id(context.tree, argument_id);
             !context.has_non_blank_annotation(argument_id)
                 && !context.has_non_blank_annotation(value_id)
+                && !context.node_has_newline(value_id)
                 && !argument_has_callback_blocking_comment_annotation(context, argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
                 && argument_is_lambda_expression(context, argument_id)
@@ -952,7 +969,7 @@ pub(crate) fn call_argument_layout(
     {
         context.increment_counter("call.arguments.path.comment_expanded", 1);
         let use_separator_comment_multiline =
-            can_format_multiline_call_argument_list_with_last_separator_line_comment(
+            can_format_multiline_call_argument_list_with_separator_line_comment(
                 context,
                 call_node_id,
                 dynamic_arguments,
@@ -1116,7 +1133,7 @@ pub(crate) fn call_argument_layout(
                 argument_has_separator_line_comment_annotation(context, argument_id)
             });
     let use_separator_comment_multiline =
-        can_format_multiline_call_argument_list_with_last_separator_line_comment(
+        can_format_multiline_call_argument_list_with_separator_line_comment(
             context,
             call_node_id,
             dynamic_arguments,

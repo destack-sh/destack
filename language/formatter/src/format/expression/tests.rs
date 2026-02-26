@@ -1283,6 +1283,41 @@ fn test_format_return_jsx_multiline() {
     );
 }
 
+/// Return-adjacent leading comments should stay idempotent across binary, member, and tag forms.
+#[test]
+fn test_format_return_adjacent_leading_comments_are_idempotent() {
+    let source = r#"function logical() {
+  return (
+    // Reason for 42
+    42
+  ) && 84;
+}
+
+function memberInside() {
+  return (
+    // Reason for a.b
+    a.b
+  ).c;
+}
+
+function memberInAndOutWithCalls() {
+  return (
+    // Reason for a
+    aFunction.b()
+  ).c.d();
+}
+
+function taggedTemplate() {
+  return (
+    // Reason for a
+    a
+  )`b`;
+}
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
 #[test]
 fn test_format_nested_ternary() {
     assert_format!(
@@ -1894,6 +1929,19 @@ fn test_format_declare_semicolon_guard_comment_parenthesized_call_output() {
     assert_format_output_eq(expected, output);
 }
 
+/// Block comments on semicolon-guard heads should keep one inline space before `(`.
+#[test]
+fn test_format_semicolon_guard_inline_block_comment_before_parenthesized_call_keeps_space() {
+    let source = "const left = 1;\n/** @type {Number} */ (a + b)();\n";
+    let expected = "const left = 1;\n/** @type {Number} */ (a + b)();\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse semicolon guard inline block comment source");
+    let output = formatter.format(&statement_list(&roots), options);
+    assert_format_output_eq(expected, output);
+}
+
 #[test]
 fn test_format_file_header_comments_before_declaration_are_idempotent() {
     let source = r#"// TODO: upgrade parser
@@ -2262,6 +2310,19 @@ Promise.all(writeIconFiles)
     assert_format_program_roundtrip_with_file_type(source, source, FileType::JavaScript, options);
 }
 
+/// Yield-chain own-line seam comments should stay indented on the chain continuation.
+#[test]
+fn test_format_yield_chain_blank_line_comment_keeps_continuation_indent() {
+    let source = "function *a() {\n  yield task\n    // No extra parens\n    .run();\n}\n";
+    let expected = "function* a() {\n  yield task\n    // No extra parens\n    .run();\n}\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse yield chain seam comment source");
+    let output = formatter.format(&statement_list(&roots), options);
+    assert_format_output_eq(expected, output);
+}
+
 /// Blank seams before `.` should collapse to one stable member-chain expression.
 #[test]
 fn test_format_member_chain_blank_seam_without_comment_collapses() {
@@ -2274,6 +2335,54 @@ fn test_format_member_chain_blank_seam_without_comment_collapses() {
         |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
     );
+}
+
+/// Call argument separator line comments should keep comma-before-comment ownership.
+#[test]
+fn test_format_call_argument_separator_line_comment_keeps_comma_before_comment() {
+    let source = r#"call(
+    () => {
+        // ...
+    }, //
+    "good"
+);
+"#;
+    let expected = r#"call(
+    () => {
+        // ...
+    }, //
+    "good",
+);
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(4);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
+/// Separator comments after comma should not force ternary argument reflow in call lists.
+#[test]
+fn test_format_call_argument_inline_separator_comment_preserves_ternary_shape() {
+    let source = r#"cb(
+  overflowing ? "absolute top-0" : "relative", // sidebar custom changes - to contain the absolute sidebar below
+  parameter,
+);
+
+cb(
+  overflowing ? "absolute top-0" : "relative" /* */, // sidebar custom changes - to contain the absolute sidebar below
+  parameter,
+);
+"#;
+    let expected = source;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
+/// End-of-line comments between call callees and `(` should format to call-tail comments.
+#[test]
+fn test_format_call_callee_head_line_comment_moves_to_call_tail() {
+    let source = "call // C3\n()";
+    let expected = "call(); // C3\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(4);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
 }
 
 /// Empty export clauses should keep `{}` when a line seam comment follows `export`.
@@ -2518,6 +2627,15 @@ fn test_format_assignment_followup_comment_blank_line_is_idempotent() {
     );
 }
 
+/// Own-line assignment seam JSDoc comments should keep rhs break shape after `=`.
+#[test]
+fn test_format_assignment_own_line_jsdoc_comment_breaks_after_operator() {
+    let source = "{\n  sourcemap =\n  /** @type {'inline' | 'hidden' | 'sourcemap'} */ (\n      process.env.WORKER_MODE\n    ) || sourcemap;\n}\n";
+    let expected = "{\n  sourcemap =\n    /** @type {'inline' | 'hidden' | 'sourcemap'} */ (\n      process.env.WORKER_MODE\n    ) || sourcemap;\n}\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
 /// Assignment targets with inline type-cast comments should not force rhs operator breaks.
 #[test]
 fn test_format_assignment_target_typecast_rest_comment_keeps_inline_rhs() {
@@ -2526,6 +2644,36 @@ fn test_format_assignment_target_typecast_rest_comment_keeps_inline_rhs() {
     assert_format_roundtrip_with_file_type(
         source,
         expected,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Declarator assignment seam line comments should lead complex rhs values after `=`.
+#[test]
+fn test_format_declarator_assignment_seam_line_comment_leads_complex_rhs() {
+    let source = "{\nlet obj2 = // Comment\n{\n  key: \"val\"\n};\n\nlet obj6 = // Comment\n[\n  \"val\"\n];\n}";
+    let expected = "{\n    let obj2 =\n        // Comment\n        {\n            key: \"val\",\n        };\n\n    let obj6 =\n        // Comment\n        [\"val\"];\n}";
+    assert_format_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Declarator seam line comments before array rhs values should stay idempotent.
+#[test]
+fn test_format_declarator_assignment_array_rhs_seam_comment_is_idempotent() {
+    let source = r#"{
+    let obj6 =
+        // Comment
+        ["val"];
+}"#;
+    assert_format_idempotent_with_file_type(
+        source,
         FileType::JavaScript,
         |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
@@ -2711,7 +2859,50 @@ fn test_format_export_postfix_block_comment_without_space_is_idempotent() {
 /// Prettier export comment fixture shape should stay idempotent end to end.
 #[test]
 fn test_format_export_comment_fixture_shape_is_idempotent() {
-    let source = "export //comment\n{}\n\nexport /* comment */ {};\n\nconst foo = ''\nexport {\n  foo // comment\n}\n\nconst bar = ''\nexport {\n  // comment\n  bar\n}\n\nconst fooo = ''\nconst barr = ''\nexport {\n  fooo, // comment\n  barr, // comment\n}\n\nconst foooo = ''\nconst barrr = ''\nexport {\n  foooo,\n\n  barrr as  // comment\n\t\t baz,\n} from 'foo'\n\nconst fooooo = ''\nconst barrrr = ''\nexport {\n  fooooo,\n\n  barrrr as  // comment\n\t\t bazz,\n}\n";
+    let source = "export //comment\n{}\n\nexport /* comment */ {};\n\nconst foo = ''\nexport {\n  foo // comment\n}\n\nconst bar = ''\nexport {\n  // comment\n  bar\n}\n\nconst fooo = ''\nconst barr = ''\nexport {\n  fooo, // comment\n  barr, // comment\n}\n\nconst foooo = ''\nconst barrr = ''\nexport {\n  foooo,\n  barrr as  // comment\n\t\t baz,\n} from 'foo'\n\nconst fooooo = ''\nconst barrrr = ''\nexport {\n  fooooo,\n  barrrr as  // comment\n\t\t bazz,\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Export alias comments after `as` should format as own-line specifier comments.
+#[test]
+fn test_format_export_alias_line_comment_after_as_matches_oxfmt_shape() {
+    let source = "const foooo = ''\nconst barrr = ''\nexport {\n  foooo,\n  barrr as  // comment\n\t\t baz,\n} from 'foo'\n";
+    let expected = "const foooo = \"\";\nconst barrr = \"\";\nexport {\n    foooo,\n    // comment\n    barrr as baz,\n} from \"foo\";\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Export and import alias separator blank lines before line comments should be idempotent.
+#[test]
+fn test_format_export_import_alias_blank_line_comment_seams_are_idempotent() {
+    let source = r#"
+const foo = ''
+const bar = ''
+export {
+  foo,
+
+  bar as // export-marker
+  baz,
+}
+
+const alpha = ''
+const beta = ''
+import {
+  alpha,
+
+  beta as // import-marker
+  gamma,
+} from 'pkg'
+"#
+    .trim_start();
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
@@ -2833,6 +3024,112 @@ fn test_format_blank_seam_before_else_comment_is_idempotent() {
     );
 }
 
+/// Single-argument call source newlines should not force unstable expanded call lists.
+#[test]
+fn test_format_single_argument_call_with_source_newline_is_idempotent() {
+    let source = r#"
+const run = (value) => {
+    call(
+        chain(value)
+            .next()
+            .done()
+    );
+};
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Single-argument closure type-cast callsites should stay stable across wrapper normalization.
+#[test]
+fn test_format_single_argument_closure_typecast_comment_call_is_idempotent() {
+    let source = r#"
+var newArray = test(/** @type {array} */ (numberOrString.map(x => x)));
+var newArray = test(/** @type {array} */ ((numberOrString).map(x => x)));
+"#
+    .trim_start();
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScriptXml, options);
+}
+
+/// JSX callback head line comments should be preserved across formatting passes.
+#[test]
+fn test_format_jsx_callback_head_line_comment_is_preserved_and_idempotent() {
+    let source = r#"
+KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
+  <div />
+));
+"#
+    .trim_start();
+    let options = DestackFormatOptions::default();
+
+    let (first_formatter, first_roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
+            .expect("parse first-pass source");
+    let first_context = context_from_formatter(&first_formatter);
+    let marker_annotation_id = first_context
+        .formatter_annotation_entries
+        .iter()
+        .enumerate()
+        .find_map(|(entry_index, _)| {
+            let annotation_id = LocalNodeId::<crate::Annotation>::new(entry_index as u32);
+            let crate::Annotation::Comment { node, .. } = first_context.annotation(annotation_id)
+            else {
+                return None;
+            };
+
+            (first_context.comment_text(node).trim() == "Buttons 0-9").then_some(annotation_id)
+        });
+    let marker_annotation_id = marker_annotation_id
+        .expect("expected formatter annotation for callback head line comment marker");
+    let marker_owner_node = first_context
+        .formatter_annotation_ids_by_node_id
+        .iter()
+        .enumerate()
+        .find_map(|(node_index, annotation_ids)| {
+            annotation_ids
+                .iter()
+                .any(|candidate| candidate.id == marker_annotation_id.id)
+                .then_some(node_index)
+        })
+        .expect("expected owner node for callback head line comment marker");
+    let marker_owner_node_type = first_context.tree.get_node_type(marker_owner_node as u32);
+    let marker_position = first_context.annotation(marker_annotation_id).position();
+
+    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    assert!(
+        first_output.contains("Buttons 0-9"),
+        "formatted output should keep callback head line comments: position={marker_position:?} owner={marker_owner_node_type:?} id={marker_owner_node}\n{first_output}"
+    );
+
+    let (second_formatter, second_roots) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScriptXml, |p| {
+            Ok(p.parse())
+        })
+        .expect("parse second-pass source");
+    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
+/// Closure-cast member wrappers should keep stable grouping across passes.
+#[test]
+fn test_format_closure_cast_member_wrapper_is_idempotent() {
+    let source = r#"
+var newArray = /** @type {array} */ (numberOrString).map((x) => x);
+var newArray = /** @type {array} */ ((numberOrString)).map((x) => x);
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Statement-end chain seams with comments should keep blank ownership stable.
 #[test]
 fn test_format_blank_seam_before_chain_comment_is_idempotent() {
@@ -2848,6 +3145,147 @@ fn test_format_blank_seam_before_chain_comment_is_idempotent() {
 #[test]
 fn test_format_blank_seam_before_semicolon_guard_array_comment_is_idempotent() {
     let source = "{\n  if (a)\n    foo();\n\n  // guard\n  ;[x] = y;\n}\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Logical conditions with line comments should keep separators on the next line.
+#[test]
+fn test_format_logical_condition_line_comments_are_idempotent() {
+    let source = r#"
+if (
+  true // 5
+  && true // 52
+) {}
+
+while (
+  true // 5
+  && true // 52
+) {}
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Inline else-head line comments should stay attached to the else body seam.
+#[test]
+fn test_format_else_head_line_comment_is_idempotent() {
+    let source = r#"
+if (a) // 15
+  foo();
+else // 152
+  foo();
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Multiline block and jsdoc comments in jsx expression containers should be idempotent.
+#[test]
+fn test_format_jsx_expression_multiline_comment_alignment_is_idempotent() {
+    let source = r#"
+<div>
+  {a/* comment
+*/
+  }
+</div>;
+
+<div>
+  {/**
+   * JSDoc-y comment in JSX. I wonder what will happen to it?
+  */ {}}
+</div>;
+
+<div>
+  {
+    /**
+   * Another JSDoc comment in JSX.
+  */
+  }
+</div>;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Empty statement and arithmetic comment seams should remain stable across passes.
+#[test]
+fn test_format_empty_statement_comment_seams_are_idempotent() {
+    let source = r#"
+a; /* a */ // b
+; /* c */
+
+foo; // first
+;// second
+;// third
+
+function x() {
+} // first
+; // second
+
+a = (
+  b // 1
+  + // 2
+  c // 3
+  + // 4
+  d // 5
+  + /* 6 */
+  e // 7
+);
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Optional call seams with line comments should keep continuation syntax valid.
+#[test]
+fn test_format_optional_call_line_comment_seam_is_idempotent() {
+    let source = r#"
+render?.( // Warm any cache
+  <ChildUpdates renderAnchor={true} anchorClassOn={true} />,
+  container
+);
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Switch case labels with trailing line comments should keep `:` on the label line.
+#[test]
+fn test_format_switch_case_label_line_comment_is_idempotent() {
+    let source = r#"
+switch (foo) {
+  case "bar": //comment
+    doThing(); //comment
+
+  case "baz":
+    doOtherThing(); //comment
+}
+"#
+    .trim_start();
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,

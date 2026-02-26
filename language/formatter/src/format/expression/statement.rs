@@ -1,5 +1,6 @@
 use crate::format::analysis::timing;
 use crate::format::annotation::statement_wrapper_needs_semicolon;
+use crate::format::chain::expression_trivia_anchor_end;
 use crate::format::declaration::dependency::sort_dependency_items;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -7,16 +8,15 @@ use crate::format::directive::{
 use crate::format::expression::{
     Annotation, AnnotationPosition, Asynchrony, Block, DeclarationDescriptor, DeclarationKind,
     Declarator, DependencyKind, DependencyMode, DestackFormatContext, DestackFormatter, Expression,
-    ForEachBinding, ForEachDeclarationKind, ForEachKind, FormatResult, IfKind, ImportSource,
-    Keyword, LetKind, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, StringId,
-    TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
-    call_arguments_are_multiline_span, detect_for_each_binding_keyword,
-    expression_has_leading_prefix_comment, format_declarator, format_expression,
-    format_for_each_binding_pattern, format_if_else_chain, format_match,
+    ForEachBinding, ForEachDeclarationKind, ForEachKind, FormatResult, IfCondition, IfKind,
+    ImportSource, Keyword, LetKind, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, Span,
+    StringId, TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
+    call_arguments_are_multiline_span, detect_for_each_binding_keyword, format_declarator,
+    format_expression, format_for_each_binding_pattern, format_if_else_chain, format_match,
     format_statement_body_block, format_ternary, format_with, group, hard_line_break,
     is_empty_statement_block, list_like, space, token, tree_literal_should_break,
 };
-use destack_ast::{Comment, CommentStyle, ImportTarget};
+use destack_ast::{Comment, CommentStyle, Doc, DocumentationStyle, ImportTarget};
 use destack_fir::format::{Buffer, Format, FormatError};
 use destack_fir::write;
 
@@ -956,19 +956,240 @@ fn format_try_expression<'ast>(
     Ok(())
 }
 
-/// Format a `return` expression.
+/// Return whether one annotation id is one multiline block comment/doc.
+fn annotation_is_multiline_block(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let annotation = context.annotation(annotation_id);
+    let annotation_span = context.annotation_span(annotation_id);
+
+    // block style comments/docs spanning multiple lines are leading comments
+    match annotation {
+        Annotation::Comment { node, .. } => {
+            let comment = context.tree.get::<Comment>(node);
+            comment.style == CommentStyle::Star && context.has_newline(annotation_span)
+        }
+        Annotation::Doc { node, .. } => {
+            let doc = context.tree.get::<Doc>(node);
+            doc.style == DocumentationStyle::Star && context.has_newline(annotation_span)
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one annotation id is followed by a newline before the next token.
+fn annotation_is_followed_by_newline(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let annotation_span = context.annotation_span(annotation_id);
+    let Some(next_token) = context.annotation_next_non_whitespace_token(annotation_id) else {
+        return false;
+    };
+    if annotation_span.file != next_token.span.file {
+        return false;
+    }
+
+    !context
+        .file
+        .is_same_line(annotation_span.end.saturating_sub(1), next_token.span.start)
+}
+
+/// Return whether one expression has leading prefix comment/doc annotations for adjacent wrapping.
+fn expression_has_adjacent_leading_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let annotation_id = *annotation_id;
+                let annotation = context.annotation(annotation_id);
+                if !matches!(
+                    annotation,
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    } | Annotation::Doc {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                ) {
+                    return false;
+                }
+
+                annotation_is_multiline_block(context, annotation_id)
+                    || annotation_is_followed_by_newline(context, annotation_id)
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return the gap span between one member receiver and property token.
+fn member_receiver_property_gap_span(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<Span> {
+    let left_id = match context.tree.get(expression_id) {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => *left,
+        _ => return None,
+    };
+    let property_span = context.tree.get_main_span(expression_id)?;
+    let left_span = context.span(left_id);
+    let left_anchor_end = expression_trivia_anchor_end(context, left_id);
+
+    if left_span.file != property_span.file || property_span.start <= left_anchor_end {
+        return None;
+    }
+
+    Some(Span::new(
+        left_span.file,
+        left_anchor_end,
+        property_span.start,
+    ))
+}
+
+/// Return whether one comment span starts on its own line or is multiline.
+fn comment_span_is_own_line_or_multiline(
+    context: &DestackFormatContext<'_>,
+    comment_span: Span,
+) -> bool {
+    if !context
+        .file
+        .is_same_line(comment_span.start, comment_span.end.saturating_sub(1))
+    {
+        return true;
+    }
+
+    context.span_starts_on_own_line(comment_span)
+}
+
+/// Return whether one member expression has own-line or multiline comments between receiver and property.
+fn member_has_leading_comment_between_receiver_and_property(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(gap_span) = member_receiver_property_gap_span(context, expression_id) else {
+        return false;
+    };
+    let comment_spans = &context.comment_spans;
+    let first_comment_index =
+        comment_spans.partition_point(|comment_span| comment_span.end <= gap_span.start);
+
+    for comment_span in &comment_spans[first_comment_index..] {
+        if comment_span.file != gap_span.file {
+            continue;
+        }
+        if comment_span.start >= gap_span.end {
+            break;
+        }
+        if comment_span.end <= gap_span.start {
+            continue;
+        }
+
+        if comment_span_is_own_line_or_multiline(context, *comment_span) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Return the next left-side expression used for adjacent return/throw comment checks.
+fn next_adjacent_argument_left_side(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    match context.tree.get(expression_id) {
+        Expression::SequenceExpression { expressions } => expressions.first().copied(),
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::TypeBinary { left, .. }
+        | Expression::Binary { left, .. }
+        | Expression::TypeIndex { left, .. }
+        | Expression::Assign { left, .. } => Some(*left),
+        Expression::TaggedTemplateExpression { tag, .. } => Some(*tag),
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition: IfCondition::Expression { condition },
+            ..
+        } => Some(*condition),
+        Expression::Statement(expression) => Some(*expression),
+        // explicit parentheses already delimit leading trivia for this argument segment
+        Expression::Parenthesized { .. } => None,
+        _ => None,
+    }
+}
+
+/// Return whether one adjacent statement argument has leading comments that require wrapping.
+fn adjacent_statement_argument_has_leading_comments(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Expression>,
+) -> bool {
+    let argument_parent_is_yield =
+        context
+            .parent(argument_id)
+            .is_some_and(|(parent_id, parent_type)| {
+                parent_type == NodeType::Expression
+                    && matches!(
+                        context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
+                        Expression::Yield { .. }
+                    )
+            });
+
+    let mut current_id = argument_id;
+    loop {
+        current_id = context.transparent_inner_expression(current_id);
+
+        let has_adjacent_leading_comment =
+            expression_has_adjacent_leading_comment(context, current_id);
+        let has_member_gap_comment =
+            member_has_leading_comment_between_receiver_and_property(context, current_id);
+
+        if has_adjacent_leading_comment {
+            let should_ignore_for_yield_chain_continuation =
+                argument_parent_is_yield && has_member_gap_comment;
+            if should_ignore_for_yield_chain_continuation {
+                // keep yield member continuation comments in chain form: `yield value\n  // c\n  .m()`
+            } else {
+                return true;
+            }
+        }
+
+        if !argument_parent_is_yield && has_member_gap_comment {
+            return true;
+        }
+
+        let Some(next_id) = next_adjacent_argument_left_side(context, current_id) else {
+            break;
+        };
+        current_id = next_id;
+    }
+
+    false
+}
+
+/// Format one return/throw/yield adjacent argument.
 fn format_adjacent_statement_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let value_expression = f.context().tree.get(value_id);
-    let value_has_leading_prefix_comment =
-        expression_has_leading_prefix_comment(f.context(), value_id);
+    let value_check_id = f.context().transparent_inner_expression(value_id);
+    let value_expression = f.context().tree.get(value_check_id);
+    let value_has_leading_comment =
+        adjacent_statement_argument_has_leading_comments(f.context(), value_check_id);
     let value_is_parenthesized = matches!(value_expression, Expression::Parenthesized { .. });
     let value_is_unwrapped_sequence =
         matches!(value_expression, Expression::SequenceExpression { .. });
-    let should_wrap_value = !value_is_parenthesized
-        && (value_is_unwrapped_sequence || value_has_leading_prefix_comment);
+    let should_wrap_value =
+        !value_is_parenthesized && (value_is_unwrapped_sequence || value_has_leading_comment);
 
     // leading own-line comments on adjacent arguments need one paren wrapper
     if should_wrap_value {
@@ -977,7 +1198,7 @@ fn format_adjacent_statement_argument<'ast>(
             [
                 space(),
                 token("("),
-                block_indent(&value_id),
+                block_indent(&group(&value_check_id).should_expand(true)),
                 hard_line_break(),
                 token(")")
             ]

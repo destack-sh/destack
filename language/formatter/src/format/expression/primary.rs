@@ -17,9 +17,9 @@ use crate::format::expression::{
     is_complex_argument, is_expression_breakable, is_expression_chain, is_simple_static_argument,
     is_trivial_argument, line_postfix_boundary, list_like, parenthesized_boundary_comments,
     parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
-    parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
-    should_drop_parenthesized, should_force_multiline_mapped_type,
-    should_hoist_parenthesized_inner_cast_prefix_comments,
+    parenthesized_has_leading_inner_trivia, parenthesized_has_leading_type_cast_comment,
+    sequence_expression_needs_parens, should_drop_parenthesized,
+    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
     single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
     soft_line_break_or_space, space, token, transparent_inner_expression,
     tree_literal_should_break, write_argument_without_separator_line_comment,
@@ -145,7 +145,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
     Ok(())
 }
 
-/// Return one own-line trailing separator comment source on the last array element.
+/// Return one trailing separator comment source on the last array element.
 fn array_last_separator_line_comment_source(
     context: &DestackFormatContext<'_>,
     array_node_id: LocalNodeId<Expression>,
@@ -158,9 +158,6 @@ fn array_last_separator_line_comment_source(
 
     let comment_source =
         single_argument_separator_line_comment_source(context, array_node_id, last_argument_id)?;
-    if !comment_source.is_own_line {
-        return None;
-    }
 
     Some((last_argument_id, comment_source))
 }
@@ -177,15 +174,43 @@ fn format_array_with_last_separator_line_comment<'ast>(
         return Ok(false);
     };
 
-    write!(
-        f,
-        [group(&format_args![
-            token("["),
-            soft_block_indent(&format_with(
+    if comment_source.is_own_line {
+        write!(
+            f,
+            [group(&format_args![
+                token("["),
+                soft_block_indent(&format_with(
+                    |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+                        for (index, argument_id) in elements_ids.iter().copied().enumerate() {
+                            if index > 0 {
+                                write!(f, [token(","), space()])?;
+                            }
+
+                            if argument_id == last_argument_id {
+                                if !write_argument_without_separator_line_comment(f, argument_id)? {
+                                    write!(f, [argument_id])?;
+                                }
+                                write_separator_line_comment_after_comma(f, &comment_source)?;
+                            } else {
+                                write!(f, [argument_id])?;
+                            }
+                        }
+
+                        Ok(())
+                    }
+                )),
+                token("]")
+            ])]
+        )?;
+    } else {
+        write!(f, [token("["), hard_line_break()])?;
+        write!(
+            f,
+            [block_indent(&format_with(
                 |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
                     for (index, argument_id) in elements_ids.iter().copied().enumerate() {
                         if index > 0 {
-                            write!(f, [token(","), space()])?;
+                            write!(f, [hard_line_break()])?;
                         }
 
                         if argument_id == last_argument_id {
@@ -194,16 +219,16 @@ fn format_array_with_last_separator_line_comment<'ast>(
                             }
                             write_separator_line_comment_after_comma(f, &comment_source)?;
                         } else {
-                            write!(f, [argument_id])?;
+                            write!(f, [argument_id, token(",")])?;
                         }
                     }
 
                     Ok(())
                 }
-            )),
-            token("]")
-        ])]
-    )?;
+            ))]
+        )?;
+        write!(f, [hard_line_break(), token("]")])?;
+    }
 
     Ok(true)
 }
@@ -866,8 +891,6 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         let has_parenthesized_prefix_annotation =
             expression_has_effective_prefix_annotation(f.context(), node_id)
                 || inner_has_effective_prefix_annotation;
-        let has_parenthesized_leading_inner_comments =
-            has_parenthesized_leading_inner_comments && has_parenthesized_prefix_annotation;
         let node_has_only_slash_prefix_comment_annotations =
             expression_has_only_slash_prefix_comment_annotations(f.context(), node_id);
         let should_preserve_leading_inner_newline = has_parenthesized_leading_inner_newline
@@ -960,10 +983,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         } else if has_parenthesized_prefix_annotation {
             let inner_has_decorator_prefix_annotation =
                 expression_has_effective_decorator_prefix_annotation(f.context(), expression_id);
-            if f.context().node_has_newline(expression_id)
-                || should_preserve_leading_inner_newline
-                || inner_has_decorator_prefix_annotation
-            {
+            if should_preserve_leading_inner_newline || inner_has_decorator_prefix_annotation {
                 write!(
                     f,
                     [
@@ -1012,9 +1032,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             write!(f, [token("("), expression, token(")")])?;
         } else if has_parenthesized_leading_inner_trivia {
             if has_parenthesized_leading_inner_newline {
-                let should_keep_multiline = has_parenthesized_leading_inner_comments;
-                let should_keep_multiline =
-                    should_keep_multiline || expression_is_ternary_condition(f.context(), node_id);
+                let should_keep_multiline = expression_is_ternary_condition(f.context(), node_id);
                 let should_keep_multiline =
                     should_keep_multiline || expression_is_ternary_branch(f.context(), node_id);
                 let should_keep_multiline = should_keep_multiline
@@ -1025,6 +1043,11 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 let should_keep_multiline = should_keep_multiline
                     || (parent_is_postfix_continuation
                         && expression_is_await_like(inner_expression));
+                let should_keep_multiline = should_keep_multiline
+                    || parenthesized_has_leading_type_cast_comment(f.context(), node_id);
+                let should_keep_multiline = should_keep_multiline
+                    || (has_parenthesized_leading_inner_comments
+                        && has_parenthesized_prefix_annotation);
                 if !should_keep_multiline {
                     write!(f, [token("("), expression, token(")")])?;
                     let boundary_comments =

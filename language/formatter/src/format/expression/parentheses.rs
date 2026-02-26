@@ -202,6 +202,32 @@ fn parenthesized_has_leading_inner_pattern(
     context.has_comment(leading_span)
 }
 
+/// Return whether source contains line comments between `(` and the inner expression.
+fn parenthesized_has_leading_inner_line_comment(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
+
+    let leading_start = parenthesized_span.start.saturating_add(1);
+    if leading_start >= inner_span.start || parenthesized_span.file != inner_span.file {
+        return false;
+    }
+
+    let leading_span = Span::new(parenthesized_span.file, leading_start, inner_span.start);
+    context
+        .line_comment_spans
+        .iter()
+        .copied()
+        .any(|comment_span| {
+            comment_span.file == leading_span.file
+                && comment_span.start < leading_span.end
+                && comment_span.end > leading_span.start
+        })
+}
+
 fn member_expression_has_optional_chain(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -231,6 +257,16 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    // closure-style casts bind to the parenthesized wrapper
+    if parenthesized_has_leading_type_cast_comment(context, parenthesized_id) {
+        return false;
+    }
+
+    // prefix comments and docs on the wrapper itself carry grouping ownership semantics
+    if expression_has_only_prefix_comment_or_doc_annotations(context, parenthesized_id) {
+        return false;
+    }
+
     // object members require explicit grouping: `({}).x`
     if matches!(
         context.tree.get(inner_expression_id),
@@ -259,6 +295,12 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
         if !expression_has_only_prefix_comment_or_doc_annotations(context, inner_expression_id) {
             return false;
         }
+    }
+
+    // preserve wrappers with leading line comments to stabilize member-object comment seams
+    if parenthesized_has_leading_inner_line_comment(context, parenthesized_id, inner_expression_id)
+    {
+        return false;
     }
 
     if parenthesized_has_leading_inner_comments(context, parenthesized_id, inner_expression_id)
@@ -1061,11 +1103,56 @@ fn parenthesized_call_callee_wrapper_can_drop(
         return false;
     }
 
+    if parenthesized_has_leading_type_cast_comment(context, node_id) {
+        return false;
+    }
+
     if context.has_annotation(node_id) || context.has_annotation(inner_expression_id) {
         return false;
     }
 
     !parenthesized_has_leading_inner_trivia(context, node_id, inner_expression_id)
+}
+
+/// Return whether a parenthesized wrapper is immediately preceded by a closure-style type-cast comment.
+pub(crate) fn parenthesized_has_leading_type_cast_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let node_span = context.span(node_id);
+    let Some(comment_span) = context
+        .comment_spans
+        .iter()
+        .rev()
+        .copied()
+        .find(|comment_span| {
+            comment_span.file == node_span.file && comment_span.end <= node_span.start
+        })
+    else {
+        return false;
+    };
+
+    let between_span = Span::new(node_span.file, comment_span.end, node_span.start);
+    if context.has_non_whitespace_content(between_span) {
+        return false;
+    }
+
+    comment_token_is_doc_block(context, comment_span)
+}
+
+/// Return whether one comment span is one doc-block comment token.
+fn comment_token_is_doc_block(context: &DestackFormatContext<'_>, comment_span: Span) -> bool {
+    let comment_tokens = context.comment_tokens();
+    let token_index = comment_tokens.partition_point(|token| token.span.start < comment_span.start);
+    let comment_token_type = comment_tokens.get(token_index).and_then(|token| {
+        if token.span == comment_span {
+            Some(token.token.ty)
+        } else {
+            None
+        }
+    });
+
+    comment_token_type == Some(TokenType::DocBlockComment)
 }
 
 /// Return whether one expression ends in static instantiation arguments.
@@ -1412,6 +1499,10 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    if parenthesized_has_leading_type_cast_comment(context, node_id) {
+        return false;
+    }
+
     let _timing = context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_MODE);
     let signals = parenthesized_expression_drop(context, node_id, inner_expression_id);
     should_drop_parenthesized_expression(signals)

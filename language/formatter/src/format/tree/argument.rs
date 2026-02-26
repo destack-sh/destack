@@ -40,6 +40,32 @@ fn annotation_ids_have_line_slash_comment(
     })
 }
 
+/// Return whether one annotation list has prefix comment or doc annotations.
+fn annotation_ids_have_prefix_comment_or_doc_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_ids: Option<Vec<LocalNodeId<Annotation>>>,
+) -> bool {
+    let Some(annotation_ids) = annotation_ids else {
+        return false;
+    };
+
+    annotation_ids.iter().any(|annotation_id| {
+        let annotation = context.annotation(*annotation_id);
+        let is_prefix_position = matches!(
+            annotation.position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        );
+        if !is_prefix_position {
+            return false;
+        }
+
+        matches!(
+            annotation,
+            Annotation::Comment { .. } | Annotation::Doc { .. }
+        )
+    })
+}
+
 /// Return whether one tree argument or its value has a line slash comment annotation.
 fn tree_argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
@@ -361,9 +387,21 @@ fn tree_named_attribute_syntax_style(
 
 impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
-
         let argument = f.context().tree.get(self.argument_id);
+        let stub_value_id = match argument {
+            Argument::Positional { value, .. }
+                if matches!(f.context().tree.get(*value), Expression::Stub) =>
+            {
+                Some(*value)
+            }
+            _ => None,
+        };
+
+        // stub argument prefix comments and docs must stay inside `{ ... }`
+        if stub_value_id.is_none() {
+            write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+        }
+
         let mut stub_argument_annotations_rendered_inline = false;
         match argument {
             Argument::Named { name, value, .. } => {
@@ -425,47 +463,65 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     );
                 if needs_braces {
                     if matches!(value_expr, Expression::Stub) {
-                        let expression_comment_nodes = collect_stub_comment_nodes(
-                            f.context(),
-                            f.context().annotations(*value).as_deref(),
-                        );
-                        let argument_comment_nodes = collect_stub_comment_nodes(
-                            f.context(),
-                            f.context().annotations(self.argument_id).as_deref(),
-                        );
-
-                        let mut comment_nodes = expression_comment_nodes;
-                        if comment_nodes.is_empty() {
-                            comment_nodes = argument_comment_nodes;
-                            if !comment_nodes.is_empty() {
-                                stub_argument_annotations_rendered_inline = true;
-                            }
-                        }
-
-                        if stub_comment_nodes_have_line_comment(f.context(), &comment_nodes) {
-                            write!(
-                                f,
-                                [group(&format_args![
-                                    token("{"),
-                                    block_indent(&format_with(|f| {
-                                        format_multiline_stub_comment_nodes(f, &comment_nodes)
-                                    })),
-                                    hard_line_break(),
-                                    token("}")
-                                ])]
-                            )?;
-                        } else {
+                        let keep_stub_prefix_inside_braces =
+                            stub_value_id.is_some_and(|value_id| {
+                                annotation_ids_have_prefix_comment_or_doc_annotation(
+                                    f.context(),
+                                    f.context().annotations(self.argument_id),
+                                ) || annotation_ids_have_prefix_comment_or_doc_annotation(
+                                    f.context(),
+                                    f.context().annotations(value_id),
+                                )
+                            });
+                        if keep_stub_prefix_inside_braces {
                             write!(f, [token("{")])?;
-                            let mut wrote_stub_comment =
-                                format_inline_stub_expression_comments(f, *value)?;
-                            if !wrote_stub_comment {
-                                wrote_stub_comment =
-                                    format_inline_stub_argument_comments(f, self.argument_id)?;
-                                if wrote_stub_comment {
+                            write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+                            write!(f, [f.context().any_prefix_annotations(*value)])?;
+                            write!(f, [token("}")])?;
+                            stub_argument_annotations_rendered_inline = true;
+                        } else {
+                            let expression_comment_nodes = collect_stub_comment_nodes(
+                                f.context(),
+                                f.context().annotations(*value).as_deref(),
+                            );
+                            let argument_comment_nodes = collect_stub_comment_nodes(
+                                f.context(),
+                                f.context().annotations(self.argument_id).as_deref(),
+                            );
+
+                            let mut comment_nodes = expression_comment_nodes;
+                            if comment_nodes.is_empty() {
+                                comment_nodes = argument_comment_nodes;
+                                if !comment_nodes.is_empty() {
                                     stub_argument_annotations_rendered_inline = true;
                                 }
                             }
-                            write!(f, [token("}")])?;
+
+                            if stub_comment_nodes_have_line_comment(f.context(), &comment_nodes) {
+                                write!(
+                                    f,
+                                    [group(&format_args![
+                                        token("{"),
+                                        block_indent(&format_with(|f| {
+                                            format_multiline_stub_comment_nodes(f, &comment_nodes)
+                                        })),
+                                        hard_line_break(),
+                                        token("}")
+                                    ])]
+                                )?;
+                            } else {
+                                write!(f, [token("{")])?;
+                                let mut wrote_stub_comment =
+                                    format_inline_stub_expression_comments(f, *value)?;
+                                if !wrote_stub_comment {
+                                    wrote_stub_comment =
+                                        format_inline_stub_argument_comments(f, self.argument_id)?;
+                                    if wrote_stub_comment {
+                                        stub_argument_annotations_rendered_inline = true;
+                                    }
+                                }
+                                write!(f, [token("}")])?;
+                            }
                         }
                     } else if force_multiline_braced_expression {
                         write!(

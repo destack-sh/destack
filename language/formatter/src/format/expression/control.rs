@@ -1,5 +1,5 @@
 use crate::format::analysis::{previous_non_whitespace_token_before_span, token_is_keyword};
-use crate::format::annotation::expression_needs_statement_terminator;
+use crate::format::annotation::statement_wrapper_needs_semicolon;
 use crate::format::declaration::statement::format_block_of_statements;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -26,7 +26,7 @@ fn format_statement_body_expression<'ast>(
     write!(f, [f.context().any_prefix_annotations(expression_id)])?;
     format_expression(f, expression_id, expression, directive)?;
 
-    if expression_needs_statement_terminator(f.context(), expression, false) {
+    if statement_wrapper_needs_semicolon(f.context(), expression_id) {
         write!(f, [token(";")])?;
     }
 
