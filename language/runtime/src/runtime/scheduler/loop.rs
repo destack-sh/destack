@@ -6,9 +6,9 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
-use crate::runtime::host::{HostEvent, HostEventKind};
 use crate::runtime::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
     PollerToken,
@@ -610,8 +610,8 @@ fn should_dispatch_host_event_first(
 #[cfg(test)]
 mod tests {
     use super::EventLoop;
+    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
     use crate::platform::ResourceId;
-    use crate::runtime::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
     use crate::runtime::poller::{
         PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
         PollerToken,

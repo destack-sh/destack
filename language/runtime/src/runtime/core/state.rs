@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::diagnostic::RuntimeErrorStore;
+use crate::host::HostRuntime;
 use crate::platform::{PlatformContext, ResourceTable};
 use crate::runtime::RuntimeHooks;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::host::HostRuntime;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::time::{Clock, HostClockSource};

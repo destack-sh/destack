@@ -2,6 +2,9 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::{
+    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, android_host_crypto_callbacks_snapshot,
+};
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -14,9 +17,6 @@ use crate::platform::crypto::{
 };
 use crate::platform::{NativeSlice, NativeStringRef};
 use crate::runtime::BindingCallContext;
-use crate::runtime::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, android_host_crypto_callbacks_snapshot,
-};
 
 use super::core::{
     callback_runtime_id, host_status_result, host_store_kind, invalid_data, not_supported,

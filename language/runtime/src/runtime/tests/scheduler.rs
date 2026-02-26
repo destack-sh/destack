@@ -4,12 +4,12 @@ use destack_vm as vm;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
 
 use crate::diagnostic::RuntimeResult;
+use crate::host::{HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
 };
-use crate::runtime::host::{HostEventKind, HostLifecycleState};
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer,
 };

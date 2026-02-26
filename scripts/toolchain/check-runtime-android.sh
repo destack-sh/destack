@@ -61,4 +61,4 @@ run_android_command() {
 
 run_android_command cargo check -p destack_runtime --target aarch64-linux-android
 run_android_command cargo clippy -p destack_runtime --target aarch64-linux-android --no-deps -- -D warnings
-run_android_command cargo test -p destack_runtime --target aarch64-linux-android --no-run runtime::host::android::
+run_android_command cargo test -p destack_runtime --target aarch64-linux-android --no-run host::android::
