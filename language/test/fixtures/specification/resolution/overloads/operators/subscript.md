@@ -90,3 +90,23 @@ bag[1] = 2;
 ```
 
 - contains: no matching overload
+
+### index access checks key type compatibility
+
+> Index access should reject keys that do not match the index contract key type.
+
+```ds
+struct Bag { value: int }
+
+extension for Bag implements Index<int, int> {
+    index(key: int): int { return key }
+}
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+const value = bag["one"];
+value satisfies int;
+```
+
+- contains: not assignable

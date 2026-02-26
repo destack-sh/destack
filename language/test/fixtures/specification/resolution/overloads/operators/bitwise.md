@@ -140,3 +140,27 @@ const right = getBits();
 const shifted = left <<| right;
 shifted satisfies Bits;
 ```
+
+### bitwise shift operators require rhs compatibility
+
+> Shift operators should reject incompatible right operand types.
+
+```ds
+struct Bits { value: int }
+struct OtherBits { value: int }
+
+extension for Bits implements ShiftLeft<Bits> {
+    shiftLeft(other: Bits): Bits { return this }
+}
+
+declare function getBits(): Bits;
+declare function getOtherBits(): OtherBits;
+
+const left = getBits();
+const right = getOtherBits();
+
+const shifted = left << right;
+shifted satisfies Bits;
+```
+
+- contains: not assignable

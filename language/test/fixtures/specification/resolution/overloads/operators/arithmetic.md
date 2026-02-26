@@ -160,3 +160,27 @@ const right = getScalar();
 const wrapped = left +% right;
 wrapped satisfies Scalar;
 ```
+
+### arithmetic wrapping operators require rhs compatibility
+
+> Wrapping arithmetic operators still require compatible right operand types.
+
+```ds
+struct Scalar { value: int }
+struct Other { value: int }
+
+extension for Scalar implements Add<Scalar> {
+    add(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+declare function getOther(): Other;
+
+const left = getScalar();
+const right = getOther();
+
+const wrapped = left +% right;
+wrapped satisfies Scalar;
+```
+
+- contains: not assignable

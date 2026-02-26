@@ -131,3 +131,53 @@ value.kind satisfies "ready";
 ```
 
 - contains: not assignable
+
+### defaulted generic parameters support partial inference
+
+> Generic defaults should apply when trailing type parameters are omitted by inference.
+
+```ts
+declare function pair<T, U = T>(left: T, right?: U): [T, U];
+
+const value = pair(1);
+value[0] satisfies number;
+value[1] satisfies number;
+```
+
+### defaulted generic parameters reject incompatible partial inference assumptions
+
+> Defaulted trailing generic parameters should not become unrelated types in partial inference.
+
+```ts
+declare function pair<T, U = T>(left: T, right?: U): [T, U];
+
+const value = pair(1);
+value[1] satisfies string;
+```
+
+- contains: not assignable
+
+### inference prefers argument usage over defaults when provided
+
+> Provided arguments should override defaulted generic parameter choices.
+
+```ts
+declare function pair<T, U = T>(left: T, right: U): [T, U];
+
+const value = pair(1, "ok");
+value[0] satisfies number;
+value[1] satisfies string;
+```
+
+### const generic precision survives multi-hop generic forwarding
+
+> Const generic precision should survive forwarding through multiple generic wrappers.
+
+```ts
+declare function hold<const T>(value: T): T;
+declare function pass<const T>(value: T): T;
+
+const tuple = pass(hold([1, 2]));
+tuple[0] satisfies 1;
+tuple[1] satisfies 2;
+```

@@ -154,3 +154,42 @@ selected satisfies "int32";
 ```
 
 - contains: not assignable
+
+### receiver overload order survives export-star plus rename chains
+
+> Export-star and rename chains should preserve receiver overload ordering.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:extensions.ds
+import { Counter } from "./counter";
+
+extension for Counter implements Add<number> {
+    add(other: number): "number" { return "number" }
+}
+
+extension for Counter implements Add<int32> {
+    add(other: int32): "int32" { return "int32" }
+}
+```
+
+```ds:barrel.ds
+export * from "./extensions";
+```
+
+```ds:index.ds
+export { Counter as PublicCounter } from "./counter";
+export * from "./barrel";
+```
+
+```ds:main.ds
+import { PublicCounter } from "./index";
+import "./barrel";
+
+declare let counter: PublicCounter;
+
+const selected = counter + 1;
+selected satisfies "number";
+```

@@ -84,3 +84,75 @@ declare const right: Map<string, int32>;
 const combined = left | right;
 combined satisfies Map<string, int32>;
 ```
+
+## Module ordering
+
+### receiver ordering through renamed re-exports keeps first applicable overload
+
+> Renamed re-export paths should preserve receiver overload ordering.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:extensions.ds
+import { Counter } from "./counter";
+
+extension for Counter implements Add<number> {
+    add(other: number): "number" { return "number" }
+}
+
+extension for Counter implements Add<int32> {
+    add(other: int32): "int32" { return "int32" }
+}
+```
+
+```ds:index.ds
+export { Counter as PublicCounter } from "./counter";
+```
+
+```ds:main.ds
+import { PublicCounter } from "./index";
+import "./extensions";
+
+declare let counter: PublicCounter;
+
+const selected = counter + 1;
+selected satisfies "number";
+```
+
+### receiver ordering through renamed re-exports rejects later overload expectations
+
+> Renamed re-export paths should not select later receiver overloads when earlier ones apply.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:extensions.ds
+import { Counter } from "./counter";
+
+extension for Counter implements Add<number> {
+    add(other: number): "number" { return "number" }
+}
+
+extension for Counter implements Add<int32> {
+    add(other: int32): "int32" { return "int32" }
+}
+```
+
+```ds:index.ds
+export { Counter as PublicCounter } from "./counter";
+```
+
+```ds:main.ds
+import { PublicCounter } from "./index";
+import "./extensions";
+
+declare let counter: PublicCounter;
+
+const selected = counter + 1;
+selected satisfies "int32";
+```
+
+- contains: not assignable

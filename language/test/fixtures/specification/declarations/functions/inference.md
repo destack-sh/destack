@@ -331,3 +331,89 @@ head satisfies 1;
 ```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
+
+## nested contextual inference
+
+### nested callback inference threads outer generic payloads
+
+> Nested callbacks should preserve contextual generic payload types through outer callback positions.
+
+```ts:main.ts
+declare function withValue<T>(
+    value: T,
+    callback: (read: () => T) => string,
+): string;
+
+const output = withValue("ready", read => read());
+output satisfies string;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### nested callback inference rejects mismatched payload usage
+
+> Nested callbacks should reject payload usage that is incompatible with the inferred contextual generic type.
+
+```ts:main.ts
+declare function withValue<T>(
+    value: T,
+    callback: (read: () => T) => string,
+): string;
+
+withValue("ready", read => read().toFixed());
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: tofixed
+
+### nested this-less arrows remain order-insensitive in contextual object inference
+
+> Nested this-less arrow properties should remain order-insensitive for contextual generic object inference.
+
+```ts:main.ts
+declare function wire<T>(spec: {
+    make: () => { value: T },
+    use: (input: { value: T }) => string,
+}): string;
+
+const output = wire({
+    use: input => {
+        input.value satisfies string;
+        return input.value;
+    },
+    make: () => ({ value: "ready" }),
+});
+
+output satisfies string;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### nested this-less methods do not infer sibling payloads
+
+> Nested this-less method syntax should not gain arrow-style sibling contextual inference.
+
+```ts:main.ts
+declare function wire<T>(spec: {
+    make: () => { value: T },
+    use: (input: { value: T }) => string,
+}): string;
+
+wire({
+    use(input) { return input.value.toUpperCase(); },
+    make() { return { value: "ready" }; },
+});
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: unknown

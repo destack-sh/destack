@@ -800,3 +800,69 @@ mode satisfies "dev";
 ```
 
 - contains: not assignable
+
+## Nested boundaries
+
+### nested function return inference widens literal returns
+
+Nested function declarations should widen unconstrained literal return values.
+
+```ts
+function outer() {
+    function inner() {
+        return "dev";
+    }
+
+    const mode = inner();
+    mode satisfies string;
+}
+```
+
+### nested function return inference does not keep literal returns
+
+Nested function declarations should not preserve literal return values by default.
+
+```ts
+function outer() {
+    function inner() {
+        return "dev";
+    }
+
+    const mode = inner();
+    mode satisfies "dev";
+}
+```
+
+- contains: not assignable
+
+### nested const to let commitment still widens after inner usage
+
+Using a const literal inside a nested function should not prevent later mutable widening.
+
+```ds
+const seed = "ready";
+
+function observe() {
+    seed satisfies "ready";
+}
+
+let widened = seed;
+widened satisfies string;
+```
+
+### nested const to let commitment does not keep literal after inner usage
+
+Nested reads should not keep mutable commitments pinned to the original literal.
+
+```ds
+const seed = "ready";
+
+function observe() {
+    seed satisfies "ready";
+}
+
+let widened = seed;
+widened satisfies "ready";
+```
+
+- contains: not assignable

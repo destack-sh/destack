@@ -115,3 +115,59 @@ current satisfies string;
 ```
 
 - contains: not assignable
+
+### nested closure writes invalidate prior narrows
+
+> Nested closure writes should invalidate previously narrowed local facts.
+
+```ds
+let value: string | null = "ok";
+
+if (value != null) {
+    const clear = () => {
+        value = null;
+    };
+
+    clear();
+    value satisfies string;
+}
+```
+
+- contains: not assignable
+
+## alias and member writes
+
+### writes through aliases invalidate discriminant narrows
+
+> Writes through an alias should invalidate discriminant member availability on the original value.
+
+```ds
+type Ready = { kind: "ready", payload: string };
+type Idle = { kind: "idle" };
+
+let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
+let alias = box;
+
+if (box.state.kind == "ready") {
+    alias.state = { kind: "idle" };
+    box.state.payload;
+}
+```
+
+- contains: does not exist
+
+### index writes invalidate prior tuple element narrows
+
+> Writes through index expressions should invalidate previously established tuple element narrows.
+
+```ds
+let pair: (string | null, int32) = ("ok", 1);
+
+if (pair[0] != null) {
+    pair[0] satisfies string;
+    pair[0] = null;
+    pair[0] satisfies string;
+}
+```
+
+- contains: not assignable
