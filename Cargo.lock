@@ -1569,6 +1569,7 @@ dependencies = [
  "io-uring",
  "keyring",
  "libc",
+ "notify",
  "openssl",
  "openssl-sys",
  "parking_lot",

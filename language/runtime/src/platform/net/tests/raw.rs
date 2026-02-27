@@ -10,7 +10,7 @@ use crate::platform::net::{
 use crate::platform::net::{RouteEntry, RouteEntryVm, RouteKind};
 use crate::platform::resource::{ResourceId, SocketHandle};
 #[cfg(windows)]
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{PlatformWindowsPacketBackend, RuntimeOptions};
 
 /// Return route-list snapshots where supported and surface notSupported elsewhere.
 #[test]
@@ -116,11 +116,8 @@ fn test_net_packet_open_windows_reports_not_supported_when_backend_disabled() {
 fn test_net_packet_open_windows_enabled_runs_backend_validation() {
     with_harness_context_with_runtime_options(
         |runtime_options: &mut RuntimeOptions| {
-            runtime_options
-                .platform
-                .windows
-                .net
-                .windows_packet_backend_enabled = Some(true);
+            runtime_options.platform.windows.net_packet_backend =
+                PlatformWindowsPacketBackend::RawSocket;
         },
         |mut context| {
             let options = PacketCaptureOptions {

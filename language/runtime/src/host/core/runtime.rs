@@ -155,18 +155,18 @@ impl Default for HostRuntime {
 /// Return host integration options for the current compile target.
 fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
     match compile_target_host_platform() {
-        HostPlatform::Android => options.platform.android.host.clone(),
-        HostPlatform::DragonFly => options.platform.dragonfly.host.clone(),
-        HostPlatform::FreeBsd => options.platform.freebsd.host.clone(),
-        HostPlatform::Haiku => options.platform.haiku.host.clone(),
-        HostPlatform::Illumos => options.platform.illumos.host.clone(),
-        HostPlatform::IOS => options.platform.ios.host.clone(),
-        HostPlatform::Linux => options.platform.linux.host.clone(),
-        HostPlatform::MacOS => options.platform.macos.host.clone(),
-        HostPlatform::NetBsd => options.platform.netbsd.host.clone(),
-        HostPlatform::OpenBsd => options.platform.openbsd.host.clone(),
-        HostPlatform::Solaris => options.platform.solaris.host.clone(),
-        HostPlatform::Windows => options.platform.windows.host.clone(),
+        HostPlatform::Android => options.platform.android.clone(),
+        HostPlatform::DragonFly => options.platform.dragonfly.clone(),
+        HostPlatform::FreeBsd => options.platform.freebsd.clone(),
+        HostPlatform::Haiku => options.platform.haiku.clone(),
+        HostPlatform::Illumos => options.platform.illumos.clone(),
+        HostPlatform::IOS => options.platform.ios.clone(),
+        HostPlatform::Linux => options.platform.linux.clone(),
+        HostPlatform::MacOS => options.platform.macos.clone(),
+        HostPlatform::NetBsd => options.platform.netbsd.clone(),
+        HostPlatform::OpenBsd => options.platform.openbsd.clone(),
+        HostPlatform::Solaris => options.platform.solaris.clone(),
+        HostPlatform::Windows => options.platform.windows.host_options(),
         _ => PlatformHostOptions::default(),
     }
 }
