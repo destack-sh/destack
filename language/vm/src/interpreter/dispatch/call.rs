@@ -55,7 +55,7 @@ fn resolve_virtual_dispatch_target(
         .ok_or(Error::InvalidInstruction)?;
 
     // require a method slot
-    let mir::DispatchSlot::Method { function } = slot else {
+    let mir::DispatchTableEntry::Method { function } = slot else {
         return Err(Error::InvalidInstruction);
     };
 
@@ -100,7 +100,7 @@ fn resolve_interface_dispatch_target(
         .ok_or(Error::InvalidInstruction)?;
 
     // require an interface method slot
-    let mir::DispatchSlot::InterfaceMethod { target, .. } = slot else {
+    let mir::DispatchTableEntry::InterfaceMethod { target, .. } = slot else {
         return Err(Error::InvalidInstruction);
     };
 

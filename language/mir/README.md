@@ -236,8 +236,8 @@ Address spaces are optional and appear after the kind.
 
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
-| managed | none | `ref<managed @T>` | GC-managed reference |
-| owned | none | `ref<owned @T>` | owned reference for `^T` |
+| managed | mutable or readonly | `ref<managed @T>`, `ref<managed readonly @T>` | GC-managed reference |
+| owned | mutable or readonly | `ref<owned @T>`, `ref<owned readonly @T>` | owned reference for `^T` |
 | borrowed | mutable | `ref<borrowed @T>` | mutable borrow (`&T`) |
 | borrowed | readonly | `ref<borrowed readonly @T>` | readonly borrow (`&readonly T`) |
 | raw | mutable | `ref<raw @T>` | raw pointer (mutable) |
@@ -256,7 +256,10 @@ Raw references may be null or dangling and allow pointer arithmetic.
 Deref and mutation use explicit `load` and `store` instructions.
 
 Nullable references use `ref?<...>` with the same kind and mutability rules.
-Mutability can be encoded for any reference kind, but is only relevant semantically for borrowed and raw references.
+Mutability can be encoded for any reference kind.
+`readonly` constrains mutation through that reference and is not deep or transitive immutability of the pointee graph.
+Mutability is preserved as part of MIR type identity for all reference kinds.
+Canonical formatting preserves mutable versus readonly spellings and does not force managed or owned references to readonly.
 
 Address spaces describe where the reference points:
 `generic`, `stack`, `global`, `heap`, `shared`, `local`, `constant`, or a target-specific id.
@@ -290,14 +293,17 @@ Dispatch tables are stored in `NodeTree.type_table.dispatch_registry`.
 VTables are only emitted for classes that require virtual dispatch.
 Interface dispatch uses itabs for both struct and class implementations.
 Each itab is specific to a (Type, Interface) pair.
+Concrete type metadata stores both the itab list and a direct interface to itab map for fast lookup.
 Itab slots include field offsets and method targets in interface declaration order.
+Dynamic dispatch is represented explicitly as `call.virtual` and `call.interface` (and tailcall variants).
+Lowering those operations to `call` or `call.indirect` is a later optimization and codegen legalization decision.
 
 Interface inheritance flattens base interfaces in extends list order before local members.
 Members inherited with the same name and signature reuse the first slot.
 Type descriptors link types to runtime metadata globals when needed.
 Field maps provide name to field lookups for property access specialization.
 Struct layouts describe value payloads with no identity semantics.
-Class instance types are represented as `ref<managed @Payload>` where `@Payload` is the class field layout.
+Class instance types are represented as `ref<managed @Payload>` or `ref<managed readonly @Payload>` where `@Payload` is the class field layout.
 Dispatch metadata is stored out of line, and polymorphic classes include a vtable pointer in the payload layout when dynamic dispatch remains.
 Boxing a value is represented as `managed.alloc` of the payload layout followed by `store` of the value.
 
@@ -395,8 +401,11 @@ block0:
 type @Point = { #[offset(0)] x: i32, #[offset(4)] y: i32 }
 
 #[section(".rodata")]
-global @Message: ref<managed @String> = "hello" ; const
+global @Message: ref<managed readonly @String> = "hello" ; readonly
 ```
+
+`const` is still accepted by the parser for compatibility.
+Canonical MIR formatting always emits `readonly`.
 
 ### Linkage
 

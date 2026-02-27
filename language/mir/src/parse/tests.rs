@@ -364,6 +364,16 @@ block0:
 }
 
 #[test]
+fn test_roundtrip_reference_mutability_matrix() {
+    roundtrip(
+        r#"function @refKinds(v0: ref<managed i32>, v1: ref<managed readonly i32>, v2: ref<owned i32>, v3: ref<owned readonly i32>, v4: ref<raw i32>, v5: ref<raw readonly i32>) -> ref<managed i32> {
+block0(v0: ref<managed i32>, v1: ref<managed readonly i32>, v2: ref<owned i32>, v3: ref<owned readonly i32>, v4: ref<raw i32>, v5: ref<raw readonly i32>):
+    return v0
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_string_constant() {
     roundtrip(
         r#"global @literal:string:hello_world: ref<managed void> = "hello world" ; readonly

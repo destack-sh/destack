@@ -179,26 +179,73 @@ impl ModuleBuilder {
         )
     }
 
+    /// Create an owning mutable handle type.
+    pub fn type_owned_reference_mutable(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.type_owned_reference(pointee, Mutability::Mutable)
+    }
+
+    /// Create an owning readonly handle type.
+    pub fn type_owned_reference_readonly(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.type_owned_reference(pointee, Mutability::Immutable)
+    }
+
     /// Create a raw pointer type (manual memory management).
     pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.type_raw_pointer_with_mutability(pointee, Mutability::Immutable)
+    }
+
+    /// Create a raw pointer type with explicit mutability.
+    pub fn type_raw_pointer_with_mutability(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Raw,
             pointee,
-            Mutability::Immutable,
+            mutability,
             AddressSpace::Generic,
             false,
         )
     }
 
+    /// Create a mutable raw pointer type.
+    pub fn type_raw_pointer_mutable(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.type_raw_pointer_with_mutability(pointee, Mutability::Mutable)
+    }
+
     /// Create a managed reference type (runtime-tracked).
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.type_managed_reference_with_mutability(pointee, Mutability::Immutable)
+    }
+
+    /// Create a managed reference type with explicit mutability.
+    pub fn type_managed_reference_with_mutability(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Managed,
             pointee,
-            Mutability::Immutable,
+            mutability,
             AddressSpace::Generic,
             false,
         )
+    }
+
+    /// Create a mutable managed reference type.
+    pub fn type_managed_reference_mutable(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.type_managed_reference_with_mutability(pointee, Mutability::Mutable)
     }
 
     /// Create a nullable managed reference type.
@@ -206,13 +253,30 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
+        self.type_managed_reference_nullable_with_mutability(pointee, Mutability::Immutable)
+    }
+
+    /// Create a nullable managed reference type with explicit mutability.
+    pub fn type_managed_reference_nullable_with_mutability(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Managed,
             pointee,
-            Mutability::Immutable,
+            mutability,
             AddressSpace::Generic,
             true,
         )
+    }
+
+    /// Create a mutable nullable managed reference type.
+    pub fn type_managed_reference_nullable_mutable(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        self.type_managed_reference_nullable_with_mutability(pointee, Mutability::Mutable)
     }
 
     /// Create a vector type.
