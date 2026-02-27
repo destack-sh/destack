@@ -438,40 +438,6 @@ impl Compiler {
         Ok(ty_id)
     }
 
-    /// Re-evaluate an expression as a type, bypassing declared/expression caches.
-    pub(crate) fn resolve_declared_type_expression_fresh(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-        validate_static_argument_bounds: bool,
-        enforce_implicit_managed: bool,
-    ) -> AnalyzeResult<LocalTypeId> {
-        let ty = self.resolve_declared_type_expression_value(
-            &mut ctx.reborrow(),
-            expression_id,
-            validate_static_argument_bounds,
-            enforce_implicit_managed,
-            true,
-            false,
-            false,
-        )?;
-        let ty = if ty.is_unevaluated() {
-            Type::Unevaluated(expression_id)
-        } else {
-            ty
-        };
-        let ty_id = ctx.types.insert_type_from(ty, expression_id);
-        let global_node_id = expression_id.into_global_any(ctx.module.id);
-        ctx.types.set_declared_type(global_node_id, ty_id);
-
-        let type_value_id = ctx
-            .types
-            .insert_type_from(Type::Value { value: ty_id }, expression_id);
-        ctx.types.set_inferred_type(global_node_id, type_value_id);
-
-        Ok(ty_id)
-    }
-
     /// Evaluate a function signature into a Type.
     pub(crate) fn resolve_declared_function_signature_type(
         &self,
@@ -934,6 +900,23 @@ impl Compiler {
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
+
+        // keep indexed access symbolic when the key still depends on free static or infer state
+        // this allows mapped type normalization to substitute per key later instead of collapsing to unknown
+        let index_contains_static = self.type_contains_free_static_parameters(
+            ctx.type_view(),
+            index_id,
+            &HashSet::new(),
+            &mut HashSet::new(),
+        );
+        let index_contains_infer =
+            self.type_contains_infer_vars(index_id, ctx.types, &mut HashSet::new());
+        if index_contains_static || index_contains_infer {
+            return Ok(Type::Index {
+                left: left_id,
+                index: index_id,
+            });
+        }
 
         // resolve concrete object indexed-access results eagerly
         if matches!(ctx.types.get_type(left_id), Type::Object { .. }) {

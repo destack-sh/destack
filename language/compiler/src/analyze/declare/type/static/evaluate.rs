@@ -279,23 +279,39 @@ impl Compiler {
                     return Ok(Some(value));
                 }
 
-                let Some(enum_symbol) = enum_symbol else {
-                    return Ok(None);
-                };
-                let value = self.enum_field_value_for_symbol_reference(
-                    &mut ctx.reborrow(),
-                    enum_symbol,
-                    *target_symbol,
-                )?;
-                let Some(value) = value else {
-                    return Ok(None);
-                };
-                StaticExpression::ScalarLiteral {
-                    value: match value {
-                        EnumFieldValue::Int(value) => ScalarLiteral::Integer(value),
-                        EnumFieldValue::String(value) => ScalarLiteral::String(value),
-                    },
+                // resolve enum member references eagerly when evaluating enum field values
+                if let Some(enum_symbol) = enum_symbol
+                    && let Some(value) = self.enum_field_value_for_symbol_reference(
+                        &mut ctx.reborrow(),
+                        enum_symbol,
+                        lookup_symbol,
+                    )?
+                {
+                    return Ok(Some(StaticExpression::ScalarLiteral {
+                        value: match value {
+                            EnumFieldValue::Int(value) => ScalarLiteral::Integer(value),
+                            EnumFieldValue::String(value) => ScalarLiteral::String(value),
+                        },
+                    }));
                 }
+
+                // preserve symbolic static value references for later substitution
+                // keep enum fields concrete so enum-member fallback can normalize them
+                if self.symbol_is_symbolic_static_value_reference(ctx.type_view(), lookup_symbol)?
+                    && self.query_static_member_symbol_kind_for_symbol(
+                        ctx.tree_symbol_view(),
+                        lookup_symbol,
+                    )? != Some(StaticMemberSymbolKind::EnumField)
+                {
+                    let reference_type = Type::Reference {
+                        symbol: lookup_symbol,
+                        static_arguments: None,
+                    };
+                    let ty = ctx.types.insert_type_from(reference_type, expression_id);
+                    return Ok(Some(StaticExpression::Type { ty }));
+                }
+
+                return Ok(None);
             }
             Expression::Member {
                 left,
@@ -393,6 +409,14 @@ impl Compiler {
                     )? {
                         return Ok(Some(value));
                     }
+
+                    // preserve unresolved associated comptime projections as symbolic references
+                    let reference_type = Type::Reference {
+                        symbol: selection.target_symbol,
+                        static_arguments: None,
+                    };
+                    let ty = ctx.types.insert_type_from(reference_type, expression_id);
+                    return Ok(Some(StaticExpression::Type { ty }));
                 }
 
                 // fall back to resolved static candidates
@@ -530,20 +554,28 @@ impl Compiler {
                         );
 
                         // unresolved type operands keep conditional evaluation deferred
-                        if mode == StaticEvaluationMode::Instantiated
-                            && (!self.type_is_converged_for_static_evaluation(
-                                ctx.type_view(),
-                                left_type_id,
-                            ) || !self.type_is_converged_for_static_evaluation(
+                        if !self
+                            .type_is_converged_for_static_evaluation(ctx.type_view(), left_type_id)
+                            || !self.type_is_converged_for_static_evaluation(
                                 ctx.type_view(),
                                 right_type_id,
-                            ))
+                            )
                         {
-                            return Ok(None);
+                            if mode == StaticEvaluationMode::Instantiated {
+                                return Ok(None);
+                            }
+
+                            return Ok(Some(StaticExpression::Unevaluated {
+                                node: expression_id,
+                            }));
                         }
 
-                        self.is_type_assignable(&mut ctx.reborrow(), right_type_id, left_type_id)
-                            != Assignability::NotAssignable
+                        let assignability = self.is_type_assignable(
+                            &mut ctx.reborrow(),
+                            right_type_id,
+                            left_type_id,
+                        );
+                        assignability != Assignability::NotAssignable
                     }
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::Boolean(value),
@@ -640,7 +672,13 @@ impl Compiler {
                 if !self.type_is_converged_for_static_evaluation(ctx.type_view(), left_type_id)
                     || !self.type_is_converged_for_static_evaluation(ctx.type_view(), right_type_id)
                 {
-                    return Ok(None);
+                    if mode == StaticEvaluationMode::Instantiated {
+                        return Ok(None);
+                    }
+
+                    return Ok(Some(StaticExpression::Unevaluated {
+                        node: expression_id,
+                    }));
                 }
 
                 // choose the branch using extends assignability semantics

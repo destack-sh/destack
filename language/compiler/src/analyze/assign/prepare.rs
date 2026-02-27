@@ -1,5 +1,6 @@
 use super::*;
 use crate::analyze::common::TypeContext;
+use destack_dir::are_types_equal;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -115,12 +116,17 @@ impl Compiler {
             return true;
         }
 
+        let target_count = self.unwrapped_value_without_as_comptime_type_id(target_count, types);
+        let source_count = self.unwrapped_value_without_as_comptime_type_id(source_count, types);
+        if target_count == source_count || are_types_equal(target_count, source_count, types) {
+            return true;
+        }
+
         let target_value = self.array_sized_count_literal_value(target_count, types);
         let source_value = self.array_sized_count_literal_value(source_count, types);
         let (Some(target_value), Some(source_value)) = (target_value, source_value) else {
             return false;
         };
-
         target_value == source_value
     }
 
@@ -144,7 +150,7 @@ impl Compiler {
         count: LocalTypeId,
         types: &TypeTable,
     ) -> Option<i64> {
-        let count_ty_id = types.unwrap_value_type_id(count);
+        let count_ty_id = self.unwrapped_value_without_as_comptime_type_id(count, types);
         self.integer_literal_value_for_type_id(count_ty_id, types)
     }
 
