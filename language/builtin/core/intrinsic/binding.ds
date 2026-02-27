@@ -215,9 +215,12 @@ export type PlatformCapability =
     | "tls.resumption"
     | "tls.session"
     | "tls.trust.write"
+    | "tty.handle"
     | "tty.mode"
+    | "tty.pty"
     | "tty.read"
     | "tty.size"
+    | "tty.termios"
     | "tty.write";
 
 /// Platform selector tags for runtime binding availability.
