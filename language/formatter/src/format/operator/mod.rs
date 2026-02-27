@@ -3,6 +3,7 @@ mod binary;
 mod context;
 mod expression;
 
+pub(crate) use self::binary::union_owns_prefix_annotations;
 pub(crate) use self::context::{
     BinaryOperands, expression_is_trivial_inline_without_annotations, expression_static_arguments,
     flatten_binary_expression, flatten_type_binary_expression, flattened_binary_operand_count,
@@ -14,5 +15,5 @@ pub(crate) use self::context::{
 };
 pub(crate) use self::expression::format_operator_expression;
 pub(crate) use crate::format::expression::{
-    Annotation, AnnotationPosition, NodeType, Span, TokenType, has_comment_between_expressions,
+    Annotation, AnnotationPosition, NodeType, TokenType, has_comment_between_expressions,
 };

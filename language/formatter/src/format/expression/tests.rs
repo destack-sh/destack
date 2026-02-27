@@ -2,6 +2,7 @@ use crate::format::expression::{
     ParenthesizedUnwrapMode, expression_has_complex_callback, is_assignment_left_target,
     should_unwrap_parenthesized,
 };
+use crate::format::operator::flatten_type_binary_expression;
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format, assert_format_idempotent_with_file_type, assert_format_output_eq,
@@ -10,8 +11,8 @@ use crate::{
     statement_list,
 };
 use destack_ast::{
-    Argument, BlockContext, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
-    NodeParentIndex, NodeTree, NodeType,
+    Argument, BinaryOperator, BlockContext, Declaration, DeclarationDescriptor, Expression,
+    LocalNodeId, NodeParentIndex, NodeTree, NodeType,
 };
 use destack_source::FileType;
 use destack_workspace::{QuoteProperty, QuoteStyle};
@@ -1695,11 +1696,11 @@ fn test_format_throw_parenthesized_sequence_with_comment_is_idempotent() {
     assert_format_output_eq(&first_output, &second_output);
 }
 
-/// Satisfies seam comments should stay on the operator seam for qualified rhs type paths.
+/// Satisfies seam comments on qualified rhs paths should become trailing expression comments.
 #[test]
 fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {
     let source = "value satisfies // seam\nns.Record<A, B>";
-    let expected = "value satisfies // seam\n    ns.Record<A, B>";
+    let expected = "value satisfies ns.Record<A, B> // seam";
     let (formatter, expression_id) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
             p.eat_expression(Default::default())
@@ -2589,6 +2590,309 @@ type B3 = a | /* 1 */ /* 2 */ b;
     );
 }
 
+/// Leading-pipe union doc comments should keep stable owner placement across passes.
+#[test]
+fn test_format_typescript_union_leading_pipe_doc_comments_are_idempotent() {
+    let source = r#"
+type A1 =     | /**
+     * octahedralRhinocerosTransformer
+     */
+    a
+    | (b | c);
+
+type A2 =     | /**
+     * hippopotamicKangarooMutator
+     */
+    (a | b)
+    | c;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Leading-pipe union mixed comment seams should stay idempotent.
+#[test]
+fn test_format_typescript_union_leading_pipe_mixed_comment_seams_are_idempotent() {
+    let source = r#"
+// TODO[@fisker]: comments not attached correctly after first element
+type A1 =
+  | /**
+   * 11
+   */
+  a
+  | b
+
+type A2 =
+  | /**
+   * 21
+   */ a
+  | b
+
+type A3 =
+  | // 31
+  a
+  |
+  b;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Parenthesized intersection seams around union operands should remain stable.
+#[test]
+fn test_format_typescript_union_parenthesized_intersection_comment_seams_are_idempotent() {
+    let source = r#"
+type A1 =
+  // prettier-ignore
+  (A | B)
+  & (
+    // prettier-ignore
+    A | B
+  )
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Deeply nested single-type union wrappers with comments should stay idempotent.
+#[test]
+fn test_format_typescript_union_single_type_nested_comments_are_idempotent() {
+    let source = r#"
+type A1 =
+  | (
+    | (
+      | (
+          | A
+          // A comment to force break
+          | B
+        )
+    )
+  );
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Single-member leading-pipe wrappers with line comments should keep union members on rerun.
+#[test]
+fn test_format_typescript_union_single_type_line_comment_preserves_second_member() {
+    let source = r#"
+type A6 = /*1*/
+  | A
+  // A comment to force break
+  | B;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Parser output for leading-pipe unions should preserve both arms before formatting.
+#[test]
+fn test_parse_typescript_union_single_type_line_comment_keeps_binary_arms() {
+    let source = "type A6 = /*1*/\n| A\n// A comment to force break\n| B;";
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse union source");
+
+    assert_eq!(roots.len(), 1);
+
+    let declaration_expression_id = match formatter.tree.get(roots[0]) {
+        Expression::Statement(expression_id) => *expression_id,
+        _ => roots[0],
+    };
+
+    let Expression::Declaration(declaration_id) = formatter.tree.get(declaration_expression_id)
+    else {
+        panic!("expected type declaration expression");
+    };
+    let Declaration::Type { value, .. } = formatter.tree.get(*declaration_id) else {
+        panic!("expected type declaration node");
+    };
+
+    let Expression::Binary {
+        operator,
+        left,
+        right,
+    } = formatter.tree.get(*value)
+    else {
+        panic!("expected binary union type value");
+    };
+    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+
+    let context = context_from_formatter(&formatter);
+    let flattened = flatten_type_binary_expression(&context, *value, *operator);
+    assert_eq!(flattened.len(), 2);
+
+    let Expression::Path { path, .. } = formatter.tree.get(*left) else {
+        panic!("expected left union arm path");
+    };
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(formatter.strings.get(path.segments[0]), "A");
+
+    let Expression::Path { path, .. } = formatter.tree.get(*right) else {
+        panic!("expected right union arm path");
+    };
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(formatter.strings.get(path.segments[0]), "B");
+}
+
+/// Prettier fixture 18379 should stay idempotent for union-intersection seams.
+#[test]
+fn test_format_typescript_union_fixture_18379_is_idempotent() {
+    let source = r#"
+type A1 =
+  (
+    A | B // comment 1
+  ) & (
+    // comment2
+    A | B
+  )
+
+type A2 =
+  (
+    A | B // prettier-ignore
+  ) & (
+    // prettier-ignore
+    A | B
+  )
+
+type A1 =
+  // comment 1
+  (A | B)
+  & (
+    // comment2
+    A | B
+  )
+
+type A1 =
+  // prettier-ignore
+  (A | B)
+  & (
+    // prettier-ignore
+    A | B
+  )
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Prettier single-type nested union fixture should keep line comments stable.
+#[test]
+fn test_format_typescript_union_single_type_fixture_is_idempotent() {
+    let source = r#"
+type A1 =
+  | (
+    | (
+      | (
+          | A
+          // A comment to force break
+          | B
+        )
+    )
+  );
+type A2 =
+  | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  );
+type A3 =
+  | ( | (
+          | A
+          // A comment to force break
+          | B
+        ) );
+type A4 =
+  | ( | ( | (
+          | A
+          // A comment to force break
+          | B
+        ) ) );
+type A5 =
+  | (
+    | (
+      | { key: string }
+      | { key: string }
+      | { key: string }
+      | { key: string }
+    )
+    | { key: string }
+    | { key: string }
+  );
+type A6 = | (
+  /*1*/ | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  )
+  );
+
+type B1 =
+  | (
+    & (
+      (
+          | A
+          // A comment to force break
+          | B
+        )
+    )
+  );
+type B2 =
+  | (
+    & (
+      | (
+        & (
+          (
+          | A
+          // A comment to force break
+          | B
+        )
+        )
+      )
+    )
+  );
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Multiline `as const` postfix comments should keep trailing semicolons after the comment.
 #[test]
 fn test_format_typescript_as_const_multiline_postfix_comment_keeps_semicolon_position() {
@@ -2778,6 +3082,34 @@ fn test_format_no_semi_program_guard_comment_after_declaration_is_idempotent() {
     let source = "let error = new Error(response.statusText);\n// comment\n[].response = response\n\nx;\n\n{\n  let foo\n\n  // comment\n  ;[foo] = [1]\n}\n";
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// No-semi fixture comments before control statements should stay before the control statement.
+#[test]
+fn test_format_no_semi_comment_before_if_statement_stays_outside_body() {
+    let source = r#"
+class X {} [1, 2, 3].forEach(fn)
+
+// don't semicolon if it doesn't start statement
+
+if (true) (() => {})()
+"#
+    .trim_start();
+    let expected = r#"
+class X {}
+[1, 2, 3].forEach(fn);
+
+// don't semicolon if it doesn't start statement
+
+if (true) (() => {})();
+"#
+    .trim_start();
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
 }
 
 /// Operator-leading no-semi expressions should not oscillate across formatting passes.
@@ -3001,6 +3333,32 @@ export type b =
     );
 }
 
+/// Pattern tails with own-line comments should not accumulate extra commas across passes.
+#[test]
+fn test_format_typescript_pattern_tail_comments_do_not_accumulate_commas() {
+    let source = r#"
+function method({
+  foo1,
+  // bar = "bar",
+  foo2
+  // bazz = "bazz",
+}: Foo) {}
+
+function method([
+  foo,
+  // bar = "bar",
+  foo2
+  // bazz = "bazz",
+]: Foo) {}
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Semicolon-terminated trailing line comments should keep left ownership before ignore directives.
 #[test]
 fn test_format_no_semi_trailing_line_comment_before_ignore_is_idempotent() {
@@ -3009,6 +3367,24 @@ fn test_format_no_semi_trailing_line_comment_before_ignore_is_idempotent() {
         source,
         FileType::JavaScript,
         |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Binary operator seam comments before rhs operands should keep semicolon-tail ownership.
+#[test]
+fn test_format_binary_operator_seam_comment_before_rhs_is_idempotent() {
+    let source = r#"
+a = b + // Comment
+c;
+
+a = b + // TODO this is a very very very very long comment that makes it go > 80 columns
+c;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
         DestackFormatOptions::default(),
     );
 }

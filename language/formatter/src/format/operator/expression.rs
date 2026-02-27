@@ -11,7 +11,7 @@ use crate::format::expression::{
     FormatResult, LocalNodeId, ParenthesizedUnwrapMode, TypeUnaryOperator, UnaryOperator,
     expression_has_leading_prefix_comment, format_static_argument_list, format_with,
     hard_line_break, member_object_prefers_new_callee_parentheses, should_unwrap_parenthesized,
-    space, token,
+    soft_block_indent, space, token,
 };
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::{format_binary_expression, format_type_binary_expression};
@@ -243,16 +243,33 @@ pub(crate) fn format_operator_expression<'ast>(
                     expression_has_leading_prefix_comment(f.context(), *right);
                 let right_is_parenthesized =
                     matches!(tree.get(*right), Expression::Parenthesized { .. });
-                let right_needs_grouping = right_needs_await_or_yield_grouping
-                    || (right_has_leading_prefix_comment && !right_is_parenthesized);
+                let right_needs_comment_grouping =
+                    right_has_leading_prefix_comment && !right_is_parenthesized;
+                let right_needs_inline_grouping = right_needs_await_or_yield_grouping;
                 let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
                 if needs_space {
-                    if right_needs_grouping {
+                    if right_needs_comment_grouping {
+                        write!(
+                            f,
+                            [
+                                operator,
+                                space(),
+                                token("("),
+                                soft_block_indent(right),
+                                token(")")
+                            ]
+                        )?;
+                    } else if right_needs_inline_grouping {
                         write!(f, [operator, space(), token("("), right, token(")")])?;
                     } else {
                         write!(f, [operator, space(), right])?;
                     }
-                } else if right_needs_grouping {
+                } else if right_needs_comment_grouping {
+                    write!(
+                        f,
+                        [operator, token("("), soft_block_indent(right), token(")")]
+                    )?;
+                } else if right_needs_inline_grouping {
                     write!(f, [operator, token("("), right, token(")")])?;
                 } else {
                     write!(f, [operator, right])?;

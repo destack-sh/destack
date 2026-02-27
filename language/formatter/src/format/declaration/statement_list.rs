@@ -28,11 +28,9 @@ fn expressions_have_blank_line_between(
 ) -> bool {
     let left_span = context.span(left_expression_id);
     let right_span = context.span(right_expression_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
+    let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
-    }
-
-    let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+    };
     context.has_blank_line(between_span)
 }
 

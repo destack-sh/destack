@@ -1,9 +1,9 @@
 use crate::format::chain::receiver_is_await_wrapped;
 use crate::format::expression::{
     DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, ParenthesizedUnwrapMode,
-    PostfixPosition, Span, StringId, block_indent, format_static_argument_list, format_with, group,
-    indent, line_postfix_boundary, should_parenthesize_index_expression,
-    should_unwrap_parenthesized, soft_line_break, token, write_postfix_base_expression,
+    PostfixPosition, Span, StringId, format_static_argument_list, format_with, group, indent,
+    line_postfix_boundary, should_parenthesize_index_expression, should_unwrap_parenthesized,
+    soft_block_indent, soft_line_break, token, write_postfix_base_expression,
 };
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
@@ -230,6 +230,37 @@ pub(crate) fn format_type_template_literal<'ast>(
 }
 
 /// Format an index expression without considering chaining.
+pub(crate) fn write_index_access<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    index_id: LocalNodeId<Expression>,
+    should_parenthesize: bool,
+    force_expand: bool,
+) -> FormatResult<()> {
+    let format_index_access = format_with(|f| {
+        write!(f, [token("[")])?;
+        if should_parenthesize {
+            write!(
+                f,
+                [soft_block_indent(&format_args![
+                    token("("),
+                    index_id,
+                    token(")")
+                ])]
+            )?;
+        } else {
+            write!(f, [soft_block_indent(&index_id)])?;
+        }
+        write!(f, [token("]")])
+    });
+
+    if force_expand {
+        return write!(f, [group(&format_index_access).should_expand(true)]);
+    }
+
+    write!(f, [group(&format_index_access)])
+}
+
+/// Format an index expression without considering chaining.
 #[inline]
 pub(crate) fn format_index_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -256,31 +287,10 @@ pub(crate) fn format_index_expression<'ast>(
                     left_span.end,
                     index_span.start,
                 ));
-            let should_break_index = has_break_after_open
-                || f.context().has_newline(index_span)
-                || f.context().has_annotation(*index);
-
-            if should_break_index {
-                write!(
-                    f,
-                    [group(&format_with(|f| {
-                        write!(f, [token("[")])?;
-                        if should_parenthesize {
-                            write!(
-                                f,
-                                [block_indent(&format_args![token("("), *index, token(")")])]
-                            )?;
-                        } else {
-                            write!(f, [block_indent(index)])?;
-                        }
-                        write!(f, [token("]")])
-                    }))
-                    .should_expand(true)]
-                )?;
-            } else if should_parenthesize {
+            if should_parenthesize && !has_break_after_open {
                 write!(f, [token("["), token("("), *index, token(")"), token("]")])?;
             } else {
-                write!(f, [token("["), *index, token("]")])?;
+                write_index_access(f, *index, should_parenthesize, has_break_after_open)?;
             }
         } else {
             write!(f, [token("[]")])?;

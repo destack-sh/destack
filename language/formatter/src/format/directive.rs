@@ -106,8 +106,10 @@ where
         let (between_is_whitespace_only, line_distance) = if token.span.end > node_span.start {
             (true, 0)
         } else {
-            let between_span = Span::new(node_span.file, token.span.end, node_span.start);
-            let between_is_whitespace_only = !context.has_non_whitespace_content(between_span);
+            let between_is_whitespace_only = token
+                .span
+                .gap_to(node_span)
+                .is_none_or(|between_span| !context.has_non_whitespace_content(between_span));
             let line_distance = context
                 .source_line_distance(token.span.end, node_span.start)
                 .map_or(2, |distance| distance as usize);

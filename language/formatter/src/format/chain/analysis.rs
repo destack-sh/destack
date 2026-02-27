@@ -25,21 +25,6 @@ pub(crate) fn argument_value_id(
     }
 }
 
-/// Check whether source contains a newline between two expression nodes.
-pub(crate) fn has_newline_between_expressions(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-    right_id: LocalNodeId<Expression>,
-) -> bool {
-    let left_span = context.span(left_id);
-    let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
-        return false;
-    }
-
-    context.has_newline(Span::new(left_span.file, left_span.end, right_span.start))
-}
-
 /// Check whether source contains a comment between two expression nodes.
 pub(crate) fn has_comment_between_expressions(
     context: &DestackFormatContext<'_>,
@@ -48,11 +33,11 @@ pub(crate) fn has_comment_between_expressions(
 ) -> bool {
     let left_span = context.span(left_id);
     let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
+    let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
-    }
+    };
 
-    context.has_comment(Span::new(left_span.file, left_span.end, right_span.start))
+    context.has_comment(between_span)
 }
 
 /// Return whether a `//` comment exists between two expression nodes.
@@ -63,18 +48,18 @@ pub(crate) fn has_line_comment_between_expressions(
 ) -> bool {
     let left_span = context.span(left_id);
     let right_span = context.span(right_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
+    let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
-    }
+    };
 
     context
         .line_comment_spans
         .iter()
         .copied()
         .any(|comment_span| {
-            comment_span.file == left_span.file
-                && comment_span.start >= left_span.end
-                && comment_span.end <= right_span.start
+            comment_span.file == between_span.file
+                && comment_span.start >= between_span.start
+                && comment_span.end <= between_span.end
         })
 }
 
@@ -530,41 +515,6 @@ fn member_receiver_property_gap_span(
     }
 }
 
-/// Return whether a path spans a newline before its first `.` separator.
-fn path_has_newline_before_first_separator(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Path { path, .. } = context.tree.get(node_id) else {
-        return false;
-    };
-    if path.segments.len() <= 1 {
-        return false;
-    }
-
-    let span = context.span(node_id);
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.end <= span.start);
-    let mut has_newline_before_separator = false;
-
-    while let Some(token) = tokens.get(index).copied() {
-        if token.span.start >= span.end {
-            break;
-        }
-
-        index += 1;
-        if token.token.ty == TokenType::Dot {
-            return has_newline_before_separator;
-        }
-
-        if token.token.ty == TokenType::Newline {
-            has_newline_before_separator = true;
-        }
-    }
-
-    false
-}
-
 /// Check if a member access has an intervening comment between receiver and property.
 pub(crate) fn member_has_intervening_comment(
     context: &DestackFormatContext<'_>,
@@ -572,26 +522,6 @@ pub(crate) fn member_has_intervening_comment(
 ) -> bool {
     member_receiver_property_gap_span(context, node_id)
         .is_some_and(|span| context.has_comment(span))
-}
-
-/// Check if a member access has an intervening break or comment between receiver and property.
-pub(crate) fn member_has_intervening_break_or_comment(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    // member and private member: inspect the trivia gap between receiver and property
-    if let Some(span) = member_receiver_property_gap_span(context, node_id) {
-        return context.has_newline(span) || context.has_comment(span);
-    }
-
-    // path chains: only the first separator can influence root splitting
-    if matches!(context.tree.get(node_id), Expression::Path { .. }) {
-        let span = context.span(node_id);
-        return path_has_newline_before_first_separator(context, node_id)
-            || context.has_comment(span);
-    }
-
-    false
 }
 
 /// Return an expression end anchor used for chain trivia checks.
@@ -716,7 +646,7 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
     }
     let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
 
-    context.has_newline(between_span) || context.has_comment(between_span)
+    context.has_comment(between_span)
 }
 
 /// Return the concrete span that corresponds to one annotation node.

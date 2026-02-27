@@ -108,7 +108,8 @@ impl<'a> DestackFormatContext<'a> {
             return false;
         }
 
-        self.has_newline(Span::new(span.file, span.end, next_token.span.start))
+        span.gap_to(next_token.span)
+            .is_some_and(|between_span| self.has_newline(between_span))
     }
 
     /// Return the first non-trivia token that intersects one span.

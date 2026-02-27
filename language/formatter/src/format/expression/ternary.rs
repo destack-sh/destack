@@ -163,6 +163,37 @@ fn ternary_chain_has_line_comment_annotation(
     })
 }
 
+/// Return whether one ternary chain has parenthesized then or else branches.
+fn ternary_chain_has_parenthesized_branch(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, node_id) else {
+        return false;
+    };
+
+    if matches!(
+        context.tree.get(then_expression),
+        Expression::Parenthesized { .. }
+    ) {
+        return true;
+    }
+
+    let Some(else_expression) = else_expression else {
+        return false;
+    };
+
+    if matches!(
+        context.tree.get(else_expression),
+        Expression::Parenthesized { .. }
+    ) {
+        return true;
+    }
+
+    ternary_parts(context.tree, else_expression)
+        .is_some_and(|_| ternary_chain_has_parenthesized_branch(context, else_expression))
+}
+
 /// Return whether one expression is a ternary expression.
 fn expression_is_ternary(
     context: &DestackFormatContext<'_>,
@@ -429,7 +460,8 @@ fn format_jsx_chain_ternary<'ast>(
     };
 
     let should_expand = ternary_chain_has_line_comment_annotation(f.context(), node_id)
-        || f.context().node_has_newline(node_id);
+        || f.context().node_has_newline(node_id)
+        || ternary_chain_has_parenthesized_branch(f.context(), node_id);
     let ternary_is_in_braced_tree_child_argument =
         expression_is_in_braced_tree_child_argument(f.context(), node_id);
     write!(

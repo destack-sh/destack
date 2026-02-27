@@ -1377,14 +1377,9 @@ pub(crate) fn tree_children_have_blank_line_between(
 ) -> bool {
     let previous_span = context.span(previous_argument_id);
     let next_span = context.span(next_argument_id);
-    if previous_span.file != next_span.file {
+    let Some(between_span) = previous_span.gap_to(next_span) else {
         return false;
-    }
-    if previous_span.end >= next_span.start {
-        return false;
-    }
-
-    let between_span = Span::new(previous_span.file, previous_span.end, next_span.start);
+    };
     context.has_blank_line(between_span)
 }
 
@@ -1452,6 +1447,21 @@ pub(crate) fn tree_child_should_inline_braced_expression(
             else_expression,
             ..
         } => {
+            let has_parenthesized_branch = matches!(
+                context.tree.get(*then_expression),
+                Expression::Parenthesized { .. }
+            ) || else_expression.is_some_and(|else_id| {
+                matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
+            });
+            let has_branch_prefix_star_comment =
+                expression_has_prefix_star_comment_annotation(context, *then_expression)
+                    || else_expression.is_some_and(|else_id| {
+                        expression_has_prefix_star_comment_annotation(context, else_id)
+                    });
+            if has_parenthesized_branch && has_branch_prefix_star_comment {
+                return false;
+            }
+
             let condition_id = match condition {
                 IfCondition::Expression { condition } => *condition,
                 IfCondition::Let { .. } => return false,
@@ -1525,6 +1535,31 @@ fn expression_has_line_comment_annotation(
     })
 }
 
+/// Return whether one expression has one prefix block-star comment annotation.
+fn expression_has_prefix_star_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            return false;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        comment.style == destack_ast::CommentStyle::Star
+    })
+}
+
 /// Return whether one tree argument has a line-oriented slash comment annotation.
 fn argument_has_line_comment_annotation(
     context: &DestackFormatContext<'_>,
@@ -1581,6 +1616,29 @@ fn ternary_has_line_comment_annotation(
             .is_some_and(|else_id| expression_has_line_comment_annotation(context, else_id))
 }
 
+/// Return whether a ternary expression has parenthesized then or else branches.
+fn ternary_has_parenthesized_branch(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::If {
+        kind: IfKind::Ternary,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get(expression_id)
+    else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*then_expression),
+        Expression::Parenthesized { .. }
+    ) || else_expression.is_some_and(|else_id| {
+        matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
+    })
+}
+
 /// Check whether a tree child forces the element to break.
 pub(crate) fn tree_child_breaks_element(
     context: &DestackFormatContext<'_>,
@@ -1611,7 +1669,8 @@ pub(crate) fn tree_child_breaks_element(
                 ..
             }
         ) {
-            return ternary_has_line_comment_annotation(context, value_id);
+            return ternary_has_line_comment_annotation(context, value_id)
+                || ternary_has_parenthesized_branch(context, value_id);
         }
 
         return true;
@@ -1622,7 +1681,10 @@ pub(crate) fn tree_child_breaks_element(
         Expression::If {
             kind: IfKind::Ternary,
             ..
-        } => ternary_has_line_comment_annotation(context, value_id),
+        } => {
+            ternary_has_line_comment_annotation(context, value_id)
+                || ternary_has_parenthesized_branch(context, value_id)
+        }
         Expression::Block(_) | Expression::Match { .. } => true,
         Expression::Declaration(declaration_id) => {
             lambda_body_is_complex_for_tree(context, *declaration_id)

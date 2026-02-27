@@ -2,27 +2,24 @@ use crate::format::collection::list_like;
 use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
 use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::declaration::statement::format_block_of_statements;
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-};
 use crate::format::expression::{
-    ParenthesizedDropMode, format_expression, is_expression_breakable, should_drop_parenthesized,
+    BinaryOperator, ParenthesizedDropMode, should_drop_parenthesized,
+    should_drop_parenthesized_type_expression,
 };
-use crate::format::operator::is_type_context;
+use crate::format::operator::{flatten_type_binary_expression, is_type_context};
 use crate::{
     Annotation, DestackFormatContext, DestackFormatter, FormatNode,
     empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
-    DependencyKind, DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind,
-    ImportAliasTarget, Key, Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind,
-    NodeType, Parameter, TokenType, TypeKind, Visibility,
+    AnnotationPosition, Declaration, DeclarationDescriptor, DeclarationKind, DependencyKind,
+    DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind, ImportAliasTarget, Key,
+    Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind, NodeType, Parameter, TypeKind,
+    Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_source::Span;
 
 use crate::format::declaration::function::format_function_declaration;
 use crate::format::declaration::r#type::{
@@ -31,6 +28,95 @@ use crate::format::declaration::r#type::{
 };
 
 const TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH: u16 = 80;
+
+/// Normalize one TypeScript type-alias value through transparent grouping wrappers.
+///
+/// This mirrors oxc/prettier single-member union transparency for TS fixtures:
+/// nested `| (...)` wrapper chains should resolve to the effective value expression.
+fn normalize_typescript_type_alias_value_expression(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    if context.options.language_type.is_destack() {
+        return value_id;
+    }
+
+    let mut current_id = value_id;
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Statement(inner_expression_id) => {
+                current_id = *inner_expression_id;
+                continue;
+            }
+            Expression::Parenthesized {
+                expression: inner_expression_id,
+            } => {
+                let inner_id = *inner_expression_id;
+                let inner_is_type_grouping_wrapper = matches!(
+                    context.tree.get(inner_id),
+                    Expression::Parenthesized { .. }
+                        | Expression::Binary {
+                            operator: BinaryOperator::ElementwiseOr
+                                | BinaryOperator::ElementwiseAnd,
+                            ..
+                        }
+                ) && is_type_context(context, inner_id);
+                if !context.has_annotation(current_id) && inner_is_type_grouping_wrapper {
+                    current_id = inner_id;
+                    continue;
+                }
+
+                if should_drop_parenthesized_type_expression(context, current_id, inner_id) {
+                    current_id = *inner_expression_id;
+                    continue;
+                }
+            }
+            Expression::Binary { operator, .. }
+                if is_type_context(context, current_id)
+                    && matches!(
+                        operator,
+                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                    ) =>
+            {
+                let operands = flatten_type_binary_expression(context, current_id, *operator);
+                if operands.len() == 1 {
+                    current_id = operands[0].expression;
+                    continue;
+                }
+            }
+            _ => {}
+        }
+
+        break;
+    }
+
+    current_id
+}
+
+/// Return whether one union value ends with an own-line doc prefix annotation.
+fn union_has_trailing_own_line_doc_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(value_id) else {
+        return false;
+    };
+
+    annotation_ids
+        .into_iter()
+        .rev()
+        .find(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id).position(),
+                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+            )
+        })
+        .is_some_and(|annotation_id| {
+            matches!(context.annotation(annotation_id), Annotation::Doc { .. })
+                && context.annotation_starts_on_own_line(annotation_id)
+                && !context.annotation_next_token_is_on_same_line(annotation_id)
+        })
+}
 
 /// Format one declaration export modifier and export-head seam comments.
 pub(crate) fn format_declaration_export_modifier<'ast>(
@@ -430,168 +516,6 @@ pub(crate) fn format_extension_declaration<'ast>(
     Ok(())
 }
 
-/// Store inline block-prefix comment metadata for type grouping expressions.
-#[derive(Debug, Clone)]
-struct InlineTypePrefixCommentCluster {
-    /// The target expression id whose leading comments are emitted inline.
-    expression_id: LocalNodeId<Expression>,
-    /// The annotation ids in source order.
-    annotation_ids: Vec<LocalNodeId<Annotation>>,
-    /// Whether each annotation starts after a source newline relative to the previous one.
-    annotation_breaks_before: Vec<bool>,
-}
-
-impl InlineTypePrefixCommentCluster {
-    /// Return whether the cluster contains source newline breaks between comments.
-    fn has_multiline_breaks(&self) -> bool {
-        self.annotation_breaks_before
-            .iter()
-            .copied()
-            .skip(1)
-            .any(|has_break| has_break)
-    }
-}
-
-/// Return inline prefix comment cluster metadata for type grouping expressions.
-fn single_line_type_grouping_prefix_comment_cluster(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<InlineTypePrefixCommentCluster> {
-    if !is_type_context(context, expression_id) {
-        return None;
-    }
-
-    let mut current_id = expression_id;
-    loop {
-        let Some(annotations) = context.annotations(current_id) else {
-            let next_id = match context.tree.get(current_id) {
-                Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                    Some(*expression)
-                }
-                Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => {
-                    Some(*left)
-                }
-                _ => None,
-            }?;
-            current_id = next_id;
-            continue;
-        };
-
-        let mut cluster = Vec::new();
-        let mut annotation_breaks_before = Vec::new();
-        for annotation_id in annotations {
-            let annotation = context.annotation(annotation_id);
-            let Annotation::Comment {
-                node: comment_id,
-                position,
-                ..
-            } = annotation
-            else {
-                break;
-            };
-            if !matches!(
-                position,
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            ) {
-                break;
-            }
-
-            let comment = context.tree.get::<Comment>(comment_id);
-            if comment.style != CommentStyle::Star {
-                break;
-            }
-            let comment_span = context.annotation_span(annotation_id);
-            if context.has_newline(comment_span) {
-                return None;
-            }
-            let has_newline_before =
-                cluster
-                    .last()
-                    .copied()
-                    .is_some_and(|previous_annotation_id| {
-                        let previous_span = context.annotation_span(previous_annotation_id);
-                        let current_span = context.annotation_span(annotation_id);
-                        let between_span =
-                            Span::new(previous_span.file, previous_span.end, current_span.start);
-                        context.has_newline(between_span)
-                    });
-
-            cluster.push(annotation_id);
-            annotation_breaks_before.push(has_newline_before);
-        }
-
-        if cluster.is_empty() {
-            return None;
-        }
-
-        let last_annotation_id = *cluster.last()?;
-        let next_token_type = context.annotation_next_non_whitespace_token_type(last_annotation_id);
-        if !matches!(
-            next_token_type,
-            Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
-        ) {
-            return None;
-        }
-        return Some(InlineTypePrefixCommentCluster {
-            expression_id: current_id,
-            annotation_ids: cluster,
-            annotation_breaks_before,
-        });
-    }
-}
-
-/// Return whether an expression or its transparent left spine has a prefix annotation.
-fn expression_has_prefix_annotation_in_left_spine(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_id = expression_id;
-    loop {
-        if context.has_prefix_annotation(current_id) {
-            return true;
-        }
-
-        let next_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                Some(*expression)
-            }
-            Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => Some(*left),
-            _ => None,
-        };
-
-        let Some(next_id) = next_id else {
-            return false;
-        };
-        current_id = next_id;
-    }
-}
-
-/// Format an expression while omitting its own prefix annotations.
-fn format_expression_without_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let directive = directive_for_node(f.context(), expression_id);
-    let expression = f.context().tree.get(expression_id);
-
-    format_expression(f, expression_id, expression, directive)?;
-
-    if !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    ) {
-        write!(
-            f,
-            [f.context().any_infix_or_postfix_annotations(expression_id)]
-        )?;
-    }
-
-    Ok(())
-}
-
 /// Format a type alias declaration.
 pub(crate) fn format_type_alias_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -602,6 +526,8 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     static_parameters: &Option<Vec<LocalNodeId<Parameter>>>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let value_id = normalize_typescript_type_alias_value_expression(f.context(), value_id);
+
     let header = format_with(|f| {
         // export
         format_declaration_export_modifier(f, node_id, descriptor)?;
@@ -638,58 +564,13 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         Ok(())
     });
 
-    let inline_prefix_comment_cluster =
-        single_line_type_grouping_prefix_comment_cluster(f.context(), value_id);
-
     let tree = f.context().tree;
 
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("=")])?;
-        if let Some(cluster) = inline_prefix_comment_cluster.as_ref() {
-            if cluster.has_multiline_breaks() {
-                write!(
-                    f,
-                    [indent(&format_with(
-                        |f: &mut DestackFormatter<'ast, '_>| {
-                            write!(f, [hard_line_break()])?;
-                            for (index, annotation_id) in
-                                cluster.annotation_ids.iter().copied().enumerate()
-                            {
-                                if index > 0 {
-                                    if cluster.annotation_breaks_before[index] {
-                                        write!(f, [hard_line_break()])?;
-                                    } else {
-                                        write!(f, [space()])?;
-                                    }
-                                }
-
-                                let annotation = f.context().annotation(annotation_id);
-                                annotation.format_node(annotation_id, f)?;
-                            }
-
-                            write!(f, [space()])?;
-                            format_expression_without_prefix_annotations(f, cluster.expression_id)?;
-                            Ok(())
-                        }
-                    ))]
-                )?;
-            } else {
-                write!(f, [space()])?;
-                for (index, annotation_id) in cluster.annotation_ids.iter().copied().enumerate() {
-                    if index > 0 {
-                        write!(f, [space()])?;
-                    }
-                    let annotation = f.context().annotation(annotation_id);
-                    annotation.format_node(annotation_id, f)?;
-                }
-                write!(f, [space()])?;
-                format_expression_without_prefix_annotations(f, cluster.expression_id)?;
-            }
-        } else {
-            write!(f, [space()])?;
-            write!(f, [value_id])?;
-        }
+        write!(f, [space()])?;
+        write!(f, [value_id])?;
         Ok(())
     });
 
@@ -704,16 +585,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
             ])]
         )
     });
-
-    // expand inline if breakable (like let x = [\n ... ])
-    let format_inline_expanded = format_with(|f| {
-        write!(f, [header, space(), token("=")])?;
-        write!(f, [space()])?;
-        write!(f, [fits_expanded(&group(&value_id).should_expand(true))])
-    });
     let value_expression = tree.get(value_id);
-    let value_has_prefix_annotation =
-        expression_has_prefix_annotation_in_left_spine(f.context(), value_id);
     let line_width = f.context().options.line_width;
     let should_break_template_literal_type_after_equals = match value_expression {
         Expression::TypeTemplateLiteral { spans, .. } => {
@@ -737,6 +609,28 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         }
         _ => false,
     };
+    let value_is_type_union = matches!(
+        value_expression,
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr,
+            ..
+        }
+    ) && is_type_context(f.context(), value_id);
+    let value_has_own_line_prefix_annotation = f
+        .context()
+        .visit_annotations(value_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                matches!(
+                    f.context().annotation(*annotation_id).position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) && f.context().annotation_starts_on_own_line(*annotation_id)
+            })
+        })
+        .unwrap_or(false);
+    let should_break_for_own_line_prefix_annotation =
+        value_has_own_line_prefix_annotation && !value_is_type_union;
+    let should_break_for_union_trailing_doc_prefix_annotation = value_is_type_union
+        && union_has_trailing_own_line_doc_prefix_annotation(f.context(), value_id);
     let value_prefers_inline_after_equals = match value_expression {
         Expression::Parenthesized { expression } => !should_drop_parenthesized(
             f.context(),
@@ -747,19 +641,15 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => {
             matches!(tree.get(*left), Expression::Parenthesized { .. })
         }
-        _ => false,
+        _ => true,
     };
-    if inline_prefix_comment_cluster.is_some() {
-        format_inline.format(f)?;
-    } else if should_break_after_equals || should_break_template_literal_type_after_equals {
+    if should_break_after_equals
+        || should_break_template_literal_type_after_equals
+        || should_break_for_own_line_prefix_annotation
+        || should_break_for_union_trailing_doc_prefix_annotation
+    {
         format_soft_break.format(f)?;
-    } else if is_expression_breakable(tree, tree.get(value_id)) {
-        if value_prefers_inline_after_equals {
-            format_inline.format(f)?;
-        } else {
-            format_inline_expanded.format(f)?;
-        }
-    } else if value_has_prefix_annotation || value_prefers_inline_after_equals {
+    } else if value_prefers_inline_after_equals {
         format_inline.format(f)?;
     } else {
         format_soft_break.format(f)?;

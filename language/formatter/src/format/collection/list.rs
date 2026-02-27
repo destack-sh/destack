@@ -6,9 +6,10 @@ use destack_workspace::TrailingComma;
 
 use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
 use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
-use crate::{DestackFormatContext, FormatNode};
+use crate::{Annotation, DestackFormatContext, FormatNode};
 use destack_ast::{
-    Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenType,
+    AnnotationPosition, Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl,
+    NodeType, TokenType,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -122,6 +123,9 @@ where
             && self.allow_trailing_separator
             && self.kind.should_add_trailing_comma(trailing_comma_option);
         let should_add_space = self.include_space && options.bracket_spacing && has_elements;
+        let should_expand_for_line_postfix_boundary = self.start_token == "<"
+            && self.end_token == ">"
+            && list_elements_have_line_postfix_boundary_annotations(f.context(), self.elements);
 
         let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
             let comment_tokens = f.context().comment_tokens();
@@ -192,6 +196,9 @@ where
         });
 
         // grouped lists can choose inline or expanded shape without best fitting
+        let should_expand =
+            self.force_expand || has_ignore_ranges || should_expand_for_line_postfix_boundary;
+
         let format_grouped = format_with(|f| {
             group(&format_args![
                 &token(self.start_token),
@@ -199,7 +206,7 @@ where
                 &token(self.end_token)
             ])
             .with_id(self.group_id)
-            .should_expand(self.force_expand || has_ignore_ranges)
+            .should_expand(should_expand)
             .format(f)
         });
 
@@ -209,7 +216,7 @@ where
             return Ok(());
         }
 
-        if self.force_expand || has_ignore_ranges {
+        if should_expand {
             format_indented.format(f)?;
         } else if self.group_id.is_none() {
             let no_group_counter = match (self.start_token, self.end_token) {
@@ -247,6 +254,32 @@ where
 
         Ok(())
     }
+}
+
+/// Return whether list elements contain line-postfix-boundary annotations.
+fn list_elements_have_line_postfix_boundary_annotations<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    elements: &[LocalNodeId<T>],
+) -> bool
+where
+    T: Node + Clone + FormatNode<'ast, T>,
+    NodeTree: NodeTreeImpl<T>,
+{
+    elements.iter().copied().any(|element_id| {
+        context
+            .visit_annotations(element_id, |annotations| {
+                annotations.iter().copied().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id),
+                        Annotation::Comment {
+                            position: AnnotationPosition::LinePostfixBoundary,
+                            ..
+                        }
+                    )
+                })
+            })
+            .unwrap_or(false)
+    })
 }
 
 /// Return whether the parent expression includes source line breaks around this element.

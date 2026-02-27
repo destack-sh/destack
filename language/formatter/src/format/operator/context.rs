@@ -7,9 +7,9 @@ use crate::format::expression::{
     IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, OperatorPrecedence,
     Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
     WhereClause, block_indent, format_expression, hard_line_break, is_trivial_expression,
-    parenthesized_has_leading_inner_trivia, token, transparent_inner_expression,
+    parenthesized_boundary_comments, parenthesized_has_leading_inner_trivia, token,
+    transparent_inner_expression,
 };
-use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 use smallvec::SmallVec;
@@ -552,8 +552,8 @@ pub(crate) fn type_binary_operand_needs_grouping_parentheses(
         return false;
     };
 
-    is_type_grouping_binary_operator(*inner_operator)
-        && *inner_operator != parent_operator
+    parent_operator == BinaryOperator::ElementwiseAnd
+        && *inner_operator == BinaryOperator::ElementwiseOr
         && is_type_context(context, inner_id)
 }
 
@@ -564,6 +564,7 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
     operand_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let mut operand_id = operand_id;
+    let operand_has_non_blank_annotation = f.context().has_non_blank_annotation(operand_id);
     if let Expression::Parenthesized {
         expression: inner_expression_id,
     } = f.context().tree.get(operand_id)
@@ -616,8 +617,6 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
         || needs_precedence_parentheses
         || needs_mixed_logical_grouping_parentheses;
     let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
-    let operand_has_line_postfix_slash_comment =
-        expression_has_line_postfix_slash_comment(f.context(), operand_id);
 
     if needs_grouping_parentheses {
         if operand_has_prefix_annotation {
@@ -627,7 +626,7 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
             )?;
             format_expression_without_prefix_annotations(f, operand_id)?;
             write!(f, [token(")")])?;
-        } else if operand_has_line_postfix_slash_comment {
+        } else if operand_has_non_blank_annotation {
             write!(
                 f,
                 [
@@ -645,32 +644,6 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
     }
 
     Ok(())
-}
-
-/// Return whether one expression ends with one slash line postfix annotation.
-fn expression_has_line_postfix_slash_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
-
-    annotation_ids.iter().copied().any(|annotation_id| {
-        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
-            return false;
-        };
-
-        if !matches!(
-            position,
-            AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
-        ) {
-            return false;
-        }
-
-        let comment = context.tree.get::<Comment>(node);
-        comment.style == CommentStyle::Slash
-    })
 }
 
 /// Format one expression while omitting prefix annotation emission.
@@ -748,6 +721,23 @@ fn redundant_parenthesized_binary_operand_can_drop(
     parenthesized_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    // mixed type-grouping operators require explicit wrappers:
+    // `A | (B & C)` should not drop inner parentheses
+    let Expression::Binary {
+        operator: inner_operator,
+        ..
+    } = context.tree.get(inner_expression_id)
+    else {
+        return false;
+    };
+    if is_type_context(context, parenthesized_id)
+        && is_type_grouping_binary_operator(parent_operator)
+        && is_type_grouping_binary_operator(*inner_operator)
+        && parent_operator != *inner_operator
+    {
+        return false;
+    }
+
     // closure style casts use inline prefix docs/comments before the inner expression
     let has_inline_closure_cast_prefix =
         parenthesized_has_leading_inner_trivia(context, parenthesized_id, inner_expression_id)
@@ -778,10 +768,7 @@ fn redundant_parenthesized_binary_operand_can_drop(
         return false;
     }
 
-    if !matches!(
-        context.tree.get(inner_expression_id),
-        Expression::Binary { .. }
-    ) {
+    if !parenthesized_boundary_comments(context, parenthesized_id, inner_expression_id).is_empty() {
         return false;
     }
 

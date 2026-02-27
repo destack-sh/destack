@@ -1,13 +1,13 @@
+use crate::format::call::call_arguments_force_expand_for_chain;
 use crate::format::chain::{
     Annotation, AnnotationPosition, ChainExpression, DestackFormatContext, Expression, IfKind,
     LocalNodeId, NodeTree, NodeType, PostfixPosition, Span, TokenType, argument_forces_multiline,
     argument_is_function_expression, argument_is_inline_closure_cast_object,
     assignment_like_parent, chain_call_can_expand_in_head,
     chain_has_parent_intervening_break_or_comment, chain_head_id, chain_parent_operator_start,
-    expression_trivia_anchor_end, has_comment_between_expressions, has_newline_between_expressions,
-    is_call_like_argument, is_chain_expression, is_nested_lambda_expression, is_numeric_index,
-    is_simple_chain_argument, is_simple_chain_operation, is_simple_chain_static_arguments,
-    member_has_intervening_break_or_comment, member_has_intervening_comment,
+    expression_trivia_anchor_end, has_comment_between_expressions, is_call_like_argument,
+    is_chain_expression, is_nested_lambda_expression, is_numeric_index, is_simple_chain_argument,
+    is_simple_chain_operation, is_simple_chain_static_arguments, member_has_intervening_comment,
 };
 use crate::format::expression::TypeBinaryOperator;
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
@@ -278,49 +278,45 @@ pub(crate) fn analyze_chain_break(
     let call_summaries = summarize_chain_calls(context, chain);
     let has_chain_intervening_trivia = chain_has_intervening_break_or_comment(context, chain);
     let has_chain_intervening_comment = chain_has_intervening_comment(context, chain);
-    let has_newline_optional_call_boundary_trivia =
-        chain_has_newline_optional_call_boundary_trivia(context, chain);
+    let has_optional_call_boundary_trivia = chain_has_optional_call_boundary_trivia(context, chain);
     let has_optional_tail = chain_has_optional_tail(context, chain);
     let has_member_access = chain_has_member_access(context, chain);
     let has_chain_annotations = chain_has_breaking_annotations(context, chain, chain_head);
     let has_direct_curried_call_pair = chain_has_direct_curried_call_pair(context, chain);
     let has_direct_call_with_inline_closure_cast_object_argument =
         chain_has_direct_call_with_inline_closure_cast_object_argument(context, chain);
-    let has_nonhead_multiline_call_argument = chain.iter().copied().skip(1).any(|expression_id| {
-        let Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } = context.tree.get(expression_id)
-        else {
-            return false;
-        };
-
-        dynamic_arguments
-            .iter()
-            .copied()
-            .any(|argument_id| argument_forces_multiline(context, argument_id))
-            || static_arguments.as_ref().is_some_and(|arguments| {
-                arguments
-                    .iter()
-                    .copied()
-                    .any(|argument_id| argument_forces_multiline(context, argument_id))
-            })
-    });
     let has_nonhead_non_simple_call_argument = call_summaries
         .iter()
         .skip(1)
         .any(|summary| summary.has_non_simple_argument);
-    let has_nonhead_call_complexity =
-        has_nonhead_multiline_call_argument || has_nonhead_non_simple_call_argument;
+    let has_nonhead_call_complexity = has_nonhead_non_simple_call_argument;
+    let head_call_requires_expanded_arguments = chain
+        .iter()
+        .copied()
+        .find_map(|expression_id| {
+            let Expression::Call {
+                dynamic_arguments, ..
+            } = context.tree.get(expression_id)
+            else {
+                return None;
+            };
+
+            Some(call_arguments_force_expand_for_chain(
+                context,
+                expression_id,
+                dynamic_arguments,
+            ))
+        })
+        .unwrap_or(false);
+    let chain_has_following_operation = chain.len() > 1;
 
     let has_call_summaries = !call_summaries.is_empty();
     let has_multiple_call_summaries = call_summaries.len() > 1;
     let should_break =
-        // annotation and comment seams that always force expansion
+            // annotation and comment seams that always force expansion
         has_chain_annotations
             || (has_chain_intervening_comment && has_member_access)
-            || has_newline_optional_call_boundary_trivia
+            || has_optional_call_boundary_trivia
             || has_direct_call_with_inline_closure_cast_object_argument
             // intervening trivia around optional and curried tails
             || (has_chain_intervening_trivia
@@ -328,6 +324,7 @@ pub(crate) fn analyze_chain_break(
             // call-only rules
             || (has_call_summaries
                 && (has_nonhead_call_complexity
+                    || (chain_has_following_operation && head_call_requires_expanded_arguments)
                     || chain_tail_parent_call_requires_chain_break(context, chain_tail)
                     || (has_multiple_call_summaries
                         && chain_overflows_in_type_binary_left(context, chain_tail))));
@@ -339,8 +336,8 @@ pub(crate) fn analyze_chain_break(
     }
 }
 
-/// Return whether one optional call seam has newline-separated boundary trivia.
-fn chain_has_newline_optional_call_boundary_trivia(
+/// Return whether one optional call seam has boundary trivia before its operator.
+fn chain_has_optional_call_boundary_trivia(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
@@ -360,7 +357,6 @@ fn chain_has_newline_optional_call_boundary_trivia(
         }
 
         chain_has_parent_intervening_break_or_comment(context, left)
-            && has_newline_between_expressions(context, left, right)
     })
 }
 
@@ -662,32 +658,20 @@ pub(crate) fn should_stop_for_member_pair(
     is_conditional_branch: bool,
     operation: &ChainExpression,
 ) -> bool {
-    let allow_single_member_call_pair_after_call_like_base = base_has_leading_call_like
-        && index == 0
-        && operations.len() == 2
-        && matches!(
-            next_operation,
-            ChainExpression::Call {
-                node_id,
-                dynamic_arguments,
-                ..
-            } if dynamic_arguments.len() == 1
-                && !context.node_has_newline(*node_id)
-                && !chain_node_has_non_inline_annotation(context, *node_id)
-        );
-    if first_is_call_or_numeric_index
-        || (base_has_leading_call_like && !allow_single_member_call_pair_after_call_like_base)
-    {
-        return true;
-    }
-
     let is_single_member_call_pair = index == 0
         && operations.len() == 2
         && matches!(
             next_operation,
             ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
         );
-    let allow_single_member_call_pair_promotion = allow_wide_head && is_single_member_call_pair;
+    let allow_single_member_call_pair_promotion =
+        allow_wide_head && !is_conditional_branch && is_single_member_call_pair;
+    if first_is_call_or_numeric_index
+        || (base_has_leading_call_like && !allow_single_member_call_pair_promotion)
+    {
+        return true;
+    }
+
     let next_is_empty_call = matches!(
         next_operation,
         ChainExpression::Call {
@@ -921,19 +905,7 @@ pub(crate) fn chain_has_intervening_break_or_comment(
     context: &DestackFormatContext<'_>,
     chain: &[LocalNodeId<Expression>],
 ) -> bool {
-    // check adjacent chain nodes directly for source comments
-    for adjacent in chain.windows(2) {
-        let left_id = adjacent[0];
-        let right_id = adjacent[1];
-        if has_comment_between_expressions(context, left_id, right_id) {
-            return true;
-        }
-    }
-
-    chain.iter().copied().any(|expression_id| {
-        member_has_intervening_break_or_comment(context, expression_id)
-            || chain_has_parent_intervening_break_or_comment(context, expression_id)
-    })
+    chain_has_intervening_comment(context, chain)
 }
 
 /// Return whether a chain contains comments between adjacent chain operations.
