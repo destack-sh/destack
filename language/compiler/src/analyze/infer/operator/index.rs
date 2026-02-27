@@ -164,15 +164,20 @@ impl Compiler {
             &receiver_ty,
             LanguageSymbol::Index,
         ) {
-            self.error(AnalyzeError::NonIndexable {
-                node: expression_id
-                    .into_global_any(ctx.module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            if self.receiver_prefers_overload_diagnostic(&receiver_ty, ctx.types) {
+                self.emit_no_overload_for_receiver_type(
+                    ctx.module_type_view(),
+                    expression_id.into_any(),
+                    receiver_ty_id,
+                );
+            } else {
+                self.error(AnalyzeError::NonIndexable {
+                    node: expression_id
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+            let type_id = ctx.types.insert_type_from(Type::Error, expression_id);
             return Ok(finish_result(type_id, ctx.types));
         }
 
@@ -193,10 +198,7 @@ impl Compiler {
                 expression_id.into_any(),
                 receiver_ty_id,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            let type_id = ctx.types.insert_type_from(Type::Error, expression_id);
             return Ok(finish_result(type_id, ctx.types));
         };
 
@@ -213,21 +215,26 @@ impl Compiler {
                 expression_id.into_any(),
                 receiver_ty_id,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            let type_id = ctx.types.insert_type_from(ty, expression_id);
+            let type_id = ctx.types.insert_type_from(Type::Error, expression_id);
             return Ok(finish_result(type_id, ctx.types));
         }
 
         // resolve index parameter type
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
+            self.record_member_call_resolution(
+                &mut ctx.reborrow(),
+                expression_id,
+                receiver_ty_id,
+                &resolved,
+            )?;
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
             );
+            let type_id = ctx.types.insert_type_from(Type::Error, expression_id);
+            return Ok(finish_result(type_id, ctx.types));
         }
 
         // check index argument assignability
@@ -238,13 +245,11 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 parameter_ty_id,
                 index_ty_id,
-                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
         }
@@ -403,13 +408,11 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 builtin_value_ty_id,
                 value_ty_id,
-                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
 
@@ -432,11 +435,19 @@ impl Compiler {
             &receiver_ty,
             LanguageSymbol::IndexSet,
         ) {
-            self.error(AnalyzeError::NonIndexable {
-                node: expression_id
-                    .into_global_any(ctx.module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
+            if self.receiver_prefers_overload_diagnostic(&receiver_ty, ctx.types) {
+                self.emit_no_overload_for_receiver_type(
+                    ctx.module_type_view(),
+                    expression_id.into_any(),
+                    receiver_ty_id,
+                );
+            } else {
+                self.error(AnalyzeError::NonIndexable {
+                    node: expression_id
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
@@ -489,11 +500,21 @@ impl Compiler {
         let key_param_ty_id = resolved.signature.dynamic_parameters.first().copied();
         let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
         if resolved.signature.dynamic_parameters.len() != 2 {
+            self.record_member_call_resolution(
+                &mut ctx.reborrow(),
+                expression_id,
+                receiver_ty_id,
+                &resolved,
+            )?;
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
             );
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // check key argument assignability
@@ -530,13 +551,11 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 value_param_ty_id,
                 value_ty_id,
-                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
         }
@@ -684,6 +703,26 @@ impl Compiler {
                 )
             }
             _ => None,
+        }
+    }
+
+    /// Return true when missing index contracts should report as overload misses.
+    fn receiver_prefers_overload_diagnostic(&self, receiver_ty: &Type, types: &TypeTable) -> bool {
+        match receiver_ty {
+            Type::Reference { symbol, .. } => matches!(
+                symbol.ty(),
+                SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
+            ),
+            Type::This => true,
+            Type::Value { value } | Type::ReferenceOf { right: value, .. } => {
+                self.receiver_prefers_overload_diagnostic(types.get_type(*value), types)
+            }
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|element_id| {
+                    self.receiver_prefers_overload_diagnostic(types.get_type(*element_id), types)
+                })
+            }
+            _ => false,
         }
     }
 

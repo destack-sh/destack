@@ -5,7 +5,7 @@ use destack_dir::{
 use destack_workspace::Module;
 
 use crate::analyze::common::{InferContext, TypeView};
-use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
+use crate::{AnalyzeResult, Assignability, Compiler};
 
 /// Policy for immediate unassignable diagnostics before solve convergence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -78,6 +78,26 @@ impl Compiler {
         });
     }
 
+    /// Record one post solve relation obligation using a captured target type and one source expression.
+    pub(crate) fn push_relation_obligation_for_target_type_and_source_expression(
+        &self,
+        module: &Module,
+        node_id: LocalNodeIdAny,
+        target_type_id: LocalTypeId,
+        source_expression_id: LocalNodeId<Expression>,
+        diagnostic: TypeRelationObligationDiagnostic,
+        infer: &mut InferTable,
+    ) {
+        infer.push_type_relation_obligation(TypeRelationObligation {
+            source_node_id: node_id.into_global(module.id),
+            operands: TypeRelationObligationOperands::CapturedTargetTypeAndSourceExpression {
+                target_type_id,
+                source_expression_id: source_expression_id.into_global_any(module.id),
+            },
+            diagnostic,
+        });
+    }
+
     /// Enforce one assignability relation or defer its diagnostic to post solve reporting.
     pub(crate) fn enforce_assignability_or_defer_diagnostic(
         &self,
@@ -85,7 +105,6 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        _options: &AnalyzeOptions,
         failure_mode: UnassignableRelationFailureMode,
     ) -> AnalyzeResult<()> {
         // defer relation diagnostics until all inference variables are solved

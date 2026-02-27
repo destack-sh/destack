@@ -6,6 +6,7 @@ use crate::analyze::common::{
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::analyze::module::GlobalMergeCategory;
+use destack_dir::{SymbolSpaceOrder, WellKnownSymbol};
 
 /// Immutable module lookup ctx for member-symbol resolution.
 #[derive(Clone, Copy)]
@@ -88,6 +89,8 @@ pub(crate) struct MissingMemberResolutionContext<'a> {
     pub(crate) receiver_requires_infer_convergence: bool,
     /// Whether missing-member diagnostics may be deferred.
     pub(crate) allow_missing_member_deferral: bool,
+    /// Whether indeterminate receiver member checks should report unknown diagnostics immediately.
+    pub(crate) force_unknown_receiver_diagnostic: bool,
     /// The member key used for lookup.
     pub(crate) member_key: &'a StaticKey,
     /// The resolved member dispatch state.
@@ -98,6 +101,40 @@ pub(crate) struct MissingMemberResolutionContext<'a> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve one canonical carrier symbol for implicit well-known member lookup.
+    fn resolve_implicit_well_known_carrier_symbol(
+        &self,
+        profile: ProfileId,
+        well_known_symbol: WellKnownSymbol,
+    ) -> Option<GlobalSymbolId> {
+        if let Some(symbol) = self.get_well_known_type_symbol(profile, well_known_symbol) {
+            return Some(symbol);
+        }
+
+        if let Some(symbol) = self.get_well_known_symbol_from(
+            profile,
+            well_known_symbol,
+            SymbolSpaceOrder::TypeThenValue,
+        ) {
+            return Some(symbol);
+        }
+
+        let symbol_name = self.program.strings.intern(well_known_symbol.export_name());
+        let symbol_key = StaticKey::Name(symbol_name);
+        if let Some(symbol) = self
+            .get_ambient_lib_symbol_sources_for_space_order(
+                profile,
+                symbol_key,
+                SymbolSpaceOrder::TypeThenValue,
+            )
+            .and_then(|sources| sources.into_iter().next())
+        {
+            return Some(symbol);
+        }
+
+        self.get_declared_lib_symbol_from(profile, symbol_name, SymbolSpaceOrder::TypeThenValue)
+    }
+
     /// Resolve the preferred member type for a symbol-aware lookup.
     pub(crate) fn resolve_member_type_for_symbol(
         &self,
@@ -623,6 +660,7 @@ impl Compiler {
             receiver_ty,
             receiver_requires_infer_convergence,
             allow_missing_member_deferral,
+            force_unknown_receiver_diagnostic,
             member_key,
             member_resolution,
             is_surface_inference,
@@ -630,7 +668,6 @@ impl Compiler {
 
         let allow_associated_contract_blocker =
             self.is_projection_receiver_expression(&mut ctx.reborrow(), receiver_id);
-
         // infer index signature access for missing concrete members
         let mut index_visited = Vec::new();
         let index_signature_ty_id = self.resolve_index_signature_value_type_for_key(
@@ -746,11 +783,25 @@ impl Compiler {
             return Ok(deferred_type_id);
         }
 
+        let diagnostic_receiver_ty_id = if force_unknown_receiver_diagnostic
+            && !allow_missing_member_deferral
+            && receiver_is_indeterminate_for_callback_member_check
+        {
+            ctx.types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                expression_id,
+            )
+        } else {
+            receiver_ty_id
+        };
+
         // suppress missing-member cascades only when a primary semantic fault blocks lookup
         let reported = self.report_missing_member_diagnostic(
             ctx.type_view(),
             expression_id,
-            receiver_ty_id,
+            diagnostic_receiver_ty_id,
             *member_key,
             allow_associated_contract_blocker,
         )?;
@@ -769,9 +820,6 @@ impl Compiler {
             return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
         }
 
-        // keep unresolved member resolution for downstream consumers
-        // and preserve unknown typing after a reported missing member
-
         // commit unresolved member resolution for downstream consumers
         self.record_provisional_member_resolution(
             expression_id.into_global_any(ctx.module.id),
@@ -784,10 +832,7 @@ impl Compiler {
             ctx.types,
         );
 
-        let ty = Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
-        };
-        Ok(ctx.types.insert_type_from(ty, expression_id))
+        Ok(ctx.types.insert_type_from(Type::Error, expression_id))
     }
 
     /// Return true when one receiver expression is an unannotated local parameter reference.
@@ -925,8 +970,16 @@ impl Compiler {
             return Ok(None);
         };
 
-        let Some(symbol) = self.get_well_known_type_symbol(lookup.profile, well_known_symbol)
-        else {
+        let mut symbol =
+            self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
+        if symbol.is_none() && module.is_user() && self.options.load_libs {
+            self.require_resolve_libs(lookup.profile)
+                .map_err(AnalyzeError::from)?;
+            symbol =
+                self.resolve_implicit_well_known_carrier_symbol(lookup.profile, well_known_symbol);
+        }
+
+        let Some(symbol) = symbol else {
             return Ok(None);
         };
         let symbol = self

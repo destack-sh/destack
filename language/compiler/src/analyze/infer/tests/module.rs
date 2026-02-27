@@ -839,6 +839,104 @@ value satisfies Derived;
     test.check_has_diagnostic("EA125");
 }
 
+/// Enforce implemented contract member compatibility even when the contract declares associated requirements.
+#[test]
+fn test_analyze_reports_member_mismatch_for_contract_with_associated_requirements() {
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "contract.ds",
+        r#"
+export interface Service {
+    type Item;
+    ping(value: string): number;
+}
+"#,
+    );
+    test.add_module(
+        "impl.ds",
+        r#"
+import { Service } from "./contract";
+
+export class Concrete implements Service {
+    type Item = string;
+
+    ping(value: int32): number {
+        return 0;
+    }
+}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import { Concrete } from "./impl";
+
+declare const value: Concrete;
+value satisfies Concrete;
+"#,
+    );
+
+    test.analyze_module(main_id);
+    test.compile();
+    test.check_has_diagnostic("EA101");
+}
+
+/// Keep strict bind-call-apply arity tied to required parameter syntax, not `undefined` assignability.
+#[test]
+fn test_strict_call_arity_respects_required_parameter_with_undefined_union() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+function invoke(this: { base: number }, value: number | undefined): number {
+    return this.base;
+}
+
+invoke.call({ base: 1 });
+"#,
+    );
+    test.apply_dsconfig(
+        module_id,
+        r#"{
+            "compilerOptions": {
+                "strictBindCallApply": true
+            }
+        }"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA236");
+}
+
+/// Restrict strict bind-call-apply arity checks to the builtin function wrapper surface.
+#[test]
+fn test_strict_call_arity_skips_user_defined_call_members() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+declare const weird: ((value: number) => number) & {
+    call(thisArg: number, value: number): number;
+};
+
+weird.call(0);
+"#,
+    );
+    test.apply_dsconfig(
+        module_id,
+        r#"{
+            "compilerOptions": {
+                "strictBindCallApply": true
+            }
+        }"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_no_diagnostic_code("EA236");
+}
+
 /// Analyze cross module extension associated comptime value projection through re-exports.
 #[test]
 fn test_analyze_cross_module_extension_associated_comptime_value_projection_through_reexport() {

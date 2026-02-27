@@ -58,10 +58,7 @@ impl Compiler {
                 expression_id.into_any(),
                 right_ty_id,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
         }
 
         // resolve the operator member function
@@ -81,10 +78,7 @@ impl Compiler {
                 expression_id.into_any(),
                 right_ty_id,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
         };
 
         // handle missing member
@@ -100,19 +94,23 @@ impl Compiler {
                 expression_id.into_any(),
                 right_ty_id,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
         }
 
         // unary operators expect no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
+            self.record_member_call_resolution(
+                &mut ctx.reborrow(),
+                expression_id,
+                right_ty_id,
+                &resolved,
+            )?;
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 right_ty_id,
             );
+            return Ok(ctx.types.insert_type_from(Type::Error, expression_id));
         }
 
         // finalize resolution and instance registration

@@ -4560,7 +4560,6 @@ impl Compiler {
                 scope,
             )
         };
-
         // evaluate local unevaluated types before use
         if canonical_symbol.module_id == ctx.module.id {
             let base_value_ty_id = ctx.types.unwrap_value_type_id(base_ty_id);
@@ -4977,6 +4976,27 @@ impl Compiler {
             self.type_contains_infer_vars(check_return_ty_id, ctx.types, &mut infer_visited);
         let allows_fallthrough =
             self.return_type_allows_fallthrough_infer(check_return_ty_id, ctx.types);
+        let source_expression_node = value_id.into_global_any(ctx.module.id);
+        let source_expression_type_id = ctx
+            .infer
+            .inferred_type_for_node(source_expression_node)
+            .or_else(|| ctx.types.get_inferred_type_id(source_expression_node));
+        let source_expression_requires_convergence =
+            source_expression_type_id.is_some_and(|source_type_id| {
+                self.type_requires_infer_convergence(ctx.type_view(), source_type_id)
+            });
+        let source_expression_is_placeholder =
+            source_expression_type_id.is_some_and(|source_type_id| {
+                self.type_is_solver_placeholder(source_type_id, ctx.types)
+            });
+        let source_expression_is_unknown = matches!(
+            ctx.types.get_type(check_value_ty_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            }
+        );
+        let should_defer_return_diagnostic = source_expression_requires_convergence
+            || (source_expression_is_unknown && source_expression_is_placeholder);
 
         // emit the return type error when the assignment is invalid
         if !has_static_parameters
@@ -4988,12 +5008,23 @@ impl Compiler {
                 check_value_ty_id,
             ) == Assignability::NotAssignable
         {
-            self.emit_unassignable_type_for_types(
-                ctx.module_type_view(),
-                value_id.into_any(),
-                check_return_ty_id,
-                check_value_ty_id,
-            );
+            if should_defer_return_diagnostic {
+                self.push_relation_obligation_for_target_type_and_source_expression(
+                    ctx.module,
+                    value_id.into_any(),
+                    check_return_ty_id,
+                    value_id,
+                    TypeRelationObligationDiagnostic::UnassignableType,
+                    ctx.infer,
+                );
+            } else {
+                self.emit_unassignable_type_for_types(
+                    ctx.module_type_view(),
+                    value_id.into_any(),
+                    check_return_ty_id,
+                    check_value_ty_id,
+                );
+            }
         }
 
         ctx.infer.push_constraint(Constraint::Subtype {
@@ -5085,8 +5116,11 @@ impl Compiler {
     }
 }
 
-/// Check whether an expression participates in implicit return typing.
-pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+/// Return the implicit return expression for one body when present.
+pub(crate) fn implicit_return_expression(
+    expression_id: LocalNodeId<Expression>,
+    tree: &NodeTree,
+) -> Option<LocalNodeId<Expression>> {
     // treat statement-like expressions as non-returning values
     match tree.get(expression_id) {
         Expression::Statement { .. }
@@ -5096,18 +5130,15 @@ pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: 
         | Expression::If {
             else_expression: None,
             ..
-        } => false,
+        } => None,
         Expression::Block { block } => {
             // read the block expression list
             let block = tree.get(*block);
-
-            let Some(last_expression_id) = block.expressions.last() else {
-                return false;
-            };
+            let last_expression_id = *block.expressions.last()?;
 
             // ignore statement-like trailing expressions
-            !matches!(
-                tree.get(*last_expression_id),
+            if matches!(
+                tree.get(last_expression_id),
                 Expression::Statement { .. }
                     | Expression::Return { .. }
                     | Expression::Break { .. }
@@ -5116,8 +5147,17 @@ pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: 
                         else_expression: None,
                         ..
                     }
-            )
+            ) {
+                return None;
+            }
+
+            Some(last_expression_id)
         }
-        _ => true,
+        _ => Some(expression_id),
     }
+}
+
+/// Check whether an expression participates in implicit return typing.
+pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+    implicit_return_expression(expression_id, tree).is_some()
 }

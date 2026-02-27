@@ -42,6 +42,8 @@ enum MissingMemberObligationAction {
         expression_id: LocalNodeId<Expression>,
         /// The receiver type id in the collection snapshot.
         receiver_ty_id: LocalTypeId,
+        /// The resolved member value type when available.
+        resolved_member_type_id: Option<LocalTypeId>,
         /// The collected resolution to apply.
         resolution: MissingMemberObligationResolution,
     },
@@ -189,6 +191,7 @@ impl Compiler {
                 NormalizationMode::Assign,
                 RelationMode::ASSIGN,
             );
+            let receiver_ty_id = ctx.types.unwrap_value_type_id(receiver_ty_id);
             if self.type_is_solver_placeholder(receiver_ty_id, ctx.types) {
                 continue;
             }
@@ -229,13 +232,33 @@ impl Compiler {
                 &receiver_context,
                 &obligation.member_key,
             )?;
+            let resolved_member_type_id = self.resolve_missing_member_obligation_value_type(
+                &mut ctx.reborrow(),
+                expression_id,
+                receiver_expression_id,
+                receiver_ty_id,
+                &receiver_ty,
+                &obligation.member_key,
+            )?;
             if let Some(resolution) =
                 self.resolve_missing_member_obligation_resolution(&member_resolution)
             {
                 actions.push(MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
+                    resolved_member_type_id,
                     resolution,
+                });
+                continue;
+            }
+
+            // keep structural member typing when symbol resolution stays unresolved
+            if resolved_member_type_id.is_some() {
+                actions.push(MissingMemberObligationAction::SetResolution {
+                    expression_id,
+                    receiver_ty_id,
+                    resolved_member_type_id,
+                    resolution: MissingMemberObligationResolution::Unresolved,
                 });
                 continue;
             }
@@ -253,6 +276,7 @@ impl Compiler {
                 actions.push(MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
+                    resolved_member_type_id: index_type_id,
                     resolution: MissingMemberObligationResolution::Unresolved,
                 });
                 continue;
@@ -286,6 +310,35 @@ impl Compiler {
         }
 
         Ok(actions)
+    }
+
+    /// Resolve one deferred member expression value type from a converged receiver.
+    fn resolve_missing_member_obligation_value_type(
+        &self,
+        ctx: &mut InferContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        receiver_expression_id: LocalNodeId<Expression>,
+        receiver_ty_id: LocalTypeId,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let receiver_context = self.query_member_receiver_context_for_expression(
+            &ctx.type_context_reborrow(),
+            receiver_expression_id,
+            Some(receiver_ty_id),
+        );
+
+        let mut member_visited = Vec::new();
+        let member_ty_id = self.infer_member_of_type(
+            &mut ctx.type_context_reborrow(),
+            expression_id.into_any(),
+            receiver_ty,
+            member_key,
+            receiver_context.lookup_mode,
+            &mut member_visited,
+        )?;
+
+        Ok(member_ty_id)
     }
 
     /// Return true when one receiver should be treated as an associated projection in solve.
@@ -346,6 +399,7 @@ impl Compiler {
                 MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
+                    resolved_member_type_id,
                     resolution,
                 } => {
                     let receiver_ty_id = Some(receiver_ty_id);
@@ -388,6 +442,10 @@ impl Compiler {
                     let expression_global = expression_id.into_global_any(ctx.module.id);
                     ctx.infer
                         .set_provisional_resolution_for_node(expression_global, resolution);
+                    if let Some(resolved_member_type_id) = resolved_member_type_id {
+                        ctx.infer
+                            .set_inferred_type_for_node(expression_global, resolved_member_type_id);
+                    }
                 }
                 MissingMemberObligationAction::EmitMissingMemberDiagnostic {
                     expression_id,

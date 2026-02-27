@@ -10,11 +10,12 @@ use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
-    Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
-    FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, ResolutionCandidate,
-    ResolvedSignature, StaticArgument, StaticExpression, StaticKey, StaticParameter,
-    StaticParameterKind, StringId, SymbolType, Type, TypeLiteral, TypeTable,
+    Argument, BindingKind, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId,
+    Expression, FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable,
+    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
+    Parameter, Property, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression,
+    StaticKey, StaticParameter, StaticParameterKind, StringId, SymbolType, Timing, Type,
+    TypeLiteral, TypeTable, WellKnownSymbol,
 };
 use destack_workspace::ModuleSource;
 
@@ -1644,6 +1645,47 @@ impl Compiler {
         );
         let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
 
+        // enforce strict call arity for synthetic call wrappers
+        if self.should_enforce_strict_call_member_arity(ctx, call) {
+            if let Some(minimum_arguments) =
+                self.minimum_required_dynamic_argument_count_for_strict_call_member(ctx, call)
+            {
+                if dynamic_arguments.len() < minimum_arguments {
+                    self.error(AnalyzeError::InvalidArgumentArity {
+                        node: expression_id
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        expected: minimum_arguments,
+                        actual: dynamic_arguments.len(),
+                    });
+                    self.infer_call_arguments_without_context(
+                        &mut ctx.reborrow(),
+                        dynamic_arguments,
+                        state,
+                    )?;
+
+                    return Ok(
+                        self.synthesize_call_error_result_type(expression_id, &mut *ctx.types)
+                    );
+                }
+            }
+        }
+
+        // enforce static-expression requirements for comptime dynamic parameters
+        if !self.comptime_dynamic_arguments_are_static(
+            &mut ctx.reborrow(),
+            signature_ty_id,
+            dynamic_arguments,
+        )? {
+            self.infer_call_arguments_without_context(
+                &mut ctx.reborrow(),
+                dynamic_arguments,
+                state,
+            )?;
+
+            return Ok(self.synthesize_call_error_result_type(expression_id, &mut *ctx.types));
+        }
+
         // infer argument types and constraints
         let argument_ty_ids = self.infer_invocation_arguments(
             &mut ctx.reborrow(),
@@ -1680,6 +1722,283 @@ impl Compiler {
             };
             ctx.types.insert_type_from(ty, expression_id)
         }))
+    }
+
+    /// Return true when strict call-member arity should be enforced for this call.
+    fn should_enforce_strict_call_member_arity(
+        &self,
+        ctx: &InferContext<'_>,
+        call: &CallExpressionResolution,
+    ) -> bool {
+        if !ctx.options.strict_bind_call_apply {
+            return false;
+        }
+
+        let Some(member_context) = call.member_call_context.as_ref() else {
+            return false;
+        };
+        let call_name = self.program.strings.intern("call");
+        if !matches!(member_context.member_key, StaticKey::Name(name) if name == call_name) {
+            return false;
+        }
+
+        let Some(member_symbol) = call.callee_symbol else {
+            return false;
+        };
+        if !self.strict_bind_call_apply_member_matches_builtin_call(ctx, member_symbol) {
+            return false;
+        }
+
+        let Some(receiver_ty_id) = call.call_receiver_ty_id else {
+            return false;
+        };
+
+        !self
+            .call_signatures_for_type(receiver_ty_id, &*ctx.types)
+            .is_empty()
+    }
+
+    /// Return true when one member symbol is the builtin strict `call` wrapper member.
+    fn strict_bind_call_apply_member_matches_builtin_call(
+        &self,
+        ctx: &InferContext<'_>,
+        member_symbol: GlobalSymbolId,
+    ) -> bool {
+        let member_symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            member_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let member_symbol = self
+            .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
+            .unwrap_or(member_symbol);
+        let member_owner_symbol = self
+            .query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), member_symbol)
+            .ok()
+            .flatten();
+        let Some(member_owner_symbol) = member_owner_symbol else {
+            return false;
+        };
+        let member_owner_symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            member_owner_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let member_owner_symbol = self
+            .declaration_symbol_id(ctx.module_symbol_view(), member_owner_symbol)
+            .unwrap_or(member_owner_symbol);
+
+        let function_symbols = [
+            self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Function),
+            self.get_well_known_symbol(ctx.profile, WellKnownSymbol::Function),
+        ];
+
+        for function_symbol in function_symbols.into_iter().flatten() {
+            let function_symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                function_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            let function_symbol = self
+                .declaration_symbol_id(ctx.module_symbol_view(), function_symbol)
+                .unwrap_or(function_symbol);
+
+            if member_owner_symbol == function_symbol {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return the minimum required dynamic argument count for one resolved signature.
+    fn minimum_required_dynamic_argument_count(
+        &self,
+        tree: &NodeTree,
+        signature_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<usize> {
+        let dynamic_parameters =
+            self.dynamic_parameters_for_signature_source(tree, types, signature_ty_id)?;
+
+        Some(self.minimum_required_dynamic_argument_count_for_parameters(tree, dynamic_parameters))
+    }
+
+    /// Return strict `call` minimum arity from receiver signatures, plus `thisArg`.
+    fn minimum_required_dynamic_argument_count_for_strict_call_member(
+        &self,
+        ctx: &InferContext<'_>,
+        call: &CallExpressionResolution,
+    ) -> Option<usize> {
+        let receiver_ty_id = call.call_receiver_ty_id?;
+        let receiver_signatures = self.call_signatures_for_type(receiver_ty_id, ctx.types);
+
+        let mut minimum_required_receiver_arguments: Option<usize> = None;
+        for signature_ty_id in receiver_signatures {
+            let Some(required_receiver_arguments) =
+                self.minimum_required_dynamic_argument_count(ctx.tree, signature_ty_id, ctx.types)
+            else {
+                continue;
+            };
+
+            minimum_required_receiver_arguments = Some(match minimum_required_receiver_arguments {
+                Some(existing) => existing.min(required_receiver_arguments),
+                None => required_receiver_arguments,
+            });
+        }
+
+        minimum_required_receiver_arguments.map(|minimum| minimum + 1)
+    }
+
+    /// Return the minimum required argument count for one parameter list.
+    fn minimum_required_dynamic_argument_count_for_parameters(
+        &self,
+        tree: &NodeTree,
+        dynamic_parameters: &[LocalNodeId<Parameter>],
+    ) -> usize {
+        let mut minimum = 0;
+        for parameter_id in dynamic_parameters {
+            let parameter = tree.get(*parameter_id);
+            let is_optional = match parameter {
+                Parameter::Named {
+                    modifiers, default, ..
+                }
+                | Parameter::Pattern {
+                    modifiers, default, ..
+                } => {
+                    default.is_some()
+                        || modifiers.is_some_and(|modifiers| {
+                            matches!(modifiers.kind, Some(BindingKind::Maybe))
+                        })
+                }
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => true,
+            };
+            if !is_optional {
+                minimum += 1;
+            }
+        }
+
+        minimum
+    }
+
+    /// Validate comptime dynamic arguments are static expressions for this signature.
+    fn comptime_dynamic_arguments_are_static(
+        &self,
+        ctx: &mut InferContext<'_>,
+        signature_ty_id: LocalTypeId,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+    ) -> AnalyzeResult<bool> {
+        let comptime_indexes = self.comptime_dynamic_parameter_indexes_for_signature(
+            ctx.tree,
+            ctx.types,
+            signature_ty_id,
+        );
+        if comptime_indexes.is_empty() {
+            return Ok(true);
+        }
+
+        let mut all_static = true;
+        for index in comptime_indexes {
+            let Some(argument_id) = dynamic_arguments.get(index).copied() else {
+                continue;
+            };
+            let argument_expression_id = ctx.tree.get(argument_id).value();
+            let value = self.evaluate_static_expression_value(
+                &mut ctx.type_context_reborrow(),
+                argument_expression_id,
+                None,
+            )?;
+            let is_static = value
+                .as_ref()
+                .is_some_and(|value| self.static_value_argument_is_static(value, ctx.type_view()));
+            if is_static {
+                continue;
+            }
+
+            self.error(AnalyzeError::NonStaticArgument {
+                node: argument_expression_id
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            all_static = false;
+        }
+
+        Ok(all_static)
+    }
+
+    /// Return dynamic-parameter indexes marked as comptime on one signature source.
+    fn comptime_dynamic_parameter_indexes_for_signature(
+        &self,
+        tree: &NodeTree,
+        types: &TypeTable,
+        signature_ty_id: LocalTypeId,
+    ) -> Vec<usize> {
+        let Some(dynamic_parameters) =
+            self.dynamic_parameters_for_signature_source(tree, types, signature_ty_id)
+        else {
+            return Vec::new();
+        };
+
+        let mut indexes = Vec::new();
+        for (index, parameter_id) in dynamic_parameters.iter().enumerate() {
+            let parameter = tree.get(*parameter_id);
+            let is_comptime = parameter.modifiers().and_then(|modifiers| modifiers.timing)
+                == Some(Timing::Comptime);
+            if is_comptime {
+                indexes.push(index);
+            }
+        }
+
+        indexes
+    }
+
+    /// Return dynamic-parameter ids for one signature source when syntax metadata is available.
+    fn dynamic_parameters_for_signature_source<'a>(
+        &self,
+        tree: &'a NodeTree,
+        types: &TypeTable,
+        signature_ty_id: LocalTypeId,
+    ) -> Option<&'a [LocalNodeId<Parameter>]> {
+        let signature_source = types.get_type_source(signature_ty_id);
+        match signature_source.ty {
+            NodeType::Declaration => {
+                let declaration_id = signature_source.into_typed::<Declaration>();
+                if !tree.has_node_id(declaration_id.id) {
+                    return None;
+                }
+                match tree.get(declaration_id) {
+                    Declaration::Function { signature, .. } => {
+                        Some(signature.dynamic_parameters.as_slice())
+                    }
+                    _ => None,
+                }
+            }
+            NodeType::Member => {
+                let member_id = signature_source.into_typed::<Member>();
+                if !tree.has_node_id(member_id.id) {
+                    return None;
+                }
+                match tree.get(member_id) {
+                    Member::Method { signature, .. } => {
+                        Some(signature.dynamic_parameters.as_slice())
+                    }
+                    _ => None,
+                }
+            }
+            NodeType::Property => {
+                let property_id = signature_source.into_typed::<Property>();
+                if !tree.has_node_id(property_id.id) {
+                    return None;
+                }
+                match tree.get(property_id) {
+                    Property::Method { signature, .. } => {
+                        Some(signature.dynamic_parameters.as_slice())
+                    }
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Apply inherited substitutions to a resolved signature.
@@ -2450,7 +2769,7 @@ impl Compiler {
     }
 
     /// Check candidate argument assignability, deferring unresolved inference state during overload filtering.
-    fn is_signature_candidate_argument_assignable(
+    pub(crate) fn is_signature_candidate_argument_assignable(
         &self,
         ctx: &mut InferContext<'_>,
         target_type_id: LocalTypeId,

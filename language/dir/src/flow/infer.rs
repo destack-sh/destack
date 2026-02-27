@@ -236,6 +236,13 @@ pub enum TypeRelationObligationOperands {
         /// The source expression id.
         source_expression_id: GlobalNodeIdAny,
     },
+    /// Use a captured target type and a source expression resolved after solve convergence.
+    CapturedTargetTypeAndSourceExpression {
+        /// The target type id for assignability.
+        target_type_id: LocalTypeId,
+        /// The source expression id.
+        source_expression_id: GlobalNodeIdAny,
+    },
 }
 
 /// Type relation obligation collected during infer and checked after solve convergence.
@@ -434,6 +441,16 @@ impl InferTable {
         std::mem::take(&mut self.missing_member_obligations)
             .into_iter()
             .collect()
+    }
+
+    /// Return true when a missing-member obligation exists for one expression node.
+    pub fn has_missing_member_obligation_for_expression(
+        &self,
+        expression_id: GlobalNodeIdAny,
+    ) -> bool {
+        self.missing_member_obligations
+            .iter()
+            .any(|obligation| obligation.expression_id == expression_id)
     }
 
     /// Upsert one direct-binding commit intent by symbol.

@@ -1,5 +1,23 @@
 use super::*;
 
+/// Failure categories used to route binary operator diagnostics.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BinaryOperatorResolutionFailure {
+    /// The receiver does not implement the operator contract.
+    MissingOperatorContract,
+    /// The rhs operand does not satisfy the operator parameter type.
+    RhsOperandNotAssignable,
+}
+
+/// Diagnostic families emitted for binary operator resolution failures.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BinaryOperatorFailureDiagnostic {
+    /// Report one receiver-centric no-overload diagnostic.
+    NoOverloadForReceiver,
+    /// Report one rhs operand assignability diagnostic.
+    UnassignableOperands,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn infer_binary_expression(
@@ -213,16 +231,27 @@ impl Compiler {
 
         // require explicit operator interface implementation
         if !self.is_interface_implemented(ctx.symbol_type_view(), &left_ty, operator_item) {
+            let failure_diagnostic = self.binary_operator_failure_diagnostic(
+                operator,
+                BinaryOperatorResolutionFailure::MissingOperatorContract,
+            );
+            if failure_diagnostic == BinaryOperatorFailureDiagnostic::UnassignableOperands {
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    ctx.module_type_view(),
+                    expression_id.into_any(),
+                    left_ty_id,
+                    right_ty_id,
+                ) {
+                    return Err(error);
+                }
+            }
+
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
             );
-            return Ok(self.binary_overload_failure_result_type(
-                operator,
-                expression_id,
-                ctx.types,
-            ));
+            return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
         }
 
         // resolve the operator member function
@@ -242,11 +271,7 @@ impl Compiler {
                 expression_id.into_any(),
                 left_ty_id,
             );
-            return Ok(self.binary_overload_failure_result_type(
-                operator,
-                expression_id,
-                ctx.types,
-            ));
+            return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
         };
 
         // handle missing member
@@ -262,40 +287,85 @@ impl Compiler {
                 expression_id.into_any(),
                 left_ty_id,
             );
-            return Ok(self.binary_overload_failure_result_type(
-                operator,
-                expression_id,
-                ctx.types,
-            ));
+            return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
         }
 
         // binary operators expect one dynamic parameter
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
+            self.record_member_call_resolution(
+                &mut ctx.reborrow(),
+                expression_id,
+                left_ty_id,
+                &resolved,
+            )?;
             self.emit_no_overload_for_receiver_type(
                 ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
             );
+            return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
         }
 
         // check argument assignability
         if let Some(parameter_ty_id) = parameter_ty_id {
+            let requires_convergence = self.type_relation_requires_infer_convergence(
+                ctx.type_view(),
+                parameter_ty_id,
+                right_ty_id,
+            );
+            let is_assignable = if requires_convergence {
+                true
+            } else {
+                self.is_type_assignable(
+                    &mut ctx.type_context_reborrow(),
+                    parameter_ty_id,
+                    right_ty_id,
+                ) != Assignability::NotAssignable
+            };
+            if !is_assignable {
+                let failure_diagnostic = self.binary_operator_failure_diagnostic(
+                    operator,
+                    BinaryOperatorResolutionFailure::RhsOperandNotAssignable,
+                );
+                if failure_diagnostic == BinaryOperatorFailureDiagnostic::NoOverloadForReceiver {
+                    self.record_member_call_resolution(
+                        &mut ctx.reborrow(),
+                        expression_id,
+                        left_ty_id,
+                        &resolved,
+                    )?;
+                    self.emit_no_overload_for_receiver_type(
+                        ctx.module_type_view(),
+                        expression_id.into_any(),
+                        left_ty_id,
+                    );
+                    return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
+                }
+
+                if let Some(error) = self.unassignable_type_error_for_types(
+                    ctx.module_type_view(),
+                    expression_id.into_any(),
+                    parameter_ty_id,
+                    right_ty_id,
+                ) {
+                    self.error(error);
+                }
+
+                self.record_member_call_resolution(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    left_ty_id,
+                    &resolved,
+                )?;
+                return Ok(self.binary_overload_failure_result_type(expression_id, ctx.types));
+            }
+
             ctx.infer.push_constraint(Constraint::Subtype {
                 sub_type: right_ty_id,
                 super_type: parameter_ty_id,
                 variance: None,
             });
-
-            let options = state.options;
-            self.enforce_assignability_or_defer_diagnostic(
-                &mut ctx.reborrow(),
-                expression_id.into_any(),
-                parameter_ty_id,
-                right_ty_id,
-                &options,
-                UnassignableRelationFailureMode::PropagateError,
-            )?;
         }
 
         // finalize resolution and instance registration
@@ -336,31 +406,51 @@ impl Compiler {
     /// Return one result type for operator overload resolution failures.
     fn binary_overload_failure_result_type(
         &self,
-        operator: &BinaryOperator,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let result_type = if matches!(
-            operator,
-            BinaryOperator::Equal
-                | BinaryOperator::NotEqual
-                | BinaryOperator::EqualStrict
-                | BinaryOperator::NotEqualStrict
-                | BinaryOperator::LessThan
-                | BinaryOperator::LessThanOrEqual
-                | BinaryOperator::GreaterThan
-                | BinaryOperator::GreaterThanOrEqual
-        ) {
-            Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            }
-        } else {
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            }
-        };
+        types.insert_type_from(Type::Error, expression_id)
+    }
 
-        types.insert_type_from(result_type, expression_id)
+    /// Return the diagnostic family for one binary operator resolution failure.
+    fn binary_operator_failure_diagnostic(
+        &self,
+        operator: &BinaryOperator,
+        failure: BinaryOperatorResolutionFailure,
+    ) -> BinaryOperatorFailureDiagnostic {
+        match failure {
+            BinaryOperatorResolutionFailure::MissingOperatorContract => {
+                if matches!(
+                    operator,
+                    BinaryOperator::LessThan
+                        | BinaryOperator::LessThanOrEqual
+                        | BinaryOperator::GreaterThan
+                        | BinaryOperator::GreaterThanOrEqual
+                ) {
+                    BinaryOperatorFailureDiagnostic::UnassignableOperands
+                } else {
+                    BinaryOperatorFailureDiagnostic::NoOverloadForReceiver
+                }
+            }
+            BinaryOperatorResolutionFailure::RhsOperandNotAssignable => {
+                if matches!(
+                    operator,
+                    BinaryOperator::Add
+                        | BinaryOperator::Subtract
+                        | BinaryOperator::Multiply
+                        | BinaryOperator::Divide
+                        | BinaryOperator::Remainder
+                        | BinaryOperator::Exponent
+                        | BinaryOperator::ElementwiseAnd
+                        | BinaryOperator::ElementwiseXor
+                        | BinaryOperator::ElementwiseOr
+                ) {
+                    BinaryOperatorFailureDiagnostic::NoOverloadForReceiver
+                } else {
+                    BinaryOperatorFailureDiagnostic::UnassignableOperands
+                }
+            }
+        }
     }
 
     /// Whether the given types and operator have a builtin operator.

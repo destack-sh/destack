@@ -34,7 +34,6 @@ impl Compiler {
                 types,
             )
         };
-
         // short circuit member access on any
         if matches!(
             &receiver.receiver_ty,
@@ -116,6 +115,27 @@ impl Compiler {
             }
             _ => false,
         }
+    }
+
+    /// Return true when the active function context is a non-lambda object-literal method.
+    fn context_function_is_non_lambda_property_method(
+        &self,
+        state: &InferState,
+        tree: &NodeTree,
+    ) -> bool {
+        let Some(function_id) = state.in_function else {
+            return false;
+        };
+        if function_id.ty != NodeType::Property {
+            return false;
+        }
+
+        let property = tree.get(function_id.into_typed::<Property>());
+        let Property::Method { signature, .. } = property else {
+            return false;
+        };
+
+        signature.kind != FunctionKind::Lambda
     }
 
     /// Resolve one canonical infer-time receiver type for `import.meta`.
@@ -280,10 +300,19 @@ impl Compiler {
             receiver_ty_id = import_meta_receiver_ty_id;
         }
 
+        // preserve unresolved infer vars only for direct binding references
+        let preserve_infer_vars_for_lookup = matches!(
+            ctx.tree.get(receiver_id),
+            Expression::LocalReference { .. }
+                | Expression::ModuleReference { .. }
+                | Expression::GlobalReference { .. }
+        );
+
         // materialize and normalize the receiver before lookup
         receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
             &mut ctx.reborrow(),
             receiver_ty_id,
+            preserve_infer_vars_for_lookup,
             state,
         )?;
 
@@ -298,6 +327,7 @@ impl Compiler {
             receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
                 &mut ctx.reborrow(),
                 recomputed_receiver_ty_id,
+                preserve_infer_vars_for_lookup,
                 state,
             )?;
         }
@@ -330,6 +360,7 @@ impl Compiler {
             receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
                 &mut ctx.reborrow(),
                 fallback_receiver_ty_id,
+                preserve_infer_vars_for_lookup,
                 state,
             )?;
         }
@@ -409,6 +440,8 @@ impl Compiler {
             && matches!(receiver_ty, Type::This));
         let allow_missing_member_deferral =
             self.context_function_uses_lambda_signature(state, ctx.tree);
+        let force_unknown_receiver_diagnostic =
+            self.context_function_is_non_lambda_property_method(state, ctx.tree);
 
         Ok(MemberAccessReceiverQuery::Receiver(MemberAccessReceiver {
             receiver_id,
@@ -417,6 +450,7 @@ impl Compiler {
             receiver_context,
             receiver_requires_infer_convergence,
             allow_missing_member_deferral,
+            force_unknown_receiver_diagnostic,
             has_optional_nullish,
         }))
     }
@@ -426,10 +460,14 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         receiver_ty_id: LocalTypeId,
+        preserve_infer_vars_for_lookup: bool,
         _state: &InferState,
     ) -> AnalyzeResult<LocalTypeId> {
-        let receiver_ty_id =
-            self.materialize_infer_type_for_check(&mut ctx.reborrow(), receiver_ty_id);
+        let receiver_ty_id = if preserve_infer_vars_for_lookup {
+            receiver_ty_id
+        } else {
+            self.materialize_infer_type_for_check(&mut ctx.reborrow(), receiver_ty_id)
+        };
         let receiver_ty_id = self.normalize_type_with_relation(
             &mut ctx.type_context_reborrow(),
             receiver_ty_id,
@@ -666,65 +704,67 @@ impl Compiler {
         )?;
 
         // resolve member type through symbol lookup and remaining lookup paths
-        let mut resolved_member_ty_id =
-            if let Some(enum_field_value_ty_id) = lookup.enum_field_value_ty_id {
-                enum_field_value_ty_id
-            } else if let Some(member_ty_id) = member_ty_id {
-                let resolved_member = self.resolve_member_access_type_for_symbol(
-                    &mut ctx.reborrow(),
-                    expression_id,
-                    lookup.member_symbol,
-                    member_ty_id,
-                    static_arguments,
-                    &lookup.substitutions,
-                )?;
-                let member_instance_id = if static_arguments.is_some() {
-                    if let Some(member_symbol) = lookup.member_symbol {
-                        self.record_member_instance_for_arguments(
-                            &mut ctx.reborrow(),
-                            expression_id,
-                            member_symbol,
-                            &lookup.inherited,
-                            lookup.extension_context.as_ref(),
-                            &resolved_member.static_arguments,
-                            &resolved_member.static_parameter_symbols,
-                        )?
-                    } else {
-                        None
-                    }
+        let mut resolved_member_ty_id = if let Some(enum_field_value_ty_id) =
+            lookup.enum_field_value_ty_id
+        {
+            enum_field_value_ty_id
+        } else if let Some(member_ty_id) = member_ty_id {
+            let resolved_member = self.resolve_member_access_type_for_symbol(
+                &mut ctx.reborrow(),
+                expression_id,
+                lookup.member_symbol,
+                member_ty_id,
+                static_arguments,
+                &lookup.substitutions,
+            )?;
+            let member_instance_id = if static_arguments.is_some() {
+                if let Some(member_symbol) = lookup.member_symbol {
+                    self.record_member_instance_for_arguments(
+                        &mut ctx.reborrow(),
+                        expression_id,
+                        member_symbol,
+                        &lookup.inherited,
+                        lookup.extension_context.as_ref(),
+                        &resolved_member.static_arguments,
+                        &resolved_member.static_parameter_symbols,
+                    )?
                 } else {
                     None
-                };
-
-                // record resolved member access for downstream passes
-                self.record_provisional_member_resolution(
-                    expression_id.into_global_any(ctx.module.id),
-                    Some(receiver.receiver_ty_id),
-                    &lookup.resolution,
-                    member_instance_id,
-                    None,
-                    true,
-                    &mut *ctx.infer,
-                    &mut *ctx.types,
-                );
-                resolved_member.type_id
+                }
             } else {
-                self.resolve_member_index_or_missing(
-                    &mut ctx.reborrow(),
-                    super::resolve::MissingMemberResolutionContext {
-                        expression_id,
-                        receiver_id: receiver.receiver_id,
-                        receiver_ty_id: receiver.receiver_ty_id,
-                        receiver_ty: &receiver.receiver_ty,
-                        receiver_requires_infer_convergence: receiver
-                            .receiver_requires_infer_convergence,
-                        allow_missing_member_deferral: receiver.allow_missing_member_deferral,
-                        member_key: &lookup.member_key,
-                        member_resolution: &lookup.resolution,
-                        is_surface_inference: state.is_surface_inference,
-                    },
-                )?
+                None
             };
+
+            // record resolved member access for downstream passes
+            self.record_provisional_member_resolution(
+                expression_id.into_global_any(ctx.module.id),
+                Some(receiver.receiver_ty_id),
+                &lookup.resolution,
+                member_instance_id,
+                None,
+                true,
+                &mut *ctx.infer,
+                &mut *ctx.types,
+            );
+            resolved_member.type_id
+        } else {
+            self.resolve_member_index_or_missing(
+                &mut ctx.reborrow(),
+                super::resolve::MissingMemberResolutionContext {
+                    expression_id,
+                    receiver_id: receiver.receiver_id,
+                    receiver_ty_id: receiver.receiver_ty_id,
+                    receiver_ty: &receiver.receiver_ty,
+                    receiver_requires_infer_convergence: receiver
+                        .receiver_requires_infer_convergence,
+                    allow_missing_member_deferral: receiver.allow_missing_member_deferral,
+                    force_unknown_receiver_diagnostic: receiver.force_unknown_receiver_diagnostic,
+                    member_key: &lookup.member_key,
+                    member_resolution: &lookup.resolution,
+                    is_surface_inference: state.is_surface_inference,
+                },
+            )?
+        };
 
         // substitute `this` in member result types with the resolved receiver type
         resolved_member_ty_id = {

@@ -77,13 +77,11 @@ impl Compiler {
         });
 
         // enforce assignment relation after convergence when needed
-        let options = state.options;
         self.enforce_assignability_or_defer_diagnostic(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             left_ty_id,
             right_ty_id,
-            &options,
             UnassignableRelationFailureMode::PropagateError,
         )?;
 
@@ -187,13 +185,11 @@ impl Compiler {
             });
 
             // enforce assignment relation after convergence when needed
-            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
                 left_ty_id,
                 right_ty_id,
-                &options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
 
