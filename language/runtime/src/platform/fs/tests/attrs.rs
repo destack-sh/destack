@@ -1,7 +1,8 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 use super::{assert_platform_error_codes, temp_dir, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::{AccessMode, FileMode, OpenFlags};
+use crate::platform::fs::{AccessMode, AtFlags, FileMode, OpenFlags};
+use std::path::Path;
 
 fn is_privileged_test_mode() -> bool {
     let value = std::env::var("DESTACK_TEST_PRIVILEGED").unwrap_or_default();
@@ -100,6 +101,40 @@ fn test_fs_chown_and_times() {
         context.destack_fs_close(handle)?;
         let file = context.path_bytes(&file_path);
         context.destack_fs_unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Check directory-relative access with one opened directory handle.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_accessat_roundtrip() {
+    with_harness_context(|mut context| {
+        // setup runtime and paths
+        let temp_dir = temp_dir("fs_accessat");
+        let file_name = Path::new("file.txt");
+
+        // create directory and file through relative open
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+        let dir = context.path_bytes(&temp_dir);
+        let dir_handle = context.destack_fs_opendir(dir)?;
+        let file = context.path_bytes(file_name);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_openat(dir_handle, file, flags, FileMode(0o644))?;
+        context.destack_fs_close(handle)?;
+
+        // check existence through accessat
+        let file = context.path_bytes(file_name);
+        context.destack_fs_accessat(dir_handle, file, AccessMode(0), AtFlags(0))?;
+
+        // cleanup
+        let file = context.path_bytes(file_name);
+        context.destack_fs_unlinkat(dir_handle, file, AtFlags(0))?;
+        context.destack_fs_closedir(dir_handle)?;
         let dir = context.path_bytes(&temp_dir);
         context.destack_fs_rmdir(dir)?;
 

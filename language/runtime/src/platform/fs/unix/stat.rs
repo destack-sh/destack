@@ -75,7 +75,7 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -84,9 +84,10 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported lstat calls on non-windows platforms
-    let _ = (path, out);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lstatUtf16")).boxed())
+    // read stat data by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_lstat_bytes(context, out, path)
+    })
 }
 
 /// Stat a file.
@@ -149,7 +150,7 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut Stat,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -158,9 +159,10 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported stat calls on non-windows platforms
-    let _ = (path, out);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statUtf16")).boxed())
+    // read stat data by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_stat_bytes(context, out, path)
+    })
 }
 
 /// Stat a filesystem.
@@ -217,7 +219,7 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut StatFs,
     path: PathUtf16,
 ) -> RuntimeResult<()> {
@@ -226,9 +228,10 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported statfs calls on non-windows platforms
-    let _ = (path, out);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statfsUtf16")).boxed())
+    // read statfs data by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_statfs_bytes(context, out, path)
+    })
 }
 
 /// Stat a file relative to a directory handle.
@@ -311,9 +314,10 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported statat calls on non-windows platforms
-    let _ = (context, dir, path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statatUtf16")).boxed())
+    // read stat data by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_statat_bytes(context, out, dir, path, flags)
+    })
 }
 
 /// Stat a file.

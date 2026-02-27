@@ -93,6 +93,7 @@ pub(crate) unsafe fn destack_fs_open_bytes(
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
+            status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
@@ -172,6 +173,7 @@ pub(crate) unsafe fn destack_fs_open_utf16(
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
+            status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
@@ -257,6 +259,7 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
+            status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
@@ -342,6 +345,7 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         .with_payload(FileResource {
             handle: handle as isize,
             cursor: Arc::new(Mutex::new(0)),
+            status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);

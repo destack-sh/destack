@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use windows_sys::Win32::Foundation::ERROR_IO_PENDING;
-use windows_sys::Win32::Networking::WinSock::{SOCKET_ERROR, send};
+use windows_sys::Win32::Networking::WinSock::{SOCKET, SOCKET_ERROR, recv, send};
 use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
 use windows_sys::Win32::System::IO::{GetOverlappedResult, OVERLAPPED, OVERLAPPED_0_0};
 
@@ -11,7 +11,7 @@ use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, ReadWriteFlags, SpliceCursor, SpliceFlags,
 };
 use crate::platform::net::SocketHandle;
-use crate::platform::resource::{PipeHandle, ResourceId};
+use crate::platform::resource::{PipeHandle, ResourceId, ResourceKind};
 use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
@@ -51,6 +51,235 @@ fn add_offset(base: i64, delta: u64, name: &str) -> RuntimeResult<i64> {
         ))
         .boxed()
     })
+}
+
+/// Splice endpoint kinds supported by the Windows fallback path.
+enum SpliceEndpoint {
+    /// File endpoint mapped through file bindings.
+    File(FileHandle),
+    /// Pipe endpoint backed by one raw Windows handle.
+    Pipe(isize),
+    /// Socket endpoint backed by one raw Winsock socket.
+    Socket(SOCKET),
+}
+
+/// Resolve one splice endpoint from one generic resource id.
+fn splice_endpoint(
+    context: &BindingCallContext,
+    resource: ResourceId,
+    label: &str,
+) -> RuntimeResult<SpliceEndpoint> {
+    // resolve one resource entry and map it into a supported endpoint
+    let endpoint = context.runtime().resources.with_entry(resource, |entry| {
+        if entry.kind == ResourceKind::File {
+            return Some(SpliceEndpoint::File(FileHandle(resource)));
+        }
+        if entry.kind == ResourceKind::Pipe {
+            return entry
+                .handle()
+                .map(|handle| SpliceEndpoint::Pipe(handle as isize));
+        }
+        if entry.kind == ResourceKind::Socket {
+            return entry
+                .socket()
+                .map(|socket| SpliceEndpoint::Socket(socket as SOCKET));
+        }
+
+        None
+    });
+
+    // reject unsupported endpoint kinds
+    let Some(endpoint) = endpoint.flatten() else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            label,
+            "resource is not one file, pipe, or socket endpoint",
+        ))
+        .boxed());
+    };
+
+    Ok(endpoint)
+}
+
+/// Read bytes from one splice endpoint into one caller buffer.
+fn splice_read(
+    context: &BindingCallContext,
+    endpoint: &SpliceEndpoint,
+    buffer: &mut [u8],
+    source_offset: &mut Option<i64>,
+) -> RuntimeResult<u64> {
+    // dispatch one read path by endpoint kind
+    match endpoint {
+        SpliceEndpoint::File(handle) => {
+            // use positioned reads when one explicit source offset is present
+            if let Some(offset) = source_offset {
+                let slice = NativeSlice {
+                    data: buffer.as_mut_ptr(),
+                    len: buffer.len() as u32,
+                };
+                let mut bytes_read = 0u64;
+                unsafe {
+                    destack_fs_pread(
+                        context,
+                        &mut bytes_read,
+                        *handle,
+                        slice,
+                        FileOffset(*offset),
+                    )?;
+                }
+                *offset = add_offset(*offset, bytes_read, "sourceCursor.offset")?;
+
+                return Ok(bytes_read);
+            }
+
+            // otherwise read from the current file cursor
+            let slice = NativeSlice {
+                data: buffer.as_mut_ptr(),
+                len: buffer.len() as u32,
+            };
+            let mut bytes_read = 0u64;
+            unsafe {
+                destack_fs_read(context, &mut bytes_read, *handle, slice)?;
+            }
+
+            Ok(bytes_read)
+        }
+        SpliceEndpoint::Pipe(handle) => {
+            // reject offset cursors for pipes
+            if source_offset.is_some() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "sourceCursor",
+                    "offset cursor is not supported for pipe resources",
+                ))
+                .boxed());
+            }
+
+            // issue one pipe read through ReadFile
+            let mut bytes_read = 0u32;
+            let rc = unsafe {
+                ReadFile(
+                    *handle,
+                    buffer.as_mut_ptr() as *mut _,
+                    buffer.len() as u32,
+                    &mut bytes_read,
+                    std::ptr::null_mut(),
+                )
+            };
+            if rc == 0 {
+                return Err(last_os_error("ReadFile", None));
+            }
+
+            Ok(bytes_read as u64)
+        }
+        SpliceEndpoint::Socket(socket) => {
+            // reject offset cursors for sockets
+            if source_offset.is_some() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "sourceCursor",
+                    "offset cursor is not supported for socket resources",
+                ))
+                .boxed());
+            }
+
+            // issue one socket receive
+            let rc = unsafe { recv(*socket, buffer.as_mut_ptr(), buffer.len() as i32, 0) };
+            if rc == SOCKET_ERROR {
+                return Err(last_socket_error("recv"));
+            }
+
+            Ok(rc as u64)
+        }
+    }
+}
+
+/// Write bytes to one splice endpoint from one caller buffer.
+fn splice_write(
+    context: &BindingCallContext,
+    endpoint: &SpliceEndpoint,
+    buffer: &[u8],
+    target_offset: &mut Option<i64>,
+) -> RuntimeResult<u64> {
+    // dispatch one write path by endpoint kind
+    match endpoint {
+        SpliceEndpoint::File(handle) => {
+            // use positioned writes when one explicit target offset is present
+            if let Some(offset) = target_offset {
+                let slice = NativeSlice {
+                    data: buffer.as_ptr() as *mut u8,
+                    len: buffer.len() as u32,
+                };
+                let mut bytes_written = 0u64;
+                unsafe {
+                    destack_fs_pwrite(
+                        context,
+                        &mut bytes_written,
+                        *handle,
+                        slice,
+                        FileOffset(*offset),
+                    )?;
+                }
+                *offset = add_offset(*offset, bytes_written, "targetCursor.offset")?;
+
+                return Ok(bytes_written);
+            }
+
+            // otherwise write at the current file cursor
+            let slice = NativeSlice {
+                data: buffer.as_ptr() as *mut u8,
+                len: buffer.len() as u32,
+            };
+            let mut bytes_written = 0u64;
+            unsafe {
+                destack_fs_write(context, &mut bytes_written, *handle, slice)?;
+            }
+
+            Ok(bytes_written)
+        }
+        SpliceEndpoint::Pipe(handle) => {
+            // reject offset cursors for pipes
+            if target_offset.is_some() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "targetCursor",
+                    "offset cursor is not supported for pipe resources",
+                ))
+                .boxed());
+            }
+
+            // issue one pipe write through WriteFile
+            let mut bytes_written = 0u32;
+            let rc = unsafe {
+                WriteFile(
+                    *handle,
+                    buffer.as_ptr() as *const _,
+                    buffer.len() as u32,
+                    &mut bytes_written,
+                    std::ptr::null_mut(),
+                )
+            };
+            if rc == 0 {
+                return Err(last_os_error("WriteFile", None));
+            }
+
+            Ok(bytes_written as u64)
+        }
+        SpliceEndpoint::Socket(socket) => {
+            // reject offset cursors for sockets
+            if target_offset.is_some() {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "targetCursor",
+                    "offset cursor is not supported for socket resources",
+                ))
+                .boxed());
+            }
+
+            // issue one socket send
+            let rc = unsafe { send(*socket, buffer.as_ptr(), buffer.len() as i32, 0) };
+            if rc == SOCKET_ERROR {
+                return Err(last_socket_error("send"));
+            }
+
+            Ok(rc as u64)
+        }
+    }
 }
 
 /// Read from a file at the given file offset.
@@ -352,8 +581,10 @@ pub(crate) unsafe fn destack_fs_preadv2(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor read flags for preadv2 on Windows
-    let _ = flags.0;
+    // reject non zero flags on windows where preadv2 flags are unavailable
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.preadv2")).boxed());
+    }
 
     unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
 }
@@ -383,8 +614,12 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     offset: FileOffset,
     flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: honor write flags for pwritev2 on Windows
-    let _ = flags.0;
+    // reject non zero flags on windows where pwritev2 flags are unavailable
+    if flags.0 != 0 {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev2")).boxed(),
+        );
+    }
 
     unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
 }
@@ -609,7 +844,7 @@ pub(crate) unsafe fn destack_fs_sendfile(
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
     context: &BindingCallContext,
-    _out: *mut u64,
+    out: *mut u64,
     source: ResourceId,
     sourcecursor: SpliceCursor,
     target: ResourceId,
@@ -617,16 +852,76 @@ pub(crate) unsafe fn destack_fs_splice(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (
-        context,
-        source,
-        sourcecursor,
-        target,
-        targetcursor,
-        length,
-        flags,
-    );
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.splice")).boxed())
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // reject splice flags that this fallback cannot honor
+    if flags.0 != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported("destack.fs.splice")).boxed());
+    }
+
+    // resolve source and target endpoints
+    let source_endpoint = splice_endpoint(context, source, "source")?;
+    let target_endpoint = splice_endpoint(context, target, "target")?;
+
+    // run one read/write copy loop up to the requested length
+    let mut source_offset = if sourcecursor.has_offset {
+        Some(sourcecursor.offset.0)
+    } else {
+        None
+    };
+    let mut target_offset = if targetcursor.has_offset {
+        Some(targetcursor.offset.0)
+    } else {
+        None
+    };
+    let mut remaining = length.0;
+    let mut total = 0u64;
+    let mut buffer = vec![0u8; 1024 * 1024];
+    while remaining > 0 {
+        // read one source chunk
+        let chunk = remaining.min(buffer.len() as u64) as usize;
+        let bytes_read = splice_read(
+            context,
+            &source_endpoint,
+            &mut buffer[..chunk],
+            &mut source_offset,
+        )?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        // write the chunk fully to the target endpoint
+        let mut written = 0usize;
+        let expected = bytes_read as usize;
+        while written < expected {
+            let bytes_written = splice_write(
+                context,
+                &target_endpoint,
+                &buffer[written..expected],
+                &mut target_offset,
+            )?;
+            if bytes_written == 0 {
+                return Err(RuntimeError::from(PlatformError::io(
+                    "splice fallback write returned zero bytes".to_string(),
+                ))
+                .boxed());
+            }
+            written = written.saturating_add(bytes_written as usize);
+        }
+
+        total = total.saturating_add(bytes_read);
+        remaining = remaining.saturating_sub(bytes_read);
+    }
+
+    // write one output byte count
+    unsafe {
+        *out = total;
+    }
+
+    Ok(())
 }
 
 /// Duplicate bytes from one pipe to another without consuming source bytes.

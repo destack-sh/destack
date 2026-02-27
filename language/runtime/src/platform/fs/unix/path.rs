@@ -66,13 +66,17 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     existingpath: PathUtf16,
     newpath: PathUtf16,
 ) -> RuntimeResult<()> {
-    // report unsupported link calls on non-windows platforms
-    let _ = (existingpath, newpath);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.linkUtf16")).boxed())
+    // create the link by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(
+        existingpath,
+        newpath,
+        "path",
+        |existingpath, newpath| unsafe { destack_fs_link_bytes(context, existingpath, newpath) },
+    )
 }
 
 /// Read a symbolic link.
@@ -139,9 +143,16 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported readlink calls on non-windows platforms
-    let _ = (context, path);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkUtf16")).boxed())
+    // read one symlink target by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| {
+        let mut bytes_output = core_fs::empty_path_bytes();
+        unsafe { destack_fs_readlink_bytes(context, &mut bytes_output, path) }?;
+        let utf16_output = core_fs::path_utf16_from_bytes(context, bytes_output, "path")?;
+        unsafe {
+            *out = utf16_output;
+        }
+        Ok(())
+    })
 }
 
 /// Resolve a path to its canonical form.
@@ -216,9 +227,16 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported realpath calls on non-windows platforms
-    let _ = (context, path);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.realpathUtf16")).boxed())
+    // resolve one canonical path by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| {
+        let mut bytes_output = core_fs::empty_path_bytes();
+        unsafe { destack_fs_realpath_bytes(context, &mut bytes_output, path) }?;
+        let utf16_output = core_fs::path_utf16_from_bytes(context, bytes_output, "path")?;
+        unsafe {
+            *out = utf16_output;
+        }
+        Ok(())
+    })
 }
 
 /// Rename or move a file.
@@ -272,13 +290,14 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
-    // report unsupported rename calls on non-windows platforms
-    let _ = (from, to);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameUtf16")).boxed())
+    // rename one path by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(from, to, "path", |from, to| unsafe {
+        destack_fs_rename_bytes(context, from, to)
+    })
 }
 
 /// Create a symbolic link.
@@ -333,14 +352,15 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     target: PathUtf16,
     path: PathUtf16,
-    _kind: SymlinkType,
+    kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    // report unsupported symlink calls on non-windows platforms
-    let _ = (target, path);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkUtf16")).boxed())
+    // create one symlink by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(target, path, "path", |target, path| unsafe {
+        destack_fs_symlink_bytes(context, target, path, kind)
+    })
 }
 
 /// Unlink a file.
@@ -392,11 +412,13 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
-    _context: &BindingCallContext,
-    _path: PathUtf16,
+    context: &BindingCallContext,
+    path: PathUtf16,
 ) -> RuntimeResult<()> {
-    // report unsupported unlink calls on non-windows platforms
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkUtf16")).boxed())
+    // unlink one file by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_unlink_bytes(context, path)
+    })
 }
 
 /// Rename or move a file relative to directory handles.
@@ -460,9 +482,10 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
     to_dir: DirectoryHandle,
     to: PathUtf16,
 ) -> RuntimeResult<()> {
-    // report unsupported renameat calls on non-windows platforms
-    let _ = (context, from_dir, from, to_dir, to);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameatUtf16")).boxed())
+    // rename one path by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(from, to, "path", |from, to| unsafe {
+        destack_fs_renameat_bytes(context, from_dir, from, to_dir, to)
+    })
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
@@ -550,9 +573,10 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
     to: PathUtf16,
     flags: RenameFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported renameat2 calls on non-windows platforms
-    let _ = (context, from_dir, from, to_dir, to, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameat2Utf16")).boxed())
+    // rename one path by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(from, to, "path", |from, to| unsafe {
+        destack_fs_renameat2_bytes(context, from_dir, from, to_dir, to, flags)
+    })
 }
 
 /// Unlink a file relative to a directory handle.
@@ -611,9 +635,10 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
     path: PathUtf16,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported unlinkat calls on non-windows platforms
-    let _ = (context, dir, path, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkatUtf16")).boxed())
+    // unlink one path by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_unlinkat_bytes(context, dir, path, flags)
+    })
 }
 
 /// Create a hard link relative to directory handles.
@@ -686,16 +711,22 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
     new_path: PathUtf16,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported linkat calls on non-windows platforms
-    let _ = (
-        context,
-        existing_dir,
+    // create one link by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(
         existing_path,
-        new_dir,
         new_path,
-        flags,
-    );
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.linkatUtf16")).boxed())
+        "path",
+        |existing_path, new_path| unsafe {
+            destack_fs_linkat_bytes(
+                context,
+                existing_dir,
+                existing_path,
+                new_dir,
+                new_path,
+                flags,
+            )
+        },
+    )
 }
 
 /// Create a symbolic link relative to a directory handle.
@@ -757,9 +788,10 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     path: PathUtf16,
     kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    // report unsupported symlinkat calls on non-windows platforms
-    let _ = (context, target, dir, path, kind);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkatUtf16")).boxed())
+    // create one symlink by converting utf16 path inputs
+    core_fs::with_utf16_pair_as_bytes(target, path, "path", |target, path| unsafe {
+        destack_fs_symlinkat_bytes(context, target, dir, path, kind)
+    })
 }
 
 /// Read a symbolic link relative to a directory handle.
@@ -829,9 +861,16 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported readlinkat calls on non-windows platforms
-    let _ = (context, dir, path);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkatUtf16")).boxed())
+    // read one symlink target by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| {
+        let mut bytes_output = core_fs::empty_path_bytes();
+        unsafe { destack_fs_readlinkat_bytes(context, &mut bytes_output, dir, path) }?;
+        let utf16_output = core_fs::path_utf16_from_bytes(context, bytes_output, "path")?;
+        unsafe {
+            *out = utf16_output;
+        }
+        Ok(())
+    })
 }
 
 /// Rename or move a file.

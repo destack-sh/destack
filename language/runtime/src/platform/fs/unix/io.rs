@@ -15,6 +15,99 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
+#[cfg(target_os = "linux")]
+fn read_write_flags_to_i32(flags: ReadWriteFlags, argument: &'static str) -> RuntimeResult<i32> {
+    i32::try_from(flags.0).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            argument,
+            "flags exceed supported range",
+        ))
+        .boxed()
+    })
+}
+
+/// Splice flag bit for page move hint.
+#[cfg(target_os = "linux")]
+const SPLICE_FLAG_MOVE: u32 = 0x1;
+/// Splice flag bit for nonblocking mode.
+#[cfg(target_os = "linux")]
+const SPLICE_FLAG_NONBLOCK: u32 = 0x2;
+/// Splice flag bit for more data hint.
+#[cfg(target_os = "linux")]
+const SPLICE_FLAG_MORE: u32 = 0x4;
+/// Splice flag bit for gift page semantics.
+#[cfg(target_os = "linux")]
+const SPLICE_FLAG_GIFT: u32 = 0x8;
+/// Bitmask of all supported splice flag bits.
+#[cfg(target_os = "linux")]
+const SPLICE_SUPPORTED_FLAGS: u32 =
+    SPLICE_FLAG_MOVE | SPLICE_FLAG_NONBLOCK | SPLICE_FLAG_MORE | SPLICE_FLAG_GIFT;
+
+/// Resolve one descriptor endpoint for splice-style operations.
+#[cfg(unix)]
+fn splice_descriptor(
+    context: &BindingCallContext,
+    handle: ResourceId,
+    label: &str,
+) -> RuntimeResult<RawFd> {
+    // resolve the resource and enforce splice-compatible kinds
+    let resolved = context
+        .runtime()
+        .resources
+        .with_entry(handle, |entry| {
+            if !matches!(
+                entry.kind,
+                ResourceKind::File | ResourceKind::Pipe | ResourceKind::Socket
+            ) {
+                return None;
+            }
+            entry.fd()
+        })
+        .flatten();
+
+    // return the descriptor or fail explicitly
+    let Some(fd) = resolved else {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            format!("unknown {label} handle"),
+        ))
+        .boxed());
+    };
+
+    Ok(fd)
+}
+
+/// Convert one splice flag bitset into host syscall flags.
+#[cfg(target_os = "linux")]
+fn splice_flags_to_native(flags: SpliceFlags, argument: &'static str) -> RuntimeResult<u32> {
+    // reject unknown flag bits
+    let unsupported_flags = flags.0 & !SPLICE_SUPPORTED_FLAGS;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            argument,
+            format!("unsupported splice flags: {unsupported_flags:#x}"),
+        ))
+        .boxed());
+    }
+
+    // map runtime bits into linux splice flags
+    let mut native_flags = 0u32;
+    if (flags.0 & SPLICE_FLAG_MOVE) != 0 {
+        native_flags |= libc::SPLICE_F_MOVE as u32;
+    }
+    if (flags.0 & SPLICE_FLAG_NONBLOCK) != 0 {
+        native_flags |= libc::SPLICE_F_NONBLOCK as u32;
+    }
+    if (flags.0 & SPLICE_FLAG_MORE) != 0 {
+        native_flags |= libc::SPLICE_F_MORE as u32;
+    }
+    if (flags.0 & SPLICE_FLAG_GIFT) != 0 {
+        native_flags |= libc::SPLICE_F_GIFT as u32;
+    }
+
+    Ok(native_flags)
+}
+
 /// Read from a file into the provided slice.
 ///
 /// Read bytes into one contiguous caller-provided buffer from the current file position.
@@ -452,9 +545,62 @@ pub(crate) unsafe fn destack_fs_preadv2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    _flags: ReadWriteFlags,
+    flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
+    // use native preadv2 on linux where the host supports flags
+    #[cfg(target_os = "linux")]
+    {
+        // ensure the output pointer is valid
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+
+        // resolve the buffer list
+        let buffers = unsafe { buffers.as_slice()? };
+
+        // read from the file on linux platforms
+        let fd = file_descriptor(context, handle)?;
+        let offset = offset_to_off_t(offset)?;
+        let flags = read_write_flags_to_i32(flags, "flags")?;
+        let mut iovecs = Vec::with_capacity(buffers.len());
+        for buffer in buffers {
+            let slice = unsafe { buffer.as_mut_slice()? };
+            iovecs.push(libc::iovec {
+                iov_base: slice.as_mut_ptr() as *mut libc::c_void,
+                iov_len: slice.len(),
+            });
+        }
+        let rc = unsafe {
+            libc::preadv2(
+                fd,
+                iovecs.as_ptr(),
+                iovecs.len() as libc::c_int,
+                offset,
+                flags,
+            )
+        };
+        if rc < 0 {
+            return Err(core_platform::io_error("preadv2", None));
+        }
+
+        unsafe {
+            *out = rc as u64;
+        }
+
+        Ok(())
+    }
+
+    // reject non zero flags on unix targets without preadv2 support
+    #[cfg(not(target_os = "linux"))]
+    {
+        if flags.0 != 0 {
+            return Err(
+                RuntimeError::from(PlatformError::not_supported("destack.fs.preadv2")).boxed(),
+            );
+        }
+
+        unsafe { destack_fs_preadv(context, out, handle, buffers, offset) }
+    }
 }
 
 /// Write from multiple buffers with explicit write flags.
@@ -482,9 +628,62 @@ pub(crate) unsafe fn destack_fs_pwritev2(
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-    _flags: ReadWriteFlags,
+    flags: ReadWriteFlags,
 ) -> RuntimeResult<()> {
-    unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
+    // use native pwritev2 on linux where the host supports flags
+    #[cfg(target_os = "linux")]
+    {
+        // ensure the output pointer is valid
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+
+        // resolve the buffer list
+        let buffers = unsafe { buffers.as_slice()? };
+
+        // write to the file on linux platforms
+        let fd = file_descriptor(context, handle)?;
+        let offset = offset_to_off_t(offset)?;
+        let flags = read_write_flags_to_i32(flags, "flags")?;
+        let mut iovecs = Vec::with_capacity(buffers.len());
+        for buffer in buffers {
+            let slice = unsafe { buffer.as_slice()? };
+            iovecs.push(libc::iovec {
+                iov_base: slice.as_ptr() as *mut libc::c_void,
+                iov_len: slice.len(),
+            });
+        }
+        let rc = unsafe {
+            libc::pwritev2(
+                fd,
+                iovecs.as_ptr(),
+                iovecs.len() as libc::c_int,
+                offset,
+                flags,
+            )
+        };
+        if rc < 0 {
+            return Err(core_platform::io_error("pwritev2", None));
+        }
+
+        unsafe {
+            *out = rc as u64;
+        }
+
+        Ok(())
+    }
+
+    // reject non zero flags on unix targets without pwritev2 support
+    #[cfg(not(target_os = "linux"))]
+    {
+        if flags.0 != 0 {
+            return Err(
+                RuntimeError::from(PlatformError::not_supported("destack.fs.pwritev2")).boxed(),
+            );
+        }
+
+        unsafe { destack_fs_pwritev(context, out, handle, buffers, offset) }
+    }
 }
 
 /// Move data between resource handles.
@@ -507,8 +706,8 @@ pub(crate) unsafe fn destack_fs_pwritev2(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_splice(
-    _context: &BindingCallContext,
-    _out: *mut u64,
+    context: &BindingCallContext,
+    out: *mut u64,
     source: ResourceId,
     sourcecursor: SpliceCursor,
     target: ResourceId,
@@ -516,8 +715,195 @@ pub(crate) unsafe fn destack_fs_splice(
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (source, sourcecursor, target, targetcursor, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.splice")).boxed())
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // run one read-write fallback on non-linux unix targets
+    #[cfg(not(target_os = "linux"))]
+    {
+        // reject unsupported fallback flags explicitly
+        if flags.0 != 0 {
+            return Err(
+                RuntimeError::from(PlatformError::not_supported("destack.fs.file.splice")).boxed(),
+            );
+        }
+
+        // resolve source and target descriptors
+        let source_fd = splice_descriptor(context, source, "source")?;
+        let target_fd = splice_descriptor(context, target, "target")?;
+
+        // initialize cursor state and transfer buffer
+        let mut source_offset = if sourcecursor.has_offset {
+            Some(sourcecursor.offset.0)
+        } else {
+            None
+        };
+        let mut target_offset = if targetcursor.has_offset {
+            Some(targetcursor.offset.0)
+        } else {
+            None
+        };
+        let mut remaining = length.0;
+        let mut total = 0u64;
+        let mut buffer = vec![0u8; 1024 * 1024];
+        while remaining > 0 {
+            // read one source chunk
+            let chunk = remaining.min(buffer.len() as u64) as usize;
+            let bytes_read = if let Some(offset) = source_offset.as_mut() {
+                let rc = unsafe {
+                    libc::pread(
+                        source_fd,
+                        buffer.as_mut_ptr() as *mut libc::c_void,
+                        chunk,
+                        *offset,
+                    )
+                };
+                if rc < 0 {
+                    return Err(core_platform::io_error("pread", None));
+                }
+                let bytes = rc as u64;
+                *offset = offset.checked_add(bytes as i64).ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "sourceCursor.offset",
+                        "source cursor overflow",
+                    ))
+                    .boxed()
+                })?;
+                bytes
+            } else {
+                let rc = unsafe {
+                    libc::read(source_fd, buffer.as_mut_ptr() as *mut libc::c_void, chunk)
+                };
+                if rc < 0 {
+                    return Err(core_platform::io_error("read", None));
+                }
+                rc as u64
+            };
+            if bytes_read == 0 {
+                break;
+            }
+
+            // write one full chunk to the target
+            let mut written = 0usize;
+            let expected = bytes_read as usize;
+            while written < expected {
+                let bytes_written = if let Some(offset) = target_offset.as_mut() {
+                    let rc = unsafe {
+                        libc::pwrite(
+                            target_fd,
+                            buffer[written..expected].as_ptr() as *const libc::c_void,
+                            expected - written,
+                            *offset,
+                        )
+                    };
+                    if rc < 0 {
+                        return Err(core_platform::io_error("pwrite", None));
+                    }
+                    let bytes = rc as u64;
+                    *offset = offset.checked_add(bytes as i64).ok_or_else(|| {
+                        RuntimeError::from(PlatformError::invalid_argument_value(
+                            "targetCursor.offset",
+                            "target cursor overflow",
+                        ))
+                        .boxed()
+                    })?;
+                    bytes
+                } else {
+                    let rc = unsafe {
+                        libc::write(
+                            target_fd,
+                            buffer[written..expected].as_ptr() as *const libc::c_void,
+                            expected - written,
+                        )
+                    };
+                    if rc < 0 {
+                        return Err(core_platform::io_error("write", None));
+                    }
+                    rc as u64
+                };
+                if bytes_written == 0 {
+                    return Err(RuntimeError::from(PlatformError::io(
+                        "splice fallback write returned zero bytes".to_string(),
+                    ))
+                    .boxed());
+                }
+                written = written.saturating_add(bytes_written as usize);
+            }
+
+            total = total.saturating_add(bytes_read);
+            remaining = remaining.saturating_sub(bytes_read);
+        }
+
+        // write byte count output
+        unsafe {
+            *out = total;
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // resolve descriptors and syscall flags
+        let source_fd = splice_descriptor(context, source, "source")?;
+        let target_fd = splice_descriptor(context, target, "target")?;
+        let native_flags = splice_flags_to_native(flags, "flags")?;
+        let transfer_length = usize::try_from(length.0).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "length",
+                "length exceeds host range",
+            ))
+            .boxed()
+        })?;
+
+        // convert optional source cursor
+        let mut source_offset = if sourcecursor.has_offset {
+            offset_to_off_t(sourcecursor.offset)?
+        } else {
+            0
+        };
+        let source_offset_pointer = if sourcecursor.has_offset {
+            &mut source_offset as *mut libc::off_t
+        } else {
+            std::ptr::null_mut()
+        };
+
+        // convert optional target cursor
+        let mut target_offset = if targetcursor.has_offset {
+            offset_to_off_t(targetcursor.offset)?
+        } else {
+            0
+        };
+        let target_offset_pointer = if targetcursor.has_offset {
+            &mut target_offset as *mut libc::off_t
+        } else {
+            std::ptr::null_mut()
+        };
+
+        // run one splice transfer
+        let transferred = unsafe {
+            libc::splice(
+                source_fd,
+                source_offset_pointer,
+                target_fd,
+                target_offset_pointer,
+                transfer_length,
+                native_flags as libc::c_uint,
+            )
+        };
+        if transferred < 0 {
+            return Err(core_platform::io_error("splice", None));
+        }
+
+        // write byte count output
+        unsafe {
+            *out = transferred as u64;
+        }
+
+        Ok(())
+    }
 }
 
 /// Duplicate pipe data between pipe handles.
@@ -540,15 +926,59 @@ pub(crate) unsafe fn destack_fs_splice(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_tee(
-    _context: &BindingCallContext,
-    _out: *mut u64,
+    context: &BindingCallContext,
+    out: *mut u64,
     sourcepipe: PipeHandle,
     targetpipe: PipeHandle,
     length: FileSize,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (sourcepipe, targetpipe, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // reject non-linux targets explicitly
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (context, sourcepipe, targetpipe, length, flags);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.tee")).boxed())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // resolve descriptors and syscall flags
+        let source_fd = splice_descriptor(context, sourcepipe.0, "source pipe")?;
+        let target_fd = splice_descriptor(context, targetpipe.0, "target pipe")?;
+        let native_flags = splice_flags_to_native(flags, "flags")?;
+        let transfer_length = usize::try_from(length.0).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "length",
+                "length exceeds host range",
+            ))
+            .boxed()
+        })?;
+
+        // run one tee transfer
+        let transferred = unsafe {
+            libc::tee(
+                source_fd,
+                target_fd,
+                transfer_length,
+                native_flags as libc::c_uint,
+            )
+        };
+        if transferred < 0 {
+            return Err(core_platform::io_error("tee", None));
+        }
+
+        // write byte count output
+        unsafe {
+            *out = transferred as u64;
+        }
+
+        Ok(())
+    }
 }
 
 /// Move user buffers into a pipe.
@@ -571,12 +1001,59 @@ pub(crate) unsafe fn destack_fs_tee(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_vmsplice(
-    _context: &BindingCallContext,
-    _out: *mut u64,
+    context: &BindingCallContext,
+    out: *mut u64,
     pipe: PipeHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     flags: SpliceFlags,
 ) -> RuntimeResult<()> {
-    let _ = (pipe, buffers, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // reject non-linux targets explicitly
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (context, pipe, buffers, flags);
+        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.file.vmsplice")).boxed())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // decode the caller iovec list
+        let segments = unsafe { buffers.as_slice()? };
+        let mut iovecs = Vec::with_capacity(segments.len());
+        for segment in segments {
+            let segment = unsafe { segment.as_slice()? };
+            iovecs.push(libc::iovec {
+                iov_base: segment.as_ptr() as *mut libc::c_void,
+                iov_len: segment.len(),
+            });
+        }
+
+        // resolve the pipe descriptor and syscall flags
+        let pipe_fd = splice_descriptor(context, pipe.0, "pipe")?;
+        let native_flags = splice_flags_to_native(flags, "flags")?;
+
+        // run one vmsplice operation
+        let transferred = unsafe {
+            libc::vmsplice(
+                pipe_fd,
+                iovecs.as_ptr(),
+                iovecs.len() as libc::size_t,
+                native_flags as libc::c_uint,
+            )
+        };
+        if transferred < 0 {
+            return Err(core_platform::io_error("vmsplice", None));
+        }
+
+        // write byte count output
+        unsafe {
+            *out = transferred as u64;
+        }
+
+        Ok(())
+    }
 }

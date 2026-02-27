@@ -74,14 +74,15 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    // report unsupported lutimes calls on non-windows platforms
-    let _ = (path, atimens, mtimens);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lutimesUtf16")).boxed())
+    // update timestamps by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_lutimes_bytes(context, path, atimens, mtimens)
+    })
 }
 
 /// Update access and modification times relative to a directory handle.
@@ -146,16 +147,17 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported utimensat calls on non-windows platforms
-    let _ = (dir, path, atimens, mtimens, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimensatUtf16")).boxed())
+    // update timestamps by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_utimensat_bytes(context, dir, path, atimens, mtimens, flags)
+    })
 }
 
 /// Update access and modification times.
@@ -210,14 +212,15 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
-    // report unsupported utimes calls on non-windows platforms
-    let _ = (path, atimens, mtimens);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimesUtf16")).boxed())
+    // update timestamps by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_utimes_bytes(context, path, atimens, mtimens)
+    })
 }
 
 /// Update access and modification times.

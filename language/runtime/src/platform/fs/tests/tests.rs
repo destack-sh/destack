@@ -22,8 +22,9 @@ use crate::platform::{
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{
-    Dirent, DirentKind, DirentVm, OpenOptions, OpenOptionsVm, OsPath, OsPathVm, PathBytesAbi,
-    PathEncoding, PathUtf16Abi, core as core_fs,
+    Dirent, DirentKind, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm, OsPath,
+    OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, WatchBatch, WatchBatchVm, WatchEvent,
+    WatchEventKind, WatchEventVm, WatchOptions, core as core_fs,
 };
 
 /// Path reference payload used by filesystem test helpers.
@@ -45,6 +46,15 @@ pub(crate) enum FsMapping {
     Native(NativeSlice<u8>),
     /// VM mapping.
     Vm(VmSlice<u8>),
+}
+
+/// Watch event payload used by filesystem tests.
+#[derive(Clone, Copy)]
+pub(crate) enum FsWatchEvent {
+    /// Native watch event payload.
+    Native(WatchEvent),
+    /// VM watch event payload.
+    Vm(WatchEventVm),
 }
 
 /// Filesystem harness context used by tests.
@@ -443,6 +453,77 @@ fn decode_dirent_vm(
     };
 
     Ok(DirentVm { name, kind })
+}
+
+/// Decode a VM watch event from an aggregate value.
+fn decode_watch_event_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+) -> RuntimeResult<WatchEventVm> {
+    let slots = context
+        .aggregate_slots(value)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+    if slots.len() != 4 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "watchEvent",
+            "expected WatchEvent aggregate with 4 fields",
+        ))
+        .boxed());
+    }
+
+    let (kind, width) = slots[0].as_uint_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(
+            "watchEvent",
+            "WatchEvent",
+        ))
+        .boxed()
+    })?;
+    if width != 8 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+            "watchEvent",
+            "WatchEvent",
+        ))
+        .boxed());
+    }
+    let kind = match kind as u8 {
+        value if value == WatchEventKind::Create as u8 => WatchEventKind::Create,
+        value if value == WatchEventKind::Remove as u8 => WatchEventKind::Remove,
+        value if value == WatchEventKind::Modify as u8 => WatchEventKind::Modify,
+        value if value == WatchEventKind::Rename as u8 => WatchEventKind::Rename,
+        value if value == WatchEventKind::Metadata as u8 => WatchEventKind::Metadata,
+        value if value == WatchEventKind::Overflow as u8 => WatchEventKind::Overflow,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "watchEvent.kind",
+                "unknown WatchEventKind value",
+            ))
+            .boxed());
+        }
+    };
+
+    let path = decode_path_ref_vm(context, slots[1])?;
+    let related_path = decode_path_ref_vm(context, slots[2])?;
+    let (cookie, width) = slots[3].as_uint_with_width().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(
+            "watchEvent",
+            "WatchEvent",
+        ))
+        .boxed()
+    })?;
+    if width != 64 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+            "watchEvent",
+            "WatchEvent",
+        ))
+        .boxed());
+    }
+
+    Ok(WatchEventVm {
+        kind,
+        path,
+        related_path,
+        cookie,
+    })
 }
 
 fn decode_string_value(

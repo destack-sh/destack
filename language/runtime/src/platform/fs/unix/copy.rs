@@ -177,7 +177,7 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     from: PathUtf16,
     to: PathUtf16,
     flags: CopyFlags,
@@ -191,9 +191,10 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
         .boxed());
     }
 
-    // report unsupported copyfile calls on non-windows platforms
-    let _ = (from, to, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.copyfileUtf16")).boxed())
+    // copy the file by converting utf16 paths to bytes
+    core_fs::with_utf16_pair_as_bytes(from, to, "path", |from, to| unsafe {
+        destack_fs_copyfile_bytes(context, from, to, flags)
+    })
 }
 
 /// Copy a range between file descriptors.
@@ -654,24 +655,17 @@ pub(super) unsafe fn fremovexattr_fd(fd: libc::c_int, name: *const libc::c_char)
     unsafe { libc::fremovexattr(fd, name) }
 }
 
-pub(super) fn decode_xattr_list(
+pub(super) fn decode_xattr_list_bytes(
     context: &BindingCallContext,
     buffer: Vec<u8>,
-) -> RuntimeResult<NativeArray<NativeStringRef>> {
+) -> RuntimeResult<NativeArray<NativeArray<u8>>> {
     // split on nul separators
     let mut names = Vec::new();
     for entry in buffer.split(|byte| *byte == 0) {
         if entry.is_empty() {
             continue;
         }
-        let name = std::str::from_utf8(entry).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "xattr",
-                "attribute name is not valid utf8",
-            ))
-            .boxed()
-        })?;
-        names.push(context.store_string(name));
+        names.push(context.store_array(entry.to_vec()));
     }
 
     Ok(context.store_array(names))

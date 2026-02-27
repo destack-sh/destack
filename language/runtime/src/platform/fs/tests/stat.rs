@@ -1,7 +1,11 @@
+#[cfg(windows)]
+use super::assert_platform_error_code;
 use super::{temp_dir, with_harness_context};
+#[cfg(windows)]
+use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(unix)]
 use crate::platform::fs::SymlinkType;
-use crate::platform::fs::{FileMode, OpenFlags};
+use crate::platform::fs::{FileMode, OpenFlags, StatxFlags, StatxMask};
 
 /// Read file metadata through stat and fstat and compare sizes.
 #[cfg(any(unix, windows))]
@@ -91,6 +95,84 @@ fn test_fs_fstatfs() {
 
         // cleanup
         context.destack_fs_close(handle)?;
+        let file = context.path_bytes(&file_path);
+        context.destack_fs_unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Read path metadata through statx fallback lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_fs_statx_returns_file_size() {
+    with_harness_context(|mut context| {
+        // create one temp directory and one test file
+        let temp_dir = temp_dir("fs_statx");
+        let file_path = temp_dir.join("file.txt");
+        let file_name = context.path_bytes(std::path::Path::new("file.txt"));
+
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+
+        // create one file with deterministic payload
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_open(file, flags, FileMode(0o644))?;
+        let payload = b"statx-payload".to_vec();
+        let expected_size = payload.len() as u64;
+        let payload = context.bytes_slice_value(&payload)?;
+        context.destack_fs_write(handle, payload)?;
+        context.destack_fs_close(handle)?;
+
+        // open the directory and stat the file by relative name
+        let dir = context.path_bytes(&temp_dir);
+        let directory = context.destack_fs_opendir(dir)?;
+        let statx = context.destack_fs_statx(directory, file_name, StatxFlags(0), StatxMask(0))?;
+        assert_eq!(statx.size.0, expected_size);
+
+        // cleanup directory resources and paths
+        context.destack_fs_closedir(directory)?;
+        let file = context.path_bytes(&file_path);
+        context.destack_fs_unlink(file)?;
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_rmdir(dir)?;
+
+        Ok(())
+    });
+}
+
+/// Reject unsupported statx flags on windows fallback lanes.
+#[cfg(windows)]
+#[test]
+fn test_fs_statx_rejects_unsupported_flags_on_windows() {
+    with_harness_context(|mut context| {
+        // create one temp directory and one test file
+        let temp_dir = temp_dir("fs_statx_windows_flags");
+        let file_path = temp_dir.join("file.txt");
+        let file_name = context.path_bytes(std::path::Path::new("file.txt"));
+
+        let dir = context.path_bytes(&temp_dir);
+        context.destack_fs_mkdir(dir, FileMode(0o755))?;
+
+        // create one empty file for statx probes
+        let file = context.path_bytes(&file_path);
+        let flags = OpenFlags((libc::O_WRONLY | libc::O_CREAT | libc::O_TRUNC) as u32);
+        let handle = context.destack_fs_open(file, flags, FileMode(0o644))?;
+        context.destack_fs_close(handle)?;
+
+        // open the directory and request one unsupported statx flag
+        let dir = context.path_bytes(&temp_dir);
+        let directory = context.destack_fs_opendir(dir)?;
+        assert_platform_error_code(
+            context.destack_fs_statx(directory, file_name, StatxFlags(0x4000), StatxMask(0)),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        // cleanup directory resources and paths
+        context.destack_fs_closedir(directory)?;
         let file = context.path_bytes(&file_path);
         context.destack_fs_unlink(file)?;
         let dir = context.path_bytes(&temp_dir);

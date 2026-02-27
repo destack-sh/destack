@@ -95,9 +95,16 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported mkdtemp calls on non-windows platforms
-    let _ = (context, template, out);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdtempUtf16")).boxed())
+    // create a temporary directory by converting utf16 input to bytes
+    core_fs::with_utf16_as_bytes(template, "template", |template| {
+        let mut bytes_output = core_fs::empty_path_bytes();
+        unsafe { destack_fs_mkdtemp_bytes(context, &mut bytes_output, template) }?;
+        let utf16_output = core_fs::path_utf16_from_bytes(context, bytes_output, "template")?;
+        unsafe {
+            *out = utf16_output;
+        }
+        Ok(())
+    })
 }
 
 /// Create a temporary directory.

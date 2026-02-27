@@ -124,6 +124,29 @@ impl<'call> FsHarnessContext<'call> {
         }
     }
 
+    /// Decode one generated single-entry directory-step payload.
+    pub(crate) fn dirent_next_from_value(
+        &mut self,
+        value: HarnessValue<DirentNext, DirentNextVm>,
+    ) -> RuntimeResult<Option<FsDirent>> {
+        match value {
+            HarnessValue::Native(value) => {
+                if !value.has_entry {
+                    return Ok(None);
+                }
+
+                Ok(Some(FsDirent::Native(value.entry)))
+            }
+            HarnessValue::Vm(value) => {
+                if !value.has_entry {
+                    return Ok(None);
+                }
+
+                Ok(Some(FsDirent::Vm(value.entry)))
+            }
+        }
+    }
+
     /// Convert a directory entry name to a string.
     pub(crate) fn dirent_name(&mut self, entry: FsDirent) -> String {
         match entry {
@@ -149,6 +172,93 @@ impl<'call> FsHarnessContext<'call> {
                 resolve: options.resolve,
             }),
             None => self.harness_value(options),
+        }
+    }
+
+    /// Build one backend-specific watch-options value.
+    pub(crate) fn watch_options_value(
+        &self,
+        options: WatchOptions,
+    ) -> HarnessValue<WatchOptions, platform_fs::WatchOptionsVm> {
+        match self.vm_context_mut() {
+            Some(_) => self.harness_value_vm(platform_fs::WatchOptionsVm {
+                mask: options.mask,
+                recursive: options.recursive,
+                follow_symlinks: options.follow_symlinks,
+            }),
+            None => self.harness_value(options),
+        }
+    }
+
+    /// Decode one generated watch-batch payload into unified test values.
+    pub(crate) fn watch_batch_from_value(
+        &mut self,
+        batch: HarnessValue<WatchBatch, WatchBatchVm>,
+    ) -> RuntimeResult<(Vec<FsWatchEvent>, bool)> {
+        match batch {
+            HarnessValue::Native(batch) => {
+                let events = unsafe { batch.events.as_slice()? };
+                let mut decoded = Vec::with_capacity(events.len());
+                for event in events {
+                    decoded.push(FsWatchEvent::Native(*event));
+                }
+
+                Ok((decoded, batch.overflowed))
+            }
+            HarnessValue::Vm(batch) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm watch batch");
+                let raw = batch.events.raw_values(context)?;
+                let mut decoded = Vec::with_capacity(raw.len());
+                for value in raw {
+                    let event = decode_watch_event_vm(context, value)?;
+                    decoded.push(FsWatchEvent::Vm(event));
+                }
+
+                Ok((decoded, batch.overflowed))
+            }
+        }
+    }
+
+    /// Read one watch-event kind from a unified test payload.
+    pub(crate) fn watch_event_kind(&self, event: FsWatchEvent) -> WatchEventKind {
+        match event {
+            FsWatchEvent::Native(event) => event.kind,
+            FsWatchEvent::Vm(event) => event.kind,
+        }
+    }
+
+    /// Convert one watch-event path into a displayable string.
+    pub(crate) fn watch_event_path(&mut self, event: FsWatchEvent) -> String {
+        match event {
+            FsWatchEvent::Native(event) => path_ref_string_native(event.path),
+            FsWatchEvent::Vm(event) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.path,
+            )
+            .unwrap_or_else(|error| {
+                panic!("failed to decode vm watch-event path: {}", error.message())
+            }),
+        }
+    }
+
+    /// Convert one watch-event related path into a displayable string.
+    pub(crate) fn watch_event_related_path(&mut self, event: FsWatchEvent) -> String {
+        match event {
+            FsWatchEvent::Native(event) => path_ref_string_native(event.related_path),
+            FsWatchEvent::Vm(event) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.related_path,
+            )
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to decode vm watch-event related path: {}",
+                    error.message()
+                )
+            }),
         }
     }
 
@@ -332,6 +442,37 @@ impl<'call> FsHarnessContext<'call> {
                     .vm_context_mut()
                     .expect("vm context required for vm string-array value");
                 array_string_vm(context, value)
+            }
+        }
+    }
+
+    /// Decode one backend-specific nested byte-array value into byte vectors.
+    pub(crate) fn bytes_array_list_from_value(
+        &self,
+        value: HarnessValue<NativeArray<NativeArray<u8>>, VmArray<VmArray<u8>>>,
+    ) -> RuntimeResult<Vec<Vec<u8>>> {
+        match value {
+            HarnessValue::Native(value) => {
+                let arrays = unsafe { value.as_slice()? };
+                let mut decoded = Vec::with_capacity(arrays.len());
+                for array in arrays {
+                    let bytes = unsafe { array.as_slice()? };
+                    decoded.push(bytes.to_vec());
+                }
+
+                Ok(decoded)
+            }
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm byte-array list value");
+                let arrays = value.read_values(context)?;
+                let mut decoded = Vec::with_capacity(arrays.len());
+                for array in arrays {
+                    decoded.push(array.read_bytes(context)?);
+                }
+
+                Ok(decoded)
             }
         }
     }

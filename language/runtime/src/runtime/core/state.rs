@@ -354,6 +354,10 @@ where
         &mut resolved.net.bind_interface,
         &platform.net().bind_interface,
     );
+    merge_bool_option(
+        &mut resolved.net.windows_packet_backend_enabled,
+        &platform.net().windows_packet_backend_enabled,
+    );
 
     // apply process overrides
     merge_path_option(

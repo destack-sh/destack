@@ -289,6 +289,7 @@ pub(crate) fn permission_denied(
 }
 
 /// Build one ioWouldBlock runtime error.
+#[cfg(any(target_os = "ios", target_os = "macos", target_os = "windows"))]
 pub(crate) fn would_block(
     operation: &'static str,
     message: impl Into<String>,

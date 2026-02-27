@@ -65,13 +65,14 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
-    // report unsupported access checks on non-windows platforms
-    let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.accessUtf16")).boxed())
+    // run the access check by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_access_bytes(context, path, mode)
+    })
 }
 
 /// Change file permissions.
@@ -124,13 +125,14 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    // report unsupported chmod calls on non-windows platforms
-    let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chmodUtf16")).boxed())
+    // apply permissions by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_chmod_bytes(context, path, mode)
+    })
 }
 
 /// Change file permissions relative to a directory handle.
@@ -193,15 +195,16 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     mode: FileMode,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported fchmodat calls on non-windows platforms
-    let _ = (dir, path, mode, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmodatUtf16")).boxed())
+    // apply permissions by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_fchmodat_bytes(context, dir, path, mode, flags)
+    })
 }
 
 /// Change file owner and group.
@@ -255,14 +258,15 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
-    // report unsupported chown calls on non-windows platforms
-    let _ = (path, uid, gid);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chownUtf16")).boxed())
+    // apply ownership by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_chown_bytes(context, path, uid, gid)
+    })
 }
 
 /// Change file owner and group relative to a directory handle.
@@ -319,16 +323,17 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     dir: DirectoryHandle,
     path: PathUtf16,
     uid: u32,
     gid: u32,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
-    // report unsupported fchownat calls on non-windows platforms
-    let _ = (dir, path, uid, gid, flags);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchownatUtf16")).boxed())
+    // apply ownership by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_fchownat_bytes(context, dir, path, uid, gid, flags)
+    })
 }
 
 /// Check file access permissions.
