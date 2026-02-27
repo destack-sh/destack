@@ -34,9 +34,8 @@ pub(crate) struct IsolateState {
     pub(crate) externals_by_id: Vec<Option<ExternalFnPtr>>,
     /// Lookup table for function ids by name.
     pub(crate) function_name_map: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// Lookup table for dispatch tables keyed by vtable globals.
-    pub(crate) dispatch_table_by_global:
-        HashMap<mir::LocalNodeId<mir::Global>, mir::DispatchTableId>,
+    /// Lookup table for vtables keyed by vtable globals.
+    pub(crate) vtable_by_global: HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId>,
     /// Configuration options for this isolate.
     pub(crate) options: IsolateOptions,
 }
@@ -59,7 +58,7 @@ impl IsolateState {
         heap: SharedHeap,
     ) -> Self {
         let function_name_map = build_function_name_map(&tree, &strings);
-        let dispatch_table_by_global = build_dispatch_table_map(&tree);
+        let vtable_by_global = build_vtable_map(&tree);
 
         // assign a unique isolate id
         let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -74,7 +73,7 @@ impl IsolateState {
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
             function_name_map,
-            dispatch_table_by_global,
+            vtable_by_global,
             options,
         }
     }
@@ -89,12 +88,12 @@ impl IsolateState {
         self.heap.borrow_read()
     }
 
-    /// Resolve a dispatch table id for a vtable global.
-    pub(crate) fn dispatch_table_for_global(
+    /// Resolve a vtable id for a vtable global.
+    pub(crate) fn vtable_for_global(
         &self,
         global: mir::LocalNodeId<mir::Global>,
-    ) -> Option<mir::DispatchTableId> {
-        self.dispatch_table_by_global.get(&global).copied()
+    ) -> Option<mir::VtableId> {
+        self.vtable_by_global.get(&global).copied()
     }
 
     /// Register a VM binding handler.
@@ -229,19 +228,17 @@ fn build_function_name_map(
     map
 }
 
-/// Build a lookup table from vtable globals to dispatch table ids.
-fn build_dispatch_table_map(
-    tree: &mir::NodeTree,
-) -> HashMap<mir::LocalNodeId<mir::Global>, mir::DispatchTableId> {
+/// Build a lookup table from vtable globals to vtable ids.
+fn build_vtable_map(tree: &mir::NodeTree) -> HashMap<mir::LocalNodeId<mir::Global>, mir::VtableId> {
     let mut map = HashMap::new();
-    for (index, table) in tree.type_table.dispatch_registry.tables.iter().enumerate() {
+    for (index, table) in tree.type_table.vtable_registry.tables.iter().enumerate() {
         let Some(table) = table.as_ref() else {
             continue;
         };
         let Some(global) = table.global else {
             continue;
         };
-        map.insert(global, mir::DispatchTableId::new(index as u32));
+        map.insert(global, mir::VtableId::new(index as u32));
     }
     map
 }

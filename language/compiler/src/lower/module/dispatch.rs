@@ -4,12 +4,12 @@ use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
 
 impl ModuleLowerer<'_> {
-    /// Initialize deterministic dispatch registries for vtable and itab lowering.
-    pub(crate) fn lower_dispatch_registry(&mut self) -> LowerResult<()> {
-        if self.dispatch_registry_ready {
+    /// Initialize deterministic vtable and itab ids for lowering.
+    pub(crate) fn lower_dispatch_tables(&mut self) -> LowerResult<()> {
+        if self.dispatch_tables_ready {
             return Ok(());
         }
-        self.dispatch_registry_ready = true;
+        self.dispatch_tables_ready = true;
 
         // collect class symbols in declaration order
         let mut class_symbols = Vec::new();
@@ -44,7 +44,7 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
-            let vtable_id = mir::DispatchTableId::new(self.vtable_class_symbols.len() as u32);
+            let vtable_id = mir::VtableId::new(self.vtable_class_symbols.len() as u32);
             self.insert_vtable_id(symbol, vtable_id)?;
             self.vtable_class_symbols.push(symbol);
 
@@ -96,9 +96,8 @@ impl ModuleLowerer<'_> {
         self.interface_itab_pairs = pairs.clone();
         self.interface_itab_ids.clear();
 
-        let base_offset = self.vtable_class_symbols.len() as u32;
         for (index, pair) in pairs.iter().enumerate() {
-            let id = mir::DispatchTableId::new(base_offset + index as u32);
+            let id = mir::ItabId::new(index as u32);
             self.insert_interface_itab_id(*pair, id)?;
         }
 
@@ -108,7 +107,7 @@ impl ModuleLowerer<'_> {
     /// Return dispatch tables emitted after lowering items.
     pub(crate) fn dispatch_tables(
         &mut self,
-    ) -> LowerResult<(Vec<mir::DispatchTableId>, Vec<mir::DispatchTableId>)> {
+    ) -> LowerResult<(Vec<mir::VtableId>, Vec<mir::ItabId>)> {
         let vtables = self.vtables()?;
         let itabs = self.itabs()?;
         Ok((vtables, itabs))

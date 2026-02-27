@@ -38,14 +38,13 @@ impl TestProgram {
     pub(crate) fn class_dispatch_tables<'a>(
         &self,
         tree: &'a mir::NodeTree,
-    ) -> Vec<&'a mir::DispatchTable> {
-        // filter tables by kind
+    ) -> Vec<&'a mir::Vtable> {
+        // collect class vtables
         tree.type_table
-            .dispatch_registry
+            .vtable_registry
             .tables
             .iter()
             .filter_map(|table| table.as_ref())
-            .filter(|table| matches!(table.kind, mir::DispatchTableKind::Class { .. }))
             .collect()
     }
 
@@ -53,14 +52,13 @@ impl TestProgram {
     pub(crate) fn interface_dispatch_tables<'a>(
         &self,
         tree: &'a mir::NodeTree,
-    ) -> Vec<&'a mir::DispatchTable> {
-        // filter tables by kind
+    ) -> Vec<&'a mir::Itab> {
+        // collect interface itabs
         tree.type_table
-            .dispatch_registry
+            .itab_registry
             .tables
             .iter()
             .filter_map(|table| table.as_ref())
-            .filter(|table| matches!(table.kind, mir::DispatchTableKind::Interface { .. }))
             .collect()
     }
 
@@ -71,22 +69,16 @@ impl TestProgram {
         strings: &ImmutableStringPool,
         concrete_name: &str,
         interface_name: &str,
-    ) -> &'a mir::DispatchTable {
+    ) -> &'a mir::Itab {
         let concrete_type = self.type_by_metadata_name(tree, strings, concrete_name);
         let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
 
         tree.type_table
-            .dispatch_registry
+            .itab_registry
             .tables
             .iter()
             .filter_map(|table| table.as_ref())
-            .find(|table| {
-                matches!(
-                    table.kind,
-                    mir::DispatchTableKind::Interface { concrete, interface }
-                        if concrete == concrete_type && interface == interface_type
-                )
-            })
+            .find(|table| table.concrete == concrete_type && table.interface == interface_type)
             .unwrap_or_else(|| {
                 panic!(
                     "missing interface dispatch table for '{concrete_name}' -> '{interface_name}'"
@@ -98,7 +90,7 @@ impl TestProgram {
     pub(crate) fn expect_single_interface_table<'a>(
         &self,
         tree: &'a mir::NodeTree,
-    ) -> &'a mir::DispatchTable {
+    ) -> &'a mir::Itab {
         // collect interface tables
         let tables = self.interface_dispatch_tables(tree);
         assert_eq!(tables.len(), 1);
@@ -106,39 +98,39 @@ impl TestProgram {
     }
 
     /// Assert that a vtable has the fixed prefix slots.
-    pub(crate) fn assert_vtable_prefix(&self, table: &mir::DispatchTable) {
+    pub(crate) fn assert_vtable_prefix(&self, table: &mir::Vtable) {
         // require the type tag slot
-        assert!(matches!(table.slots[0], mir::DispatchSlot::TypeTag));
+        assert!(matches!(table.entries[0], mir::VtableEntry::TypeTag));
 
         // require the destructor slot
         assert!(matches!(
-            table.slots[1],
-            mir::DispatchSlot::Destructor { .. }
+            table.entries[1],
+            mir::VtableEntry::Destructor { .. }
         ));
     }
 
     /// Count method slots in a class vtable.
-    pub(crate) fn count_vtable_methods(&self, table: &mir::DispatchTable) -> usize {
+    pub(crate) fn count_vtable_methods(&self, table: &mir::Vtable) -> usize {
         // count method slots
         table
-            .slots
+            .entries
             .iter()
-            .filter(|slot| matches!(slot, mir::DispatchSlot::Method { .. }))
+            .filter(|slot| matches!(slot, mir::VtableEntry::Method { .. }))
             .count()
     }
 
     /// Collect method names from a class vtable in slot order.
     pub(crate) fn vtable_method_names(
         &self,
-        table: &mir::DispatchTable,
+        table: &mir::Vtable,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
     ) -> Vec<String> {
         table
-            .slots
+            .entries
             .iter()
             .filter_map(|slot| {
-                let mir::DispatchSlot::Method { function } = slot else {
+                let mir::VtableEntry::Method { function } = slot else {
                     return None;
                 };
                 Some(strings.get(tree.get(*function).name).to_string())
@@ -149,13 +141,13 @@ impl TestProgram {
     /// Resolve an interface field offset for a given field name.
     pub(crate) fn interface_field_offset(
         &self,
-        table: &mir::DispatchTable,
+        table: &mir::Itab,
         strings: &ImmutableStringPool,
         field_name: &str,
     ) -> Option<u32> {
         // scan field offset slots for the field name
-        for slot in &table.slots {
-            let mir::DispatchSlot::FieldOffset {
+        for slot in &table.entries {
+            let mir::ItabEntry::FieldOffset {
                 field_name: slot_name,
                 offset,
             } = slot
@@ -174,7 +166,7 @@ impl TestProgram {
     /// Resolve an interface field offset or panic.
     pub(crate) fn expect_interface_field_offset(
         &self,
-        table: &mir::DispatchTable,
+        table: &mir::Itab,
         strings: &ImmutableStringPool,
         field_name: &str,
     ) -> u32 {
@@ -185,24 +177,24 @@ impl TestProgram {
     /// Resolve the target method name for an interface method slot.
     pub(crate) fn interface_method_target_name(
         &self,
-        table: &mir::DispatchTable,
+        table: &mir::Itab,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
         method_name: &str,
     ) -> Option<String> {
         // scan interface method slots for the method name
-        for slot in &table.slots {
-            let mir::DispatchSlot::InterfaceMethod {
-                interface_method,
-                target,
+        for slot in &table.entries {
+            let mir::ItabEntry::Method {
+                declared_method,
+                target_method,
             } = slot
             else {
                 continue;
             };
 
-            let interface_name = strings.get(tree.get(*interface_method).name);
+            let interface_name = strings.get(tree.get(*declared_method).name);
             if interface_name == method_name {
-                let target_name = strings.get(tree.get(*target).name);
+                let target_name = strings.get(tree.get(*target_method).name);
                 return Some(target_name.to_string());
             }
         }
@@ -213,7 +205,7 @@ impl TestProgram {
     /// Resolve an interface method target name or panic.
     pub(crate) fn expect_interface_method_target_name(
         &self,
-        table: &mir::DispatchTable,
+        table: &mir::Itab,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
         method_name: &str,
@@ -298,7 +290,7 @@ impl TestProgram {
         &self,
         tree: &mir::NodeTree,
         type_id: mir::LocalNodeId<mir::Type>,
-    ) -> mir::DispatchTableId {
+    ) -> mir::VtableId {
         let metadata = self.type_metadata(tree, type_id);
         metadata
             .vtable

@@ -11,7 +11,7 @@ use crate::lower::table::interface::InterfaceSlot;
 
 impl ModuleLowerer<'_> {
     /// Return itabs for interface dispatch.
-    pub(crate) fn itabs(&mut self) -> LowerResult<Vec<mir::DispatchTableId>> {
+    pub(crate) fn itabs(&mut self) -> LowerResult<Vec<mir::ItabId>> {
         // generate itabs for each pair
         let mut tables = Vec::new();
         for (concrete, interface) in self.interface_itab_pairs.clone() {
@@ -27,7 +27,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         concrete: GlobalSymbolId,
         interface: GlobalSymbolId,
-    ) -> LowerResult<mir::DispatchTableId> {
+    ) -> LowerResult<mir::ItabId> {
         if let Some(table_id) = self.itab_by_pair.get(&(concrete, interface)).copied() {
             return Ok(table_id);
         }
@@ -92,9 +92,9 @@ impl ModuleLowerer<'_> {
         // lower interface instance type
         let interface_mir_type = self.lower_type(interface_type_id, declaration_id)?;
 
-        // build itab slots with fixed prefix
-        let mut slots = Vec::with_capacity(interface_slots.len() + 1);
-        slots.push(mir::DispatchSlot::TypeTag);
+        // build itab entries with fixed prefix
+        let mut entries = Vec::with_capacity(interface_slots.len() + 1);
+        entries.push(mir::ItabEntry::TypeTag);
 
         // append interface slots
         for slot in interface_slots {
@@ -109,7 +109,7 @@ impl ModuleLowerer<'_> {
                         member_id,
                         declaration_id,
                     )?;
-                    slots.push(mir::DispatchSlot::FieldOffset {
+                    entries.push(mir::ItabEntry::FieldOffset {
                         field_name: name,
                         offset,
                     });
@@ -121,12 +121,12 @@ impl ModuleLowerer<'_> {
                     ..
                 } => {
                     // resolve interface method slot
-                    let target =
+                    let declared_method = self.interface_method_stub(member_id)?;
+                    let target_method =
                         self.interface_method_target(concrete, name, signature, member_id)?;
-                    let interface_method = target;
-                    slots.push(mir::DispatchSlot::InterfaceMethod {
-                        interface_method,
-                        target,
+                    entries.push(mir::ItabEntry::Method {
+                        declared_method,
+                        target_method,
                     });
                 }
             }
@@ -135,18 +135,16 @@ impl ModuleLowerer<'_> {
         // insert the dispatch table
         let table_id = {
             let table_id = self.require_itab_id((concrete, interface))?;
-            let table = mir::DispatchTable {
-                kind: mir::DispatchTableKind::Interface {
-                    concrete: concrete_mir_type,
-                    interface: interface_mir_type,
-                },
+            let table = mir::Itab {
+                concrete: concrete_mir_type,
+                interface: interface_mir_type,
                 global: None,
-                slots,
+                entries,
             };
             self.builder
                 .tree_mut()
                 .type_table
-                .dispatch_registry
+                .itab_registry
                 .insert_at(table_id, table);
             table_id
         };
@@ -158,12 +156,36 @@ impl ModuleLowerer<'_> {
             .entry(concrete_mir_type)
             .or_default();
         metadata.itabs.push(table_id);
+        metadata
+            .itab_by_interface
+            .insert(interface_mir_type, table_id);
 
         // register the lowered itab table
         self.insert_itab_table((concrete, interface), table_id)?;
         self.itab_in_progress.shift_remove(&(concrete, interface));
 
         Ok(table_id)
+    }
+
+    /// Resolve the interface method function id for an itab slot.
+    fn interface_method_stub(
+        &self,
+        member_id: LocalNodeId<Member>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+        // resolve the interface method symbol
+        let member = self.dir_tree.get(member_id);
+        let dir::Member::Method { symbol, .. } = member else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "interface slot member is not a method".to_string(),
+            });
+        };
+
+        // resolve the lowered method function id
+        let method_symbol = symbol.into_global(self.module_id);
+        self.method_function_id(member_id, method_symbol)
     }
 
     /// Resolve the concrete field offset for an interface field.

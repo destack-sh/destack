@@ -83,7 +83,7 @@ impl VirtualMethodDescriptor {
 
 impl ModuleLowerer<'_> {
     /// Return vtables for classes that require virtual dispatch.
-    pub(crate) fn vtables(&mut self) -> LowerResult<Vec<mir::DispatchTableId>> {
+    pub(crate) fn vtables(&mut self) -> LowerResult<Vec<mir::VtableId>> {
         // generate vtables for each class
         let mut tables = Vec::new();
         for symbol in self.vtable_class_symbols.clone() {
@@ -95,7 +95,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the vtable for a single class symbol.
-    fn vtable_for_symbol(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::DispatchTableId> {
+    fn vtable_for_symbol(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::VtableId> {
         if let Some(table_id) = self.vtable_by_symbol.get(&symbol).copied() {
             return Ok(table_id);
         }
@@ -143,13 +143,13 @@ impl ModuleLowerer<'_> {
         })?;
         let mir_type = self.lower_type(instance_type_id, anchor)?;
 
-        // build vtable slots with fixed prefix
-        let mut slots = Vec::with_capacity(virtual_slots.len() + 2);
-        slots.push(mir::DispatchSlot::TypeTag);
-        slots.push(mir::DispatchSlot::Destructor { function: None });
+        // build vtable entries with fixed prefix
+        let mut entries = Vec::with_capacity(virtual_slots.len() + 2);
+        entries.push(mir::VtableEntry::TypeTag);
+        entries.push(mir::VtableEntry::Destructor { function: None });
         for method in virtual_slots {
             let function = self.method_function_id(method.member_id, method.symbol)?;
-            slots.push(mir::DispatchSlot::Method { function });
+            entries.push(mir::VtableEntry::Method { function });
         }
 
         // insert the dispatch table
@@ -163,15 +163,15 @@ impl ModuleLowerer<'_> {
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
             let table_id = self.require_vtable_id(symbol)?;
-            let table = mir::DispatchTable {
-                kind: mir::DispatchTableKind::Class { ty: mir_type },
+            let table = mir::Vtable {
+                ty: mir_type,
                 global: Some(vtable_global.global_id),
-                slots,
+                entries,
             };
             self.builder
                 .tree_mut()
                 .type_table
-                .dispatch_registry
+                .vtable_registry
                 .insert_at(table_id, table);
             table_id
         };

@@ -68,8 +68,7 @@ pub(crate) struct FunctionEnv<'a> {
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_slots_by_symbol: &'a HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
     /// Resolve interface itab ids for interface upcasts.
-    pub(crate) interface_itab_ids:
-        &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+    pub(crate) interface_itab_ids: &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
     /// Resolve virtual dispatch slot ids for method calls.
     pub(crate) virtual_method_slots_by_key: &'a HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
     /// Resolve vtable globals for class allocations.

@@ -52,7 +52,7 @@ block0(v0: @Circle):
         let itab = test.expect_single_interface_table(tree);
 
         // assert the itab slot layout
-        assert!(matches!(itab.slots[0], destack_mir::DispatchSlot::TypeTag));
+        assert!(matches!(itab.entries[0], destack_mir::ItabEntry::TypeTag));
 
         // assert the field offset slot
         let offset = test.expect_interface_field_offset(itab, strings, "color");
@@ -60,7 +60,7 @@ block0(v0: @Circle):
 
         // assert the interface method slot
         let target_name =
-            test.expect_interface_method_target_name(itab, tree, strings, "Circle.draw");
+            test.expect_interface_method_target_name(itab, tree, strings, "Drawable.draw");
         assert_eq!(target_name, "Circle.draw");
     });
 }
@@ -317,38 +317,38 @@ block0(v0: @Widget):
             "test/test:Paint#object",
         );
 
-        assert!(matches!(shape_table.slots[0], mir::DispatchSlot::TypeTag));
-        match &shape_table.slots[1] {
-            mir::DispatchSlot::FieldOffset { field_name, offset } => {
+        assert!(matches!(shape_table.entries[0], mir::ItabEntry::TypeTag));
+        match &shape_table.entries[1] {
+            mir::ItabEntry::FieldOffset { field_name, offset } => {
                 assert_eq!(strings.get(*field_name), "width");
                 assert_eq!(*offset, 0);
             }
             _ => panic!("expected field offset slot for width"),
         }
-        match &shape_table.slots[2] {
-            mir::DispatchSlot::InterfaceMethod {
-                interface_method, ..
+        match &shape_table.entries[2] {
+            mir::ItabEntry::Method {
+                declared_method, ..
             } => {
-                let method_name = strings.get(tree.get(*interface_method).name);
-                assert_eq!(method_name, "Widget.area");
+                let method_name = strings.get(tree.get(*declared_method).name);
+                assert_eq!(method_name, "Shape.area");
             }
             _ => panic!("expected interface method slot for area"),
         }
 
-        assert!(matches!(paint_table.slots[0], mir::DispatchSlot::TypeTag));
-        match &paint_table.slots[1] {
-            mir::DispatchSlot::FieldOffset { field_name, offset } => {
+        assert!(matches!(paint_table.entries[0], mir::ItabEntry::TypeTag));
+        match &paint_table.entries[1] {
+            mir::ItabEntry::FieldOffset { field_name, offset } => {
                 assert_eq!(strings.get(*field_name), "color");
                 assert_eq!(*offset, 4);
             }
             _ => panic!("expected field offset slot for color"),
         }
-        match &paint_table.slots[2] {
-            mir::DispatchSlot::InterfaceMethod {
-                interface_method, ..
+        match &paint_table.entries[2] {
+            mir::ItabEntry::Method {
+                declared_method, ..
             } => {
-                let method_name = strings.get(tree.get(*interface_method).name);
-                assert_eq!(method_name, "Widget.paint");
+                let method_name = strings.get(tree.get(*declared_method).name);
+                assert_eq!(method_name, "Paint.paint");
             }
             _ => panic!("expected interface method slot for paint"),
         }

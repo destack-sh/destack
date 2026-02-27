@@ -321,10 +321,10 @@ block0(v0: ref<managed readonly @Dog>):
         // resolve vtables by class metadata names
         let animal_type = test.type_by_metadata_name(tree, strings, "test/test:Animal");
         let animal_table_id = test.type_vtable_id(tree, animal_type);
-        let animal_table = tree.type_table.dispatch_registry.table(animal_table_id);
+        let animal_table = tree.type_table.vtable_registry.table(animal_table_id);
         let dog_type = test.type_by_metadata_name(tree, strings, "test/test:Dog");
         let dog_table_id = test.type_vtable_id(tree, dog_type);
-        let dog_table = tree.type_table.dispatch_registry.table(dog_table_id);
+        let dog_table = tree.type_table.vtable_registry.table(dog_table_id);
 
         // assert the fixed vtable prefix
         test.assert_vtable_prefix(animal_table);
@@ -404,8 +404,8 @@ block0(v0: ref<managed readonly @Struct0>):
 
         let base_table_id = test.type_vtable_id(tree, base_type);
         let derived_table_id = test.type_vtable_id(tree, derived_type);
-        let base_table = tree.type_table.dispatch_registry.table(base_table_id);
-        let derived_table = tree.type_table.dispatch_registry.table(derived_table_id);
+        let base_table = tree.type_table.vtable_registry.table(base_table_id);
+        let derived_table = tree.type_table.vtable_registry.table(derived_table_id);
 
         let base_methods = test.vtable_method_names(base_table, tree, strings);
         let derived_methods = test.vtable_method_names(derived_table, tree, strings);
