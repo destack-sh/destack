@@ -559,34 +559,7 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
     address: SocketAddress,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<()> {
-    // reserve non default behavior until flags are implemented
-    if flags.0 != 0 {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed(),
-        );
-    }
-
-    // resolve hostnames from the address
-    let mut hosts = std::mem::MaybeUninit::<NativeArray<NativeStringRef>>::uninit();
-    unsafe { host_net::destack_net_reverse_lookup_raw(context, hosts.as_mut_ptr(), address) }?;
-    let hosts = unsafe { hosts.assume_init() };
-    let hosts = unsafe { hosts.as_slice()? };
-
-    // map hostnames into lookup records
-    let empty_service = context.store_string("");
-    let mut names = Vec::with_capacity(hosts.len());
-    for host in hosts {
-        names.push(ReverseLookupName {
-            host: *host,
-            service: empty_service,
-        });
-    }
-
-    unsafe {
-        *out = context.store_array(names);
-    }
-
-    Ok(())
+    unsafe { host_net::destack_net_reverse_lookup_names_raw(context, out, address, flags) }
 }
 
 /// Send a packet to a remote socket address.
@@ -1130,29 +1103,14 @@ fn uds_path(context: &BindingCallContext, address: UdsAddress) -> RuntimeResult<
     }
 }
 
-/// Return a standard not supported error for one net binding.
-fn missing_binding(binding_name: &'static str) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(binding_name)).boxed())
-}
-
-/// Validate one required output pointer.
-unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult<()> {
-    // reject null pointers explicitly
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer(name)).boxed());
-    }
-
-    Ok(())
-}
-
 /// Read socket packet mark.
 ///
 /// Read packet mark metadata from one socket endpoint.
 /// Mark value interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -1163,15 +1121,11 @@ unsafe fn check_out_pointer<T>(out: *mut T, name: &'static str) -> RuntimeResult
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_packet_mark(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getPacketMark")
+    unsafe { host_net::destack_net_get_packet_mark(context, out, handle) }
 }
 
 /// Read one raw socket option payload.
@@ -1192,18 +1146,14 @@ pub(crate) unsafe fn destack_net_get_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_sock_opt_raw(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
     maxbytes: u32,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle, level, name, maxbytes);
-
-    missing_binding("destack.net.getSockOptRaw")
+    unsafe { host_net::destack_net_get_sock_opt_raw(context, out, handle, level, name, maxbytes) }
 }
 
 /// Read packet timestamping mode.
@@ -1224,15 +1174,11 @@ pub(crate) unsafe fn destack_net_get_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_timestamping(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut SocketTimestampingMode,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getTimestamping")
+    unsafe { host_net::destack_net_get_timestamping(context, out, handle) }
 }
 
 /// Resolve an interface name to an index.
@@ -1253,15 +1199,11 @@ pub(crate) unsafe fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     name: NativeStringRef,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, name);
-
-    missing_binding("destack.net.interfaceIndex")
+    unsafe { host_net::destack_net_interface_index(context, out, name) }
 }
 
 /// Resolve an interface index to a name.
@@ -1282,15 +1224,11 @@ pub(crate) unsafe fn destack_net_interface_index(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_interface_name(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeStringRef,
     index: u32,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, index);
-
-    missing_binding("destack.net.interfaceName")
+    unsafe { host_net::destack_net_interface_name(context, out, index) }
 }
 
 /// List network interfaces with addresses and flags.
@@ -1311,12 +1249,10 @@ pub(crate) unsafe fn destack_net_interface_name(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    missing_binding("destack.net.listInterfaces")
+    unsafe { host_net::destack_net_list_interfaces(context, out) }
 }
 
 /// Open a packet capture or inject endpoint.
@@ -1326,7 +1262,10 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
+/// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1337,15 +1276,11 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_open(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     options: PacketCaptureOptions,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, options);
-
-    missing_binding("destack.net.packetOpen")
+    unsafe { host_net::destack_net_packet_open(context, out, options) }
 }
 
 /// Receive one packet from a packet endpoint.
@@ -1355,7 +1290,10 @@ pub(crate) unsafe fn destack_net_packet_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
+/// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1366,16 +1304,12 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_receive(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut PacketCaptureRecord,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle, payload);
-
-    missing_binding("destack.net.packetReceive")
+    unsafe { host_net::destack_net_packet_receive(context, out, handle, payload) }
 }
 
 /// Send one packet through a packet endpoint.
@@ -1385,7 +1319,10 @@ pub(crate) unsafe fn destack_net_packet_receive(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
+/// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1396,16 +1333,12 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_send(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut u64,
     handle: SocketHandle,
     payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle, payload);
-
-    missing_binding("destack.net.packetSend")
+    unsafe { host_net::destack_net_packet_send(context, out, handle, payload) }
 }
 
 /// Configure packet timestamp mode for a socket or packet endpoint.
@@ -1415,7 +1348,10 @@ pub(crate) unsafe fn destack_net_packet_send(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
+/// Uses SO_TIMESTAMP families on Linux and BPF timestamp lanes on macOS.
+/// Returns `notSupported` on Unix targets without timestamp-capable packet backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1426,14 +1362,11 @@ pub(crate) unsafe fn destack_net_packet_send(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (handle, mode);
-
-    missing_binding("destack.net.packetSetTimestampMode")
+    unsafe { host_net::destack_net_packet_set_timestamp_mode(context, handle, mode) }
 }
 
 /// Clear packet fanout from a packet endpoint.
@@ -1443,7 +1376,9 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT reset on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1454,10 +1389,10 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
-    _context: &BindingCallContext,
-    _handle: SocketHandle,
+    context: &BindingCallContext,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    missing_binding("destack.net.packetClearFanout")
+    unsafe { host_net::destack_net_packet_clear_fanout(context, handle) }
 }
 
 /// Clear the active packet filter program.
@@ -1467,7 +1402,10 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_DETACH_FILTER on Linux and BIOCSETF reset on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1478,10 +1416,10 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
-    _context: &BindingCallContext,
-    _handle: SocketHandle,
+    context: &BindingCallContext,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    missing_binding("destack.net.packetClearFilter")
+    unsafe { host_net::destack_net_packet_clear_filter(context, handle) }
 }
 
 /// Clear packet rx and tx ring configuration.
@@ -1491,7 +1429,9 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
+/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns `notSupported` elsewhere.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1502,10 +1442,10 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
-    _context: &BindingCallContext,
-    _handle: SocketHandle,
+    context: &BindingCallContext,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    missing_binding("destack.net.packetClearRing")
+    unsafe { host_net::destack_net_packet_clear_ring(context, handle) }
 }
 
 /// Set packet fanout on a packet endpoint.
@@ -1515,7 +1455,9 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1526,13 +1468,11 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_fanout(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketFanoutOptions,
 ) -> RuntimeResult<()> {
-    let _ = (handle, options);
-
-    missing_binding("destack.net.packetSetFanout")
+    unsafe { host_net::destack_net_packet_set_fanout(context, handle, options) }
 }
 
 /// Attach one packet filter program to a raw endpoint.
@@ -1542,7 +1482,10 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_ATTACH_FILTER on Linux and BIOCSETF on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1553,13 +1496,11 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_filter(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     filterprogram: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, filterprogram);
-
-    missing_binding("destack.net.packetSetFilter")
+    unsafe { host_net::destack_net_packet_set_filter(context, handle, filterprogram) }
 }
 
 /// Configure one packet rx ring for zero-copy capture.
@@ -1569,7 +1510,9 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_RX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1580,13 +1523,11 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_rx_ring(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
-    let _ = (handle, options);
-
-    missing_binding("destack.net.packetSetRxRing")
+    unsafe { host_net::destack_net_packet_set_rx_ring(context, handle, options) }
 }
 
 /// Configure one packet tx ring for zero-copy transmit.
@@ -1596,7 +1537,9 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_TX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1607,13 +1550,11 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_tx_ring(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     options: PacketRingOptions,
 ) -> RuntimeResult<()> {
-    let _ = (handle, options);
-
-    missing_binding("destack.net.packetSetTxRing")
+    unsafe { host_net::destack_net_packet_set_tx_ring(context, handle, options) }
 }
 
 /// Read packet capture statistics from one endpoint.
@@ -1623,7 +1564,10 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
+/// Uses packet socket stats on Linux and BPF stats on macOS.
+/// Returns `notSupported` on Unix targets without packet stats backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1634,14 +1578,11 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_packet_stats(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut PacketCaptureStats,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.packetStats")
+    unsafe { host_net::destack_net_packet_stats(context, out, handle) }
 }
 
 /// Read the default IPv4 multicast interface for one socket.
@@ -1662,14 +1603,11 @@ pub(crate) unsafe fn destack_net_packet_stats(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeStringRef,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getMulticastInterfaceV4")
+    unsafe { host_net::destack_net_get_multicast_interface_v4(context, out, handle) }
 }
 
 /// Read the default IPv6 multicast interface for one socket.
@@ -1690,14 +1628,11 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getMulticastInterfaceV6")
+    unsafe { host_net::destack_net_get_multicast_interface_v6(context, out, handle) }
 }
 
 /// Select the default IPv4 multicast interface for one socket.
@@ -1718,13 +1653,11 @@ pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     interfaceaddress: NativeStringRef,
 ) -> RuntimeResult<()> {
-    let _ = (handle, interfaceaddress);
-
-    missing_binding("destack.net.setMulticastInterfaceV4")
+    unsafe { host_net::destack_net_set_multicast_interface_v4(context, handle, interfaceaddress) }
 }
 
 /// Select the default IPv6 multicast interface for one socket.
@@ -1745,13 +1678,11 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     interfaceindex: u32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, interfaceindex);
-
-    missing_binding("destack.net.setMulticastInterfaceV6")
+    unsafe { host_net::destack_net_set_multicast_interface_v6(context, handle, interfaceindex) }
 }
 
 /// Read multicast loopback mode.
@@ -1772,14 +1703,11 @@ pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_loop(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getMulticastLoop")
+    unsafe { host_net::destack_net_get_multicast_loop(context, out, handle) }
 }
 
 /// Read multicast TTL or hop-limit.
@@ -1800,14 +1728,11 @@ pub(crate) unsafe fn destack_net_get_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_get_multicast_ttl(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut u32,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, handle);
-
-    missing_binding("destack.net.getMulticastTtl")
+    unsafe { host_net::destack_net_get_multicast_ttl(context, out, handle) }
 }
 
 /// Join one IPv4 source-specific multicast membership.
@@ -1828,13 +1753,11 @@ pub(crate) unsafe fn destack_net_get_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v4(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
-    let _ = (handle, membership);
-
-    missing_binding("destack.net.joinMulticastSourceV4")
+    unsafe { host_net::destack_net_join_multicast_source_v4(context, handle, membership) }
 }
 
 /// Join one IPv6 source-specific multicast membership.
@@ -1855,13 +1778,11 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_source_v6(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
-    let _ = (handle, membership);
-
-    missing_binding("destack.net.joinMulticastSourceV6")
+    unsafe { host_net::destack_net_join_multicast_source_v6(context, handle, membership) }
 }
 
 /// Leave one IPv4 source-specific multicast membership.
@@ -1882,13 +1803,11 @@ pub(crate) unsafe fn destack_net_join_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV4,
 ) -> RuntimeResult<()> {
-    let _ = (handle, membership);
-
-    missing_binding("destack.net.leaveMulticastSourceV4")
+    unsafe { host_net::destack_net_leave_multicast_source_v4(context, handle, membership) }
 }
 
 /// Leave one IPv6 source-specific multicast membership.
@@ -1909,13 +1828,11 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     membership: UdpSourceMembershipV6,
 ) -> RuntimeResult<()> {
-    let _ = (handle, membership);
-
-    missing_binding("destack.net.leaveMulticastSourceV6")
+    unsafe { host_net::destack_net_leave_multicast_source_v6(context, handle, membership) }
 }
 
 /// Enable or disable IP header inclusion on a raw socket.
@@ -1936,14 +1853,11 @@ pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_set_header_included(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (handle, enabled);
-
-    missing_binding("destack.net.rawSetHeaderIncluded")
+    unsafe { host_net::destack_net_raw_set_header_included(context, handle, enabled) }
 }
 
 /// Open a raw IP socket.
@@ -1964,16 +1878,12 @@ pub(crate) unsafe fn destack_net_raw_set_header_included(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_raw_socket(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut SocketHandle,
     family: SocketFamily,
     protocol: i32,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, family, protocol);
-
-    missing_binding("destack.net.rawSocket")
+    unsafe { host_net::destack_net_raw_socket(context, out, family, protocol) }
 }
 
 /// Add a route table entry.
@@ -1983,7 +1893,9 @@ pub(crate) unsafe fn destack_net_raw_socket(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1994,11 +1906,10 @@ pub(crate) unsafe fn destack_net_raw_socket(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    _context: &BindingCallContext,
-    _route: RouteEntry,
+    context: &BindingCallContext,
+    route: RouteEntry,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    missing_binding("destack.net.routeAdd")
+    unsafe { host_net::destack_net_route_add(context, route) }
 }
 
 /// Remove a route table entry.
@@ -2008,7 +1919,9 @@ pub(crate) unsafe fn destack_net_route_add(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2019,11 +1932,10 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    _context: &BindingCallContext,
-    _route: RouteEntry,
+    context: &BindingCallContext,
+    route: RouteEntry,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    missing_binding("destack.net.routeDelete")
+    unsafe { host_net::destack_net_route_delete(context, route) }
 }
 
 /// List route table entries.
@@ -2033,7 +1945,9 @@ pub(crate) unsafe fn destack_net_route_delete(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
+/// Uses netlink route tables on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route tables on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
@@ -2044,15 +1958,11 @@ pub(crate) unsafe fn destack_net_route_delete(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_list(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<RouteEntry>,
     family: SocketFamily,
 ) -> RuntimeResult<()> {
-    // validate pointer and keep arguments used
-    unsafe { check_out_pointer(out, "out")? };
-    let _ = (out, family);
-
-    missing_binding("destack.net.routeList")
+    unsafe { host_net::destack_net_route_list(context, out, family) }
 }
 
 /// Set socket packet mark.
@@ -2061,8 +1971,8 @@ pub(crate) unsafe fn destack_net_route_list(
 /// Mark interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -2073,14 +1983,11 @@ pub(crate) unsafe fn destack_net_route_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_packet_mark(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     mark: u32,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (handle, mark);
-
-    missing_binding("destack.net.setPacketMark")
+    unsafe { host_net::destack_net_set_packet_mark(context, handle, mark) }
 }
 
 /// Set one raw socket option payload.
@@ -2101,16 +2008,13 @@ pub(crate) unsafe fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_sock_opt_raw(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     level: SocketOptionLevel,
     name: SocketOptionName,
     value: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (handle, level, name, value);
-
-    missing_binding("destack.net.setSockOptRaw")
+    unsafe { host_net::destack_net_set_sock_opt_raw(context, handle, level, name, value) }
 }
 
 /// Set packet timestamping mode.
@@ -2131,12 +2035,9 @@ pub(crate) unsafe fn destack_net_set_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_timestamping(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: SocketHandle,
     mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
-    // keep arguments used
-    let _ = (handle, mode);
-
-    missing_binding("destack.net.setTimestamping")
+    unsafe { host_net::destack_net_set_timestamping(context, handle, mode) }
 }

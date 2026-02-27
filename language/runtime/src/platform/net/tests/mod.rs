@@ -3,11 +3,15 @@ mod basic;
 #[cfg(any(unix, windows))]
 mod edge;
 #[cfg(any(unix, windows))]
+mod interface;
+#[cfg(any(unix, windows))]
 mod message;
 #[cfg(any(unix, windows))]
 mod options;
 #[cfg(unix)]
 mod privileged;
+#[cfg(any(unix, windows))]
+mod raw;
 #[cfg(any(unix, windows))]
 mod resolve;
 #[cfg(any(unix, windows))]

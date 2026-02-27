@@ -4,19 +4,29 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use windows_sys::Win32::NetworkManagement::IpHelper::if_nametoindex;
 use windows_sys::Win32::Networking::WinSock::{
-    AF_INET, AF_INET6, FIONBIO, IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0, IP_ADD_MEMBERSHIP,
-    IP_DROP_MEMBERSHIP, IP_MREQ, IP_MULTICAST_LOOP, IP_MULTICAST_TTL, IP_TOS, IP_TTL, IPPROTO_IP,
-    IPPROTO_IPV6, IPPROTO_TCP, IPV6_JOIN_GROUP, IPV6_LEAVE_GROUP, IPV6_MREQ, IPV6_MULTICAST_HOPS,
-    IPV6_MULTICAST_LOOP, IPV6_V6ONLY, LINGER, SIO_KEEPALIVE_VALS, SO_BROADCAST, SO_KEEPALIVE,
-    SO_LINGER, SO_RCVBUF, SO_RCVTIMEO, SO_REUSEADDR, SO_SNDBUF, SO_SNDTIMEO, SOCKADDR,
-    SOCKADDR_STORAGE, SOCKET, SOL_SOCKET, TCP_KEEPCNT, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_NODELAY,
-    WSAIoctl, getsockname, getsockopt, ioctlsocket, setsockopt, tcp_keepalive,
+    AF_INET, AF_INET6, FIONBIO, GROUP_SOURCE_REQ, IN_ADDR, IN_ADDR_0, IN6_ADDR, IN6_ADDR_0,
+    IP_ADD_MEMBERSHIP, IP_ADD_SOURCE_MEMBERSHIP, IP_DROP_MEMBERSHIP, IP_DROP_SOURCE_MEMBERSHIP,
+    IP_HDRINCL, IP_MREQ, IP_MREQ_SOURCE, IP_MULTICAST_IF, IP_MULTICAST_LOOP, IP_MULTICAST_TTL,
+    IP_TOS, IP_TTL, IPPROTO_IP, IPPROTO_IPV6, IPPROTO_TCP, IPV6_JOIN_GROUP, IPV6_LEAVE_GROUP,
+    IPV6_MREQ, IPV6_MULTICAST_HOPS, IPV6_MULTICAST_IF, IPV6_MULTICAST_LOOP, IPV6_V6ONLY, LINGER,
+    MCAST_JOIN_SOURCE_GROUP, MCAST_LEAVE_SOURCE_GROUP, SIO_KEEPALIVE_VALS, SO_BROADCAST,
+    SO_KEEPALIVE, SO_LINGER, SO_RCVBUF, SO_RCVTIMEO, SO_REUSE_UNICASTPORT, SO_REUSEADDR, SO_SNDBUF,
+    SO_SNDTIMEO, SO_TIMESTAMP, SOCK_RAW, SOCKADDR, SOCKADDR_IN6, SOCKADDR_IN6_0, SOCKADDR_STORAGE,
+    SOCKET, SOL_SOCKET, TCP_KEEPCNT, TCP_KEEPIDLE, TCP_KEEPINTVL, TCP_NODELAY, WSAEINVAL,
+    WSAENOPROTOOPT, WSAEOPNOTSUPP, WSAIoctl, getsockname, getsockopt, ioctlsocket, setsockopt,
+    socket, tcp_keepalive,
 };
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::net::{KeepAliveConfig, Linger, SocketFamily, SocketHandle};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::platform::net::{
+    KeepAliveConfig, Linger, SocketFamily, SocketHandle, SocketOptionLevel, SocketOptionName,
+    SocketTimestampingMode, UdpSourceMembershipV4, UdpSourceMembershipV6,
+};
+use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, core as core_platform,
+};
 use crate::runtime::BindingCallContext;
 
 fn parse_ipv4_interface(value: &str) -> RuntimeResult<Ipv4Addr> {
@@ -61,6 +71,33 @@ fn resolve_interface_index(value: &str) -> RuntimeResult<u32> {
     }
 
     Ok(index)
+}
+
+fn socket_address_storage_ipv6(address: Ipv6Addr) -> SOCKADDR_STORAGE {
+    // build one ipv6 sockaddr payload
+    let source = SOCKADDR_IN6 {
+        sin6_family: AF_INET6,
+        sin6_port: 0,
+        sin6_flowinfo: 0,
+        sin6_addr: IN6_ADDR {
+            u: IN6_ADDR_0 {
+                Byte: address.octets(),
+            },
+        },
+        Anonymous: SOCKADDR_IN6_0 { sin6_scope_id: 0 },
+    };
+
+    // copy the sockaddr bytes into generic storage
+    let mut storage = unsafe { mem::zeroed::<SOCKADDR_STORAGE>() };
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            &source as *const _ as *const u8,
+            &mut storage as *mut _ as *mut u8,
+            mem::size_of::<SOCKADDR_IN6>(),
+        );
+    }
+
+    storage
 }
 
 fn socket_family(socket: SOCKET) -> RuntimeResult<SocketFamily> {
@@ -137,6 +174,14 @@ fn get_socket_u32(socket: SOCKET, level: i32, option: i32, syscall: &str) -> Run
     }
 
     Ok(value)
+}
+
+fn windows_option_not_supported_error(operation: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+}
+
+fn is_windows_option_not_supported(code: i32) -> bool {
+    code == WSAENOPROTOOPT || code == WSAEOPNOTSUPP || code == WSAEINVAL
 }
 
 /// Enable or disable nonblocking mode on a socket.
@@ -537,11 +582,36 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
-    _context: &BindingCallContext,
-    _handle: SocketHandle,
-    _enabled: bool,
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    enabled: bool,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.setReusePort")).boxed())
+    // resolve the socket descriptor
+    let socket = socket_descriptor(context, handle)?;
+
+    // apply SO_REUSE_UNICASTPORT as the Windows reuse-port lane
+    let value: u32 = if enabled { 1 } else { 0 };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            SOL_SOCKET,
+            SO_REUSE_UNICASTPORT,
+            &value as *const _ as *const u8,
+            mem::size_of::<u32>() as i32,
+        )
+    };
+    if rc != 0 {
+        let code = core_platform::last_wsa_error_code();
+        if is_windows_option_not_supported(code) {
+            return Err(windows_option_not_supported_error(
+                "destack.net.setReusePort",
+            ));
+        }
+
+        return Err(last_net_error("setsockopt(SO_REUSE_UNICASTPORT)"));
+    }
+
+    Ok(())
 }
 
 /// Set the receive buffer size.
@@ -1394,11 +1464,44 @@ pub(crate) unsafe fn destack_net_get_reuse_addr(
 /// External, recordable.
 #[cfg(not(unix))]
 pub(crate) unsafe fn destack_net_get_reuse_port(
-    _context: &BindingCallContext,
-    _out: *mut bool,
-    _handle: SocketHandle,
+    context: &BindingCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.getReusePort")).boxed())
+    // ensure the output pointer is valid
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve and read SO_REUSE_UNICASTPORT
+    let socket = socket_descriptor(context, handle)?;
+    let mut value: u32 = 0;
+    let mut length = mem::size_of::<u32>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            SOL_SOCKET,
+            SO_REUSE_UNICASTPORT,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        let code = core_platform::last_wsa_error_code();
+        if is_windows_option_not_supported(code) {
+            return Err(windows_option_not_supported_error(
+                "destack.net.getReusePort",
+            ));
+        }
+
+        return Err(last_net_error("getsockopt(SO_REUSE_UNICASTPORT)"));
+    }
+
+    unsafe {
+        *out = value != 0;
+    }
+
+    Ok(())
 }
 
 /// Read socket linger settings.
@@ -1758,6 +1861,951 @@ pub(crate) unsafe fn destack_net_get_only_v6(
     let value = get_socket_bool(socket, IPPROTO_IPV6, IPV6_V6ONLY, "getsockopt(IPV6_V6ONLY)")?;
     unsafe {
         *out = value;
+    }
+
+    Ok(())
+}
+
+/// Set one raw socket option payload.
+///
+/// Set one host socket option using raw level, name, and byte payload.
+/// This escape hatch covers options that do not yet have typed bindings.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_set_sock_opt_raw(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    level: SocketOptionLevel,
+    name: SocketOptionName,
+    value: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // resolve socket descriptor and value payload
+    let socket = socket_descriptor(context, handle)?;
+    let value = unsafe { value.as_slice()? };
+
+    // apply host socket option bytes
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            level.0 as i32,
+            name.0 as i32,
+            value.as_ptr(),
+            value.len() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt"));
+    }
+
+    Ok(())
+}
+
+/// Read one raw socket option payload.
+///
+/// Read one host socket option using raw level and name.
+/// The returned byte payload is host-defined and must be decoded by the caller.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_sock_opt_raw(
+    context: &BindingCallContext,
+    out: *mut NativeArray<u8>,
+    handle: SocketHandle,
+    level: SocketOptionLevel,
+    name: SocketOptionName,
+    maxbytes: u32,
+) -> RuntimeResult<()> {
+    // validate output pointer and output cap
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    if maxbytes == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "maxBytes",
+            "max bytes must be greater than zero",
+        ))
+        .boxed());
+    }
+
+    // query host socket option bytes
+    let socket = socket_descriptor(context, handle)?;
+    let mut value = vec![0u8; maxbytes as usize];
+    let mut length = value.len() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            level.0 as i32,
+            name.0 as i32,
+            value.as_mut_ptr(),
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("getsockopt"));
+    }
+    value.truncate(length.max(0) as usize);
+
+    // write output payload
+    unsafe {
+        *out = context.store_array(value);
+    }
+
+    Ok(())
+}
+
+/// Set packet timestamping mode.
+///
+/// Configure timestamping controls on one socket endpoint.
+/// Timestamp delivery channel and precision follow host kernel capabilities.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses SO_TIMESTAMP families on Unix and host timestamping controls on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_set_timestamping(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    mode: SocketTimestampingMode,
+) -> RuntimeResult<()> {
+    // reject hardware mode where winsock exposes only software timestamps
+    if mode == SocketTimestampingMode::Hardware {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.net.setTimestamping",
+        ))
+        .boxed());
+    }
+
+    // resolve the socket descriptor
+    let socket = socket_descriptor(context, handle)?;
+
+    // map runtime mode to SO_TIMESTAMP values
+    let value: u32 = if mode == SocketTimestampingMode::Off {
+        0
+    } else {
+        1
+    };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            SOL_SOCKET,
+            SO_TIMESTAMP as i32,
+            &value as *const _ as *const u8,
+            mem::size_of::<u32>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(SO_TIMESTAMP)"));
+    }
+
+    Ok(())
+}
+
+/// Read packet timestamping mode.
+///
+/// Read timestamping controls from one socket endpoint.
+/// Returned mode is normalized across host option variants.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses SO_TIMESTAMP families on Unix and host timestamping controls on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_timestamping(
+    context: &BindingCallContext,
+    out: *mut SocketTimestampingMode,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // resolve the socket descriptor and read SO_TIMESTAMP mode
+    let socket = socket_descriptor(context, handle)?;
+    let value = get_socket_u32(
+        socket,
+        SOL_SOCKET,
+        SO_TIMESTAMP as i32,
+        "getsockopt(SO_TIMESTAMP)",
+    )?;
+
+    // map host value into runtime timestamp mode
+    let mode = if value == 0 {
+        SocketTimestampingMode::Off
+    } else {
+        SocketTimestampingMode::Software
+    };
+    unsafe {
+        *out = mode;
+    }
+
+    Ok(())
+}
+
+/// Set socket packet mark.
+///
+/// Set packet mark metadata used by host routing and firewall policy.
+/// Mark interpretation is host-network-stack specific.
+///
+/// # Platform
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_set_packet_mark(
+    _context: &BindingCallContext,
+    _handle: SocketHandle,
+    _mark: u32,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.setPacketMark")).boxed())
+}
+
+/// Read socket packet mark.
+///
+/// Read packet mark metadata from one socket endpoint.
+/// Mark value interpretation is host-network-stack specific.
+///
+/// # Platform
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.control`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_packet_mark(
+    _context: &BindingCallContext,
+    _out: *mut u32,
+    _handle: SocketHandle,
+) -> RuntimeResult<()> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.getPacketMark")).boxed())
+}
+
+/// Select the default IPv4 multicast interface for one socket.
+///
+/// Set the local interface used for outgoing IPv4 multicast datagrams.
+/// Interface selection follows host route and socket option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_MULTICAST_IF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_set_multicast_interface_v4(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    interface_address: NativeStringRef,
+) -> RuntimeResult<()> {
+    // resolve socket and parse interface address
+    let socket = socket_descriptor(context, handle)?;
+    let interface_address = unsafe { interface_address.as_str()? };
+    let interface_address = parse_ipv4_interface(interface_address)?;
+    let value = IN_ADDR {
+        S_un: IN_ADDR_0 {
+            S_addr: u32::from(interface_address).to_be(),
+        },
+    };
+
+    // apply IP_MULTICAST_IF
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IP,
+            IP_MULTICAST_IF,
+            &value as *const _ as *const u8,
+            mem::size_of::<IN_ADDR>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IP_MULTICAST_IF)"));
+    }
+
+    Ok(())
+}
+
+/// Read the default IPv4 multicast interface for one socket.
+///
+/// Read the local interface address used for outgoing IPv4 multicast datagrams.
+/// Returned address follows host socket option encoding rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_IF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_multicast_interface_v4(
+    context: &BindingCallContext,
+    out: *mut NativeStringRef,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // query IP_MULTICAST_IF
+    let socket = socket_descriptor(context, handle)?;
+    let mut value = IN_ADDR {
+        S_un: IN_ADDR_0 { S_addr: 0 },
+    };
+    let mut length = mem::size_of::<IN_ADDR>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            IPPROTO_IP,
+            IP_MULTICAST_IF,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("getsockopt(IP_MULTICAST_IF)"));
+    }
+
+    // encode and write string output
+    let address = Ipv4Addr::from(u32::from_be(unsafe { value.S_un.S_addr }));
+    let address = context.store_string(&address.to_string());
+    unsafe {
+        *out = address;
+    }
+
+    Ok(())
+}
+
+/// Select the default IPv6 multicast interface for one socket.
+///
+/// Set the local interface index used for outgoing IPv6 multicast datagrams.
+/// Interface selection follows host route and socket option semantics.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IPV6_MULTICAST_IF) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_set_multicast_interface_v6(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    interface_index: u32,
+) -> RuntimeResult<()> {
+    // resolve socket and apply IPV6_MULTICAST_IF
+    let socket = socket_descriptor(context, handle)?;
+    let value = interface_index;
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IPV6,
+            IPV6_MULTICAST_IF,
+            &value as *const _ as *const u8,
+            mem::size_of::<u32>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IPV6_MULTICAST_IF)"));
+    }
+
+    Ok(())
+}
+
+/// Read the default IPv6 multicast interface for one socket.
+///
+/// Read the local interface index used for outgoing IPv6 multicast datagrams.
+/// Returned index follows host socket option encoding rules.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IPV6_MULTICAST_IF) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_multicast_interface_v6(
+    context: &BindingCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // query IPV6_MULTICAST_IF
+    let socket = socket_descriptor(context, handle)?;
+    let mut value: u32 = 0;
+    let mut length = mem::size_of::<u32>() as i32;
+    let rc = unsafe {
+        getsockopt(
+            socket,
+            IPPROTO_IPV6,
+            IPV6_MULTICAST_IF,
+            &mut value as *mut _ as *mut u8,
+            &mut length,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("getsockopt(IPV6_MULTICAST_IF)"));
+    }
+
+    // write output value
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Read multicast loopback mode.
+///
+/// Read whether outgoing multicast packets are looped back to local receivers.
+/// Returned state reflects host socket-option state at call time.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_LOOP/IPV6_MULTICAST_LOOP) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_multicast_loop(
+    context: &BindingCallContext,
+    out: *mut bool,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // select option by socket family
+    let socket = socket_descriptor(context, handle)?;
+    let family = socket_family(socket)?;
+    let (level, option) = match family {
+        SocketFamily::IPv4 => (IPPROTO_IP, IP_MULTICAST_LOOP),
+        SocketFamily::IPv6 => (IPPROTO_IPV6, IPV6_MULTICAST_LOOP),
+        SocketFamily::Unspecified => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unsupported socket family",
+            ))
+            .boxed());
+        }
+    };
+
+    // read host loopback mode
+    let value = get_socket_u32(socket, level, option, "getsockopt(multicast_loop)")?;
+    unsafe {
+        *out = value != 0;
+    }
+
+    Ok(())
+}
+
+/// Read multicast TTL or hop-limit.
+///
+/// Read the active multicast TTL or IPv6 hop-limit used for outgoing datagrams.
+/// Returned value follows host socket-option interpretation for the active family.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses getsockopt(IP_MULTICAST_TTL/IPV6_MULTICAST_HOPS) on Unix and getsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_get_multicast_ttl(
+    context: &BindingCallContext,
+    out: *mut u32,
+    handle: SocketHandle,
+) -> RuntimeResult<()> {
+    // validate output pointer
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    // select option by socket family
+    let socket = socket_descriptor(context, handle)?;
+    let family = socket_family(socket)?;
+    let (level, option) = match family {
+        SocketFamily::IPv4 => (IPPROTO_IP, IP_MULTICAST_TTL),
+        SocketFamily::IPv6 => (IPPROTO_IPV6, IPV6_MULTICAST_HOPS),
+        SocketFamily::Unspecified => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unsupported socket family",
+            ))
+            .boxed());
+        }
+    };
+
+    // read host ttl value
+    let value = get_socket_u32(socket, level, option, "getsockopt(multicast_ttl)")?;
+    unsafe {
+        *out = value;
+    }
+
+    Ok(())
+}
+
+/// Join one IPv4 source-specific multicast membership.
+///
+/// Join one IGMPv3 source-specific membership for the given group and source.
+/// Membership installation is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_ADD_SOURCE_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_join_multicast_source_v4(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4,
+) -> RuntimeResult<()> {
+    // decode source membership fields
+    let group = unsafe { membership.group.as_str()? };
+    let source = unsafe { membership.source.as_str()? };
+    let interface_address = unsafe { membership.interface_address.as_str()? };
+
+    let group = group.parse::<Ipv4Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.group",
+            "invalid IPv4 multicast group address",
+        ))
+        .boxed()
+    })?;
+    let source = source.parse::<Ipv4Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.source",
+            "invalid IPv4 source address",
+        ))
+        .boxed()
+    })?;
+    let interface_address = parse_ipv4_interface(interface_address)?;
+
+    // apply host source-specific membership
+    let socket = socket_descriptor(context, handle)?;
+    let request = IP_MREQ_SOURCE {
+        imr_multiaddr: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(group).to_be(),
+            },
+        },
+        imr_sourceaddr: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(source).to_be(),
+            },
+        },
+        imr_interface: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(interface_address).to_be(),
+            },
+        },
+    };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IP,
+            IP_ADD_SOURCE_MEMBERSHIP,
+            &request as *const _ as *const u8,
+            mem::size_of::<IP_MREQ_SOURCE>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IP_ADD_SOURCE_MEMBERSHIP)"));
+    }
+
+    Ok(())
+}
+
+/// Join one IPv6 source-specific multicast membership.
+///
+/// Join one source-filtered IPv6 multicast membership for the given group and source.
+/// Membership installation is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses MCAST_JOIN_SOURCE_GROUP family socket options on Unix and equivalent host APIs on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_join_multicast_source_v6(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6,
+) -> RuntimeResult<()> {
+    // decode source membership fields
+    let group = unsafe { membership.group.as_str()? };
+    let source = unsafe { membership.source.as_str()? };
+    let interface_index = membership.interface_index;
+
+    let group = group.parse::<Ipv6Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.group",
+            "invalid IPv6 multicast group address",
+        ))
+        .boxed()
+    })?;
+    let source = source.parse::<Ipv6Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.source",
+            "invalid IPv6 source address",
+        ))
+        .boxed()
+    })?;
+
+    // build one group-source request and apply host membership
+    let socket = socket_descriptor(context, handle)?;
+    let request = GROUP_SOURCE_REQ {
+        gsr_interface: interface_index,
+        gsr_group: socket_address_storage_ipv6(group),
+        gsr_source: socket_address_storage_ipv6(source),
+    };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IPV6,
+            MCAST_JOIN_SOURCE_GROUP as i32,
+            &request as *const _ as *const u8,
+            mem::size_of::<GROUP_SOURCE_REQ>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(MCAST_JOIN_SOURCE_GROUP)"));
+    }
+
+    Ok(())
+}
+
+/// Leave one IPv4 source-specific multicast membership.
+///
+/// Leave one IGMPv3 source-specific membership for the given group and source.
+/// Membership removal is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses setsockopt(IP_DROP_SOURCE_MEMBERSHIP) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_leave_multicast_source_v4(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4,
+) -> RuntimeResult<()> {
+    // decode source membership fields
+    let group = unsafe { membership.group.as_str()? };
+    let source = unsafe { membership.source.as_str()? };
+    let interface_address = unsafe { membership.interface_address.as_str()? };
+
+    let group = group.parse::<Ipv4Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.group",
+            "invalid IPv4 multicast group address",
+        ))
+        .boxed()
+    })?;
+    let source = source.parse::<Ipv4Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.source",
+            "invalid IPv4 source address",
+        ))
+        .boxed()
+    })?;
+    let interface_address = parse_ipv4_interface(interface_address)?;
+
+    // apply host source-specific membership removal
+    let socket = socket_descriptor(context, handle)?;
+    let request = IP_MREQ_SOURCE {
+        imr_multiaddr: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(group).to_be(),
+            },
+        },
+        imr_sourceaddr: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(source).to_be(),
+            },
+        },
+        imr_interface: IN_ADDR {
+            S_un: IN_ADDR_0 {
+                S_addr: u32::from(interface_address).to_be(),
+            },
+        },
+    };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IP,
+            IP_DROP_SOURCE_MEMBERSHIP,
+            &request as *const _ as *const u8,
+            mem::size_of::<IP_MREQ_SOURCE>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IP_DROP_SOURCE_MEMBERSHIP)"));
+    }
+
+    Ok(())
+}
+
+/// Leave one IPv6 source-specific multicast membership.
+///
+/// Leave one source-filtered IPv6 multicast membership for the given group and source.
+/// Membership removal is host scoped and can be rejected by kernel policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Uses MCAST_LEAVE_SOURCE_GROUP family socket options on Unix and equivalent host APIs on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `net.multicast`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_leave_multicast_source_v6(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6,
+) -> RuntimeResult<()> {
+    // decode source membership fields
+    let group = unsafe { membership.group.as_str()? };
+    let source = unsafe { membership.source.as_str()? };
+    let interface_index = membership.interface_index;
+
+    let group = group.parse::<Ipv6Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.group",
+            "invalid IPv6 multicast group address",
+        ))
+        .boxed()
+    })?;
+    let source = source.parse::<Ipv6Addr>().map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "membership.source",
+            "invalid IPv6 source address",
+        ))
+        .boxed()
+    })?;
+
+    // build one group-source request and apply host membership removal
+    let socket = socket_descriptor(context, handle)?;
+    let request = GROUP_SOURCE_REQ {
+        gsr_interface: interface_index,
+        gsr_group: socket_address_storage_ipv6(group),
+        gsr_source: socket_address_storage_ipv6(source),
+    };
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IPV6,
+            MCAST_LEAVE_SOURCE_GROUP as i32,
+            &request as *const _ as *const u8,
+            mem::size_of::<GROUP_SOURCE_REQ>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(MCAST_LEAVE_SOURCE_GROUP)"));
+    }
+
+    Ok(())
+}
+
+/// Open a raw IP socket.
+///
+/// Creates a raw socket endpoint for protocol-level packet control.
+/// Host privilege checks and protocol restrictions are enforced by the kernel.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses socket(AF_INET/AF_INET6, SOCK_RAW) on Unix and WSASocketW raw mode on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `net.raw`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_raw_socket(
+    context: &BindingCallContext,
+    out: *mut SocketHandle,
+    family: SocketFamily,
+    protocol: i32,
+) -> RuntimeResult<()> {
+    // validate output pointer and family
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    if family == SocketFamily::Unspecified {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "family",
+            "unspecified family is not valid for raw sockets",
+        ))
+        .boxed());
+    }
+
+    // ensure winsock and create raw socket
+    ensure_winsock()?;
+    let socket = unsafe { socket(socket_family_to_raw(family), SOCK_RAW, protocol) };
+    if socket == windows_sys::Win32::Networking::WinSock::INVALID_SOCKET {
+        return Err(last_net_error("socket"));
+    }
+
+    // register socket resource
+    let entry = ResourceEntry::new(ResourceKind::Socket)
+        .with_socket(socket as _)
+        .with_finalizer(SocketFinalizer::new(socket));
+    let resource_id = context.runtime().resources.insert(entry);
+    unsafe {
+        *out = SocketHandle(resource_id);
+    }
+
+    Ok(())
+}
+
+/// Enable or disable IP header inclusion on a raw socket.
+///
+/// Updates the raw socket header include mode.
+/// Caller is responsible for writing valid protocol headers when enabled.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses setsockopt(IP_HDRINCL) on Unix and setsockopt on Windows.
+///
+/// # Errors
+/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `net.raw`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_net_raw_set_header_included(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    // resolve socket descriptor
+    let socket = socket_descriptor(context, handle)?;
+    let value: u32 = if enabled { 1 } else { 0 };
+
+    // apply IP_HDRINCL
+    let rc = unsafe {
+        setsockopt(
+            socket,
+            IPPROTO_IP,
+            IP_HDRINCL,
+            &value as *const _ as *const u8,
+            mem::size_of::<u32>() as i32,
+        )
+    };
+    if rc != 0 {
+        return Err(last_net_error("setsockopt(IP_HDRINCL)"));
     }
 
     Ok(())

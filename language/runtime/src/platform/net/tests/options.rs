@@ -1,11 +1,18 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux", all(unix, not(target_os = "linux"))))]
 use super::assert_platform_error_code;
 use super::{
     assert_platform_error_codes, tcp_protocol, tcp_stream_socket_type, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::net::{AcceptFlags, KeepAliveConfig, Linger, SocketFamily};
+use crate::platform::net::{
+    AcceptFlags, KeepAliveConfig, Linger, SocketFamily, SocketOptionLevel, SocketOptionName,
+    SocketTimestampingMode,
+};
+#[cfg(any(windows, target_os = "linux"))]
+use crate::platform::net::{UdpSourceMembershipV4, UdpSourceMembershipV4Vm};
+#[cfg(any(windows, target_os = "linux", all(unix, not(target_os = "linux"))))]
+use crate::platform::net::{UdpSourceMembershipV6, UdpSourceMembershipV6Vm};
 
 /// Configure basic socket options and verify nonblocking read behavior.
 #[cfg(unix)]
@@ -33,6 +40,8 @@ fn test_net_socket_options() {
         // set basic options
         context.destack_net_set_nonblocking(socket, true)?;
         context.destack_net_set_reuse_addr(socket, true)?;
+        let reuse_addr = context.destack_net_get_reuse_addr(socket)?;
+        assert!(reuse_addr);
         #[cfg(unix)]
         {
             context.destack_net_set_reuse_port(socket, true)?;
@@ -130,6 +139,8 @@ fn test_net_socket_options_extended() {
         context.destack_net_set_write_timeout(client, 50)?;
         context.destack_net_set_ttl(client, 64)?;
         context.destack_net_set_no_delay(client, true)?;
+        let no_delay = context.destack_net_get_no_delay(client)?;
+        assert!(no_delay);
 
         // extended keepalive fields
         let keepalive_result = context.destack_net_set_keep_alive(
@@ -150,6 +161,34 @@ fn test_net_socket_options_extended() {
                 ],
             )?;
         }
+        let keep_alive = context.destack_net_get_keep_alive(client)?;
+        match keep_alive {
+            super::HarnessValue::Native(config) => {
+                assert!(config.enabled);
+            }
+            super::HarnessValue::Vm(config) => {
+                assert!(config.enabled);
+            }
+        }
+        let linger = context.destack_net_get_linger(client)?;
+        match linger {
+            super::HarnessValue::Native(linger) => {
+                assert!(!linger.enabled);
+            }
+            super::HarnessValue::Vm(linger) => {
+                assert!(!linger.enabled);
+            }
+        }
+        let receive_buffer = context.destack_net_get_recv_buffer(client)?;
+        assert!(receive_buffer > 0);
+        let send_buffer = context.destack_net_get_send_buffer(client)?;
+        assert!(send_buffer > 0);
+        let read_timeout = context.destack_net_get_read_timeout(client)?;
+        assert!(read_timeout > 0);
+        let write_timeout = context.destack_net_get_write_timeout(client)?;
+        assert!(write_timeout > 0);
+        let stream_ttl = context.destack_net_get_ttl(client)?;
+        assert!(stream_ttl > 0);
 
         // udp options
         context.destack_net_set_broadcast(udp, false)?;
@@ -157,6 +196,16 @@ fn test_net_socket_options_extended() {
         context.destack_net_set_multicast_ttl(udp, 8)?;
         context.destack_net_set_ttl(udp, 32)?;
         context.destack_net_set_tos(udp, 0)?;
+        let broadcast = context.destack_net_get_broadcast(udp)?;
+        assert!(!broadcast);
+        let multicast_loop = context.destack_net_get_multicast_loop(udp)?;
+        assert!(!multicast_loop);
+        let multicast_ttl = context.destack_net_get_multicast_ttl(udp)?;
+        assert!(multicast_ttl <= 255);
+        let udp_ttl = context.destack_net_get_ttl(udp)?;
+        assert!(udp_ttl > 0);
+        let tos = context.destack_net_get_tos(udp)?;
+        assert!(tos <= 255);
 
         // multicast membership may not be supported by host setup
         let join_result = context.destack_net_join_multicast_v4(
@@ -190,6 +239,520 @@ fn test_net_socket_options_extended() {
         context.destack_net_close(server)?;
         context.destack_net_close(client)?;
         context.destack_net_close_listener(listener)?;
+
+        Ok(())
+    });
+}
+
+/// Reject hardware timestamp mode on windows where only software timestamps are supported.
+#[cfg(windows)]
+#[test]
+fn test_net_set_timestamping_hardware_reports_not_supported() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // hardware timestamp mode must report notSupported
+        assert_platform_error_code(
+            context.destack_net_set_timestamping(socket, SocketTimestampingMode::Hardware),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Roundtrip software and off timestamp modes on unix.
+#[cfg(unix)]
+#[test]
+fn test_net_timestamping_software_roundtrip() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // enable software timestamping and verify mode
+        context.destack_net_set_timestamping(socket, SocketTimestampingMode::Software)?;
+        let mode = context.destack_net_get_timestamping(socket)?;
+        assert_eq!(mode, SocketTimestampingMode::Software);
+
+        // disable timestamping and verify mode
+        context.destack_net_set_timestamping(socket, SocketTimestampingMode::Off)?;
+        let mode = context.destack_net_get_timestamping(socket)?;
+        assert_eq!(mode, SocketTimestampingMode::Off);
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Match packet-mark behavior with host socket support.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_packet_mark_support_matches_platform() {
+    with_harness_context(|mut context| {
+        // open one udp socket for option probes
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // linux may allow mark updates with privileges and deny without them
+        #[cfg(target_os = "linux")]
+        {
+            let set_result = context.destack_net_set_packet_mark(socket, 0x1234);
+            if let Err(error) = set_result {
+                assert_platform_error_codes::<()>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::IoPermissionDenied,
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::NetUnsupportedProtocol,
+                        PlatformErrorCode::Net,
+                        PlatformErrorCode::Io,
+                    ],
+                )?;
+            }
+
+            let get_result = context.destack_net_get_packet_mark(socket);
+            if let Err(error) = get_result {
+                assert_platform_error_codes::<u32>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::IoPermissionDenied,
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::NetUnsupportedProtocol,
+                        PlatformErrorCode::Net,
+                        PlatformErrorCode::Io,
+                    ],
+                )?;
+            }
+        }
+
+        // non-linux hosts return explicit notSupported for packet marks
+        #[cfg(not(target_os = "linux"))]
+        {
+            assert_platform_error_code(
+                context.destack_net_set_packet_mark(socket, 0x1234),
+                PlatformErrorCode::NotSupported,
+            )?;
+            assert_platform_error_code(
+                context.destack_net_get_packet_mark(socket),
+                PlatformErrorCode::NotSupported,
+            )?;
+        }
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Validate IPv4 source-membership parsing on windows and linux.
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+fn test_net_join_multicast_source_v4_rejects_invalid_group() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // invalid group text must fail as invalid argument
+        let group = context.string_value("not-an-ip");
+        let source = context.string_value("10.0.0.1");
+        let interface_address = context.string_value("");
+        let membership = match (group, source, interface_address) {
+            (
+                super::HarnessValue::Native(group),
+                super::HarnessValue::Native(source),
+                super::HarnessValue::Native(interface_address),
+            ) => context.harness_value(UdpSourceMembershipV4 {
+                group,
+                source,
+                interface_address,
+            }),
+            (
+                super::HarnessValue::Vm(group),
+                super::HarnessValue::Vm(source),
+                super::HarnessValue::Vm(interface_address),
+            ) => context.harness_value_vm(UdpSourceMembershipV4Vm {
+                group,
+                source,
+                interface_address,
+            }),
+            _ => unreachable!("mixed harness values are not possible"),
+        };
+        assert_platform_error_code(
+            context.destack_net_join_multicast_source_v4(socket, membership),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Validate IPv6 source-membership parsing on windows and linux.
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+fn test_net_join_multicast_source_v6_rejects_invalid_source() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // invalid source text must fail as invalid argument
+        let group = context.string_value("ff02::1");
+        let source = context.string_value("not-an-ipv6");
+        let membership = match (group, source) {
+            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
+                .harness_value(UdpSourceMembershipV6 {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
+                .harness_value_vm(UdpSourceMembershipV6Vm {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            _ => unreachable!("mixed harness values are not possible"),
+        };
+        assert_platform_error_code(
+            context.destack_net_join_multicast_source_v6(socket, membership),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Report notSupported for IPv6 source-membership on non-linux unix targets.
+#[cfg(all(unix, not(target_os = "linux")))]
+#[test]
+fn test_net_join_multicast_source_v6_reports_not_supported_on_non_linux_unix() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // build one valid membership payload
+        let group = context.string_value("ff02::1");
+        let source = context.string_value("fe80::1");
+        let membership = match (group, source) {
+            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
+                .harness_value(UdpSourceMembershipV6 {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
+                .harness_value_vm(UdpSourceMembershipV6Vm {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            _ => unreachable!("mixed harness values are not possible"),
+        };
+
+        // non-linux unix targets must report notSupported
+        assert_platform_error_code(
+            context.destack_net_join_multicast_source_v6(socket, membership),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Roundtrip reuse-port control on windows when the host supports SO_REUSE_UNICASTPORT.
+#[cfg(windows)]
+#[test]
+fn test_net_reuse_port_windows_roundtrip_or_not_supported() {
+    with_harness_context(|mut context| {
+        // open one udp socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // set reuse-port and accept notSupported on hosts without SO_REUSE_UNICASTPORT
+        let set_enabled = context.destack_net_set_reuse_port(socket, true);
+        if let Err(error) = set_enabled {
+            assert_platform_error_code::<()>(Err(error), PlatformErrorCode::NotSupported)?;
+            context.destack_net_close(socket)?;
+            return Ok(());
+        }
+
+        // read back the option state
+        let enabled = context.destack_net_get_reuse_port(socket)?;
+        assert!(enabled);
+
+        // clear the option and verify the state
+        context.destack_net_set_reuse_port(socket, false)?;
+        let enabled = context.destack_net_get_reuse_port(socket)?;
+        assert!(!enabled);
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Roundtrip IPv6-only mode and probe raw socket-option lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_only_v6_and_raw_socket_option_lanes() {
+    with_harness_context(|mut context| {
+        // open one IPv6 datagram socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // set and read IPv6-only mode
+        let only_v6_result = context.destack_net_set_only_v6(socket, true);
+        if let Err(error) = only_v6_result {
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                ],
+            )?;
+        } else {
+            let is_only_v6 = context.destack_net_get_only_v6(socket)?;
+            assert!(is_only_v6);
+        }
+
+        // probe raw socket-option lanes with one intentionally generic option tuple
+        let argument = context.bytes_slice_value(&[0, 0, 0, 0])?;
+        let set_result = context.destack_net_set_sock_opt_raw(
+            socket,
+            SocketOptionLevel(0),
+            SocketOptionName(0),
+            argument,
+        );
+        if let Err(error) = set_result {
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                ],
+            )?;
+        }
+
+        // read raw socket-option bytes with the same generic tuple
+        let get_result = context.destack_net_get_sock_opt_raw(
+            socket,
+            SocketOptionLevel(0),
+            SocketOptionName(0),
+            8,
+        );
+        if let Err(error) = get_result {
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::IoInvalidData,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                ],
+            )?;
+        }
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Probe multicast-interface lanes and accept explicit host-level unsupported outcomes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_multicast_interface_lanes() {
+    with_harness_context(|mut context| {
+        // open one IPv4 datagram socket for v4 interface controls
+        let socket_v4 = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // set one IPv4 multicast interface candidate
+        let set_v4_result = context
+            .destack_net_set_multicast_interface_v4(socket_v4, context.string_value("127.0.0.1"));
+        if let Err(error) = set_v4_result {
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetAddressNotAvailable,
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                ],
+            )?;
+        } else {
+            let interface = context.destack_net_get_multicast_interface_v4(socket_v4)?;
+            let interface = context.string_from_value(interface)?;
+            assert!(!interface.is_empty());
+        }
+
+        // close the IPv4 socket
+        context.destack_net_close(socket_v4)?;
+
+        // open one IPv6 datagram socket for v6 interface controls
+        let socket_v6 = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // set one IPv6 multicast interface index
+        let set_v6_result = context.destack_net_set_multicast_interface_v6(socket_v6, 1);
+        if let Err(error) = set_v6_result {
+            assert_platform_error_codes::<()>(
+                Err(error),
+                &[
+                    PlatformErrorCode::NotSupported,
+                    PlatformErrorCode::NetAddressNotAvailable,
+                    PlatformErrorCode::InvalidArgumentValue,
+                    PlatformErrorCode::Io,
+                    PlatformErrorCode::Net,
+                    PlatformErrorCode::NetUnsupportedProtocol,
+                ],
+            )?;
+        } else {
+            let _interface_index = context.destack_net_get_multicast_interface_v6(socket_v6)?;
+        }
+
+        // close the IPv6 socket
+        context.destack_net_close(socket_v6)?;
+
+        Ok(())
+    });
+}
+
+/// Reject malformed IPv6 multicast group values across join and leave lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_join_leave_multicast_v6_rejects_invalid_group() {
+    with_harness_context(|mut context| {
+        // open one IPv6 datagram socket
+        let socket = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // reject invalid group text on join
+        let join_result =
+            context.destack_net_join_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
+        assert_platform_error_codes(
+            join_result,
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
+
+        // reject invalid group text on leave
+        let leave_result =
+            context.destack_net_leave_multicast_v6(socket, context.string_value("not-an-ipv6"), 0);
+        assert_platform_error_codes(
+            leave_result,
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
+
+        // close the socket
+        context.destack_net_close(socket)?;
+
+        Ok(())
+    });
+}
+
+/// Reject malformed source-membership payloads across leave-source lanes.
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
+    with_harness_context(|mut context| {
+        // open one IPv4 socket for source-membership leave probes
+        let socket_v4 = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // build one malformed IPv4 source-membership payload
+        let group = context.string_value("not-an-ip");
+        let source = context.string_value("10.0.0.1");
+        let interface_address = context.string_value("");
+        let membership_v4 = match (group, source, interface_address) {
+            (
+                super::HarnessValue::Native(group),
+                super::HarnessValue::Native(source),
+                super::HarnessValue::Native(interface_address),
+            ) => context.harness_value(UdpSourceMembershipV4 {
+                group,
+                source,
+                interface_address,
+            }),
+            (
+                super::HarnessValue::Vm(group),
+                super::HarnessValue::Vm(source),
+                super::HarnessValue::Vm(interface_address),
+            ) => context.harness_value_vm(UdpSourceMembershipV4Vm {
+                group,
+                source,
+                interface_address,
+            }),
+            _ => unreachable!("mixed harness values are not possible"),
+        };
+        let leave_v4_result =
+            context.destack_net_leave_multicast_source_v4(socket_v4, membership_v4);
+        assert_platform_error_codes(
+            leave_v4_result,
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
+        context.destack_net_close(socket_v4)?;
+
+        // open one IPv6 socket for source-membership leave probes
+        let socket_v6 = context.destack_net_udp_socket(SocketFamily::IPv6)?;
+
+        // build one malformed IPv6 source-membership payload
+        let group = context.string_value("ff02::1");
+        let source = context.string_value("not-an-ipv6");
+        let membership_v6 = match (group, source) {
+            (super::HarnessValue::Native(group), super::HarnessValue::Native(source)) => context
+                .harness_value(UdpSourceMembershipV6 {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            (super::HarnessValue::Vm(group), super::HarnessValue::Vm(source)) => context
+                .harness_value_vm(UdpSourceMembershipV6Vm {
+                    group,
+                    source,
+                    interface_index: 0,
+                }),
+            _ => unreachable!("mixed harness values are not possible"),
+        };
+        let leave_v6_result =
+            context.destack_net_leave_multicast_source_v6(socket_v6, membership_v6);
+        assert_platform_error_codes(
+            leave_v6_result,
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
+        context.destack_net_close(socket_v6)?;
 
         Ok(())
     });

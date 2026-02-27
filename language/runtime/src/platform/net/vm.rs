@@ -6,17 +6,17 @@ use crate::platform::fs::{
     OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
 };
 use crate::platform::net::{
-    AcceptFlags, KeepAliveConfig, Linger, NetInterfaceVm, PacketCaptureOptionsVm,
+    AcceptFlags, KeepAliveConfig, Linger, NetInterface, NetInterfaceVm, PacketCaptureOptionsVm,
     PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm,
     PacketTimestampMode, ResolveFlags, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm,
-    RouteEntryVm, SocketAddress, SocketAddressVm, SocketControlBufferAbi, SocketCredentials,
-    SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
-    SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFrom,
-    SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm, SocketSendBatchEntryVm,
-    SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm, SocketShutdown,
-    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm,
-    UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddress, UdsAddressKind, UdsAddressVm,
-    host as host_net,
+    RouteEntry, RouteEntryVm, SocketAddress, SocketAddressVm, SocketControlBufferAbi,
+    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel,
+    SocketOptionName, SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm,
+    SocketRecvFrom, SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm,
+    SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm,
+    SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm,
+    UdpSourceMembershipV4, UdpSourceMembershipV4Vm, UdpSourceMembershipV6, UdpSourceMembershipV6Vm,
+    UdsAddress, UdsAddressKind, UdsAddressVm, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
@@ -102,12 +102,37 @@ pub fn destack_net_connect(
 
 /// Connect to a remote host and return a socket handle.
 pub fn destack_net_connect_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _host: vm::StringHandle,
-    _port: u16,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    host: vm::StringHandle,
+    port: u16,
 ) -> RuntimeResult<SocketHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.connectText")).boxed())
+    // resolve the remote endpoint from host and port text
+    let address =
+        resolve_text_address_from_vm(runtime, context, host, port, "destack.net.connectText")?;
+
+    // map raw address metadata into the socket family enum
+    let family = socket_family_from_address(address, "destack.net.connectText")?;
+
+    // create a stream socket for the resolved family
+    let handle = call_out(|out| unsafe {
+        host_net::destack_net_socket(
+            runtime,
+            out,
+            family,
+            tcp_stream_socket_type(),
+            tcp_socket_protocol(),
+        )
+    })?;
+
+    // connect the socket and close on failure to avoid descriptor leaks
+    let result = unsafe { host_net::destack_net_connect_raw(runtime, handle, address) };
+    if let Err(error) = result {
+        let _ = unsafe { host_net::destack_net_close(runtime, handle) };
+        return Err(error);
+    }
+
+    Ok(handle)
 }
 
 /// Start listening on a raw socket address.
@@ -139,13 +164,18 @@ pub fn destack_net_listen(
 
 /// Start listening on a host and port.
 pub fn destack_net_listen_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _host: vm::StringHandle,
-    _port: u16,
-    _backlog: u32,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    host: vm::StringHandle,
+    port: u16,
+    backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.listenText")).boxed())
+    // resolve the local endpoint from host and port text
+    let address =
+        resolve_text_address_from_vm(runtime, context, host, port, "destack.net.listenText")?;
+
+    // create and bind a listener at the resolved endpoint
+    call_out(|out| unsafe { host_net::destack_net_listen_raw(runtime, out, address, backlog) })
 }
 
 /// Read from a socket into the provided slice.
@@ -282,15 +312,39 @@ pub fn destack_net_recv_msg(
 /// # Replay
 /// External, recordable.
 pub fn destack_net_recv_mmsg(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _requests: VmSlice<SocketRecvBatchRequestVm>,
-    _max_fds: u32,
-    _want_credentials: bool,
-    _max_control_bytes: u32,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    requests: VmSlice<SocketRecvBatchRequestVm>,
+    max_fds: u32,
+    want_credentials: bool,
+    max_control_bytes: u32,
 ) -> RuntimeResult<VmArray<SocketRecvMessageVm>> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.recvMmsg")).boxed())
+    // decode the per message request values
+    let requests = requests.read_values(context)?;
+    let mut messages = Vec::with_capacity(requests.len());
+
+    // receive each requested message through the host lane
+    for request in requests {
+        let native_buffer = allocate_read_buffer(runtime, request.payload);
+        let message = call_out(|out| unsafe {
+            super::host::destack_net_recv_msg(
+                runtime,
+                out,
+                handle,
+                native_buffer,
+                request.recv_flags,
+                max_fds,
+                want_credentials,
+                max_control_bytes,
+            )
+        })?;
+
+        write_read_buffer(context, request.payload, native_buffer)?;
+        messages.push(socket_recv_message_to_vm(context, message)?);
+    }
+
+    VmArray::from_values(context, &messages)
 }
 
 /// Send a message with ancillary data.
@@ -410,12 +464,26 @@ pub fn destack_net_send_to(
 /// # Replay
 /// External, recordable.
 pub fn destack_net_send_mmsg(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _messages: VmSlice<SocketSendBatchEntryVm>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    messages: VmSlice<SocketSendBatchEntryVm>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.sendMmsg")).boxed())
+    // decode the per message send entries
+    let messages = messages.read_values(context)?;
+    let mut sent_count = 0u64;
+
+    // send each entry via the host lane
+    for message in messages {
+        let native_buffer = buffer_from_vm(runtime, context, message.payload)?;
+        let native_message = socket_send_message_from_vm(runtime, context, message.message)?;
+        call_out(|out| unsafe {
+            host_net::destack_net_send_msg(runtime, out, handle, native_buffer, native_message)
+        })?;
+        sent_count = sent_count.saturating_add(1);
+    }
+
+    Ok(sent_count)
 }
 
 /// Shut down a socket for reads, writes, or both.
@@ -500,11 +568,16 @@ pub fn destack_net_local_address(
 
 /// Read the local socket address as normalized text metadata.
 pub fn destack_net_local_address_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.localAddressText")).boxed())
+    // read the address via the core binding
+    let address =
+        call_out(|out| unsafe { host_net::destack_net_local_address_raw(runtime, out, handle) })?;
+
+    // map the raw address into vm value layout
+    socket_address_raw_to_vm(context, address)
 }
 
 /// Read the remote socket address as raw bytes.
@@ -537,11 +610,16 @@ pub fn destack_net_peer_address(
 
 /// Read the remote socket address as normalized text metadata.
 pub fn destack_net_peer_address_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.peerAddressText")).boxed())
+    // read the address via the core binding
+    let address =
+        call_out(|out| unsafe { host_net::destack_net_peer_address_raw(runtime, out, handle) })?;
+
+    // map the raw address into vm value layout
+    socket_address_raw_to_vm(context, address)
 }
 
 /// Enable or disable TCP_NODELAY.
@@ -900,41 +978,36 @@ pub fn destack_net_reverse_lookup(
     address: SocketAddressVm,
     flags: ReverseLookupFlags,
 ) -> RuntimeResult<VmArray<ReverseLookupNameVm>> {
-    // reserve non default behavior until flags are implemented
-    if flags.0 != 0 {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed(),
-        );
-    }
-
     // decode address and execute reverse lookup
     let address = socket_address_raw_from_vm(runtime, context, address)?;
-    let hosts =
-        call_out(|out| unsafe { host_net::destack_net_reverse_lookup_raw(runtime, out, address) })?;
-    let hosts = unsafe { hosts.as_slice()? };
+    let names = call_out(|out| unsafe {
+        host_net::destack_net_reverse_lookup_names_raw(runtime, out, address, flags)
+    })?;
+    let names = unsafe { names.as_slice()? };
 
-    // map hostnames into lookup records
-    let empty_service = vm::StringHandle::new(context.intern_string(""));
-    let mut names = Vec::with_capacity(hosts.len());
-    for host in hosts {
-        let host = unsafe { host.as_str()? };
+    // map native lookup records into vm lookup records
+    let mut vm_names = Vec::with_capacity(names.len());
+    for name in names {
+        let host = unsafe { name.host.as_str()? };
+        let service = unsafe { name.service.as_str()? };
+
         let host = vm::StringHandle::new(context.intern_string(host));
-        names.push(ReverseLookupNameVm {
-            host,
-            service: empty_service,
-        });
+        let service = vm::StringHandle::new(context.intern_string(service));
+        vm_names.push(ReverseLookupNameVm { host, service });
     }
 
-    let mut values = Vec::with_capacity(names.len());
-    for name in names {
+    // encode vm aggregate output values
+    let mut values = Vec::with_capacity(vm_names.len());
+    for name in vm_names {
         let value = context.allocate_aggregate(vec![name.host.value(), name.service.value()]);
         values.push(value);
     }
+    let name_count = values.len() as u32;
     let data = context.allocate_raw_values(values);
     Ok(VmArray {
         data,
-        len: hosts.len() as u32,
-        capacity: hosts.len() as u32,
+        len: name_count,
+        capacity: name_count,
         _marker: std::marker::PhantomData::<ReverseLookupNameVm>,
     })
 }
@@ -1006,13 +1079,18 @@ pub fn destack_net_udp_bind(
 
 /// Bind a UDP socket to a host and port.
 pub fn destack_net_udp_bind_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _host: vm::StringHandle,
-    _port: u16,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    host: vm::StringHandle,
+    port: u16,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpBindText")).boxed())
+    // resolve the local endpoint from host and port text
+    let address =
+        resolve_text_address_from_vm(runtime, context, host, port, "destack.net.udpBindText")?;
+
+    // bind the udp socket at the resolved address
+    unsafe { host_net::destack_net_udp_bind_raw(runtime, handle, address) }
 }
 
 /// Connect a UDP socket to a raw remote address.
@@ -1044,13 +1122,18 @@ pub fn destack_net_udp_connect(
 
 /// Connect a UDP socket to a host and port.
 pub fn destack_net_udp_connect_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _host: vm::StringHandle,
-    _port: u16,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    host: vm::StringHandle,
+    port: u16,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpConnectText")).boxed())
+    // resolve the remote endpoint from host and port text
+    let address =
+        resolve_text_address_from_vm(runtime, context, host, port, "destack.net.udpConnectText")?;
+
+    // connect the udp socket to the resolved address
+    unsafe { host_net::destack_net_udp_connect_raw(runtime, handle, address) }
 }
 
 /// Receive a datagram from a remote address with raw address output.
@@ -1087,12 +1170,24 @@ pub fn destack_net_udp_recv_from(
 
 /// Receive a UDP packet with normalized sender metadata.
 pub fn destack_net_udp_recv_from_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _buffer: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    buffer: VmSlice<u8>,
 ) -> RuntimeResult<UdpReceiveVm> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpRecvFromText")).boxed())
+    // allocate a native read buffer for the datagram payload
+    let native = allocate_read_buffer(runtime, buffer);
+
+    // receive one datagram and decode sender metadata
+    let receive = call_out(|out| unsafe {
+        host_net::destack_net_udp_recv_from_raw(runtime, out, handle, native, UdpMessageFlags(0))
+    })?;
+
+    // write the payload back into the VM buffer
+    write_read_buffer(context, buffer, native)?;
+
+    // map receive metadata to VM representation
+    udp_receive_raw_to_vm(context, receive)
 }
 
 /// Send a datagram to a raw remote address.
@@ -1129,14 +1224,31 @@ pub fn destack_net_udp_send_to(
 
 /// Send a UDP packet to a host and port.
 pub fn destack_net_udp_send_to_text(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _host: vm::StringHandle,
-    _port: u16,
-    _buffer: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    host: vm::StringHandle,
+    port: u16,
+    buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpSendToText")).boxed())
+    // resolve the remote endpoint from host and port text
+    let address =
+        resolve_text_address_from_vm(runtime, context, host, port, "destack.net.udpSendToText")?;
+
+    // resolve VM payload bytes into native storage
+    let native = buffer_from_vm(runtime, context, buffer)?;
+
+    // send one datagram to the resolved endpoint
+    call_out(|out| unsafe {
+        host_net::destack_net_udp_send_to_raw(
+            runtime,
+            out,
+            handle,
+            address,
+            native,
+            UdpMessageFlags(0),
+        )
+    })
 }
 
 /// Accept a connection from a UDS listener.
@@ -2212,6 +2324,75 @@ fn string_array_to_vm(
     VmArray::from_values(context, &handles)
 }
 
+fn net_interface_array_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    array: NativeArray<NetInterface>,
+) -> RuntimeResult<VmArray<NetInterfaceVm>> {
+    let values = unsafe { array.as_slice()? };
+    let mut interfaces = Vec::with_capacity(values.len());
+
+    for value in values {
+        let name = unsafe { value.name.as_str()? };
+        let name = vm::StringHandle::new(context.intern_string(name));
+        let mac_address = unsafe { value.mac_address.as_slice()? };
+        let mac_address = VmArray::from_bytes(context, mac_address);
+        let addresses = socket_address_raw_array_to_vm(context, value.addresses)?;
+
+        interfaces.push(NetInterfaceVm {
+            name,
+            index: value.index,
+            flags: value.flags,
+            mtu: value.mtu,
+            mac_address,
+            addresses,
+        });
+    }
+
+    VmArray::from_values(context, &interfaces)
+}
+
+fn route_entry_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    route: RouteEntryVm,
+) -> RuntimeResult<RouteEntry> {
+    let destination = socket_address_raw_from_vm(runtime, context, route.destination)?;
+    let gateway = socket_address_raw_from_vm(runtime, context, route.gateway)?;
+
+    Ok(RouteEntry {
+        family: route.family,
+        destination,
+        prefix_length: route.prefix_length,
+        gateway,
+        interface_index: route.interface_index,
+        metric: route.metric,
+        kind: route.kind,
+    })
+}
+
+fn route_entry_array_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    array: NativeArray<RouteEntry>,
+) -> RuntimeResult<VmArray<RouteEntryVm>> {
+    let values = unsafe { array.as_slice()? };
+    let mut routes = Vec::with_capacity(values.len());
+    for route in values {
+        let destination = socket_address_raw_to_vm(context, route.destination)?;
+        let gateway = socket_address_raw_to_vm(context, route.gateway)?;
+        routes.push(RouteEntryVm {
+            family: route.family,
+            destination,
+            prefix_length: route.prefix_length,
+            gateway,
+            interface_index: route.interface_index,
+            metric: route.metric,
+            kind: route.kind,
+        });
+    }
+
+    VmArray::from_values(context, &routes)
+}
+
 fn udp_receive_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     receive: UdpReceive,
@@ -2229,6 +2410,30 @@ fn udp_receive_raw_to_vm(
     receive: UdpReceive,
 ) -> RuntimeResult<UdpReceiveVm> {
     udp_receive_to_vm(context, receive)
+}
+
+fn udp_source_membership_v4_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    membership: UdpSourceMembershipV4Vm,
+) -> RuntimeResult<UdpSourceMembershipV4> {
+    Ok(UdpSourceMembershipV4 {
+        group: host_from_vm(runtime, context, membership.group)?,
+        source: host_from_vm(runtime, context, membership.source)?,
+        interface_address: host_from_vm(runtime, context, membership.interface_address)?,
+    })
+}
+
+fn udp_source_membership_v6_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    membership: UdpSourceMembershipV6Vm,
+) -> RuntimeResult<UdpSourceMembershipV6> {
+    Ok(UdpSourceMembershipV6 {
+        group: host_from_vm(runtime, context, membership.group)?,
+        source: host_from_vm(runtime, context, membership.source)?,
+        interface_index: membership.interface_index,
+    })
 }
 
 fn socket_send_to_from_vm(
@@ -2409,9 +2614,77 @@ fn resolve_port_from_vm(
     })
 }
 
-/// Build an unsupported error for VM net bindings that are not implemented yet.
-fn not_supported_binding(binding_name: &str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(binding_name)).boxed()
+fn resolve_text_address_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    host: vm::StringHandle,
+    port: u16,
+    binding_name: &'static str,
+) -> RuntimeResult<SocketAddress> {
+    // resolve the host string into runtime storage
+    let host = host_from_vm(runtime, context, host)?;
+
+    // resolve host and service to raw addresses
+    let addresses = call_out(|out| unsafe {
+        host_net::destack_net_resolve_raw(
+            runtime,
+            out,
+            host,
+            port,
+            SocketFamily::Unspecified,
+            ResolveFlags(0),
+        )
+    })?;
+
+    // pick the first usable address from resolver output
+    let addresses = unsafe { addresses.as_slice()? };
+    let Some(address) = addresses.first() else {
+        let message = format!("{binding_name}: host and port resolved to no addresses");
+        return Err(
+            RuntimeError::from(PlatformError::invalid_argument_value("host", message)).boxed(),
+        );
+    };
+
+    Ok(*address)
+}
+
+fn socket_family_from_address(
+    address: SocketAddress,
+    binding_name: &'static str,
+) -> RuntimeResult<SocketFamily> {
+    // map raw family numbers into socket family variants
+    match address.family {
+        0 => Ok(SocketFamily::Unspecified),
+        4 => Ok(SocketFamily::IPv4),
+        6 => Ok(SocketFamily::IPv6),
+        _ => {
+            let message = format!(
+                "{binding_name}: unsupported socket family {}",
+                address.family
+            );
+            Err(RuntimeError::from(PlatformError::invalid_argument_value("host", message)).boxed())
+        }
+    }
+}
+
+#[cfg(unix)]
+fn tcp_stream_socket_type() -> SocketType {
+    SocketType(libc::SOCK_STREAM as u32)
+}
+
+#[cfg(windows)]
+fn tcp_stream_socket_type() -> SocketType {
+    SocketType(windows_sys::Win32::Networking::WinSock::SOCK_STREAM as u32)
+}
+
+#[cfg(unix)]
+fn tcp_socket_protocol() -> SocketProtocol {
+    SocketProtocol(libc::IPPROTO_TCP)
+}
+
+#[cfg(windows)]
+fn tcp_socket_protocol() -> SocketProtocol {
+    SocketProtocol(windows_sys::Win32::Networking::WinSock::IPPROTO_TCP)
 }
 
 /// Read socket packet mark.
@@ -2420,8 +2693,8 @@ fn not_supported_binding(binding_name: &str) -> Box<RuntimeError> {
 /// Mark value interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -2432,11 +2705,11 @@ fn not_supported_binding(binding_name: &str) -> Box<RuntimeError> {
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_packet_mark(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    Err(not_supported_binding("destack.net.getPacketMark"))
+    call_out(|out| unsafe { host_net::destack_net_get_packet_mark(runtime, out, handle) })
 }
 
 /// Read one raw socket option payload.
@@ -2457,14 +2730,18 @@ pub(super) fn destack_net_get_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_sock_opt_raw(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _level: SocketOptionLevel,
-    _name: SocketOptionName,
-    _maxbytes: u32,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    level: SocketOptionLevel,
+    name: SocketOptionName,
+    maxbytes: u32,
 ) -> RuntimeResult<VmArray<u8>> {
-    Err(not_supported_binding("destack.net.getSockOptRaw"))
+    let value = call_out(|out| unsafe {
+        host_net::destack_net_get_sock_opt_raw(runtime, out, handle, level, name, maxbytes)
+    })?;
+    let value = unsafe { value.as_slice()? };
+    Ok(VmArray::from_bytes(context, value))
 }
 
 /// Read packet timestamping mode.
@@ -2485,11 +2762,11 @@ pub(super) fn destack_net_get_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_timestamping(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<SocketTimestampingMode> {
-    Err(not_supported_binding("destack.net.getTimestamping"))
+    call_out(|out| unsafe { host_net::destack_net_get_timestamping(runtime, out, handle) })
 }
 
 /// Resolve an interface name to an index.
@@ -2510,11 +2787,12 @@ pub(super) fn destack_net_get_timestamping(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_interface_index(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _name: vm::StringHandle,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    name: vm::StringHandle,
 ) -> RuntimeResult<u32> {
-    Err(not_supported_binding("destack.net.interfaceIndex"))
+    let name = host_from_vm(runtime, context, name)?;
+    call_out(|out| unsafe { host_net::destack_net_interface_index(runtime, out, name) })
 }
 
 /// Resolve an interface index to a name.
@@ -2535,11 +2813,14 @@ pub(super) fn destack_net_interface_index(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_interface_name(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _index: u32,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    index: u32,
 ) -> RuntimeResult<vm::StringHandle> {
-    Err(not_supported_binding("destack.net.interfaceName"))
+    let value =
+        call_out(|out| unsafe { host_net::destack_net_interface_name(runtime, out, index) })?;
+    let value = unsafe { value.as_str()? };
+    Ok(vm::StringHandle::new(context.intern_string(value)))
 }
 
 /// List network interfaces with addresses and flags.
@@ -2560,10 +2841,11 @@ pub(super) fn destack_net_interface_name(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_list_interfaces(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
-    Err(not_supported_binding("destack.net.listInterfaces"))
+    let values = call_out(|out| unsafe { host_net::destack_net_list_interfaces(runtime, out) })?;
+    net_interface_array_to_vm(context, values)
 }
 
 /// Open a packet capture or inject endpoint.
@@ -2573,7 +2855,10 @@ pub(super) fn destack_net_list_interfaces(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
+/// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2584,11 +2869,11 @@ pub(super) fn destack_net_list_interfaces(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_open(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _options: PacketCaptureOptionsVm,
+    options: PacketCaptureOptionsVm,
 ) -> RuntimeResult<SocketHandle> {
-    Err(not_supported_binding("destack.net.packetOpen"))
+    call_out(|out| unsafe { host_net::destack_net_packet_open(runtime, out, options) })
 }
 
 /// Receive one packet from a packet endpoint.
@@ -2598,7 +2883,10 @@ pub(super) fn destack_net_packet_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
+/// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2609,12 +2897,17 @@ pub(super) fn destack_net_packet_open(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_receive(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _payload: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    payload: VmSlice<u8>,
 ) -> RuntimeResult<PacketCaptureRecordVm> {
-    Err(not_supported_binding("destack.net.packetReceive"))
+    let native = allocate_read_buffer(runtime, payload);
+    let record = call_out(|out| unsafe {
+        host_net::destack_net_packet_receive(runtime, out, handle, native)
+    })?;
+    write_read_buffer(context, payload, native)?;
+    Ok(record)
 }
 
 /// Send one packet through a packet endpoint.
@@ -2624,7 +2917,10 @@ pub(super) fn destack_net_packet_receive(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
+/// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2635,12 +2931,13 @@ pub(super) fn destack_net_packet_receive(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_send(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _payload: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    payload: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    Err(not_supported_binding("destack.net.packetSend"))
+    let native = buffer_from_vm(runtime, context, payload)?;
+    call_out(|out| unsafe { host_net::destack_net_packet_send(runtime, out, handle, native) })
 }
 
 /// Configure packet timestamp mode for a socket or packet endpoint.
@@ -2650,7 +2947,10 @@ pub(super) fn destack_net_packet_send(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
+/// Uses SO_TIMESTAMP families on Linux and BPF timestamp lanes on macOS.
+/// Returns `notSupported` on Unix targets without timestamp-capable packet backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2661,12 +2961,12 @@ pub(super) fn destack_net_packet_send(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_set_timestamp_mode(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _mode: PacketTimestampMode,
+    handle: SocketHandle,
+    mode: PacketTimestampMode,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetSetTimestampMode"))
+    unsafe { host_net::destack_net_packet_set_timestamp_mode(runtime, handle, mode) }
 }
 
 /// Clear packet fanout from a packet endpoint.
@@ -2676,7 +2976,9 @@ pub(super) fn destack_net_packet_set_timestamp_mode(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT reset on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2687,11 +2989,11 @@ pub(super) fn destack_net_packet_set_timestamp_mode(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_fanout(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetClearFanout"))
+    unsafe { host_net::destack_net_packet_clear_fanout(runtime, handle) }
 }
 
 /// Clear the active packet filter program.
@@ -2701,7 +3003,10 @@ pub(super) fn destack_net_packet_clear_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_DETACH_FILTER on Linux and BIOCSETF reset on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2712,11 +3017,11 @@ pub(super) fn destack_net_packet_clear_fanout(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_filter(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetClearFilter"))
+    unsafe { host_net::destack_net_packet_clear_filter(runtime, handle) }
 }
 
 /// Clear packet rx and tx ring configuration.
@@ -2726,7 +3031,9 @@ pub(super) fn destack_net_packet_clear_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
+/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns `notSupported` elsewhere.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2737,11 +3044,11 @@ pub(super) fn destack_net_packet_clear_filter(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_clear_ring(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetClearRing"))
+    unsafe { host_net::destack_net_packet_clear_ring(runtime, handle) }
 }
 
 /// Set packet fanout on a packet endpoint.
@@ -2751,7 +3058,9 @@ pub(super) fn destack_net_packet_clear_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2762,12 +3071,12 @@ pub(super) fn destack_net_packet_clear_ring(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_set_fanout(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _options: PacketFanoutOptionsVm,
+    handle: SocketHandle,
+    options: PacketFanoutOptionsVm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetSetFanout"))
+    unsafe { host_net::destack_net_packet_set_fanout(runtime, handle, options) }
 }
 
 /// Attach one packet filter program to a raw endpoint.
@@ -2777,7 +3086,10 @@ pub(super) fn destack_net_packet_set_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_ATTACH_FILTER on Linux and BIOCSETF on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2788,12 +3100,13 @@ pub(super) fn destack_net_packet_set_fanout(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_set_filter(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _filterprogram: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    filterprogram: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetSetFilter"))
+    let filterprogram = buffer_from_vm(runtime, context, filterprogram)?;
+    unsafe { host_net::destack_net_packet_set_filter(runtime, handle, filterprogram) }
 }
 
 /// Configure one packet rx ring for zero-copy capture.
@@ -2803,7 +3116,9 @@ pub(super) fn destack_net_packet_set_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_RX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2814,12 +3129,12 @@ pub(super) fn destack_net_packet_set_filter(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_set_rx_ring(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _options: PacketRingOptionsVm,
+    handle: SocketHandle,
+    options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetSetRxRing"))
+    unsafe { host_net::destack_net_packet_set_rx_ring(runtime, handle, options) }
 }
 
 /// Configure one packet tx ring for zero-copy transmit.
@@ -2829,7 +3144,9 @@ pub(super) fn destack_net_packet_set_rx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_TX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2840,12 +3157,12 @@ pub(super) fn destack_net_packet_set_rx_ring(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_set_tx_ring(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _options: PacketRingOptionsVm,
+    handle: SocketHandle,
+    options: PacketRingOptionsVm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.packetSetTxRing"))
+    unsafe { host_net::destack_net_packet_set_tx_ring(runtime, handle, options) }
 }
 
 /// Read packet capture statistics from one endpoint.
@@ -2855,7 +3172,10 @@ pub(super) fn destack_net_packet_set_tx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
+/// Uses packet socket stats on Linux and BPF stats on macOS.
+/// Returns `notSupported` on Unix targets without packet stats backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2866,11 +3186,11 @@ pub(super) fn destack_net_packet_set_tx_ring(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_packet_stats(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<PacketCaptureStatsVm> {
-    Err(not_supported_binding("destack.net.packetStats"))
+    call_out(|out| unsafe { host_net::destack_net_packet_stats(runtime, out, handle) })
 }
 
 /// Enable or disable IP header inclusion on a raw socket.
@@ -2891,12 +3211,12 @@ pub(super) fn destack_net_packet_stats(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_raw_set_header_included(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _enabled: bool,
+    handle: SocketHandle,
+    enabled: bool,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.rawSetHeaderIncluded"))
+    unsafe { host_net::destack_net_raw_set_header_included(runtime, handle, enabled) }
 }
 
 /// Open a raw IP socket.
@@ -2917,12 +3237,12 @@ pub(super) fn destack_net_raw_set_header_included(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_raw_socket(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _family: SocketFamily,
-    _protocol: i32,
+    family: SocketFamily,
+    protocol: i32,
 ) -> RuntimeResult<SocketHandle> {
-    Err(not_supported_binding("destack.net.rawSocket"))
+    call_out(|out| unsafe { host_net::destack_net_raw_socket(runtime, out, family, protocol) })
 }
 
 /// Add a route table entry.
@@ -2932,7 +3252,9 @@ pub(super) fn destack_net_raw_socket(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2943,11 +3265,12 @@ pub(super) fn destack_net_raw_socket(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_route_add(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _route: RouteEntryVm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    route: RouteEntryVm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.routeAdd"))
+    let route = route_entry_from_vm(runtime, context, route)?;
+    unsafe { host_net::destack_net_route_add(runtime, route) }
 }
 
 /// Remove a route table entry.
@@ -2957,7 +3280,9 @@ pub(super) fn destack_net_route_add(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2968,11 +3293,12 @@ pub(super) fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_route_delete(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _route: RouteEntryVm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    route: RouteEntryVm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.routeDelete"))
+    let route = route_entry_from_vm(runtime, context, route)?;
+    unsafe { host_net::destack_net_route_delete(runtime, route) }
 }
 
 /// List route table entries.
@@ -2982,7 +3308,9 @@ pub(super) fn destack_net_route_delete(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
+/// Uses netlink route tables on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route tables on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
@@ -2993,11 +3321,12 @@ pub(super) fn destack_net_route_delete(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_route_list(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _family: SocketFamily,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    family: SocketFamily,
 ) -> RuntimeResult<VmArray<RouteEntryVm>> {
-    Err(not_supported_binding("destack.net.routeList"))
+    let routes = call_out(|out| unsafe { host_net::destack_net_route_list(runtime, out, family) })?;
+    route_entry_array_to_vm(context, routes)
 }
 
 /// Set socket packet mark.
@@ -3006,8 +3335,8 @@ pub(super) fn destack_net_route_list(
 /// Mark interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -3018,12 +3347,12 @@ pub(super) fn destack_net_route_list(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_set_packet_mark(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _mark: u32,
+    handle: SocketHandle,
+    mark: u32,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.setPacketMark"))
+    unsafe { host_net::destack_net_set_packet_mark(runtime, handle, mark) }
 }
 
 /// Set one raw socket option payload.
@@ -3044,14 +3373,15 @@ pub(super) fn destack_net_set_packet_mark(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_set_sock_opt_raw(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _level: SocketOptionLevel,
-    _name: SocketOptionName,
-    _value: VmSlice<u8>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    level: SocketOptionLevel,
+    name: SocketOptionName,
+    value: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.setSockOptRaw"))
+    let value = buffer_from_vm(runtime, context, value)?;
+    unsafe { host_net::destack_net_set_sock_opt_raw(runtime, handle, level, name, value) }
 }
 
 /// Set packet timestamping mode.
@@ -3072,12 +3402,12 @@ pub(super) fn destack_net_set_sock_opt_raw(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_set_timestamping(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _mode: SocketTimestampingMode,
+    handle: SocketHandle,
+    mode: SocketTimestampingMode,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.setTimestamping"))
+    unsafe { host_net::destack_net_set_timestamping(runtime, handle, mode) }
 }
 
 /// Read the default IPv4 multicast interface for one socket.
@@ -3098,11 +3428,15 @@ pub(super) fn destack_net_set_timestamping(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_interface_v4(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
 ) -> RuntimeResult<vm::StringHandle> {
-    Err(not_supported_binding("destack.net.getMulticastInterfaceV4"))
+    let value = call_out(|out| unsafe {
+        host_net::destack_net_get_multicast_interface_v4(runtime, out, handle)
+    })?;
+    let value = unsafe { value.as_str()? };
+    Ok(vm::StringHandle::new(context.intern_string(value)))
 }
 
 /// Read the default IPv6 multicast interface for one socket.
@@ -3123,11 +3457,13 @@ pub(super) fn destack_net_get_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_interface_v6(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    Err(not_supported_binding("destack.net.getMulticastInterfaceV6"))
+    call_out(|out| unsafe {
+        host_net::destack_net_get_multicast_interface_v6(runtime, out, handle)
+    })
 }
 
 /// Read multicast loopback mode.
@@ -3148,11 +3484,11 @@ pub(super) fn destack_net_get_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_loop(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<bool> {
-    Err(not_supported_binding("destack.net.getMulticastLoop"))
+    call_out(|out| unsafe { host_net::destack_net_get_multicast_loop(runtime, out, handle) })
 }
 
 /// Read multicast TTL or hop-limit.
@@ -3173,11 +3509,11 @@ pub(super) fn destack_net_get_multicast_loop(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_get_multicast_ttl(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
+    handle: SocketHandle,
 ) -> RuntimeResult<u32> {
-    Err(not_supported_binding("destack.net.getMulticastTtl"))
+    call_out(|out| unsafe { host_net::destack_net_get_multicast_ttl(runtime, out, handle) })
 }
 
 /// Select the default IPv4 multicast interface for one socket.
@@ -3198,12 +3534,13 @@ pub(super) fn destack_net_get_multicast_ttl(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_set_multicast_interface_v4(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _interfaceaddress: vm::StringHandle,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    interfaceaddress: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.setMulticastInterfaceV4"))
+    let interfaceaddress = host_from_vm(runtime, context, interfaceaddress)?;
+    unsafe { host_net::destack_net_set_multicast_interface_v4(runtime, handle, interfaceaddress) }
 }
 
 /// Select the default IPv6 multicast interface for one socket.
@@ -3224,12 +3561,12 @@ pub(super) fn destack_net_set_multicast_interface_v4(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_set_multicast_interface_v6(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _interfaceindex: u32,
+    handle: SocketHandle,
+    interfaceindex: u32,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.setMulticastInterfaceV6"))
+    unsafe { host_net::destack_net_set_multicast_interface_v6(runtime, handle, interfaceindex) }
 }
 
 /// Join one IPv4 source-specific multicast membership.
@@ -3250,12 +3587,13 @@ pub(super) fn destack_net_set_multicast_interface_v6(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_join_multicast_source_v4(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _membership: UdpSourceMembershipV4Vm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.joinMulticastSourceV4"))
+    let membership = udp_source_membership_v4_from_vm(runtime, context, membership)?;
+    unsafe { host_net::destack_net_join_multicast_source_v4(runtime, handle, membership) }
 }
 
 /// Join one IPv6 source-specific multicast membership.
@@ -3276,12 +3614,13 @@ pub(super) fn destack_net_join_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_join_multicast_source_v6(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _membership: UdpSourceMembershipV6Vm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.joinMulticastSourceV6"))
+    let membership = udp_source_membership_v6_from_vm(runtime, context, membership)?;
+    unsafe { host_net::destack_net_join_multicast_source_v6(runtime, handle, membership) }
 }
 
 /// Leave one IPv4 source-specific multicast membership.
@@ -3302,12 +3641,13 @@ pub(super) fn destack_net_join_multicast_source_v6(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_leave_multicast_source_v4(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _membership: UdpSourceMembershipV4Vm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV4Vm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.leaveMulticastSourceV4"))
+    let membership = udp_source_membership_v4_from_vm(runtime, context, membership)?;
+    unsafe { host_net::destack_net_leave_multicast_source_v4(runtime, handle, membership) }
 }
 
 /// Leave one IPv6 source-specific multicast membership.
@@ -3328,10 +3668,11 @@ pub(super) fn destack_net_leave_multicast_source_v4(
 /// # Replay
 /// External, recordable.
 pub(super) fn destack_net_leave_multicast_source_v6(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    _handle: SocketHandle,
-    _membership: UdpSourceMembershipV6Vm,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: SocketHandle,
+    membership: UdpSourceMembershipV6Vm,
 ) -> RuntimeResult<()> {
-    Err(not_supported_binding("destack.net.leaveMulticastSourceV6"))
+    let membership = udp_source_membership_v6_from_vm(runtime, context, membership)?;
+    unsafe { host_net::destack_net_leave_multicast_source_v6(runtime, handle, membership) }
 }

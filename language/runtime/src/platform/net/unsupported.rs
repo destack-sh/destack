@@ -1263,6 +1263,17 @@ pub(crate) unsafe fn destack_net_reverse_lookup_raw(
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
 }
 
+/// Resolve one raw socket address into host and service names.
+pub(crate) unsafe fn destack_net_reverse_lookup_names_raw(
+    context: &BindingCallContext,
+    out: *mut NativeArray<ReverseLookupName>,
+    address: SocketAddress,
+    flags: ReverseLookupFlags,
+) -> RuntimeResult<()> {
+    let _ = (context, out, address, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
+}
+
 /// Bind one udp socket to one raw local address.
 pub(crate) unsafe fn destack_net_udp_bind_raw(
     context: &BindingCallContext,

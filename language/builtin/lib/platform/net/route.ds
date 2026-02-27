@@ -43,7 +43,9 @@ declare namespace net {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
+    /// Uses netlink route tables on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route tables on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
@@ -63,7 +65,9 @@ declare namespace net {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+    /// Uses netlink route mutation on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -83,7 +87,9 @@ declare namespace net {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+    /// Uses netlink route mutation on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
