@@ -2,11 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, InferContext, SymbolTypeView, TreeSymbolView, TypeContext,
-    TypeRewriteCache, TypeView,
+    AnalyzeDependencyStage, InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView,
+    TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
-use crate::analyze::{AssociatedComptimeRequirement, AssociatedTypeRequirement};
+use crate::analyze::infer::member::MemberLookupMode;
+use crate::analyze::infer::obligation::relation::UnassignableRelationFailureMode;
+use crate::analyze::{
+    AssociatedComptimeRequirement, AssociatedTypeRequirement, StaticMemberSymbolKind,
+};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
     InferState,
@@ -18,8 +22,9 @@ use destack_dir::{
     DependencyKind, DynamicKey, EnumField, Expression, FunctionCardinality, FunctionKind,
     FunctionMode, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
     InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree,
-    NodeType, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression, StaticKey,
-    SymbolSpace, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    NodeType, NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument,
+    StaticExpression, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeRewriter, TypeRewriterOptions, TypeTable, WhereClause,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleContent, ModuleSource, ProfileId};
@@ -60,6 +65,258 @@ struct AssociatedContractContext {
     contract_symbol: GlobalSymbolId,
     /// Substitutions for contract static parameters.
     substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
+}
+
+/// Rewrite associated type references from base owners into receiver owner members.
+struct OverrideAssociatedTypeRewriter<'a> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The declaration tree.
+    tree: &'a NodeTree,
+    /// The declaration symbols.
+    symbols: &'a SymbolTable,
+    /// The concrete override receiver declaration symbol.
+    receiver_symbol: GlobalSymbolId,
+    /// The rewriter cache key.
+    cache_key: u64,
+    /// The rewriter options.
+    options: TypeRewriterOptions,
+    /// The local rewrite cache.
+    cache: TypeRewriteCache,
+}
+
+impl<'a> OverrideAssociatedTypeRewriter<'a> {
+    /// Create a rewriter for one override receiver symbol.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        tree: &'a NodeTree,
+        symbols: &'a SymbolTable,
+        receiver_symbol: GlobalSymbolId,
+    ) -> Self {
+        let module_symbol_view = ModuleSymbolView::new(module, profile, symbols);
+        let receiver_symbol = compiler.canonical_symbol_id(
+            module_symbol_view,
+            receiver_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let receiver_symbol = compiler
+            .declaration_symbol_id(module_symbol_view, receiver_symbol)
+            .unwrap_or(receiver_symbol);
+
+        let receiver_key = receiver_symbol.module_id.package_id.raw()
+            ^ ((receiver_symbol.module_id.local_id as u64) << 32)
+            ^ ((receiver_symbol.local_id.id as u64) << 1)
+            ^ ((receiver_symbol.local_id.ty as u64) << 53);
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE).with_context_key(receiver_key);
+        let options = walk_context.rewriter_options();
+        let cache_key = options.cache_key();
+
+        Self {
+            compiler,
+            module,
+            profile,
+            tree,
+            symbols,
+            receiver_symbol,
+            cache_key,
+            options,
+            cache: TypeRewriteCache::new(),
+        }
+    }
+
+    /// Borrow module and symbols as one module symbol view.
+    fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
+        ModuleSymbolView::new(self.module, self.profile, self.symbols)
+    }
+
+    /// Borrow module, tree, and symbols as one tree symbol view.
+    fn tree_symbol_view(&self) -> TreeSymbolView<'_> {
+        TreeSymbolView::new(self.module, self.profile, self.tree, self.symbols)
+    }
+
+    /// Resolve one direct associated type member symbol for the receiver and member name.
+    fn direct_associated_type_symbol_for_name(
+        &self,
+        member_name: StringId,
+    ) -> Option<GlobalSymbolId> {
+        let receiver_symbol = self
+            .compiler
+            .declaration_symbol_id(self.module_symbol_view(), self.receiver_symbol)
+            .unwrap_or(self.receiver_symbol);
+        self.compiler
+            .with_module_tree_symbol_view_or_local_at_stage(
+                self.module,
+                self.profile,
+                receiver_symbol.module_id,
+                self.tree,
+                self.symbols,
+                AnalyzeDependencyStage::Declare,
+                |view| {
+                    let symbol_entry = view.symbols.get_symbol(receiver_symbol.local_id);
+                    let mut declaration_ids = Vec::new();
+                    if let Some(primary_declaration) = symbol_entry.primary_declaration {
+                        declaration_ids.push(primary_declaration);
+                    }
+                    if let Some(secondary_declarations) =
+                        symbol_entry.secondary_declarations.as_deref()
+                    {
+                        declaration_ids.extend(secondary_declarations.iter().copied());
+                    }
+
+                    for declaration_id in declaration_ids {
+                        if declaration_id.local_id.ty != NodeType::Declaration {
+                            continue;
+                        }
+                        let declaration_id = declaration_id.local_id.into_typed::<Declaration>();
+                        let declaration = view.tree.get(declaration_id);
+                        let members = match declaration {
+                            Declaration::Class { members, .. }
+                            | Declaration::Struct { members, .. }
+                            | Declaration::Interface { members, .. }
+                            | Declaration::Enum { members, .. }
+                            | Declaration::Extension { members, .. } => members.as_slice(),
+                            _ => continue,
+                        };
+
+                        for member_id in members {
+                            let Member::Type { name, symbol, .. } = view.tree.get(*member_id)
+                            else {
+                                continue;
+                            };
+                            if *name == member_name {
+                                return Some(symbol.into_global(view.module.id));
+                            }
+                        }
+                    }
+
+                    None
+                },
+            )
+            .ok()
+            .flatten()
+    }
+
+    /// Return true when one owner symbol belongs to the receiver extends chain.
+    fn owner_is_receiver_ancestor(&self, owner_symbol: GlobalSymbolId, types: &TypeTable) -> bool {
+        self.compiler.is_type_lineage_assignable(
+            SymbolTypeView::new(self.module, self.profile, self.symbols, types),
+            self.receiver_symbol,
+            owner_symbol,
+        )
+    }
+}
+
+impl TypeRewriter for OverrideAssociatedTypeRewriter<'_> {
+    fn options(&self) -> &TypeRewriterOptions {
+        &self.options
+    }
+
+    fn rewrite_any(
+        &mut self,
+        types: &mut TypeTable,
+        type_id: LocalTypeId,
+        ty: &Type,
+    ) -> Option<LocalTypeId> {
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = ty
+        else {
+            return None;
+        };
+
+        let source_symbol = self.compiler.canonical_symbol_id(
+            self.module_symbol_view(),
+            *symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let source_symbol = self
+            .compiler
+            .declaration_symbol_id(self.module_symbol_view(), source_symbol)
+            .unwrap_or(source_symbol);
+
+        if self
+            .compiler
+            .query_static_member_symbol_kind_for_symbol(self.tree_symbol_view(), source_symbol)
+            .ok()?
+            != Some(StaticMemberSymbolKind::AssociatedType)
+        {
+            return None;
+        }
+
+        let source_owner = self
+            .compiler
+            .query_owner_symbol_for_member_symbol(self.module_symbol_view(), source_symbol)
+            .ok()
+            .flatten()?;
+        let source_owner = self
+            .compiler
+            .declaration_symbol_id(self.module_symbol_view(), source_owner)
+            .unwrap_or(source_owner);
+        if !self.owner_is_receiver_ancestor(source_owner, types) {
+            return None;
+        }
+
+        let source_name =
+            self.compiler
+                .symbol_name_for_global(self.module, self.profile, source_symbol)?;
+        let member_key = StaticKey::Name(source_name);
+
+        let mut mapped_symbol = self
+            .direct_associated_type_symbol_for_name(source_name)
+            .or_else(|| {
+                self.compiler.query_static_member_symbol(
+                    self.module,
+                    self.profile,
+                    self.receiver_symbol,
+                    member_key,
+                    self.tree,
+                    self.symbols,
+                )
+            })?;
+        if self
+            .compiler
+            .query_static_member_symbol_kind_for_symbol(self.tree_symbol_view(), mapped_symbol)
+            .ok()?
+            != Some(StaticMemberSymbolKind::AssociatedType)
+        {
+            return None;
+        }
+
+        mapped_symbol = self.compiler.canonical_symbol_id(
+            self.module_symbol_view(),
+            mapped_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        mapped_symbol = self
+            .compiler
+            .declaration_symbol_id(self.module_symbol_view(), mapped_symbol)
+            .unwrap_or(mapped_symbol);
+        if mapped_symbol == source_symbol {
+            return None;
+        }
+
+        Some(types.insert_type_from_type(
+            Type::Reference {
+                symbol: mapped_symbol,
+                static_arguments: static_arguments.clone(),
+            },
+            type_id,
+        ))
+    }
+
+    fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, type_id);
+        self.cache = cache;
+        mapped
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -251,23 +508,27 @@ impl Compiler {
 
             // extension
             Declaration::Extension {
-                descriptor: _descriptor,
+                descriptor,
                 generics,
                 target_type,
                 target_symbol,
                 scope: _,
                 members,
                 heritage,
-            } => self.infer_extension_declaration(
-                &mut ctx.reborrow(),
-                declaration_id,
-                generics.where_clauses.as_deref(),
-                *target_type,
-                *target_symbol,
-                members,
-                heritage.implements_types.as_deref().unwrap_or(&[]),
-                state,
-            ),
+            } => {
+                let extension_symbol = descriptor.symbol.into_global(ctx.module.id);
+                self.infer_extension_declaration(
+                    &mut ctx.reborrow(),
+                    declaration_id,
+                    extension_symbol,
+                    generics.where_clauses.as_deref(),
+                    *target_type,
+                    *target_symbol,
+                    members,
+                    heritage.implements_types.as_deref().unwrap_or(&[]),
+                    state,
+                )
+            }
 
             // interface
             Declaration::Interface {
@@ -451,7 +712,134 @@ impl Compiler {
             is_abstract,
         )?;
 
+        self.infer_class_override_conformance(&mut ctx.reborrow(), symbol, members, extends_types)?;
+
         Ok(())
+    }
+
+    /// Infer class member override type conformance against the nearest base declarations.
+    fn infer_class_override_conformance(
+        &self,
+        ctx: &mut InferContext<'_>,
+        class_symbol: GlobalSymbolId,
+        members: &[LocalNodeId<Member>],
+        extends_types: Option<&[LocalNodeId<Expression>]>,
+    ) -> AnalyzeResult<()> {
+        let base_symbol = ctx
+            .types
+            .get_lineage_for_symbol(class_symbol)
+            .and_then(|lineage| lineage.extends);
+        let direct_base_substitutions = self.direct_base_substitutions(
+            &mut ctx.type_context_reborrow(),
+            base_symbol,
+            extends_types,
+        );
+        let direct_base_parameter_symbols = base_symbol
+            .and_then(|symbol| self.collect_static_parameter_symbols(ctx.type_view(), symbol))
+            .unwrap_or_default();
+
+        for member_id in members {
+            let member = ctx.tree.get(*member_id);
+            let (modifiers, key) = match member {
+                Member::Method {
+                    modifiers,
+                    key,
+                    signature,
+                    ..
+                } => {
+                    if signature.mode == Some(FunctionMode::Constructor) {
+                        continue;
+                    }
+                    (modifiers.as_ref(), key)
+                }
+                Member::Field { modifiers, key, .. } => (modifiers.as_ref(), key),
+                _ => continue,
+            };
+
+            let Some(member_key) = key
+                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
+            else {
+                continue;
+            };
+
+            let is_static = Self::member_is_static_override_member(modifiers);
+            if !self.member_overrides_base_chain(base_symbol, is_static, &member_key, ctx.types) {
+                continue;
+            }
+
+            let Some(member_ty_id) =
+                self.symbol_member_type_for_key(class_symbol, is_static, &member_key, ctx.types)
+            else {
+                continue;
+            };
+            let Some((base_member_owner_symbol, base_member_ty_id)) =
+                self.base_chain_member_type(base_symbol, is_static, &member_key, ctx.types)
+            else {
+                continue;
+            };
+
+            let mut base_member_ty_id = base_member_ty_id;
+            if Some(base_member_owner_symbol) == base_symbol
+                && !direct_base_substitutions.is_empty()
+            {
+                let mut materialize_cache = TypeRewriteCache::new();
+                let mut substitute_cache = HashMap::new();
+                base_member_ty_id = self.instantiate_type_with_substitutions(
+                    &mut ctx.type_context_reborrow(),
+                    (*member_id).into_any(),
+                    Some(base_member_owner_symbol),
+                    base_member_ty_id,
+                    &direct_base_substitutions,
+                    &mut materialize_cache,
+                    &mut substitute_cache,
+                );
+            }
+
+            base_member_ty_id = self.rewrite_override_associated_type_references(
+                &mut ctx.type_context_reborrow(),
+                base_member_ty_id,
+                class_symbol,
+            );
+            let base_member_ty_id = self.normalize_override_signature_type(
+                base_member_ty_id,
+                &mut ctx.type_context_reborrow(),
+                direct_base_parameter_symbols.as_slice(),
+            );
+            let member_ty_id = self.normalize_override_signature_type(
+                member_ty_id,
+                &mut ctx.type_context_reborrow(),
+                &[],
+            );
+
+            self.enforce_assignability_or_defer_diagnostic(
+                &mut ctx.reborrow(),
+                (*member_id).into_any(),
+                base_member_ty_id,
+                member_ty_id,
+                UnassignableRelationFailureMode::ReportAndContinue,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Rewrite associated type references in one override signature for one concrete receiver.
+    fn rewrite_override_associated_type_references(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        type_id: LocalTypeId,
+        receiver_symbol: GlobalSymbolId,
+    ) -> LocalTypeId {
+        let mut rewriter = OverrideAssociatedTypeRewriter::new(
+            self,
+            ctx.module,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+            receiver_symbol,
+        );
+
+        rewriter.rewrite_type_id(ctx.types, type_id)
     }
 
     /// Infer an enum declaration.
@@ -497,6 +885,7 @@ impl Compiler {
         &self,
         ctx: &mut InferContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
+        _extension_symbol: GlobalSymbolId,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         target_type: LocalNodeId<Expression>,
         target_symbol: Option<GlobalSymbolId>,
@@ -587,6 +976,236 @@ impl Compiler {
         // infer members under interface context
         for member_id in members {
             self.infer_member(&mut ctx.reborrow(), *member_id, state, this_ty_id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one contract member symbol for a key across module boundaries.
+    fn static_member_symbol_for_contract_key(
+        &self,
+        view: TreeSymbolView<'_>,
+        contract_symbol: GlobalSymbolId,
+        member_key: StaticKey,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        self.with_module_tree_symbol_view_or_local_at_stage(
+            view.module,
+            view.profile,
+            contract_symbol.module_id,
+            view.tree,
+            view.symbols,
+            AnalyzeDependencyStage::Declare,
+            |remote_view| {
+                self.query_static_member_symbol(
+                    remote_view.module,
+                    remote_view.profile,
+                    contract_symbol,
+                    member_key,
+                    remote_view.tree,
+                    remote_view.symbols,
+                )
+            },
+        )
+        .map_err(AnalyzeError::from)
+    }
+
+    /// Validate declaration implemented-contract member compatibility.
+    pub(crate) fn validate_declaration_contract_conformance(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        owner_source_id: LocalNodeIdAny,
+        owner_symbol: GlobalSymbolId,
+        implements_types: &[LocalNodeId<Expression>],
+        allows_deferred_implementation: bool,
+    ) -> AnalyzeResult<()> {
+        // non-user modules do not run user conformance diagnostics
+        if !matches!(ctx.module.source, ModuleSource::User) {
+            return Ok(());
+        }
+
+        // abstract owners and declarations without implements clauses are deferred
+        if allows_deferred_implementation || implements_types.is_empty() {
+            return Ok(());
+        }
+
+        // resolve the owner instance type
+        let Some(owner_type_id) =
+            self.require_instance_type(&mut ctx.reborrow(), owner_source_id, owner_symbol)
+        else {
+            return Ok(());
+        };
+        if self.symbol_has_missing_associated_requirements(ctx.type_view(), owner_symbol)? {
+            return Ok(());
+        }
+        let owner_type_id = ctx.types.unwrap_value_type_id(owner_type_id);
+        let owner_type = ctx.types.get_type(owner_type_id).clone();
+
+        // validate each implemented contract member against the owner member
+        for contract_expression_id in implements_types {
+            let Some(contract_context) = self.associated_contract_context_for_expression(
+                &mut ctx.reborrow(),
+                *contract_expression_id,
+            )?
+            else {
+                continue;
+            };
+            let contract_symbol = contract_context.contract_symbol;
+            let contract_is_user_module = self
+                .with_module_types_or_local_at_stage(
+                    ctx.module,
+                    ctx.profile,
+                    contract_symbol.module_id,
+                    ctx.types,
+                    AnalyzeDependencyStage::Declare,
+                    |module, _| matches!(module.source, ModuleSource::User),
+                )
+                .map_err(AnalyzeError::from)?;
+            if !contract_is_user_module {
+                continue;
+            }
+            let Some(contract_type_id) = self.require_instance_type(
+                &mut ctx.reborrow(),
+                contract_expression_id.into_any(),
+                contract_symbol,
+            ) else {
+                continue;
+            };
+            let contract_type_id = ctx.types.unwrap_value_type_id(contract_type_id);
+
+            let contract_fields = match ctx.types.get_type(contract_type_id) {
+                Type::Object { fields, .. } => fields.clone(),
+                _ => continue,
+            };
+            for contract_field in contract_fields {
+                // associated members are validated by associated requirement passes
+                if let Some(member_symbol) = self.static_member_symbol_for_contract_key(
+                    ctx.tree_symbol_view(),
+                    contract_symbol,
+                    contract_field.key.clone(),
+                )? && matches!(
+                    self.query_static_member_symbol_kind_for_symbol(
+                        ctx.tree_symbol_view(),
+                        member_symbol,
+                    )?,
+                    Some(
+                        StaticMemberSymbolKind::AssociatedType
+                            | StaticMemberSymbolKind::AssociatedComptimeConst
+                    )
+                ) {
+                    continue;
+                }
+
+                let contract_member_ty_id = self.substitute_and_materialize_contract_type(
+                    &mut ctx.reborrow(),
+                    contract_field.ty,
+                    &contract_context.substitutions,
+                );
+
+                // unresolved associated projections stay deferred until convergence
+                if self.type_requires_static_evaluation_convergence(
+                    ctx.type_view(),
+                    contract_member_ty_id,
+                ) {
+                    continue;
+                }
+
+                let contract_member_ty_id = self.rewrite_override_associated_type_references(
+                    &mut ctx.reborrow(),
+                    contract_member_ty_id,
+                    owner_symbol,
+                );
+
+                let mut visited = Vec::new();
+                let owner_member_ty_id = self.infer_member_of_type(
+                    &mut ctx.reborrow(),
+                    contract_expression_id.into_any(),
+                    &owner_type,
+                    &contract_field.key,
+                    MemberLookupMode::Instance,
+                    &mut visited,
+                )?;
+                let Some(owner_member_ty_id) = owner_member_ty_id else {
+                    let missing_member_ty_id = ctx.types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        contract_expression_id.into_any(),
+                    );
+                    self.emit_unassignable_type_for_types(
+                        ctx.module_type_view(),
+                        contract_expression_id.into_any(),
+                        contract_member_ty_id,
+                        missing_member_ty_id,
+                    );
+                    continue;
+                };
+
+                let normalized_contract_ty_id = self.normalize_type(
+                    &mut ctx.reborrow(),
+                    contract_member_ty_id,
+                    NormalizationMode::Assign,
+                );
+                let normalized_owner_ty_id = self.normalize_type(
+                    &mut ctx.reborrow(),
+                    owner_member_ty_id,
+                    NormalizationMode::Assign,
+                );
+                let mut static_materialize_cache = TypeRewriteCache::default();
+                let normalized_contract_ty_id = self.materialize_static_arguments_in_type(
+                    &mut ctx.reborrow(),
+                    normalized_contract_ty_id,
+                    &mut static_materialize_cache,
+                );
+                let normalized_owner_ty_id = self.materialize_static_arguments_in_type(
+                    &mut ctx.reborrow(),
+                    normalized_owner_ty_id,
+                    &mut static_materialize_cache,
+                );
+
+                // unresolved substituted projections stay deferred in declaration-only checks
+                let relation_requires_convergence =
+                    self.type_requires_static_evaluation_convergence(
+                        ctx.type_view(),
+                        normalized_contract_ty_id,
+                    ) || self.type_requires_static_evaluation_convergence(
+                        ctx.type_view(),
+                        normalized_owner_ty_id,
+                    );
+                if relation_requires_convergence {
+                    continue;
+                }
+
+                let equivalent = normalized_contract_ty_id == normalized_owner_ty_id || {
+                    let left_assignable = self.is_type_assignable(
+                        &mut ctx.reborrow(),
+                        normalized_contract_ty_id,
+                        normalized_owner_ty_id,
+                    );
+                    let right_assignable = self.is_type_assignable(
+                        &mut ctx.reborrow(),
+                        normalized_owner_ty_id,
+                        normalized_contract_ty_id,
+                    );
+                    left_assignable.is_assignable() && right_assignable.is_assignable()
+                };
+                if equivalent {
+                    continue;
+                }
+
+                let assignability = self.is_type_assignable(
+                    &mut ctx.reborrow(),
+                    normalized_contract_ty_id,
+                    normalized_owner_ty_id,
+                );
+                if assignability == Assignability::NotAssignable {
+                    self.emit_unassignable_type_for_types(
+                        ctx.module_type_view(),
+                        contract_expression_id.into_any(),
+                        normalized_contract_ty_id,
+                        normalized_owner_ty_id,
+                    );
+                }
+            }
         }
 
         Ok(())
@@ -1552,8 +2171,11 @@ impl Compiler {
                 );
 
                 if !self.return_type_allows_fallthrough_infer(return_ty_id, ctx.types)
-                    && !self.is_infer_var_type(return_ty_id, ctx.types)
-                    && !self.is_infer_var_type(committed_body_ty_id, ctx.types)
+                    && !self.type_relation_requires_infer_convergence(
+                        ctx.type_view(),
+                        normalized_return_ty_id,
+                        committed_body_ty_id,
+                    )
                     && self.is_type_assignable(
                         &mut ctx.type_context_reborrow(),
                         normalized_return_ty_id,
@@ -1786,34 +2408,41 @@ impl Compiler {
                         None,
                     )?;
 
-                    // require static expression initializers for associated comptime members
-                    if static_value.is_none() {
-                        self.error(AnalyzeError::InvalidComptimeExpression {
-                            node: value
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-
-                        let error_type_id = ctx
-                            .types
-                            .insert_type_from_any(Type::Error, (*value).into_any());
-                        ctx.types.set_value_type(member_symbol, error_type_id);
-                        return Ok(());
-                    }
-
                     // prefer static evaluation output for value typing
                     let mut value_type = static_value.as_ref().and_then(|value| {
                         self.static_expression_type_id(member_id.into_any(), value, ctx.types)
                     });
 
-                    // fall back to declaration evaluation when static typing is unavailable
+                    // resolve declaration typing when static evaluation is unavailable
                     if value_type.is_none() {
-                        value_type = Some(self.resolve_declared_type_expression(
+                        let declared_value_type = self.resolve_declared_type_expression(
                             &mut ctx.type_context_reborrow(),
                             *value,
                             true,
                             true,
-                        )?);
+                        )?;
+
+                        // unresolved generic projections are static but require convergence
+                        let declared_type_requires_convergence = self
+                            .type_requires_static_evaluation_convergence(
+                                ctx.type_view(),
+                                declared_value_type,
+                            );
+                        if static_value.is_none() && !declared_type_requires_convergence {
+                            self.error(AnalyzeError::InvalidComptimeExpression {
+                                node: value
+                                    .into_global_any(ctx.module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            });
+
+                            let error_type_id = ctx
+                                .types
+                                .insert_type_from_any(Type::Error, (*value).into_any());
+                            ctx.types.set_value_type(member_symbol, error_type_id);
+                            return Ok(());
+                        }
+
+                        value_type = Some(declared_value_type);
                     }
 
                     let Some(value_type) = value_type else {
@@ -2198,8 +2827,11 @@ impl Compiler {
                         );
 
                         if !self.return_type_allows_fallthrough_infer(return_ty_id, ctx.types)
-                            && !self.is_infer_var_type(return_ty_id, ctx.types)
-                            && !self.is_infer_var_type(committed_body_ty_id, ctx.types)
+                            && !self.type_relation_requires_infer_convergence(
+                                ctx.type_view(),
+                                normalized_return_ty_id,
+                                committed_body_ty_id,
+                            )
                             && self.is_type_assignable(
                                 &mut ctx.type_context_reborrow(),
                                 normalized_return_ty_id,

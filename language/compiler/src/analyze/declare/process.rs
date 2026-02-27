@@ -9,7 +9,10 @@ use crate::{
     TaskDependencyError, TaskResultCollector,
 };
 use destack_builtin::BuiltinLibKind;
-use destack_dir::{Export, GlobalSymbolId, LocalTypeId, StaticKey, SymbolSpace, SymbolType, Type};
+use destack_dir::{
+    Declaration, DeclarationAbstraction, Export, GlobalSymbolId, LocalTypeId, StaticKey,
+    SymbolSpace, SymbolType, Type,
+};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -97,6 +100,12 @@ impl Compiler {
             self.collect(
                 &mut collector,
                 self.collect_module_declarations(&mut ctx.reborrow()),
+            );
+
+            // validate declaration implemented-contract conformance in declaration phase
+            self.collect(
+                &mut collector,
+                self.check_declaration_contract_conformance(&mut ctx.reborrow()),
             );
         }
 
@@ -198,6 +207,61 @@ impl Compiler {
         }
 
         // return the collected result
+        Ok(())
+    }
+
+    /// Validate declaration implemented-contract conformance after declaration collection.
+    fn check_declaration_contract_conformance(
+        &self,
+        ctx: &mut TypeContext<'_>,
+    ) -> AnalyzeResult<()> {
+        for (id, declaration) in ctx.tree.iter_nodes_of_type::<Declaration>() {
+            let symbol = ctx.symbols.get_symbol(declaration.symbol());
+            if !symbol.is_active() {
+                continue;
+            }
+
+            match declaration {
+                Declaration::Struct { heritage, .. } => {
+                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                    self.validate_declaration_contract_conformance(
+                        &mut ctx.reborrow(),
+                        id.into_any(),
+                        declaration_symbol,
+                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        false,
+                    )?;
+                }
+                Declaration::Class {
+                    descriptor,
+                    heritage,
+                    ..
+                } => {
+                    let allows_deferred_associated =
+                        descriptor.abstraction == DeclarationAbstraction::Abstract;
+                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                    self.validate_declaration_contract_conformance(
+                        &mut ctx.reborrow(),
+                        id.into_any(),
+                        declaration_symbol,
+                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        allows_deferred_associated,
+                    )?;
+                }
+                Declaration::Enum { heritage, .. } => {
+                    let declaration_symbol = declaration.symbol().into_global(ctx.module.id);
+                    self.validate_declaration_contract_conformance(
+                        &mut ctx.reborrow(),
+                        id.into_any(),
+                        declaration_symbol,
+                        heritage.implements_types.as_deref().unwrap_or(&[]),
+                        false,
+                    )?;
+                }
+                _ => {}
+            }
+        }
+
         Ok(())
     }
 

@@ -4,8 +4,8 @@ use destack_dir::{
     FunctionMode, FunctionSignature, Generics, GlobalSymbolId, Heritage, Lineage, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, Mutability, NodeTree, NodeVisitor,
     NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, Timing, Type,
-    TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration,
-    walk_expression,
+    TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator, walk_block,
+    walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
@@ -803,10 +803,10 @@ impl Compiler {
                         true,
                     )?;
                 }
+                let extension_symbol = descriptor.symbol.into_global(ctx.module.id);
                 self.collect_heritage(&mut ctx.reborrow(), heritage, Some(descriptor.symbol))?;
 
                 // skip already declared extensions for this symbol
-                let extension_symbol = descriptor.symbol.into_global(ctx.module.id);
                 if ctx
                     .types
                     .get_extension_id_for_symbol(extension_symbol)
@@ -883,6 +883,45 @@ impl Compiler {
         // defer parameter evaluation for declaration modules
         if self.should_defer_declaration_types(ctx.module) {
             return Ok(());
+        }
+
+        // reject explicit as comptime wrappers in value static parameter defaults
+        let parameter = ctx.tree.get(parameter_id);
+        let is_value_static =
+            parameter.modifiers().and_then(|modifiers| modifiers.timing) == Some(Timing::Comptime);
+        if is_value_static {
+            let default_expression = match parameter {
+                Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => *default,
+                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => None,
+            };
+            if let Some(default_expression) = default_expression {
+                let mut expression_id =
+                    self.unwrap_parenthesized_expression(default_expression, ctx.tree);
+                let mut is_explicit_comptime = false;
+                loop {
+                    match ctx.tree.get(expression_id) {
+                        Expression::Comptime { body } => {
+                            is_explicit_comptime = true;
+                            expression_id = self.unwrap_parenthesized_expression(*body, ctx.tree);
+                        }
+                        Expression::TypeUnary {
+                            operator: TypeUnaryOperator::AsComptime,
+                            right,
+                        } => {
+                            is_explicit_comptime = true;
+                            expression_id = self.unwrap_parenthesized_expression(*right, ctx.tree);
+                        }
+                        _ => break,
+                    }
+                }
+                if is_explicit_comptime {
+                    self.error(AnalyzeError::NonStaticArgument {
+                        node: default_expression
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+            }
         }
 
         // resolve the declared type for the parameter
@@ -968,8 +1007,14 @@ impl Compiler {
 
         // record lineage when a symbol is provided
         if let Some(symbol) = symbol {
+            // preserve additional extends symbols for multi-parent interface traversal
+            let extends = extends_symbols.first().copied();
+            if extends_symbols.len() > 1 {
+                implements_symbols.extend(extends_symbols.iter().copied().skip(1));
+            }
+
             let lineage = Lineage {
-                extends: extends_symbols.first().copied(),
+                extends,
                 implements: implements_symbols,
                 embedded: embedded_symbols,
             };
