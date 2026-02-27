@@ -360,7 +360,7 @@ impl Parser {
                     value_options = value_options.in_type_conditional_right();
                 }
                 let value_id = self.with_options(value_options, |parser| {
-                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                    parser.eat_type_expression_in_context()
                 })?;
                 if let Some(name) = descriptor.name.as_ref() {
                     self.apply_intrinsic_type_literal(name, value_id);
@@ -392,7 +392,7 @@ impl Parser {
                     right_options = right_options.in_type_conditional_right();
                 }
                 let right = self.with_options(right_options, |parser| {
-                    parser.eat_type_expression_with_optional_leading_binary_operator()
+                    parser.eat_type_expression_in_context()
                 })?;
                 let operator = if mutability == Some(Mutability::Immutable) {
                     TypeUnaryOperator::Readonly
@@ -412,7 +412,7 @@ impl Parser {
                 right_options = right_options.in_type_conditional_right();
             }
             let right = self.with_options(right_options, |parser| {
-                parser.eat_type_expression_with_optional_leading_binary_operator()
+                parser.eat_type_expression_in_context()
             })?;
             let operator = if mutability == Some(Mutability::Immutable) {
                 TypeUnaryOperator::Readonly
@@ -426,30 +426,10 @@ impl Parser {
         }
     }
 
-    /// Eat a type expression, allowing one leading `|` or `&` separator.
-    pub(crate) fn eat_type_expression_with_optional_leading_binary_operator(
+    /// Eat one type expression in the active parser context.
+    pub(crate) fn eat_type_expression_in_context(
         &mut self,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        // allow ts style multiline unions and intersections that start with separators
-        // normalize to a leading separator when present
-        if !self.language.is_destack() {
-            let leading_separator_cursor = self.current_scanner_cursor();
-            if matches!(
-                leading_separator_cursor.token_type,
-                TokenType::ElementwiseOr | TokenType::ElementwiseAnd
-            ) {
-                if leading_separator_cursor.index != self.pos_index() {
-                    self.advance_to(leading_separator_cursor.index);
-                }
-
-                self.bump(); // eat leading | or &
-                self.eat_newlines_maybe()?;
-
-                let expression_id = self.eat_expression(self.options)?;
-                return Ok(expression_id);
-            }
-        }
-
         self.eat_expression(self.options)
     }
 
@@ -4485,6 +4465,29 @@ mod tests {
         });
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "left-union");
+    }
+
+    #[test]
+    fn test_parse_type_union_line_comment_between_members_after_leading_separator() {
+        let mut test = TestParser::new_with_options(
+            "type A6 = /*1*/\n| A\n// A comment to force break\n| B;",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                    assert_expression_path!(parser, parser.tree.get(*left), "A");
+                    assert_expression_path!(parser, parser.tree.get(*right), "B");
+                });
+            });
+        });
     }
 
     #[test]
