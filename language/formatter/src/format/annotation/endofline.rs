@@ -1,6 +1,6 @@
 use destack_ast::{
     AnnotationPosition, Argument, Expression, IfKind, LocalNodeId, NodeParentIndex, NodeTree,
-    NodeType, TokenType,
+    NodeType, TokenType, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -17,10 +17,9 @@ use super::boundary::{
 };
 use super::ownership::{
     find_owner_at_or_after_token, find_preferred_owner_starting_at,
-    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start, promote_owner_to_nearest_statement_boundary,
-    promote_owner_to_node_type_ancestor,
+    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
+    promote_owner_to_nearest_statement_boundary, promote_owner_to_node_type_ancestor,
 };
 use super::semicolon::preceding_owner_with_non_newline_token_fallback;
 
@@ -152,13 +151,36 @@ fn token_type_is_additive_binary_operator(token_type: TokenType) -> bool {
     )
 }
 
-/// Attach one line comment after one additive operator to the shared binary owner.
+/// Return whether one enclosing owner is one unary additive expression.
+fn enclosing_owner_is_unary_additive_expression(
+    tree: &NodeTree,
+    enclosing_owner: Option<u32>,
+) -> bool {
+    let Some(enclosing_owner) = enclosing_owner else {
+        return false;
+    };
+    if tree.get_node_type(enclosing_owner) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(enclosing_owner);
+    matches!(
+        tree.get(expression_id),
+        Expression::Unary {
+            operator: UnaryOperator::Plus | UnaryOperator::Negate | UnaryOperator::WrappingNegate,
+            ..
+        }
+    )
+}
+
+/// Attach one line comment after one additive operator seam.
 fn attach_after_binary_operator_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
     following_owner: Option<u32>,
+    token_after_span: Option<Span>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
     if !is_same_line_line_comment
@@ -169,15 +191,22 @@ fn attach_after_binary_operator_line_comment(
         return None;
     }
 
-    let preceding_owner = preceding_owner?;
-    let following_owner = following_owner?;
-    let target_owner =
-        lowest_common_owner_ancestor(tree, parents, preceding_owner, following_owner)?;
-    let target_owner =
-        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Expression)
-            .unwrap_or(target_owner);
+    let target_owner = following_owner.or_else(|| {
+        token_after_span.and_then(|token_after_span| {
+            find_smallest_owner_enclosing_token(tree, token_after_span)
+        })
+    })?;
+    let target_owner = token_after_span
+        .map(|token_after_span| {
+            promote_owner_by_shared_start(tree, parents, target_owner, token_after_span.start)
+        })
+        .unwrap_or(target_owner);
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+    if enclosing_owner_is_unary_additive_expression(tree, enclosing_owner) {
+        return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+    }
+
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
 /// Attach one same-line comment after one semicolon-terminated statement.
@@ -471,15 +500,7 @@ fn attach_dependency_item_alias_line_comment(
     enclosing_owner: Option<u32>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
-    let token_before_is_as_identifier = context
-        .token_before_span
-        .is_some_and(|token| token.token.ty == TokenType::Identifier)
-        && context
-            .token_before_span
-            .is_some_and(|token| context.file.span_str(token.span) == "as");
-    if !is_same_line_line_comment
-        || (!seam.token_before_is_keyword(CommentSeamKeyword::As) && !token_before_is_as_identifier)
-    {
+    if !is_same_line_line_comment || !seam.token_before_is_keyword(CommentSeamKeyword::As) {
         return None;
     }
 
@@ -691,8 +712,9 @@ pub(crate) fn attach_end_of_line_comment(
         tree,
         parents,
         seam,
-        preceding_owner,
+        enclosing_owner,
         following_owner,
+        token_after_span,
         is_same_line_line_comment,
     ) {
         return Some(attachment);

@@ -392,15 +392,35 @@ pub(crate) fn call_arguments_have_boundary_comments(
         return false;
     }
 
+    // line comments between call open parenthesis and first argument are boundary comments
+    let first_argument_id = dynamic_arguments[0];
+    let first_argument_span = context.span(first_argument_id);
+    let call_span = context.span(call_node_id);
+    if call_span.file == first_argument_span.file
+        && call_span.start < first_argument_span.start
+        && let Some(open_parenthesis_token) =
+            previous_non_whitespace_token_before_span(context, first_argument_span)
+        && open_parenthesis_token.token.ty == TokenType::OpenParenthesis
+        && open_parenthesis_token.span.end < first_argument_span.start
+    {
+        let leading_boundary_span = Span::new(
+            first_argument_span.file,
+            open_parenthesis_token.span.end,
+            first_argument_span.start,
+        );
+        if span_has_line_comment_token(context, leading_boundary_span) {
+            context.store_call_argument_boundary_comments(call_node_id, true);
+            return true;
+        }
+    }
+
     // line comments between adjacent arguments are boundary comments
     for argument_pair in dynamic_arguments.windows(2) {
         let left_span = context.span(argument_pair[0]);
         let right_span = context.span(argument_pair[1]);
-        if left_span.file != right_span.file || left_span.end >= right_span.start {
+        let Some(between_span) = left_span.gap_to(right_span) else {
             continue;
-        }
-
-        let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+        };
         if span_has_line_comment_token(context, between_span) {
             context.store_call_argument_boundary_comments(call_node_id, true);
             return true;
@@ -412,7 +432,6 @@ pub(crate) fn call_arguments_have_boundary_comments(
         return false;
     };
     let last_argument_span = context.span(last_argument_id);
-    let call_span = context.span(call_node_id);
     if call_span.file != last_argument_span.file || last_argument_span.end >= call_span.end {
         context.store_call_argument_boundary_comments(call_node_id, false);
         return false;
@@ -440,38 +459,10 @@ pub(crate) fn call_arguments_preserve_blank_line_between(
 ) -> bool {
     let left_span = context.span(left_argument_id);
     let right_span = context.span(right_argument_id);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
+    let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
-    }
-
-    let right_value_id = argument_value_id(context.tree, right_argument_id);
-    let has_blank_prefix_between = |annotation_id: LocalNodeId<Annotation>| {
-        if !matches!(
-            context.annotation(annotation_id),
-            Annotation::Blank {
-                position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
-                ..
-            }
-        ) {
-            return false;
-        }
-
-        let annotation_span = context.annotation_span(annotation_id);
-        annotation_span.file == left_span.file
-            && annotation_span.start >= left_span.end
-            && annotation_span.end <= right_span.start
     };
-
-    let right_argument_has_blank_prefix = context
-        .annotations(right_argument_id)
-        .is_some_and(|annotations| annotations.iter().copied().any(has_blank_prefix_between));
-    if right_argument_has_blank_prefix {
-        return true;
-    }
-
-    context
-        .annotations(right_value_id)
-        .is_some_and(|annotations| annotations.iter().copied().any(has_blank_prefix_between))
+    context.has_blank_line(between_span)
 }
 
 /// Return whether an argument has multiline non-blank prefix annotations.

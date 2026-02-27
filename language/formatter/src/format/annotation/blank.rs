@@ -151,6 +151,14 @@ fn seam_is_top_level_statement_spacing_gap(
         return false;
     };
 
+    let preceding_statement_owner =
+        promote_owner_to_statement_boundary(tree, parents, preceding_owner);
+    let following_statement_owner =
+        promote_owner_to_statement_boundary(tree, parents, following_owner);
+    if preceding_statement_owner == following_statement_owner {
+        return false;
+    }
+
     let following_is_top_level =
         promote_owner_to_node_type_ancestor(tree, parents, following_owner, NodeType::Block)
             .is_none();
@@ -870,7 +878,7 @@ pub(crate) fn blank_trivia_attachment(
 
     // comma seams with comments
     if seam_has_comment
-        && blank_before_first_comment
+        && (blank_before_first_comment || blank_before_first_comment_in_after_range)
         && token_before_is_comma
         && let Some(target_node) = following_owner
     {

@@ -939,6 +939,29 @@ pub(crate) fn call_argument_layout(
         return CallArgumentLayout::InlineSingle;
     }
 
+    // chained single-argument calls prefer inline argument docs:
+    // chain layout should break at member separators, not inside one argument list
+    let use_single_chain_argument_inline = dynamic_arguments.len() == 1
+        && layout_cache.has_call_chain_parent
+        && !has_boundary_comments
+        && !has_call_infix_annotations
+        && !has_any_argument_annotation
+        && !single_argument_force_expand
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && {
+            let argument_id = dynamic_arguments[0];
+            !context.node_has_newline(argument_id)
+                && !argument_has_line_comment_annotation(context, argument_id)
+                && !argument_is_lambda_expression(context, argument_id)
+                && !argument_is_function_expression(context, argument_id)
+                && !argument_is_interpolated_template_literal(context, argument_id)
+        };
+    if use_single_chain_argument_inline {
+        context.increment_counter("call.arguments.path.single_chain_inline", 1);
+        return CallArgumentLayout::InlineSingle;
+    }
+
     // hook-like callback plus deps-array arguments can stay inline
     if !has_boundary_comments
         && call_has_react_hook_like_callback_deps_array(context, dynamic_arguments)

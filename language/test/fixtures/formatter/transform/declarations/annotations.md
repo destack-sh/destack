@@ -211,8 +211,7 @@ export type Value = /** union-doc
 export type Value =
     /** union-doc
      */
-    | { ok: true }
-    | { ok: false; value: bigint | null };
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment
@@ -652,8 +651,8 @@ type Value<T> = {
 ```ts expected
 type Value<T> = {
     [K in keyof T]:
-        | T[K] // arm-a
-        | undefined; // arm-b
+    | T[K] // arm-a
+    | undefined; // arm-b
 };
 ```
 
@@ -766,7 +765,8 @@ Right & Tail
 ```
 
 ```ts expected
-type Value = Left & // inter-note
+type Value = Left &
+    // inter-note
     Right &
     Tail;
 ```
