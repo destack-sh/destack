@@ -4,7 +4,7 @@ use destack_ast::{
     Name, NodeType, Parameter, Pattern, PostfixPosition, ScalarLiteral, StringId, Timing,
     TokenType, VarianceModifier,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
@@ -855,18 +855,18 @@ impl Parser {
             && !self.peek_is(TokenType::At)
             && !self.peek_is(TokenType::Spread)
         {
-            let start = self.mark_span();
             let mut value_options = self.options.not_in_position().not_in_sequence_expression();
             if self.options.is_in_arrow_return_type() {
                 value_options = value_options.not_in_arrow_return_type();
             }
             let value = self.eat_expression(value_options)?;
+            let value_span = self.tree.get_span(value);
             let argument_id = self.tree.insert(
                 Argument::Positional {
                     modifiers: None,
                     value,
                 },
-                self.get_span_from(&start),
+                value_span,
             );
             return Ok(argument_id);
         }
@@ -1513,6 +1513,7 @@ impl Parser {
 
             // normalize scanner state before separator handling
             self.advance_to_scanner_cursor();
+            self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {
@@ -1550,6 +1551,7 @@ impl Parser {
 
             // normalize scanner state before separator handling
             self.advance_to_scanner_cursor();
+            self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
             if self.is_item_stop() {
@@ -1559,6 +1561,59 @@ impl Parser {
             }
         }
         Ok(arguments.into_vec())
+    }
+
+    /// Clamp an argument span so it never crosses one immediate separator token.
+    fn trim_argument_span_before_separator(
+        &mut self,
+        argument_id: LocalNodeId<Argument>,
+        terminator: TokenType,
+    ) {
+        // locate the immediate separator token after trivia
+        let mut token_index = self.pos() as usize;
+        let separator_token = loop {
+            let Some(token) = self.tokens().get(token_index).copied() else {
+                return;
+            };
+            match token.token.ty {
+                TokenType::Whitespace
+                | TokenType::Newline
+                | TokenType::LineComment
+                | TokenType::BlockComment
+                | TokenType::DocLineComment
+                | TokenType::DocBlockComment => {
+                    token_index += 1;
+                }
+                TokenType::Comma => break token,
+                token_type if token_type == terminator => break token,
+                _ => return,
+            }
+        };
+
+        // clamp the argument span to the separator start
+        let trim_end = separator_token.span.start;
+        let argument_span = self.tree.get_span(argument_id);
+        if argument_span.file != separator_token.span.file || argument_span.end <= trim_end {
+            return;
+        }
+
+        let trimmed_argument_span = Span::new(argument_span.file, argument_span.start, trim_end);
+        self.tree.set_span(argument_id, trimmed_argument_span);
+
+        let value_id = match self.tree.get(argument_id) {
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value, .. }
+            | Argument::Spread { value, .. } => *value,
+        };
+        let value_span = self.tree.get_span(value_id);
+        if value_span.file != separator_token.span.file || value_span.end <= trim_end {
+            return;
+        }
+
+        // keep value spans aligned with their owning argument spans
+        let trimmed_value_span = Span::new(value_span.file, value_span.start, trim_end);
+        self.tree.set_span(value_id, trimmed_value_span);
     }
 }
 
@@ -2291,6 +2346,35 @@ class Test {
             // 3
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(3)));
         });
+    }
+
+    #[test]
+    fn test_parse_dynamic_argument_span_trims_before_delayed_comma() {
+        let source = r#"(
+  a
+
+  ,
+  b
+)"#;
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let arguments = parser.eat_dynamic_arguments().unwrap();
+
+        // first argument and value span should both end at the separator
+        assert_eq!(arguments.len(), 2);
+        let first_argument_id = arguments[0];
+        let first_value_id = match parser.tree.get(first_argument_id) {
+            Argument::Positional { value, .. } => *value,
+            _ => panic!("expected first positional argument"),
+        };
+        let first_argument_span = parser.tree.get_span(first_argument_id);
+        let first_value_span = parser.tree.get_span(first_value_id);
+        assert_eq!(first_argument_span.end, first_value_span.end);
+
+        // verify spans do not cross the separator token
+        let separator_offset = source.find(',').expect("expected comma separator") as u32;
+        assert!(first_argument_span.end <= separator_offset);
+        assert!(first_value_span.end <= separator_offset);
     }
 
     #[test]
