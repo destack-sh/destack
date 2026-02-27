@@ -655,9 +655,9 @@ fn test_build_managed_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_test() -> ref<managed i32> {
+function @alloc_test() -> ref<managed readonly i32> {
 block0:
-    v0: ref<managed i32> = managed.alloc i32
+    v0: ref<managed readonly i32> = managed.alloc i32
     return v0
 }";
     assert_eq!(output, expected);
@@ -686,9 +686,9 @@ fn test_build_managed_alloc_array() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @alloc_array_test(v0: i64) -> ref<managed i32> {
+function @alloc_array_test(v0: i64) -> ref<managed readonly i32> {
 block0(v0: i64):
-    v1: ref<managed i32> = managed.alloc_array i32, v0
+    v1: ref<managed readonly i32> = managed.alloc_array i32, v0
     return v1
 }";
     assert_eq!(output, expected);
@@ -723,7 +723,7 @@ fn test_build_raw_alloc_and_free() {
     let expected = "\
 function @raw_alloc_test() -> void {
 block0:
-    v0: ref<raw i32> = raw.alloc i32
+    v0: ref<raw readonly i32> = raw.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
     raw.free v0
@@ -759,9 +759,9 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @stack_alloc_test() -> ref<raw addrspace(stack) i32> {
+function @stack_alloc_test() -> ref<raw addrspace(stack) readonly i32> {
 block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
     return v0
 }";
     assert_eq!(output, expected);

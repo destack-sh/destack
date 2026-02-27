@@ -467,7 +467,7 @@ fn test_format_global_constant() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-global @MAGIC: i64 = 42i64 ; const
+global @MAGIC: i64 = 42i64 ; readonly
 function @get_magic() -> i64 {
 block0:
     v0: i64 = global.const @MAGIC
