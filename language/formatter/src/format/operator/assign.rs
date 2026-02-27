@@ -11,8 +11,7 @@ use crate::format::expression::{
     is_lambda_expression, soft_line_break_or_space, space, transparent_inner_expression,
 };
 use crate::format::operator::{
-    Annotation, AnnotationPosition, Span, TokenType,
-    expression_is_trivial_inline_without_annotations,
+    Annotation, AnnotationPosition, TokenType, expression_is_trivial_inline_without_annotations,
 };
 use destack_ast::{Comment, CommentStyle, Declaration, ScalarLiteral};
 use destack_fir::format::Buffer;
@@ -112,11 +111,9 @@ pub(crate) fn assignment_seam_has_line_comment_between(
 ) -> bool {
     let left_span = context.span(left);
     let right_span = context.span(right);
-    if left_span.file != right_span.file || left_span.end >= right_span.start {
+    let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
-    }
-
-    let between_span = Span::new(left_span.file, left_span.end, right_span.start);
+    };
     context
         .comment_tokens()
         .iter()

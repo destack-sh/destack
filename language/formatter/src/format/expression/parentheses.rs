@@ -745,8 +745,8 @@ fn expression_has_only_type_grouping_prefix_annotations(
 /// Store signals for parenthesized type-wrapper drop mode.
 #[derive(Debug, Clone, Copy)]
 struct ParenthesizedTypeDrop {
-    /// Whether the wrapper node has annotations.
-    has_wrapper_annotation: bool,
+    /// Whether wrapper annotations include non-grouping cases.
+    has_non_grouping_wrapper_annotation: bool,
     /// Whether inner annotations include non-grouping cases.
     has_non_grouping_inner_annotation: bool,
     /// Whether wrapper is one decorated class extends head.
@@ -784,7 +784,8 @@ fn parenthesized_type_drop(
     inner_id: LocalNodeId<Expression>,
 ) -> ParenthesizedTypeDrop {
     // annotation signals
-    let has_wrapper_annotation = context.has_annotation(node_id);
+    let has_non_grouping_wrapper_annotation = context.has_annotation(node_id)
+        && !expression_has_only_type_grouping_prefix_annotations(context, node_id);
     let has_non_grouping_inner_annotation = context.has_annotation(inner_id)
         && !expression_has_only_type_grouping_prefix_annotations(context, inner_id);
 
@@ -807,7 +808,7 @@ fn parenthesized_type_drop(
                 {
                     *left == node_id
                         && index.is_none()
-                        && !has_wrapper_annotation
+                        && !has_non_grouping_wrapper_annotation
                         && !context.has_annotation(inner_id)
                         && is_simple_type_binary_left_expression(context.tree, inner_id)
                 } else {
@@ -822,7 +823,7 @@ fn parenthesized_type_drop(
         parenthesized_single_operand_type_grouping_can_drop(context, node_id);
     // grouping signals
     let is_safe_in_parent_context =
-        parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id);
+        parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id, inner_id);
     let parent = context.parent(node_id);
     let parent_is_expression =
         parent.is_some_and(|(_, parent_type)| parent_type == NodeType::Expression);
@@ -867,7 +868,7 @@ fn parenthesized_type_drop(
         is_simple_type_binary_left_expression(context.tree, inner_id);
 
     ParenthesizedTypeDrop {
-        has_wrapper_annotation,
+        has_non_grouping_wrapper_annotation,
         has_non_grouping_inner_annotation,
         wraps_decorated_class_extends_head,
         is_type_context,
@@ -888,13 +889,7 @@ fn parenthesized_type_drop(
 /// Decide type-wrapper drop rules from collected signals.
 fn should_drop_parenthesized_type(signals: ParenthesizedTypeDrop) -> bool {
     // wrapper annotations are semantic boundaries and should keep grouping
-    if signals.has_wrapper_annotation {
-        return false;
-    }
-
-    // inner annotations are usually semantic boundaries
-    // but leading type-grouping prefix comments are compatible with dropping the wrapper
-    if signals.has_non_grouping_inner_annotation {
+    if signals.has_non_grouping_wrapper_annotation {
         return false;
     }
 
@@ -922,6 +917,11 @@ fn should_drop_parenthesized_type(signals: ParenthesizedTypeDrop) -> bool {
 
     if signals.can_drop_single_operand_type_grouping_wrapper {
         return true;
+    }
+
+    // inner annotations are semantic boundaries outside explicit type-grouping drop paths
+    if signals.has_non_grouping_inner_annotation {
+        return false;
     }
 
     if !signals.is_safe_in_parent_context {
@@ -1023,6 +1023,7 @@ pub(crate) fn should_drop_parenthesized_type_expression(
 fn parenthesized_type_grouping_drop_is_safe_in_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
+    inner_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return true;
@@ -1034,6 +1035,25 @@ fn parenthesized_type_grouping_drop_is_safe_in_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_expression_id) {
         Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => *left != node_id,
+        Expression::Binary {
+            left,
+            operator: parent_operator,
+            right,
+        } if (*left == node_id || *right == node_id)
+            && is_type_context(context, parent_expression_id) =>
+        {
+            let Expression::Binary {
+                operator: inner_operator,
+                ..
+            } = context.tree.get(inner_id)
+            else {
+                return true;
+            };
+
+            !(is_associative_type_binary_operator(*parent_operator)
+                && is_associative_type_binary_operator(*inner_operator)
+                && parent_operator != inner_operator)
+        }
         _ => true,
     }
 }
@@ -1132,8 +1152,10 @@ pub(crate) fn parenthesized_has_leading_type_cast_comment(
         return false;
     };
 
-    let between_span = Span::new(node_span.file, comment_span.end, node_span.start);
-    if context.has_non_whitespace_content(between_span) {
+    if comment_span
+        .gap_to(node_span)
+        .is_some_and(|between_span| context.has_non_whitespace_content(between_span))
+    {
         return false;
     }
 

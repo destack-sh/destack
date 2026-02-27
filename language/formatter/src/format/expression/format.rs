@@ -11,7 +11,7 @@ use crate::format::expression::{
     format_primary_expression, format_statement_expression, parenthesized_has_leading_inner_trivia,
     transparent_inner_expression,
 };
-use crate::format::operator::format_operator_expression;
+use crate::format::operator::{format_operator_expression, union_owns_prefix_annotations};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind,
@@ -249,7 +249,23 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     ) -> FormatResult<()> {
         let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION);
         let directive = directive_for_node(f.context(), node_id);
-        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        let directive_is_prefix_ignore = matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Prefix { .. },
+            })
+        );
+        let expression_owns_prefix_annotations = matches!(
+            self,
+            Expression::Binary {
+                operator: BinaryOperator::ElementwiseOr,
+                ..
+            } if union_owns_prefix_annotations(f.context(), node_id) && !directive_is_prefix_ignore
+        );
+        if !expression_owns_prefix_annotations {
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        }
 
         format_expression(f, node_id, self, directive)?;
 

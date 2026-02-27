@@ -14,8 +14,8 @@ use crate::format::expression::{
     format_scalar_literal, format_static_argument_list, format_struct_literal,
     format_template_literal, format_type_index_expression, format_type_template_literal,
     format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
-    is_complex_argument, is_expression_breakable, is_expression_chain, is_simple_static_argument,
-    is_trivial_argument, line_postfix_boundary, list_like, parenthesized_boundary_comments,
+    is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
+    line_postfix_boundary, list_like, parenthesized_boundary_comments,
     parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
     parenthesized_has_leading_inner_trivia, parenthesized_has_leading_type_cast_comment,
     sequence_expression_needs_parens, should_drop_parenthesized,
@@ -1071,24 +1071,9 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 write!(f, [token("("), expression, token(")")])?;
             }
         } else {
-            let should_expand_parenthesized_chain = parent_is_postfix_continuation
-                && is_expression_chain(tree, expression_id)
-                && (f.context().node_has_newline(node_id)
-                    || f.context().node_has_newline(expression_id));
-
-            if should_expand_parenthesized_chain {
-                write!(
-                    f,
-                    [
-                        token("("),
-                        block_indent(&group(expression).should_expand(true)),
-                        hard_line_break(),
-                        token(")")
-                    ]
-                )?;
-            } else {
-                write!(f, [token("("), expression, token(")")])?;
-            }
+            // parenthesized chains should use chain formatting rules directly
+            // without newline-driven wrapper expansion to stay idempotent
+            write!(f, [token("("), expression, token(")")])?;
         }
 
         let boundary_comments =

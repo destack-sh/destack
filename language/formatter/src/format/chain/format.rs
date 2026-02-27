@@ -75,7 +75,7 @@ fn chain_operation_node_id(operation: &ChainExpression) -> LocalNodeId<Expressio
     }
 }
 
-/// Return the last emitted node id in one chain base that can defer boundary comments.
+/// Return the trailing node of one chain base.
 fn chain_base_trailing_node_id(base: &ChainExpressionBase) -> Option<LocalNodeId<Expression>> {
     if let Some(last_operation) = base.body.last() {
         return Some(chain_operation_node_id(last_operation));
@@ -87,14 +87,14 @@ fn chain_base_trailing_node_id(base: &ChainExpressionBase) -> Option<LocalNodeId
     Some(node_id)
 }
 
-/// Return whether one node has only own-line line-postfix-boundary annotations.
-fn node_has_only_own_line_line_postfix_boundary_annotation(
+/// Return whether one node has only own-line boundary postfix annotations.
+fn node_has_only_own_line_boundary_postfix_annotations(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     context
         .visit_annotations(node_id, |annotations| {
-            let mut has_line_postfix_boundary_annotation = false;
+            let mut has_boundary_postfix_annotation = false;
 
             for annotation_id in annotations {
                 let annotation_id = *annotation_id;
@@ -103,19 +103,19 @@ fn node_has_only_own_line_line_postfix_boundary_annotation(
                     continue;
                 }
 
-                has_line_postfix_boundary_annotation = true;
+                has_boundary_postfix_annotation = true;
                 if !context.span_starts_on_own_line(context.annotation_span(annotation_id)) {
                     return false;
                 }
             }
 
-            has_line_postfix_boundary_annotation
+            has_boundary_postfix_annotation
         })
         .unwrap_or(false)
 }
 
-/// Return one base node id whose boundary comments should render with the first chain line.
-fn deferred_base_boundary_annotation_node_id(
+/// Return one base node whose boundary postfix annotations should render with the first chain line.
+fn deferred_base_boundary_owner_node_id(
     context: &DestackFormatContext<'_>,
     base: &ChainExpressionBase,
     lines: &[SmallVec<[ChainExpression; 2]>],
@@ -126,7 +126,7 @@ fn deferred_base_boundary_annotation_node_id(
     }
 
     let base_trailing_node_id = chain_base_trailing_node_id(base)?;
-    if !node_has_only_own_line_line_postfix_boundary_annotation(context, base_trailing_node_id) {
+    if !node_has_only_own_line_boundary_postfix_annotations(context, base_trailing_node_id) {
         return None;
     }
 
@@ -281,7 +281,7 @@ pub(crate) fn format_expression_chain<'ast>(
 
         let first_line_attaches_to_base =
             first_grouped_line_attaches_to_base(f.context(), node_id, &base, &lines);
-        let deferred_base_boundary_annotation_node_id = deferred_base_boundary_annotation_node_id(
+        let deferred_base_boundary_owner_node_id = deferred_base_boundary_owner_node_id(
             f.context(),
             &base,
             &lines,
@@ -295,7 +295,7 @@ pub(crate) fn format_expression_chain<'ast>(
             &base,
             &lines,
             instantiation_prefix_wrap_body_ops,
-            deferred_base_boundary_annotation_node_id,
+            deferred_base_boundary_owner_node_id,
         )?;
 
         // indent chained entries so each operation sits on its own line when expanded
@@ -314,11 +314,8 @@ pub(crate) fn format_expression_chain<'ast>(
                     let is_first_attached_line = line_index == 0 && first_line_attaches_to_base;
                     let should_skip_first_soft_break =
                         line_index == 0 && skip_first_soft_break_for_conditional_head;
-                    let should_skip_first_soft_break_for_deferred_boundary_annotation =
-                        line_index == 0 && deferred_base_boundary_annotation_node_id.is_some();
                     let should_insert_soft_break = !is_first_attached_line
                         && !should_skip_first_soft_break
-                        && !should_skip_first_soft_break_for_deferred_boundary_annotation
                         && (line_index == 0
                             || !chain_line_starts_with_block_prefix_annotation(f.context(), line));
                     if should_insert_soft_break {
@@ -326,11 +323,11 @@ pub(crate) fn format_expression_chain<'ast>(
                     }
 
                     if line_index == 0
-                        && let Some(base_node_id) = deferred_base_boundary_annotation_node_id
+                        && let Some(owner_node_id) = deferred_base_boundary_owner_node_id
                     {
                         write!(
                             f,
-                            [f.context().line_postfix_boundary_annotations(base_node_id)]
+                            [f.context().line_postfix_boundary_annotations(owner_node_id)]
                         )?;
                     }
 
@@ -338,7 +335,7 @@ pub(crate) fn format_expression_chain<'ast>(
                         f,
                         node_id,
                         line,
-                        deferred_base_boundary_annotation_node_id,
+                        deferred_base_boundary_owner_node_id,
                     )?;
                 }
                 Ok(())
@@ -387,7 +384,7 @@ fn format_chain_base<'ast>(
     base: &ChainExpressionBase,
     lines: &[SmallVec<[ChainExpression; 2]>],
     instantiation_prefix_wrap_body_ops: Option<usize>,
-    deferred_base_boundary_annotation_node_id: Option<LocalNodeId<Expression>>,
+    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     format_chain_base_content(
         f,
@@ -395,7 +392,7 @@ fn format_chain_base<'ast>(
         base,
         lines,
         instantiation_prefix_wrap_body_ops,
-        deferred_base_boundary_annotation_node_id,
+        deferred_base_boundary_owner_node_id,
     )
 }
 
@@ -406,7 +403,7 @@ fn format_chain_base_content<'ast>(
     base: &ChainExpressionBase,
     lines: &[SmallVec<[ChainExpression; 2]>],
     instantiation_prefix_wrap_body_ops: Option<usize>,
-    deferred_base_boundary_annotation_node_id: Option<LocalNodeId<Expression>>,
+    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let root_is_decorator_expression =
         f.context()
@@ -441,7 +438,7 @@ fn format_chain_base_content<'ast>(
             }
             if *emit_postfix_annotations {
                 let should_defer_boundary_annotations =
-                    deferred_base_boundary_annotation_node_id == Some(*node_id);
+                    deferred_base_boundary_owner_node_id == Some(*node_id);
                 if should_defer_boundary_annotations {
                     write!(
                         f,
@@ -477,7 +474,7 @@ fn format_chain_base_content<'ast>(
             formatted_root_id,
             op,
             next_operation,
-            deferred_base_boundary_annotation_node_id,
+            deferred_base_boundary_owner_node_id,
         )?;
         if !has_closed_prefix_wrap && instantiation_prefix_wrap_body_ops == Some(index + 1) {
             write!(f, [token(")")])?;
@@ -498,7 +495,7 @@ fn format_chain_expression<'ast>(
     formatted_root_id: LocalNodeId<Expression>,
     op: &ChainExpression,
     next_operation: Option<&ChainExpression>,
-    deferred_base_boundary_annotation_node_id: Option<LocalNodeId<Expression>>,
+    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     // output any line prefix annotations before the operation
     let (node_id, emit_prefix_annotations, emit_postfix_annotations) = match op {
@@ -613,7 +610,7 @@ fn format_chain_expression<'ast>(
     // output any line postfix annotations after the operation
     if emit_postfix_annotations {
         let should_defer_boundary_annotations =
-            deferred_base_boundary_annotation_node_id == Some(node_id);
+            deferred_base_boundary_owner_node_id == Some(node_id);
         if call_or_new_handles_empty_infix {
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
         } else if should_defer_boundary_annotations {
@@ -648,7 +645,7 @@ fn format_chain_expression_line<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainExpression],
-    deferred_base_boundary_annotation_node_id: Option<LocalNodeId<Expression>>,
+    deferred_base_boundary_owner_node_id: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     for (index, op) in ops.iter().enumerate() {
         let next_operation = ops.get(index + 1);
@@ -657,7 +654,7 @@ fn format_chain_expression_line<'ast>(
             formatted_root_id,
             op,
             next_operation,
-            deferred_base_boundary_annotation_node_id,
+            deferred_base_boundary_owner_node_id,
         )?;
     }
     Ok(())

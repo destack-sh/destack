@@ -201,9 +201,12 @@ fn pattern_fields_disallow_trailing_separator(
     tree: &NodeTree,
     fields: &[LocalNodeId<PatternField>],
 ) -> bool {
-    fields
-        .last()
-        .is_some_and(|field_id| matches!(tree.get(*field_id), PatternField::Spread { .. }))
+    fields.last().is_some_and(|field_id| {
+        matches!(
+            tree.get(*field_id),
+            PatternField::Spread { .. } | PatternField::Elision
+        )
+    })
 }
 
 /// Return whether any pattern field has one default assignment.
