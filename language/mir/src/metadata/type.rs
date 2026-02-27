@@ -25,45 +25,47 @@ pub struct TypeLineage {
     pub is_interface: bool,
 }
 
-/// Identifier for a dispatch table entry.
+/// Identifier for a vtable entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct DispatchTableId(
-    /// Raw index into the dispatch table registry.
+pub struct VtableId(
+    /// Raw index into the vtable registry.
     u32,
 );
 
-impl DispatchTableId {
-    /// Create a dispatch table id from a raw index.
+impl VtableId {
+    /// Create a vtable id from a raw index.
     pub fn new(index: u32) -> Self {
         Self(index)
     }
 
-    /// Get the raw index for this id.
+    /// Return the raw index for this id.
     pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 
-/// Kind of dispatch table.
+/// Identifier for an itab entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum DispatchTableKind {
-    /// Class 'vtable' for virtual dispatch.
-    Class {
-        /// The class type owning the vtable.
-        ty: LocalNodeId<Type>,
-    },
-    /// Interface 'itab' for a concrete type and interface pair.
-    Interface {
-        /// The concrete type providing the implementation.
-        concrete: LocalNodeId<Type>,
-        /// The interface type being dispatched.
-        interface: LocalNodeId<Type>,
-    },
+pub struct ItabId(
+    /// Raw index into the itab registry.
+    u32,
+);
+
+impl ItabId {
+    /// Create an itab id from a raw index.
+    pub fn new(index: u32) -> Self {
+        Self(index)
+    }
+
+    /// Return the raw index for this id.
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
 }
 
-/// Entry in a dispatch table.
+/// Entry in a class vtable.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DispatchTableEntry {
+pub enum VtableEntry {
     /// Slot containing a type tag handle.
     TypeTag,
     /// Slot containing a drop glue function.
@@ -76,13 +78,13 @@ pub enum DispatchTableEntry {
         /// The concrete method implementation.
         function: LocalNodeId<Function>,
     },
-    /// Slot mapping interface method to a concrete implementation.
-    InterfaceMethod {
-        /// The interface method signature.
-        interface_method: LocalNodeId<Function>,
-        /// The concrete method implementation.
-        target: LocalNodeId<Function>,
-    },
+}
+
+/// Entry in an interface itab.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ItabEntry {
+    /// Slot containing a type tag handle.
+    TypeTag,
     /// Slot containing an interface field offset.
     FieldOffset {
         /// The interface field name.
@@ -90,56 +92,116 @@ pub enum DispatchTableEntry {
         /// The field offset in bytes.
         offset: u32,
     },
+    /// Slot mapping interface method declaration to target method.
+    Method {
+        /// The declared interface method.
+        declared_method: LocalNodeId<Function>,
+        /// The concrete method implementation.
+        target_method: LocalNodeId<Function>,
+    },
 }
 
-/// Metadata for a dispatch table.
+/// Metadata for a class vtable.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DispatchTable {
-    /// The kind of dispatch table.
-    pub kind: DispatchTableKind,
+pub struct Vtable {
+    /// The class type owning this table.
+    pub ty: LocalNodeId<Type>,
     /// Optional global symbol containing the table.
     pub global: Option<LocalNodeId<Global>>,
-    /// Slots in declaration order.
-    pub slots: Vec<DispatchTableEntry>,
+    /// Entries in declaration order.
+    pub entries: Vec<VtableEntry>,
 }
 
-/// Registry of dispatch metadata.
+/// Metadata for an interface itab.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Itab {
+    /// The concrete type providing the implementation.
+    pub concrete: LocalNodeId<Type>,
+    /// The interface type being dispatched.
+    pub interface: LocalNodeId<Type>,
+    /// Optional global symbol containing the table.
+    pub global: Option<LocalNodeId<Global>>,
+    /// Entries in declaration order.
+    pub entries: Vec<ItabEntry>,
+}
+
+/// Registry of class vtables.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DispatchRegistry {
-    /// Registered dispatch tables.
-    pub tables: Vec<Option<DispatchTable>>,
+pub struct VtableRegistry {
+    /// Registered class vtables.
+    pub tables: Vec<Option<Vtable>>,
 }
 
-impl DispatchRegistry {
-    /// Create a new empty dispatch table registry.
+impl VtableRegistry {
+    /// Create a new empty vtable registry.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Insert a dispatch table and return its id.
-    pub fn insert(&mut self, table: DispatchTable) -> DispatchTableId {
-        let id = DispatchTableId::new(self.tables.len() as u32);
+    /// Insert a vtable and return its id.
+    pub fn insert(&mut self, table: Vtable) -> VtableId {
+        let id = VtableId::new(self.tables.len() as u32);
         self.tables.push(Some(table));
         id
     }
 
-    /// Insert a dispatch table at a specific id.
-    pub fn insert_at(&mut self, id: DispatchTableId, table: DispatchTable) {
+    /// Insert a vtable at a specific id.
+    pub fn insert_at(&mut self, id: VtableId, table: Vtable) {
         let index = id.index();
         if self.tables.len() <= index {
             self.tables.resize_with(index + 1, || None);
         }
         if self.tables[index].is_some() {
-            panic!("dispatch table slot {index} already populated");
+            panic!("vtable slot {index} already populated");
         }
         self.tables[index] = Some(table);
     }
 
-    /// Return the dispatch table for an id.
-    pub fn table(&self, id: DispatchTableId) -> &DispatchTable {
+    /// Return the vtable for an id.
+    pub fn table(&self, id: VtableId) -> &Vtable {
         self.tables[id.index()]
             .as_ref()
-            .expect("missing dispatch table entry")
+            .expect("missing vtable entry")
+    }
+}
+
+/// Registry of interface itabs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ItabRegistry {
+    /// Registered interface itabs.
+    pub tables: Vec<Option<Itab>>,
+}
+
+impl ItabRegistry {
+    /// Create a new empty itab registry.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Insert an itab and return its id.
+    pub fn insert(&mut self, table: Itab) -> ItabId {
+        let id = ItabId::new(self.tables.len() as u32);
+        self.tables.push(Some(table));
+        id
+    }
+
+    /// Insert an itab at a specific id.
+    pub fn insert_at(&mut self, id: ItabId, table: Itab) {
+        let index = id.index();
+        if self.tables.len() <= index {
+            self.tables.resize_with(index + 1, || None);
+        }
+        if self.tables[index].is_some() {
+            panic!("itab slot {index} already populated");
+        }
+        self.tables[index] = Some(table);
+    }
+
+    /// Return the itab for an id.
+    pub fn table(&self, id: ItabId) -> &Itab {
+        self.tables[id.index()]
+            .as_ref()
+            .expect("missing itab entry")
     }
 }
 
@@ -152,12 +214,12 @@ pub struct TypeMetadata {
     pub layout_id: Option<LayoutId>,
     /// Lineage metadata for the type.
     pub lineage: Option<TypeLineage>,
-    /// Dispatch table for class virtual dispatch.
-    pub vtable: Option<DispatchTableId>,
-    /// Dispatch tables for interface dispatch.
-    pub itabs: Vec<DispatchTableId>,
+    /// Vtable for class virtual dispatch.
+    pub vtable: Option<VtableId>,
+    /// Itabs for interface dispatch.
+    pub itabs: Vec<ItabId>,
     /// Interface to itab mapping for this concrete type.
-    pub itab_by_interface: HashMap<LocalNodeId<Type>, DispatchTableId>,
+    pub itab_by_interface: HashMap<LocalNodeId<Type>, ItabId>,
     /// Runtime type descriptor global.
     pub type_descriptor: Option<LocalNodeId<Global>>,
     /// Field map for property layout lookup.
@@ -213,8 +275,10 @@ pub struct TypeTable {
     pub layout_table: LayoutTable,
     /// Type metadata keyed by type id.
     pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
-    /// Dispatch tables for virtual and interface calls.
-    pub dispatch_registry: DispatchRegistry,
+    /// Class vtables.
+    pub vtable_registry: VtableRegistry,
+    /// Interface itabs.
+    pub itab_registry: ItabRegistry,
 }
 
 impl TypeTable {

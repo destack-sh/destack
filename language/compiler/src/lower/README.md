@@ -71,7 +71,7 @@ The only special case is a union of a single reference type plus `null`, which l
 ### Dispatch Tables (VTables/ITabs)
 
 Dispatch layout is modeled separately from data layout.
-- **VTable**: class method table for virtual dispatch.
+- **Vtable**: class method table for virtual dispatch.
 - **ITab**: interface table for structural or nominal interface dispatch.
 
 A type layout can reference zero or more dispatch layouts, but dispatch layouts never alter the data placement.
@@ -242,12 +242,13 @@ v1 = call @User.getName(v0)
 node.update(delta)  // static resolution { target: Node::update }, but virtual
 ```
 
-Lowers to vtable lookup:
+Lowers to explicit virtual dispatch:
 ```mir
-v1 = field.get v0, 0           ; load vtable pointer from object layout
-v2 = field.get v1, 2           ; load update method at vtable slot 2
-v3 = call.indirect v2(v0, delta) -> fn(ref<raw readonly void>, i32) -> void ; indirect call through vtable
+call.virtual v0, @Node, 2, @Node.update(delta) -> fn(i32) -> void
 ```
+
+Lower keeps dispatch as `call.virtual` so optimizer and devirtualization passes can reason about it directly.
+Codegen legalization can later rewrite to direct calls or explicit `call.indirect` sequences.
 
 The key: static resolution means we know *which method signature* (Node::update), but if it's virtual, the actual implementation depends on the concrete type.
 
@@ -653,7 +654,7 @@ class Node {
 Native layout:
 ```ds
 struct NodeLayout {
-    vtablePtr: &VTable,      // offset 0, vtable[0] = Node_TypeTag
+    vtablePtr: &Vtable,      // offset 0, vtable[0] = Node_TypeTag
     name: ref<string>,       // offset 8
 }
 ```
@@ -978,15 +979,15 @@ Polymorphic class dispatch uses vtables stored in the object layout, like C++ an
 Interface dispatch uses itabs carried by fat pointers, like Go.
 Union dispatch generates type checking code when a value could be multiple types.
 
-### VTable Layout
+### Vtable Layout
 
 Classes with virtual methods have a vtable.
 VTables are only emitted when virtual dispatch remains after devirtualization.
 The vtable is an array of slots with a fixed prefix and method targets.
 
-**VTable structure (conceptual):**
+**Vtable structure (conceptual):**
 ```ds
-struct VTable {
+struct Vtable {
     typeTag: TypeTag;    // for instanceof, T.is, and typeOf
     drop: () => void;             // drop glue
     methods: ((...args: unknown[]) => unknown)[]; // virtual method pointers
@@ -1022,10 +1023,11 @@ This inheritance-preserving order ensures:
 **Virtual call lowering:**
 ```mir
 ; node.update(delta) where node could be Node or Sprite
-v1 = field.get v0, 0           ; load vtable pointer from object
-v2 = field.get v1, 2           ; load update method (slot 2)
-v3 = call.indirect v2(v0, delta) -> fn(ref<raw readonly void>, i32) -> void ; call with self as first arg
+call.virtual v0, @Node, 2, @Node.update(delta) -> fn(i32) -> void
 ```
+
+Lower preserves this as virtual dispatch in MIR.
+Late optimization and backend lowering decide whether this stays indirect or devirtualizes.
 
 **Super calls:**
 Super calls compile to direct calls to parent implementation.
@@ -1059,6 +1061,7 @@ type InterfaceRef<I> = { objectPtr: &Object; itabPtr: &InterfaceItab<I>; };
 ```
 
 Each (Type, Interface) pair has its own itab mapping interface fields and methods to concrete layouts.
+Method slots preserve both identities: the interface method declaration and the concrete target implementation.
 Itabs are generated for both struct and class implementations.
 Static members never appear in vtables or itabs.
 
@@ -1130,11 +1133,7 @@ type @Drawable = struct { ref<raw readonly void>, ref<raw readonly void> }
 
 function @render(v0: ref<raw readonly @Drawable>) -> void {
 block0(v0: ref<raw readonly @Drawable>):
-    ; v0 is a fat pointer: { objectPtr, itabPtr }
-    v1 = field.get v0, 0       ; load objectPtr
-    v2 = field.get v0, 1       ; load itabPtr
-    v3 = field.get v2, 1       ; load draw method from itab slot 1
-    call.indirect v3(v1) -> fn(ref<raw readonly void>) -> void ; call with object as self
+    call.interface v0, @Drawable, 1() -> fn() -> void
     return
 }
 ```
@@ -1339,6 +1338,16 @@ For targets without GC (freestanding, `@noManaged` code):
 
 Lower queries the target profile to determine which GC features to emit.
 The runtime provides the actual GC implementation; Lower just emits the hooks.
+
+#### Managed Reference Representation
+
+Managed reference representation is a target and runtime policy, not a separate MIR type.
+By default, managed references use pointer width (`usize`) in native layouts.
+Pointer compression can be enabled for managed references, typically as 32-bit handles into a bounded managed heap window.
+The MIR type remains `ref<managed ...>` either way.
+Both `ref<managed T>` and `ref<managed readonly T>` are first-class and Lower preserves mutability information from DIR.
+Owned handles follow the same rule: both `ref<owned T>` and `ref<owned readonly T>` are representable.
+Raw, borrowed, and owned references stay pointer-width because they participate in unsafe operations and FFI ABIs.
 
 #### Raw Allocation
 

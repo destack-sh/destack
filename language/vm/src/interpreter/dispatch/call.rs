@@ -39,23 +39,23 @@ fn resolve_virtual_dispatch_target(
             actual: format!("{vtable_value:?}"),
         })?;
 
-    // map the vtable global to a dispatch table id
+    // map the vtable global to a vtable id
     let table_id = state
         .interpreter
         .isolate
-        .dispatch_table_for_global(vtable_pointer.id)
+        .vtable_for_global(vtable_pointer.id)
         .ok_or(Error::InvalidInstruction)?;
 
-    // resolve the dispatch slot for the virtual call
-    let dispatch_registry = &state.interpreter.isolate.tree.type_table.dispatch_registry;
-    let table = dispatch_registry.table(table_id);
+    // resolve the vtable slot for the virtual call
+    let vtable_registry = &state.interpreter.isolate.tree.type_table.vtable_registry;
+    let table = vtable_registry.table(table_id);
     let slot = table
-        .slots
+        .entries
         .get(slot_id as usize)
         .ok_or(Error::InvalidInstruction)?;
 
     // require a method slot
-    let mir::DispatchTableEntry::Method { function } = slot else {
+    let mir::VtableEntry::Method { function } = slot else {
         return Err(Error::InvalidInstruction);
     };
 
@@ -71,7 +71,7 @@ fn resolve_interface_dispatch_target(
     // load the itab id from the interface reference
     let itab_value = load_receiver_field(state, receiver, INTERFACE_ITAB_FIELD_INDEX)?;
 
-    // decode the dispatch table id
+    // decode the itab id
     let raw_id = match itab_value.as_uint_with_width() {
         Some((value, _)) => value,
         None => match itab_value.as_int_with_width() {
@@ -85,26 +85,26 @@ fn resolve_interface_dispatch_target(
         },
     };
     let raw_id = u32::try_from(raw_id).map_err(|_| Error::InvalidInstruction)?;
-    let table_id = mir::DispatchTableId::new(raw_id);
+    let table_id = mir::ItabId::new(raw_id);
 
-    // resolve the dispatch slot for the interface call
-    let dispatch_registry = &state.interpreter.isolate.tree.type_table.dispatch_registry;
-    let table = dispatch_registry
+    // resolve the itab slot for the interface call
+    let itab_registry = &state.interpreter.isolate.tree.type_table.itab_registry;
+    let table = itab_registry
         .tables
         .get(table_id.index())
         .and_then(|table| table.as_ref())
         .ok_or(Error::InvalidInstruction)?;
     let slot = table
-        .slots
+        .entries
         .get(slot_id as usize)
         .ok_or(Error::InvalidInstruction)?;
 
     // require an interface method slot
-    let mir::DispatchTableEntry::InterfaceMethod { target, .. } = slot else {
+    let mir::ItabEntry::Method { target_method, .. } = slot else {
         return Err(Error::InvalidInstruction);
     };
 
-    Ok(*target)
+    Ok(*target_method)
 }
 
 /// Load a function pointer.

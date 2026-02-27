@@ -86,19 +86,19 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Track class symbols that require vtable headers.
     pub(crate) vtable_layout_symbols: Option<HashSet<GlobalSymbolId>>,
     /// Track vtables that have been lowered.
-    pub(crate) vtable_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
+    pub(crate) vtable_by_symbol: HashMap<GlobalSymbolId, mir::VtableId>,
     /// Track vtable lowering in progress.
     pub(crate) vtable_in_progress: IndexSet<GlobalSymbolId>,
     /// Precomputed dispatch table ids for class vtables.
-    pub(crate) vtable_ids_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
+    pub(crate) vtable_ids_by_symbol: HashMap<GlobalSymbolId, mir::VtableId>,
 
     /// Track itabs that have been lowered.
-    pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+    pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
     /// Track itab lowering in progress.
     pub(crate) itab_in_progress: IndexSet<(GlobalSymbolId, GlobalSymbolId)>,
 
-    /// Track whether the dispatch registry is initialized.
-    pub(crate) dispatch_registry_ready: bool,
+    /// Track whether dispatch tables are initialized.
+    pub(crate) dispatch_tables_ready: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
     pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
 
@@ -110,7 +110,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Ordered interface itab pairs for deterministic table ids.
     pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
     /// Precomputed itab ids keyed by concrete and interface symbols.
-    pub(crate) interface_itab_ids: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+    pub(crate) interface_itab_ids: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::ItabId>,
 
     /// Set of symbols marked as bindings.
     pub(crate) binding_symbols: HashSet<GlobalSymbolId>,
@@ -211,7 +211,7 @@ impl<'a> ModuleLowerer<'a> {
             vtable_ids_by_symbol: HashMap::new(),
             itab_by_pair: HashMap::new(),
             itab_in_progress: IndexSet::new(),
-            dispatch_registry_ready: false,
+            dispatch_tables_ready: false,
             virtual_method_slots_by_key: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
@@ -400,7 +400,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_vtable_id(
         &mut self,
         symbol: GlobalSymbolId,
-        table_id: mir::DispatchTableId,
+        table_id: mir::VtableId,
     ) -> LowerResult<()> {
         // record the vtable id once
         Self::insert_unique_entry(
@@ -416,7 +416,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_vtable_table(
         &mut self,
         symbol: GlobalSymbolId,
-        table_id: mir::DispatchTableId,
+        table_id: mir::VtableId,
     ) -> LowerResult<()> {
         // record the lowered vtable table once
         Self::insert_unique_entry(
@@ -454,7 +454,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_interface_itab_id(
         &mut self,
         pair: (GlobalSymbolId, GlobalSymbolId),
-        table_id: mir::DispatchTableId,
+        table_id: mir::ItabId,
     ) -> LowerResult<()> {
         // record the interface itab id once
         Self::insert_unique_entry(
@@ -467,10 +467,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Require a precomputed vtable id for a class symbol.
-    pub(crate) fn require_vtable_id(
-        &self,
-        symbol: GlobalSymbolId,
-    ) -> LowerResult<mir::DispatchTableId> {
+    pub(crate) fn require_vtable_id(&self, symbol: GlobalSymbolId) -> LowerResult<mir::VtableId> {
         self.vtable_ids_by_symbol
             .get(&symbol)
             .copied()
@@ -484,7 +481,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn require_itab_id(
         &self,
         pair: (GlobalSymbolId, GlobalSymbolId),
-    ) -> LowerResult<mir::DispatchTableId> {
+    ) -> LowerResult<mir::ItabId> {
         self.interface_itab_ids
             .get(&pair)
             .copied()
@@ -498,7 +495,7 @@ impl<'a> ModuleLowerer<'a> {
     pub(crate) fn insert_itab_table(
         &mut self,
         pair: (GlobalSymbolId, GlobalSymbolId),
-        table_id: mir::DispatchTableId,
+        table_id: mir::ItabId,
     ) -> LowerResult<()> {
         // record the lowered itab table once
         Self::insert_unique_entry(
@@ -544,8 +541,8 @@ impl<'a> ModuleLowerer<'a> {
         self.predeclare_string_literal_globals()?;
         self.ensure_string_type_alias()?;
 
-        // build dispatch registry
-        self.lower_dispatch_registry()?;
+        // build dispatch tables
+        self.lower_dispatch_tables()?;
 
         // predeclare function bindings before body lowering
         self.predeclare_functions()?;

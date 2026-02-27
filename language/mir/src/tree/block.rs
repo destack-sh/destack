@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, DispatchTableId, Function, Instruction, LocalNodeId, Node, NodeType, Type,
-    TypedValue, Value,
+    BinaryOperator, Function, Instruction, ItabId, LocalNodeId, Node, NodeType, Type, TypedValue,
+    Value,
 };
 
 /// A basic block is a sequence of instructions with:
@@ -139,7 +139,7 @@ pub enum CheckConstraint {
         /// The receiver being checked.
         receiver: Value,
         /// The expected itab id.
-        expected: DispatchTableId,
+        expected: ItabId,
     },
 }
 

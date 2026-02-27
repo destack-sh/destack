@@ -110,7 +110,8 @@ One profile may map to multiple targets, or put differently, multiple targets ma
 - `env`: Comptime environment snapshot (for `import.meta.env`)
 - `flags`: Semantic restriction flags (`no_any`, `no_managed`, `no_exceptions`, etc.)
 
-(The compiler also maintains a shared comptime target used by Execute to evaluate static code; it is not tied to any specific output target. We need to run comptime on *something*, though how exactly that *should* work is still up for debate.)
+The compiler also maintains a shared comptime target used by Execute to evaluate static code; it is not tied to any specific output target. 
+We need to run comptime on *something*, though how exactly that *should* work is still up for debate.
 
 ## Builtins
 
