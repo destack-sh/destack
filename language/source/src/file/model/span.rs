@@ -104,6 +104,21 @@ impl Span {
             None
         }
     }
+
+    /// Compute the ordered trivia gap from this span to another span.
+    /// Returns `None` when spans are from different files or overlap.
+    /// Returns an empty span when the ranges are adjacent.
+    pub fn gap_to(self, other: Self) -> Option<Self> {
+        if self.file != other.file || self.end > other.start {
+            return None;
+        }
+
+        Some(Self {
+            file: self.file,
+            start: self.end,
+            end: other.start,
+        })
+    }
 }
 
 /// A MultiSpan is a collection of Spans, sorted for fast containment queries.
@@ -156,5 +171,46 @@ impl LabeledSpan {
             span,
             label: label.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FileId, Span};
+
+    /// Return the span gap for ordered non-overlapping spans on the same file.
+    #[test]
+    fn test_gap_to_returns_gap_for_ordered_spans() {
+        let left = Span::new(FileId::new(1), 10, 20);
+        let right = Span::new(FileId::new(1), 30, 40);
+
+        let gap = left.gap_to(right);
+
+        assert_eq!(gap, Some(Span::new(FileId::new(1), 20, 30)));
+    }
+
+    /// Return an empty span gap for adjacent spans.
+    #[test]
+    fn test_gap_to_returns_empty_span_for_adjacent_spans() {
+        let left = Span::new(FileId::new(1), 10, 20);
+        let right = Span::new(FileId::new(1), 20, 40);
+
+        let gap = left.gap_to(right);
+
+        assert_eq!(gap, Some(Span::new(FileId::new(1), 20, 20)));
+    }
+
+    /// Return no gap when spans overlap or are from different files.
+    #[test]
+    fn test_gap_to_returns_none_for_overlapping_or_cross_file_spans() {
+        let overlapping_left = Span::new(FileId::new(1), 10, 25);
+        let overlapping_right = Span::new(FileId::new(1), 20, 40);
+        let cross_file_right = Span::new(FileId::new(2), 30, 40);
+
+        let overlap_gap = overlapping_left.gap_to(overlapping_right);
+        let cross_file_gap = overlapping_left.gap_to(cross_file_right);
+
+        assert_eq!(overlap_gap, None);
+        assert_eq!(cross_file_gap, None);
     }
 }
