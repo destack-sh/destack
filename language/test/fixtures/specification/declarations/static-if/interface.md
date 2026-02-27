@@ -91,4 +91,4 @@ interface Box {
 class Concrete implements Box {}
 ```
 
-- contains: missing implementation
+- contains: not assignable
