@@ -475,3 +475,36 @@ block0:
 }";
     assert_eq!(output, expected);
 }
+
+/// Managed and owned references preserve mutable vs readonly spelling.
+#[test]
+fn test_format_reference_mutability_preserved() {
+    // setup
+    let mut module = ModuleBuilder::unchecked();
+    let i32_type = module.type_i32();
+    let managed_mutable_type = module.type_managed_reference_mutable(i32_type);
+    let owned_readonly_type = module.type_owned_reference_readonly(i32_type);
+
+    // build function that returns the mutable managed parameter
+    let mut builder = module.function(
+        "ref_mutability",
+        &[managed_mutable_type, owned_readonly_type],
+        managed_mutable_type,
+    );
+    let entry_block = builder.block();
+    builder.switch_to_block(entry_block);
+    let value = builder.function_parameter(0);
+    builder.return_(Some(value));
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @ref_mutability(v0: ref<managed i32>, v1: ref<owned readonly i32>) -> ref<managed i32> {
+block0(v0: ref<managed i32>, v1: ref<owned readonly i32>):
+    return v0
+}";
+    assert_eq!(output, expected);
+}

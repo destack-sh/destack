@@ -611,24 +611,86 @@ fn test_managed_reference_types() {
 
     // create managed reference types
     let i32_type = module.type_i32();
-    let ref_type = module.type_managed_reference(i32_type);
-    let ref_nullable_type = module.type_managed_reference_nullable(i32_type);
+    let managed_readonly_type = module.type_managed_reference(i32_type);
+    let managed_mutable_type = module.type_managed_reference_mutable(i32_type);
+    let managed_nullable_readonly_type = module.type_managed_reference_nullable(i32_type);
+    let managed_nullable_mutable_type = module.type_managed_reference_nullable_mutable(i32_type);
+    let owned_readonly_type = module.type_owned_reference_readonly(i32_type);
+    let owned_mutable_type = module.type_owned_reference_mutable(i32_type);
+    let raw_readonly_type = module.type_raw_pointer(i32_type);
+    let raw_mutable_type = module.type_raw_pointer_mutable(i32_type);
 
     // verify types
     let (tree, _strings) = module.finish_immutable();
     assert!(matches!(
-        tree.get(ref_type),
+        tree.get(managed_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
+            mutability: Mutability::Immutable,
             is_nullable: false,
             ..
         }
     ));
     assert!(matches!(
-        tree.get(ref_nullable_type),
+        tree.get(managed_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
+            mutability: Mutability::Mutable,
+            is_nullable: false,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(managed_nullable_readonly_type),
+        Type::Reference {
+            kind: ReferenceKind::Managed,
+            mutability: Mutability::Immutable,
             is_nullable: true,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(managed_nullable_mutable_type),
+        Type::Reference {
+            kind: ReferenceKind::Managed,
+            mutability: Mutability::Mutable,
+            is_nullable: true,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(owned_readonly_type),
+        Type::Reference {
+            kind: ReferenceKind::Owned,
+            mutability: Mutability::Immutable,
+            is_nullable: false,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(owned_mutable_type),
+        Type::Reference {
+            kind: ReferenceKind::Owned,
+            mutability: Mutability::Mutable,
+            is_nullable: false,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(raw_readonly_type),
+        Type::Reference {
+            kind: ReferenceKind::Raw,
+            mutability: Mutability::Immutable,
+            is_nullable: false,
+            ..
+        }
+    ));
+    assert!(matches!(
+        tree.get(raw_mutable_type),
+        Type::Reference {
+            kind: ReferenceKind::Raw,
+            mutability: Mutability::Mutable,
+            is_nullable: false,
             ..
         }
     ));

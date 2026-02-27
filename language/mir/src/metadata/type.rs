@@ -47,12 +47,12 @@ impl DispatchTableId {
 /// Kind of dispatch table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DispatchTableKind {
-    /// Class vtable for virtual dispatch.
+    /// Class 'vtable' for virtual dispatch.
     Class {
         /// The class type owning the vtable.
         ty: LocalNodeId<Type>,
     },
-    /// Interface itab for a concrete type and interface pair.
+    /// Interface 'itab' for a concrete type and interface pair.
     Interface {
         /// The concrete type providing the implementation.
         concrete: LocalNodeId<Type>,
@@ -63,7 +63,7 @@ pub enum DispatchTableKind {
 
 /// Entry in a dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DispatchSlot {
+pub enum DispatchTableEntry {
     /// Slot containing a type tag handle.
     TypeTag,
     /// Slot containing a drop glue function.
@@ -100,7 +100,7 @@ pub struct DispatchTable {
     /// Optional global symbol containing the table.
     pub global: Option<LocalNodeId<Global>>,
     /// Slots in declaration order.
-    pub slots: Vec<DispatchSlot>,
+    pub slots: Vec<DispatchTableEntry>,
 }
 
 /// Registry of dispatch metadata.
@@ -156,6 +156,8 @@ pub struct TypeMetadata {
     pub vtable: Option<DispatchTableId>,
     /// Dispatch tables for interface dispatch.
     pub itabs: Vec<DispatchTableId>,
+    /// Interface to itab mapping for this concrete type.
+    pub itab_by_interface: HashMap<LocalNodeId<Type>, DispatchTableId>,
     /// Runtime type descriptor global.
     pub type_descriptor: Option<LocalNodeId<Global>>,
     /// Field map for property layout lookup.

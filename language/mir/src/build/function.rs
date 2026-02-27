@@ -2072,7 +2072,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: allocation
 
     /// Allocate a managed (runtime-tracked) struct.
-    /// Returns a `ref<managed T>`.
+    /// Returns a managed reference type (`ref<managed ...>`).
     pub fn managed_alloc(
         &mut self,
         layout: LocalNodeId<Type>,
@@ -2089,7 +2089,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate a managed array.
-    /// Returns a `ref<managed [T]>`.
+    /// Returns a managed reference type (`ref<managed ...>`).
     pub fn managed_alloc_array(
         &mut self,
         element: LocalNodeId<Type>,
@@ -2108,7 +2108,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate raw memory on the heap.
-    /// Returns a `ref<raw T>`. Caller must free with `raw.free`.
+    /// Returns a raw or owned reference type. Caller must free with `raw.free`.
     pub fn raw_alloc(
         &mut self,
         layout: LocalNodeId<Type>,
@@ -2130,7 +2130,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate on the stack (lives until function returns).
-    /// Returns a `ref<raw T>`.
+    /// Returns a raw stack reference type.
     pub fn stack_alloc(
         &mut self,
         layout: LocalNodeId<Type>,

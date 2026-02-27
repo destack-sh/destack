@@ -685,7 +685,7 @@ pub enum Instruction {
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
     /// Allocate a managed (runtime-tracked) struct (managed.alloc).
-    /// Returns a `ref<managed T>`.
+    /// Returns a managed reference type (`ref<managed ...>`).
     ManagedAlloc {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -695,7 +695,7 @@ pub enum Instruction {
         result_type: LocalNodeId<Type>,
     },
     /// Allocate a managed array (managed.alloc_array).
-    /// Returns a `ref<managed [T]>`.
+    /// Returns a managed reference type (`ref<managed ...>`).
     ManagedAllocArray {
         /// The SSA value to define with the allocated reference.
         destination: Value,
@@ -709,7 +709,7 @@ pub enum Instruction {
 
     // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a `ref<raw T>` or `ref<owned T>`. Caller must free with `raw.free` or `raw.drop`.
+    /// Returns a raw or owned reference type. Caller must free with `raw.free` or `raw.drop`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: Value,
@@ -733,7 +733,7 @@ pub enum Instruction {
 
     // allocation (stack, automatic, scoped to function: stack.alloc, stack.drop)
     /// Allocate on the stack (lives until function returns) (stack.alloc).
-    /// Returns a `ref<raw T>`. Freed automatically when frame exits.
+    /// Returns a raw stack reference type. Freed automatically when frame exits.
     StackAlloc {
         /// The SSA value to define with the stack pointer.
         destination: Value,
