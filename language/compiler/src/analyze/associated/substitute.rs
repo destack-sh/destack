@@ -8,10 +8,10 @@ use crate::analyze::common::{
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolType, Type, TypeLiteral, TypeRewriter, TypeTable,
-    TypeUnaryOperator,
+    Argument, Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Member, NodeType, NormalizationMode, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolType, Type, TypeLiteral,
+    TypeMappedParameter, TypeRewriter, TypeTable, TypeUnaryOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -257,38 +257,6 @@ impl Compiler {
                             heritage_type_id,
                             &mut materialize_cache,
                         );
-
-                        // refresh cached heritage references when explicit static arguments were dropped
-                        if expression_has_static_arguments
-                            && let Some((_, resolved_arguments, _)) =
-                                self.unwrap_type_symbol(ctx.types, heritage_type_id)
-                            && resolved_arguments
-                                .as_ref()
-                                .is_none_or(|arguments| arguments.is_empty())
-                        {
-                            heritage_type_id = self.resolve_declared_type_expression(
-                                &mut ctx.reborrow(),
-                                expression_id,
-                                true,
-                                true,
-                            )?;
-
-                            if !current_substitutions.is_empty() {
-                                let mut substitution_cache = HashMap::new();
-                                heritage_type_id = self.substitute_static_parameters(
-                                    heritage_type_id,
-                                    &current_substitutions,
-                                    ctx.types,
-                                    &mut substitution_cache,
-                                );
-                            }
-
-                            heritage_type_id = self.materialize_static_arguments_in_type(
-                                &mut ctx.reborrow(),
-                                heritage_type_id,
-                                &mut materialize_cache,
-                            );
-                        }
 
                         if let Some((resolved_symbol, resolved_arguments, _)) =
                             self.unwrap_type_symbol(ctx.types, heritage_type_id)
@@ -1065,8 +1033,9 @@ impl Compiler {
         }
     }
 
-    /// Import one alias target without requiring pre-materialized static value arguments.
-    pub(super) fn relaxed_alias_target_type_id_for_symbol(
+    /// Import one alias target for projection substitution roots.
+    /// This path permits unresolved static-value arguments so projection rewriting can stay symbolic.
+    pub(super) fn projection_alias_target_type_id_for_symbol(
         &self,
         ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
@@ -1262,6 +1231,42 @@ impl Compiler {
 
         // recurse through nested index expressions and set count inferred types from substitutions
         match ctx.tree.get(expression_id).clone() {
+            Expression::TypeMapped {
+                parameter, value, ..
+            } => {
+                return self.apply_projection_substitutions_to_mapped_type(
+                    &mut ctx.reborrow(),
+                    parameter.constraint,
+                    parameter.key_remap,
+                    value,
+                    local_type_id,
+                    substitutions,
+                );
+            }
+            Expression::TupleExpression { elements } => {
+                return self.apply_projection_substitutions_to_tuple_type(
+                    &mut ctx.reborrow(),
+                    &elements,
+                    local_type_id,
+                    substitutions,
+                );
+            }
+            Expression::ArrayExpression { elements } => {
+                return self.apply_projection_substitutions_to_tuple_type(
+                    &mut ctx.reborrow(),
+                    &elements,
+                    local_type_id,
+                    substitutions,
+                );
+            }
+            Expression::TaggedTupleExpression { elements, .. } => {
+                return self.apply_projection_substitutions_to_tuple_type(
+                    &mut ctx.reborrow(),
+                    &elements,
+                    local_type_id,
+                    substitutions,
+                );
+            }
             Expression::TypeIndex { left, index } => {
                 return self.apply_projection_substitutions_to_type_index(
                     &mut ctx.reborrow(),
@@ -1323,6 +1328,156 @@ impl Compiler {
         )
     }
 
+    /// Return one projection-substituted type for a tuple expression.
+    fn apply_projection_substitutions_to_tuple_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        element_arguments: &[LocalNodeId<Argument>],
+        local_type_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let Type::Tuple {
+            elements,
+            is_readonly,
+        } = ctx.types.get_type(local_type_id).clone()
+        else {
+            return Ok(local_type_id);
+        };
+        if elements.len() != element_arguments.len() {
+            return Ok(local_type_id);
+        }
+
+        let mut mapped_elements = Vec::with_capacity(elements.len());
+        let mut changed = false;
+        for (argument_id, mut element) in element_arguments.iter().zip(elements.into_iter()) {
+            let element_expression_id = ctx.tree.get(*argument_id).value();
+            let mapped_element_ty = self.apply_projection_substitutions_from_expression(
+                &mut ctx.reborrow(),
+                element_expression_id,
+                element.ty,
+                substitutions,
+            )?;
+            if mapped_element_ty != element.ty {
+                element.ty = mapped_element_ty;
+                changed = true;
+            }
+            mapped_elements.push(element);
+        }
+        if !changed {
+            return Ok(local_type_id);
+        }
+
+        Ok(ctx.types.insert_type_from_type(
+            Type::Tuple {
+                elements: mapped_elements,
+                is_readonly,
+            },
+            local_type_id,
+        ))
+    }
+
+    /// Return one projection-substituted type for a mapped-type expression.
+    fn apply_projection_substitutions_to_mapped_type(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        parameter_constraint_expression: LocalNodeId<Expression>,
+        parameter_key_remap_expression: Option<LocalNodeId<Expression>>,
+        value_expression: LocalNodeId<Expression>,
+        local_type_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> AnalyzeResult<LocalTypeId> {
+        match ctx.types.get_type(local_type_id).clone() {
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mapped_constraint = self.apply_projection_substitutions_from_expression(
+                    &mut ctx.reborrow(),
+                    parameter_constraint_expression,
+                    parameter.constraint,
+                    substitutions,
+                )?;
+                let mapped_key_remap = match (parameter.key_remap, parameter_key_remap_expression) {
+                    (Some(key_remap), Some(key_remap_expression)) => {
+                        Some(self.apply_projection_substitutions_from_expression(
+                            &mut ctx.reborrow(),
+                            key_remap_expression,
+                            key_remap,
+                            substitutions,
+                        )?)
+                    }
+                    (key_remap, _) => key_remap,
+                };
+                let mapped_value = self.apply_projection_substitutions_from_expression(
+                    &mut ctx.reborrow(),
+                    value_expression,
+                    value,
+                    substitutions,
+                )?;
+                if mapped_constraint == parameter.constraint
+                    && mapped_key_remap == parameter.key_remap
+                    && mapped_value == value
+                {
+                    return Ok(local_type_id);
+                }
+
+                let parameter = TypeMappedParameter {
+                    name: parameter.name,
+                    symbol: parameter.symbol,
+                    constraint: mapped_constraint,
+                    key_remap: mapped_key_remap,
+                };
+                Ok(ctx.types.insert_type_from_type(
+                    Type::Mapped {
+                        parameter,
+                        modifiers,
+                        value: mapped_value,
+                    },
+                    local_type_id,
+                ))
+            }
+
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                let mut mapped_fields = Vec::with_capacity(fields.len());
+                let mut changed = false;
+                for mut field in fields {
+                    let mapped_field_ty = self.apply_projection_substitutions_from_expression(
+                        &mut ctx.reborrow(),
+                        value_expression,
+                        field.ty,
+                        substitutions,
+                    )?;
+                    if mapped_field_ty != field.ty {
+                        field.ty = mapped_field_ty;
+                        changed = true;
+                    }
+                    mapped_fields.push(field);
+                }
+                if !changed {
+                    return Ok(local_type_id);
+                }
+
+                Ok(ctx.types.insert_type_from_type(
+                    Type::Object {
+                        fields: mapped_fields,
+                        call_signatures,
+                        construct_signatures,
+                        index_signatures,
+                    },
+                    local_type_id,
+                ))
+            }
+
+            _ => Ok(local_type_id),
+        }
+    }
+
     /// Return one projection-substituted alias target for a projection-root expression.
     fn projection_substituted_alias_target_for_expression(
         &self,
@@ -1342,7 +1497,7 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
+        let Some(alias_target_id) = self.projection_alias_target_type_id_for_symbol(
             &mut ctx.reborrow(),
             target_symbol,
             expression_id.into_any(),
@@ -1712,19 +1867,33 @@ impl Compiler {
                 AnalyzeDependencyStage::Declare,
                 |view| -> AnalyzeResult<LocalTypeId> {
                     let symbol_entry = view.symbols.get_symbol(target_symbol.local_id);
-                    let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                        return Ok(alias_target_id);
-                    };
-                    if primary_declaration.local_id.ty != NodeType::Member {
-                        return Ok(alias_target_id);
-                    }
-
-                    let member_id = primary_declaration.local_id.into_typed::<Member>();
-                    let Member::Type {
-                        value: Some(alias_expression),
-                        ..
-                    } = view.tree.get(member_id)
-                    else {
+                    let expression_id =
+                        if let Some(primary_declaration) = symbol_entry.primary_declaration {
+                            if primary_declaration.local_id.ty == NodeType::Member {
+                                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                                match view.tree.get(member_id) {
+                                    Member::Type {
+                                        value: Some(alias_expression),
+                                        ..
+                                    } => Some(*alias_expression),
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                        .or_else(|| {
+                            let source = ctx.types.get_type_source(alias_target_id);
+                            let expression_id = source.try_into_typed::<Expression>().ok()?;
+                            if view.tree.has_node_id(expression_id.id) {
+                                Some(expression_id)
+                            } else {
+                                None
+                            }
+                        });
+                    let Some(expression_id) = expression_id else {
                         return Ok(alias_target_id);
                     };
 
@@ -1737,7 +1906,7 @@ impl Compiler {
                     );
                     self.apply_projection_substitutions_from_expression(
                         &mut ctx,
-                        *alias_expression,
+                        expression_id,
                         alias_target_id,
                         substitutions,
                     )

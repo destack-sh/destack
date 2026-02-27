@@ -113,7 +113,7 @@ impl Compiler {
             self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), target_symbol, source_id)
         {
             alias_target_id
-        } else if let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
+        } else if let Some(alias_target_id) = self.projection_alias_target_type_id_for_symbol(
             &mut ctx.reborrow(),
             target_symbol,
             source_id,
@@ -123,20 +123,6 @@ impl Compiler {
             return Ok(member_ty);
         };
 
-        // refresh local alias targets from source expressions once projection context is available
-        if target_symbol.module_id == ctx.module.id {
-            let alias_source = ctx.types.get_type_source(alias_target_id);
-            if let Ok(alias_expression_id) = alias_source.try_into_typed::<Expression>()
-                && ctx.tree.has_node_id(alias_expression_id.id)
-            {
-                alias_target_id = self.resolve_declared_type_expression_fresh(
-                    &mut ctx.reborrow(),
-                    alias_expression_id,
-                    true,
-                    true,
-                )?;
-            }
-        }
         alias_target_id = self.apply_associated_projection_substitutions(
             &mut ctx.reborrow(),
             target_symbol,
@@ -144,34 +130,7 @@ impl Compiler {
             &substitutions,
         )?;
 
-        let mut materialize_cache = TypeRewriteCache::new();
-        let materialized_alias = self.materialize_static_arguments_in_type(
-            &mut ctx.reborrow(),
-            alias_target_id,
-            &mut materialize_cache,
-        );
-
-        // substitute after materialization so owner scoped references are concrete first
-        let mapped_alias = if substitutions.is_empty() {
-            materialized_alias
-        } else {
-            let mut substitution_cache = HashMap::new();
-            self.substitute_static_parameters(
-                materialized_alias,
-                &substitutions,
-                ctx.types,
-                &mut substitution_cache,
-            )
-        };
-
-        // rematerialize after substitution to normalize mapped references
-        let mapped_alias = self.materialize_static_arguments_in_type(
-            &mut ctx.reborrow(),
-            mapped_alias,
-            &mut materialize_cache,
-        );
-
-        let mapped_alias = if let Some(owner_symbol) = owner_symbol {
+        let alias_target_id = if let Some(owner_symbol) = owner_symbol {
             let mut rewriter = AssociatedAliasProjectionRewriter::new(
                 self,
                 ctx.module,
@@ -182,10 +141,31 @@ impl Compiler {
                 ctx.tree,
                 ctx.symbols,
             );
-            rewriter.rewrite_type_id(ctx.types, mapped_alias)
+            rewriter.rewrite_type_id(ctx.types, alias_target_id)
         } else {
-            mapped_alias
+            alias_target_id
         };
+
+        // apply projection substitutions before materialization so unresolved defaults stay symbolic
+        let mapped_alias = if substitutions.is_empty() {
+            alias_target_id
+        } else {
+            let mut substitution_cache = HashMap::new();
+            self.substitute_static_parameters(
+                alias_target_id,
+                &substitutions,
+                ctx.types,
+                &mut substitution_cache,
+            )
+        };
+
+        // materialize after substitution to resolve alias references deterministically
+        let mut materialize_cache = TypeRewriteCache::new();
+        let mapped_alias = self.materialize_static_arguments_in_type(
+            &mut ctx.reborrow(),
+            mapped_alias,
+            &mut materialize_cache,
+        );
 
         let normalized_alias = self.normalize_type_with_relation(
             &mut ctx.reborrow(),

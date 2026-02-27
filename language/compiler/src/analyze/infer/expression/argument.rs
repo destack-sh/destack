@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, InferContext, ModuleContext,
     SymbolTypeView, TreeSymbolTypeView, TypeContext, TypeView,
@@ -13,7 +14,7 @@ use destack_dir::{
     GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
     LocalSymbolId, LocalTypeId, Mutability, ScalarLiteral, StaticArgument, StaticExpression,
     StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolType, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable,
+    TypeElement, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::ProfileId;
 
@@ -320,7 +321,7 @@ impl Compiler {
 
                 arguments.iter().all(|argument| match argument {
                     StaticArgument::Evaluated { value, .. } => {
-                        self.static_value_argument_is_static(value, ctx.types)
+                        self.static_value_argument_is_static(value, ctx.type_view())
                     }
                     StaticArgument::Unevaluated { .. } => false,
                 })
@@ -886,21 +887,134 @@ impl Compiler {
             return Ok(value);
         }
 
-        // preserve static parameter references in value slots
+        // preserve symbolic static references directly from expression symbols
+        if let Some(argument) =
+            self.evaluate_symbolic_static_reference_argument(&mut ctx.reborrow(), node)?
+        {
+            return Ok(argument);
+        }
+
+        // preserve symbolic static references in value slots
         if let Some(StaticArgument::Evaluated { name, value }) =
             self.evaluate_static_argument_as_type(&mut ctx.reborrow(), node)?
             && let StaticExpression::Type { ty } = value
             && let Type::Reference { symbol, .. } = ctx.types.get_type(ty)
-            && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
         {
-            return Ok(StaticArgument::Evaluated {
-                name,
-                value: StaticExpression::Type { ty },
-            });
+            let symbol = *symbol;
+            if self.symbol_is_symbolic_static_value_reference(ctx.type_view(), symbol)? {
+                return Ok(StaticArgument::Evaluated {
+                    name,
+                    value: StaticExpression::Type { ty },
+                });
+            }
         }
 
         // reject non-static values when no reference is available
         Ok(StaticArgument::Unevaluated { node })
+    }
+
+    /// Preserve symbolic static references directly from argument expression symbols.
+    fn evaluate_symbolic_static_reference_argument(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        argument_node: GlobalNodeIdAny,
+    ) -> AnalyzeResult<Option<StaticArgument>> {
+        let mut evaluated = None;
+        let mut ctx = ctx.reborrow();
+        let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
+            let argument = ctx.tree.get(argument_id);
+            let argument_name = match argument {
+                Argument::Named { name, .. } => Some(*name),
+                _ => None,
+            };
+
+            let expression_id = argument.value();
+            let symbol = self
+                .symbolic_static_value_symbol_for_expression(&mut ctx.reborrow(), expression_id)?;
+            let Some(mut symbol) = symbol else {
+                return Ok(());
+            };
+            if self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), symbol)?
+                == Some(StaticMemberSymbolKind::EnumField)
+                && let Some(enum_symbol) =
+                    self.enum_symbol_for_member_expression(&mut ctx.reborrow(), expression_id)?
+            {
+                symbol = enum_symbol;
+            }
+
+            let reference_ty = Type::Reference {
+                symbol,
+                static_arguments: None,
+            };
+            let ty_id = ctx
+                .types
+                .insert_type_from_any(reference_ty, expression_id.into_any());
+
+            evaluated = Some(StaticArgument::Evaluated {
+                name: argument_name,
+                value: StaticExpression::Type { ty: ty_id },
+            });
+            Ok(())
+        })?;
+
+        Ok(evaluated)
+    }
+
+    /// Resolve one symbolic static value symbol from an expression when possible.
+    fn symbolic_static_value_symbol_for_expression(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        let direct_symbol = self
+            .reference_symbol_for_expression(ctx.tree_symbol_view(), expression_id)
+            .or_else(|| ctx.tree.get(expression_id).target_symbol());
+        if let Some(symbol) = direct_symbol
+            && self.symbol_is_symbolic_static_value_reference(ctx.type_view(), symbol)?
+        {
+            return Ok(Some(symbol));
+        }
+
+        // unwrap parenthesized expressions before scope lookup
+        if let Expression::Parenthesized { expression } = ctx.tree.get(expression_id) {
+            return self
+                .symbolic_static_value_symbol_for_expression(&mut ctx.reborrow(), *expression);
+        }
+
+        let Expression::UnresolvedPath { path, .. } = ctx.tree.get(expression_id) else {
+            return Ok(None);
+        };
+        if path.segments.len() != 1 {
+            return Ok(None);
+        }
+
+        let key = StaticKey::Name(path.segments[0]);
+        let (_scope_id, scope, _mark) = ctx.symbols.get_scope(expression_id, ctx.tree);
+        let mut scope_cursor = Some(scope);
+
+        while let Some(scope) = scope_cursor {
+            for (candidate_key, candidate_symbol_id) in scope.named_symbols.iter().rev() {
+                if *candidate_key != key {
+                    continue;
+                }
+
+                let candidate = ctx.symbols.get_symbol(*candidate_symbol_id);
+                if !candidate.is_active {
+                    continue;
+                }
+
+                let symbol = candidate_symbol_id.into_global(ctx.module.id);
+                if self.symbol_is_symbolic_static_value_reference(ctx.type_view(), symbol)? {
+                    return Ok(Some(symbol));
+                }
+            }
+
+            scope_cursor = scope
+                .parent
+                .map(|(parent_id, _)| ctx.symbols.get_scope_by_id(parent_id));
+        }
+
+        Ok(None)
     }
 
     /// Coerce value static arguments into literal value expressions when possible.
@@ -914,13 +1028,24 @@ impl Compiler {
             StaticArgument::Evaluated {
                 name,
                 value: StaticExpression::Type { ty },
-            } => self
-                .static_expression_from_value_type(ty, types)
-                .map(|value| StaticArgument::Evaluated { name, value })
-                .unwrap_or(StaticArgument::Evaluated {
-                    name,
-                    value: StaticExpression::Type { ty },
-                }),
+            } => {
+                let ty = if let Type::Reference { symbol, .. } = types.get_type(ty) {
+                    if symbol.ty() == SymbolType::Enum {
+                        ty
+                    } else {
+                        types.get_value_type_id(*symbol).unwrap_or(ty)
+                    }
+                } else {
+                    ty
+                };
+
+                self.static_expression_from_value_type(ty, types)
+                    .map(|value| StaticArgument::Evaluated { name, value })
+                    .unwrap_or(StaticArgument::Evaluated {
+                        name,
+                        value: StaticExpression::Type { ty },
+                    })
+            }
             StaticArgument::Evaluated {
                 name,
                 value:
@@ -1145,6 +1270,22 @@ impl Compiler {
         error_node: GlobalNodeIdAny,
         value: &StaticExpression,
     ) -> AnalyzeResult<LocalTypeId> {
+        // normalize enum-field references to their owning enum type
+        if let StaticExpression::Type { ty } = value
+            && let Type::Reference { symbol, .. } = ctx.types.get_type(*ty)
+            && let Some(enum_symbol) =
+                self.enum_symbol_for_field_symbol(ctx.symbol_type_view(), *symbol)?
+        {
+            let enum_type_id = ctx.types.insert_type_from_any(
+                Type::Reference {
+                    symbol: enum_symbol,
+                    static_arguments: None,
+                },
+                error_node.local_id,
+            );
+            return Ok(enum_type_id);
+        }
+
         // prefer static parameter constraints for referenced type expressions
         if let StaticExpression::Type { ty } = value {
             let symbol = match ctx.types.get_type(*ty) {
@@ -1566,8 +1707,15 @@ impl Compiler {
 
         // validate value arguments against the declared type
         if static_parameter.kind == StaticParameterKind::Value
-            && matches!(resolved_static_argument, StaticArgument::Unevaluated { .. })
+            && let StaticArgument::Unevaluated { node } = resolved_static_argument
         {
+            if self.unevaluated_static_value_argument_requires_convergence(
+                &mut ctx.reborrow(),
+                *node,
+            )? {
+                return Ok(None);
+            }
+
             self.error(AnalyzeError::NonStaticArgument {
                 node: error_node.into_anchored(Some(ctx.profile)),
             });
@@ -1581,9 +1729,24 @@ impl Compiler {
             return Ok(None);
         };
 
+        // keep symbolic static values deferred until substitution convergence
+        if static_parameter.kind == StaticParameterKind::Value
+            && let StaticExpression::Unevaluated { node } = value
+            && self.static_value_expression_requires_convergence(ctx.type_view(), *node)
+        {
+            return Ok(None);
+        }
+
+        // evaluated unevaluated values represent symbolic static expressions
+        if static_parameter.kind == StaticParameterKind::Value
+            && matches!(value, StaticExpression::Unevaluated { .. })
+        {
+            return Ok(None);
+        }
+
         // reject non static value arguments
         if static_parameter.kind == StaticParameterKind::Value
-            && !self.static_value_argument_is_static(value, ctx.types)
+            && !self.static_value_argument_is_static(value, ctx.type_view())
         {
             self.error(AnalyzeError::NonStaticArgument {
                 node: error_node.into_anchored(Some(ctx.profile)),
@@ -1633,55 +1796,70 @@ impl Compiler {
     }
 
     /// Check whether a static value argument is a static expression.
-    fn static_value_argument_is_static(&self, value: &StaticExpression, types: &TypeTable) -> bool {
+    pub(crate) fn static_value_argument_is_static(
+        &self,
+        value: &StaticExpression,
+        ctx: TypeView<'_>,
+    ) -> bool {
         // classify static expressions by evaluation state
         match value {
             StaticExpression::Unevaluated { .. } => false,
             StaticExpression::ScalarLiteral { .. } => true,
             StaticExpression::TypeLiteral { value } => !matches!(value, TypeLiteral::Unknown),
-            StaticExpression::Type { ty } => !matches!(
-                types.get_type(*ty),
-                Type::Unevaluated(_)
-                    | Type::TypeLiteral {
-                        value: TypeLiteral::Unknown
-                    }
-            ),
+            StaticExpression::Type { ty } => {
+                if matches!(
+                    ctx.types.get_type(*ty),
+                    Type::Unevaluated(_)
+                        | Type::TypeLiteral {
+                            value: TypeLiteral::Unknown
+                        }
+                ) {
+                    return false;
+                }
+
+                // associated type projections are type-space only and cannot be value arguments
+                let mut visited = HashSet::new();
+                !self.type_contains_associated_type_reference(
+                    ctx.tree_symbol_view(),
+                    *ty,
+                    ctx.types,
+                    &mut visited,
+                )
+            }
             StaticExpression::Declaration {
                 static_arguments, ..
             } => static_arguments.as_ref().is_none_or(|arguments| {
                 arguments.iter().all(|argument| match argument {
                     StaticArgument::Unevaluated { .. } => false,
                     StaticArgument::Evaluated { value, .. } => {
-                        self.static_value_argument_is_static(value, types)
+                        self.static_value_argument_is_static(value, ctx)
                     }
                 })
             }),
             StaticExpression::ArrayExpression { elements } => elements
                 .iter()
-                .all(|element| self.static_value_argument_is_static(element, types)),
+                .all(|element| self.static_value_argument_is_static(element, ctx)),
             StaticExpression::TupleExpression { elements } => elements
                 .iter()
-                .all(|element| self.static_value_argument_is_static(element, types)),
+                .all(|element| self.static_value_argument_is_static(element, ctx)),
             StaticExpression::ObjectExpression { properties } => properties
                 .iter()
-                .all(|property| self.static_property_is_static(property, types)),
+                .all(|property| self.static_property_is_static(property, ctx)),
         }
     }
 
     /// Check whether a static property is fully static.
-    fn static_property_is_static(&self, property: &StaticProperty, types: &TypeTable) -> bool {
+    fn static_property_is_static(&self, property: &StaticProperty, ctx: TypeView<'_>) -> bool {
         // accept property values only when they are fully static
         match property {
             StaticProperty::Unevaluated { .. } => false,
             StaticProperty::Field { value, default, .. } => {
-                self.static_value_argument_is_static(value, types)
+                self.static_value_argument_is_static(value, ctx)
                     && default
                         .as_ref()
-                        .is_none_or(|value| self.static_value_argument_is_static(value, types))
+                        .is_none_or(|value| self.static_value_argument_is_static(value, ctx))
             }
-            StaticProperty::Method { body, .. } => {
-                self.static_value_argument_is_static(body, types)
-            }
+            StaticProperty::Method { body, .. } => self.static_value_argument_is_static(body, ctx),
         }
     }
 
@@ -2805,7 +2983,7 @@ impl Compiler {
                 continue;
             };
 
-            if !self.static_value_argument_is_static(&value, ctx.types) {
+            if !self.static_value_argument_is_static(&value, ctx.type_view()) {
                 continue;
             }
 
@@ -2879,6 +3057,92 @@ impl Compiler {
         }
 
         Ok(None)
+    }
+
+    /// Return true when one unevaluated value static argument should wait for convergence.
+    fn unevaluated_static_value_argument_requires_convergence(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        argument_node: GlobalNodeIdAny,
+    ) -> AnalyzeResult<bool> {
+        let Some(requires_convergence) = self.with_static_argument_owner(
+            &mut ctx.reborrow(),
+            argument_node,
+            |ctx, argument_id| {
+                let expression_id = ctx.tree.get(argument_id).value();
+                let expression_node = expression_id.into_global_any(ctx.module.id);
+                let argument_type_id = ctx.types.get_declared_or_inferred_type_id(expression_node);
+                if let Some(argument_type_id) = argument_type_id {
+                    let requires_convergence = self.type_requires_static_evaluation_convergence(
+                        ctx.type_view(),
+                        argument_type_id,
+                    );
+                    if !requires_convergence {
+                        return Ok(false);
+                    }
+
+                    // associated type projections are type-space only and never become
+                    // valid value static expressions through convergence
+                    let mut visited = HashSet::new();
+                    if self.type_contains_associated_type_reference(
+                        ctx.tree_symbol_view(),
+                        argument_type_id,
+                        ctx.types,
+                        &mut visited,
+                    ) {
+                        return Ok(false);
+                    }
+
+                    return Ok(true);
+                }
+
+                let symbolic_static_reference = self
+                    .symbolic_static_value_symbol_for_expression(
+                        &mut ctx.reborrow(),
+                        expression_id,
+                    )?
+                    .is_some();
+                if symbolic_static_reference {
+                    return Ok(true);
+                }
+
+                Ok(false)
+            },
+        )?
+        else {
+            return Ok(false);
+        };
+
+        Ok(requires_convergence)
+    }
+
+    /// Return true when one unevaluated static value expression should wait for convergence.
+    fn static_value_expression_requires_convergence(
+        &self,
+        ctx: TypeView<'_>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        if !ctx.tree.has_node_id(expression_id.id) {
+            return false;
+        }
+
+        let expression_node = expression_id.into_global_any(ctx.module.id);
+        let Some(expression_type_id) = ctx.types.get_declared_or_inferred_type_id(expression_node)
+        else {
+            return false;
+        };
+
+        let mut visited = HashSet::new();
+        if self.type_contains_associated_type_reference(
+            ctx.tree_symbol_view(),
+            expression_type_id,
+            ctx.types,
+            &mut visited,
+        ) {
+            return false;
+        }
+
+        self.type_requires_static_evaluation_convergence(ctx, expression_type_id)
     }
 
     /// Regularize constrained static type arguments to non fresh literal precision.
@@ -3023,7 +3287,7 @@ impl Compiler {
             let StaticArgument::Evaluated { value, .. } = argument else {
                 continue;
             };
-            if !self.static_value_argument_is_static(value, ctx.types) {
+            if !self.static_value_argument_is_static(value, ctx.type_view()) {
                 continue;
             }
 
@@ -3153,6 +3417,36 @@ impl Compiler {
         default_expression: LocalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<StaticArgument> {
+        let mut default_expression =
+            self.unwrap_parenthesized_expression(default_expression, ctx.tree);
+        let mut is_explicit_comptime = false;
+        loop {
+            match ctx.tree.get(default_expression) {
+                Expression::Comptime { body } => {
+                    is_explicit_comptime = true;
+                    default_expression = self.unwrap_parenthesized_expression(*body, ctx.tree);
+                }
+                Expression::TypeUnary {
+                    operator: TypeUnaryOperator::AsComptime,
+                    right,
+                } => {
+                    is_explicit_comptime = true;
+                    default_expression = self.unwrap_parenthesized_expression(*right, ctx.tree);
+                }
+                _ => break,
+            }
+        }
+
+        if parameter_kind == StaticParameterKind::Value && is_explicit_comptime {
+            let error_type = ctx
+                .types
+                .insert_type_from_any(Type::Error, default_expression.into_any());
+            return Ok(StaticArgument::Evaluated {
+                name,
+                value: StaticExpression::Type { ty: error_type },
+            });
+        }
+
         // prefer value defaults when type arguments stay unconverted
         if !treat_type_arguments_as_types
             && let Some(value) = self.evaluate_static_expression_value(
