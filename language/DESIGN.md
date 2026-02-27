@@ -1,16 +1,22 @@
 # Destack Language Design
 
-> **Destack is "TypeScript++" for building correct, optimal, integrated software systems.**
+> **The Destack language is "TypeScript++" for building correct, optimal, integrated software systems.**
 >
 > This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
 
-Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for whole software systems including high performance ("systems") use cases.
+Destack is designed as a superset of TypeScript. 
+Destack also supports compiling to JS/TS targets, and works with regular JS/TS dependencies (when compatible even for AOT targets).
+So, if you don't need or want any additional features you can ignore the "++" part of Destack entirely, write completely standard `.ts` and `.tsx` files, and just stop reading right here.
+For most use cases, most of the time, the "++" is happily out of sight and out of mind.
 
-Of course, other JS/TS-derived languages with similar features have tried this before, and some are moderately successful (e.g., AssemblyScript, NativeScript (sort of)).
-But they all fall short in interoperability, usefulness and - ultimately - adoption.
-We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
+Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do, but for truly full stack software systems.
+We support full `TSX` syntax, and modern `TS` code just works, because the Destack language ("TS++") is a superset of modern _TypeScript_.
+To enable truly universal progrmaming with TypeScript, even in high performance ("systems") use cases, we support some _additional_ stuff like manual memory management features.
 
-See [SPECIFICATION](SPECIFICATION.md) for the fine-grained language definition.
+Invariably, when starting with an existing language as feature rich as modern TypeScript, any _new_ additions risk becoming unpredictably combinatorial in their complexity (hello C++).
+We tried hard to keep the actual net new concepts to the minimal set required to express all the missing things we needed, while also filling some gaps we experienced in the language that TypeScript cannot address directly (mostly due to its commitment to type-free emit).
+
+See [SPECIFICATION](SPECIFICATION.md) for the (more) fine-grained language definition.
 See [COMPATIBILITY](COMPATIBILITY.md) for interoperability details.
 
 ## "TypeScript++"
@@ -19,32 +25,32 @@ We're very early in software.
 We want to make correct, optimal, integrated full-stack software systems simple and fast to build.
 We cannot build the next generation of software without unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
-TypeScript is the closest thing we have to a unified software foundation today.
-JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (i.e., every browser everywhere).
-Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios).
+TypeScript is the closest thing we have to a unified software foundation today that _could_ conceivably express all software (because in many ways, it already is!).
+Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* a very strong "already runs everywhere" story because browsers are the most ubiquituous execution platform.
 
-Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`, objects, templates, generics, types), it behaves like TypeScript.
-Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
+So, TypeScript runs everywhere, everyone knows it, and it have a massive ecosystem.
+If you can compile to JS/TS, and behave like TS, you get a "new" language that doesn't actually feel new, but more like TSX or Svelte.
+Then, because modern TypeScript is very close to a fully AOT-compilable language, we can build a new toolchain completely free of JS runtimes and "legacy" code while staying true to the behavior most developers already know well. 
 
-| Feature | Description | Tests |
-|---------|-------------|-------|
-| [Expressions](#expressions) | Expression extensions: "as values", patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
-| [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
-| [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
-| [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
-| [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
-| [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [declarations/reflection/](test/fixtures/specification/declarations/reflection/) |
-| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [resolution/](test/fixtures/specification/resolution/) |
-| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [types/ownership/](test/fixtures/specification/types/ownership/) |
+Thus, wherever Destack looks like TypeScript - e.g., `interface`, `class`, `async`/`await`, objects, templates, generics, types, everything! - it behaves like TypeScript, because it _is_ TypeScript.
+Unlike with C++, our "C" - both JavaScript/TypeScript -- still work with Destack, and the `++` features are opt-in and complementary.
+
+| Feature | What | Why |
+|---------|-------------|-----|
+| [**Expressions**](#expressions) | Expression extensions: "as values", patterns, `loop`, `using` | Better ergonomics |
+| [**Trees**](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | TSX is great |
+| [**Annotations**](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | Annotate metadata |\| [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
+| [**Types**](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | Soundness, memory, precision |
+| [**Comptime**](#comptime) | Compile-time evaluation: precomputation, conditional compilation | Metaprogramming |
+| [**Reflection**](#reflection) | Types as values, runtime type descriptors, schema validation | Metaprogramming |
+| [**Dispatch**](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | Better ergonomics |
+| [**Ownership**](#ownership) | Value ownership, borrowing (`&T`, `^T`) and explicit deep mutability | Systems programming |
 
 ## Expressions
 
-In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value out.
-Same with `switch` and most other control flow (except ternary ifs).
-In Destack, everything is an expression.
-The last non-statement expression (no trailing `;`) becomes the value of the expression.
-This enables more ergonomic expressions for complex control flow.
+In TypeScript, control flow exprsesions like `if` are a statement, and you need a ternary or temporary to get a value out.
+To enable more ergonomic data flow and particularly better pattern matching capabilities, Destack also supports statements as expressions ("everything is an expression").
+Like in similar languages, the last non-statement expression (no trailing `;`) becomes the value of the expression.
 
 ```ds
 const result = if (condition) {
@@ -60,9 +66,8 @@ function add(a: int, b: int): int {
 }
 ```
 
-If let is sugar for matching a value with a pattern in a conditional.
-Bindings from the pattern are scoped to the then branch.
-If let without else yields void.
+Building on statements-as-expressions, if-let expressions enable nice sugar for matching a value with a refutable pattern in a conditional.
+Bindings from the pattern are then available in the positive branch, and this composes with TS flow typing as you would expect.
 
 ```ds
 const result = if let Some(value) = maybe {
@@ -87,11 +92,12 @@ const (x, _) = getPoint();
 
 ### Arrays
 
-Arrays are dense and bounds checked by default.
-Readonly arrays use `readonly T[]`, and tuples use explicit `()` syntax.
-Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
-Because TypeScript uses `T[N]` for indexed access, Destack keeps that behavior when indexed access is admissible.
-Use `N as comptime` to force fixed-size array construction in ambiguous cases, including numeric literals like `string[4 as comptime]`.
+Arrays like `T[]` (or `Array<T>`) are dense, homogenous and bounds checked by default with no holes allowed.
+Thus, accessing into `T[]` just gives you a straight `T` always (no `T | undefined`), because out of bounds and holes are both forbidden.
+Like in JS/TS, dynamic `Array` grow automatically like you would expect.
+
+In addition to dynamic arrays, Destack also provides fixed-size arrays with `T[N]`.
+Because TypeScript already uses `T[N]` for indexed access, Destack honors that behavior when indexed access is admissible, and we have to use `N as comptime` to force fixed-size array construction in ambiguous cases.
 (We also provide a `FixedArray<T, comptime N>` as an explicit alias for `T[N as comptime]`.)
 
 ### Patterns
@@ -99,18 +105,14 @@ Use `N as comptime` to force fixed-size array construction in ambiguous cases, i
 Modern `match` with full pattern matching and exhaustiveness checking:
 
 ```ds
-match (result) {
-    Ok(value) => process(value)
-    Err(e) if (e.retryable) => retry()
-    Err(e) => fail(e)
+match (result /* Result<T, E> */ {
+    { kind: 'ok', value } => process(value)
+    { kind: 'err', error } if (isRetryable(error)) => retry()
+    { kind: 'err', error } => fail(error)
 }
 ```
 
-Tagged object patterns accept any object-like type expression.
-
-`match` is an expression and does not allow `break`.
-The match expression type is the union of its case body types.
-`switch` keeps TypeScript style fallthrough semantics and remains a statement like expression that yields `void`.
+As you would expect, the type of a match expression is the union of its case body types.
 
 ### Loops
 
@@ -137,7 +139,7 @@ using file = openFile(path);
 await using conn = openConnection();
 ```
 
-## Trees
+## Trees (TSX)
 
 Destack generalizes TSX syntax for any tree-shaped data:
 
@@ -222,23 +224,18 @@ function readConfig(path: string): Result<Config, IOError> {
 }
 ```
 
-The `?` operator propagates errors ergonomically, similar to Rust.
-When applied to a `Result`, it returns early with the error if present.
-The `??` operator provides a default value instead of propagating:
+The `?` operator propagates errors ergonomically using the builtin `Try` operator, similar to Rust.
+When applied to the builtin `Result` type, `?` returns early with the error value if present.
+
+TypeScript's `??` coalescing operator then supports a convenient default value for the failure case:
 
 ```ds
 const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
-Both operators work via the `Try` interface, which `Result` implements.
-`Try.branch()` returns a structural `TryBranch<T, E>` shape.
-Structural `TryBranch` compatibility is based on object shapes, not nominal structs or newtypes.
-`Try.fromError` is required when a `?` propagates out of the enclosing function.
-The `??` operator coalesces nullish values before and after a single `Try` unwrap.
-This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
-
 ### Panic (throw)
 
+<!-- FUGU: revisit throw - optional exceptions even in native maybe..? -->
 `throw` is for **unrecoverable errors**: assertion failures, invariant violations, bugs.
 Unlike exceptions in Java or Python, panics are not meant to be caught and recovered from.
 
@@ -300,7 +297,8 @@ const balance: float32 = 100.50;
 ```
 
 Destack keeps `number` as the JS-compatible numeric supertype (aliased to `float64`).
-`int`/`uint` and `float` use the compiler's default widths (32-bit ints, 64-bit floats by default).
+`int` and `uint` are fixed-width aliases for `int64` and `uint64`.
+`float` defaults to `float64`.
 Pointer-sized integers are spelled `isize` and `usize`.
 
 ### Newtypes
@@ -319,15 +317,8 @@ const c = Config({ debug: true }); // wraps object
 
 ### Structs
 
-Structs are data-oriented value types with fixed layout.
-Structs have no identity or inheritance, just data with a name.
+Structs are data-oriented value types with fixed layout without reference identity or any inheritance; they are just data with a name.
 Structs may embed other structs to compose types, and structs can implement interfaces.
-Struct values can be boxed when a reference is required, which allocates managed storage without changing the struct type.
-Boxing is compiler inserted and does not introduce a surface `Box<T>` type.
-Boxing copies the value into managed storage, and repeated boxing creates distinct reference identities.
-Structural object types remain reference types, even when written as type aliases.
-Type aliases inherit the semantics of the underlying type.
-Struct declarations require a name and cannot be anonymous.
 
 ```ds
 struct Point {
@@ -340,16 +331,14 @@ struct Point {
 
 | | struct | class |
 |---|---|---|
-| Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
-| Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
+| Reference identity | No (`===` is error) | Yes (`===` compares pointers) |
+| Inheritance | No (use embedding) | Yes (`extends`) |
 | Default passing | Value | Reference |
 | Default storage | Inline | Managed reference |
 | JS output | Plain object | ES6 class |
 
-Structs are value types, so `==` compares fields and `===` is not defined.
-Classes are reference types, so `===` compares identity.
-Ownership modifiers (`^T`, `&T`) describe access and lifetime without changing identity semantics.
-Struct values may still be heap allocated by escape analysis, but the semantics remain value based.
+Classes are reference types, so `===` compares identity as usual.
+Structs are value types, so `==` compares fields and `===` will just error (at compile time).
 
 ```ds
 const p1 = Point { x: 1, y: 2 };
@@ -410,7 +399,6 @@ Destack supports TypeScript's polymorphic `this` type for instance members, and 
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
 The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
 
 ```ds
@@ -432,7 +420,8 @@ const FACT_10 = comptime factorial(10);    // compile time
 const dynamicValue = factorial(getUserInput()); // runtime (in this case, at module initialization time)
 ```
 
-Functions are not marked as "comptime" or "runtime" functions, instead, the call site determines when a function runs.
+Functions are not marked explicitly as either "comptime" or "runtime" functions, instead, the call site determines when a function runs.
+
 Static parameters support both type parameters and comptime value parameters.
 Value parameters must be marked with `comptime` in the static parameter list.
 The `comptime` modifier on parameters requires static evaluation during Analyze.
@@ -520,7 +509,7 @@ Destack adds type extensions and real overloading for type-based dispatch and op
 
 ### Extensions
 
-Destack introduces extensions to add methods and static constants for any nominal type:
+Destack introduces extensions to add methods and static constants for any _nominal_ type:
 
 ```ds
 extension for Vector2 {
@@ -528,23 +517,23 @@ extension for Vector2 {
 }
 ```
 
-Extensions require **nominal types**—types with identity. This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
-Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended.
+Extensions require **nominal types**—types with identity. 
+This includes `struct`, `class`, `enum`, `newtype`, and primitive types declared in the prelude (`int32`, `string`, etc.).
+Type aliases (`type X = ...`) and inline structural types (`{ x: number }`) cannot be extended (because that would be very unpredicable)
 
 To extend a structural shape, wrap it in a nominal type:
 
 ```ds
 type Point = { x: number, y: number };
 
-extension for Point { ... }  // ERROR: can't extend a type alias or inline shape
+extension for Point { ... }  // ERROR
 
 newtype Point = { x: number, y: number };
 // works - extend newtype / struct / class / ..
 extension for Point { ... }  // ok
 ```
 
-Extensions let you add methods to any nominal type: classes, structs, enums, newtypes, even primitives and foreign types without modifying the original definition.
-The members of an extension are visible as you would expect:
+Extension visiblity is basically as you would expect:
 - **Same file as type**: Extensions are automatically visible wherever the type is used.
 - **Anonymous on foreign type**: Only visible in the file where declared (`extension for int32 { ... }`).
 - **Named on foreign type**: Must be explicitly imported to use (`export extension DateUtils for Date { ... }`).
@@ -552,7 +541,9 @@ The members of an extension are visible as you would expect:
 ### Nominal Interfaces
 
 TypeScript interfaces are structural, i.e., any type with matching shape satisfies the interface.
-Destack adds **nominal interfaces** using the `newtype` modifier on `interface` declarations:
+This is usually what we want, but sometimes nominality is required for a contract, and in those cases the TS ecosystem usually uses branding symbols.
+
+Destack adds real **nominal interfaces** using the `newtype` modifier on `interface` declarations (spiritually related to `const enum`, this is basically syntactic sugar around `newtype`):
 
 ```ds
 // structural interface (standard TypeScript behavior)
@@ -565,6 +556,7 @@ const x: Drawable = { draw() {} };  // OK: structural match
 newtype interface Add<T, R = this> {
     add(other: T): R;
 }
+const x: Drawable = { draw() {} };  // ERROR: structura
 ```
 
 Nominal interfaces require **explicit `implements`** declarations.
@@ -590,9 +582,7 @@ extension for Vector2 implements Add<Vector2> {
 ```
 
 For operators, Destack uses **receiver-based dispatch**: `a + b` becomes `a.add(b)`.
-Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first matching overload wins.
-Overload resolution filters applicable candidates, including static and `comptime` constraints, then selects the first applicable candidate in declaration order.
-Overload order is defined at the declaring module and is forwarded unchanged across module boundaries.
+Following TS, to avoid ambiguity, Destack uses **declaration order**, i.e., the first matching overload wins.
 
 ### Dynamic Resolution
 
@@ -696,37 +686,26 @@ import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[
 Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
 (The same file with different loaders produces different modules, of course.)
 
-### Export Inference in Cycles
-
-Export inference is the cycle breaker surface for cross-module type flow.
-When modules form an export dependency cycle, Analyze solves exports at the SCC boundary using declared and inferred constraints from the cycle itself.
-Annotations are seeds for that solve, but there is no fixed anchor count rule.
-A cycle is accepted when every exported binding in the SCC is solved to a concrete type.
-A cycle is rejected when any exported binding remains unsolved after surface convergence, and those exports must be annotated explicitly.
-
 ## Compatibility
 
-**Destack aims for 100% compatibility with modern TypeScript.**
+**Destack aims for 100% compatibility with _modern_ TypeScript.**
+To be completely fair, this is a little sneaky, because we get to decide what "modern" means - but really, it just means that much of the deprcated TS legacy stuff is unsupported, and most _runtime dynamic_ JS features are deliberately out of scope (`Function`, `eval`, `prototype` modification, etc.).
+See [COMPATIBILITY.md](COMPATIBILITY.md) for more depth on this.
 
-For `.ts`, `.tsx`, `.js`, and `.jsx` files, Destack parses with full compatibility—your existing code works unchanged.
-For `.ds` files, a few obscure syntax patterns work differently due to built-in TSX support and additional typing features:
+Syntax-wise, for `.ds` files, a few obscure syntax patterns work differently due to built-in TSX support and additional typing features:
 
 | Pattern | `.ts` | `.tsx` | `.ds` |
 |---------|-------|--------|-------|
 | `<T>() => ...` | Generic arrow | Ambiguous (use `<T,>`) | Ambiguous (use `<T,>`) |
 | `(a, b, c)` | Comma operator | Comma operator | Tuple literal |
 
-These patterns rarely appear in production code:
+Fortunately, these patterns already rarely appear in production code:
 - The **generic arrow** ambiguity already exists in `.tsx` files—`.ds` inherits this since it supports TSX syntax natively. The workaround (`<T,>`) is standard practice in TSX codebases.
 - The **comma operator** is mostly seen in minified code or obscure one-liners. Destack uses `()` for tuples instead, which is more explicit and composes better with the type system than TypeScript's `[T, U]` array syntax.
 
-Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambiguity), `.ds` extends `.tsx` with Destack features like tuples.
-Index signatures follow TypeScript numeric key coercion rules, including numeric string literals counting as number keys.
-
-### What We Don't Support
-
+Destack does not and will not support:
 - **Flow**: We support TypeScript only.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript. Non-strict ("sloppy mode") behaviors like duplicate function declarations or `yield` as an identifier are not supported. This aligns with how TypeScript modules work (always strict) and modern best practices.
 - **Declaration expressions (native targets)**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with ahead-of-time compilation. Use named declarations instead. On JS targets, enable `noDynamicShapes` for portability.
-- **XML namespace resolution (v1)**: Destack does not implement XML `xmlns` namespace binding semantics.
-  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`) and routed through the active `TreeTagBuilder`.
+- **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
+  Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).

@@ -40,7 +40,7 @@ It's all open source, open standards, zero lock-in.
 
 ### Higher-Order Programming
 
-It has been over 50 years since C introduced higher order programming as we still know it, yet programming is still astoundingly immature.
+It has been over 50 years since C introduced higher order programming as we know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more.
@@ -57,7 +57,7 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 
 > [!WARNING]
 > **Destack is alpha-stage software.**
-> Use at your own risk. Things may change or break without notice.
+> Use at your own risk. Things may change or break or disappear without notice.
 
 <!--TODO #Incomplete: getting started (`bun i -g @destack/cli`, `curl destack.sh/install`, and local development setup)-->
 
