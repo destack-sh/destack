@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::TypeContext;
+use crate::analyze::common::{SymbolTypeView, TypeContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1520,11 +1520,15 @@ impl Compiler {
             *target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        let target_symbol =
+            self.normalize_reference_relation_symbol(ctx.symbol_type_view(), target_symbol);
         let source_symbol = self.canonical_symbol_id(
             ctx.module_symbol_view(),
             *source_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        let source_symbol =
+            self.normalize_reference_relation_symbol(ctx.symbol_type_view(), source_symbol);
 
         // expand target alias references into their structural targets
         if target_symbol.ty() == SymbolType::TypeAlias {
@@ -1661,6 +1665,16 @@ impl Compiler {
         }
 
         Some(Assignability::NotAssignable)
+    }
+
+    /// Normalize one reference relation symbol before nominal assignability checks.
+    fn normalize_reference_relation_symbol(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        self.query_enum_symbol_for_field_symbol(ctx, symbol)
+            .unwrap_or(symbol)
     }
 
     /// Evaluate bidirectional inner assignability for invariant wrappers.

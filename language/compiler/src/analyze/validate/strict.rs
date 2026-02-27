@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use destack_base::StringId;
 use destack_dir::{
-    AbstractionModifier, BindingAnchor, BindingKind, BindingModifier, Declaration,
-    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DynamicKey, Expression,
-    FlowGraphBuilder, FunctionAbstraction, FunctionCardinality, FunctionMode, GlobalSymbolId,
-    LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, Member,
-    Mutability, NodeTree, NodeType, Parameter, Pattern, PatternField, ScalarLiteral, StaticKey,
-    SymbolBinding, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
+    AbstractionModifier, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
+    DeclarationKind, Declarator, DependencyItem, Expression, FlowGraphBuilder, FunctionAbstraction,
+    FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::ModuleSource;
 
@@ -84,6 +84,7 @@ impl Compiler {
             }
             let Declaration::Class {
                 descriptor,
+                heritage: _,
                 members,
                 ..
             } = declaration
@@ -95,7 +96,12 @@ impl Compiler {
             }
 
             // validate override modifiers
-            self.validate_class_overrides(ctx, descriptor, members, check_missing_override);
+            self.validate_class_overrides(
+                &mut ctx.reborrow(),
+                descriptor,
+                members,
+                check_missing_override,
+            );
 
             // validate property initialization
             if check_property_init {
@@ -386,7 +392,7 @@ impl Compiler {
     /// Validate override modifiers on class members.
     fn validate_class_overrides(
         &self,
-        ctx: &TypeContext<'_>,
+        ctx: &mut TypeContext<'_>,
         descriptor: &DeclarationDescriptor,
         members: &[LocalNodeId<Member>],
         check_missing_override: bool,
@@ -439,12 +445,14 @@ impl Compiler {
             };
 
             // resolve static member keys only
-            let Some(member_key) = key.and_then(|key| self.static_key_for_dynamic_key(&key)) else {
+            let Some(member_key) = key
+                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
+            else {
                 continue;
             };
 
             // decide whether this member overrides a base member
-            let is_static = Self::member_is_static_for_validation(modifiers);
+            let is_static = Self::member_is_static_override_member(modifiers);
             let overrides_base =
                 self.member_overrides_base_chain(base_symbol, is_static, &member_key, ctx.types);
 
@@ -465,6 +473,10 @@ impl Compiler {
                         .into_anchored(Some(ctx.profile)),
                 });
             }
+
+            if !overrides_base {
+                continue;
+            }
         }
     }
 
@@ -480,7 +492,7 @@ impl Compiler {
         }
 
         // collect instance fields that need initialization
-        let field_requirements = self.class_field_requirements(members, ctx.tree);
+        let field_requirements = self.class_field_requirements(ctx, members);
         if field_requirements.is_empty() {
             return;
         }
@@ -552,14 +564,14 @@ impl Compiler {
     /// Collect instance fields that require explicit initialization.
     fn class_field_requirements(
         &self,
+        ctx: &TypeContext<'_>,
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
     ) -> Vec<FieldRequirement> {
         let mut requirements = Vec::new();
 
         // collect non-static, non-optional fields without initializers
         for member_id in members {
-            let member = tree.get(*member_id);
+            let member = ctx.tree.get(*member_id);
             let Member::Field {
                 modifiers,
                 key,
@@ -571,7 +583,7 @@ impl Compiler {
             };
 
             // skip static members
-            if Self::member_is_static_for_validation(modifiers.as_ref()) {
+            if Self::member_is_static_override_member(modifiers.as_ref()) {
                 continue;
             }
 
@@ -589,7 +601,9 @@ impl Compiler {
             }
 
             // record static keys only
-            let Some(key) = (*key).and_then(|key| self.static_key_for_dynamic_key(&key)) else {
+            let Some(key) = (*key)
+                .and_then(|key| self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key))
+            else {
                 continue;
             };
 
@@ -712,68 +726,6 @@ impl Compiler {
         }
 
         out_sets[graph.exit_block.0 as usize].clone()
-    }
-
-    /// Check whether a member overrides a base chain member.
-    fn member_overrides_base_chain(
-        &self,
-        mut base_symbol: Option<GlobalSymbolId>,
-        is_static: bool,
-        member_key: &StaticKey,
-        types: &TypeTable,
-    ) -> bool {
-        while let Some(symbol) = base_symbol {
-            if self.symbol_has_member_key(symbol, is_static, member_key, types) {
-                return true;
-            }
-
-            base_symbol = types
-                .get_lineage_for_symbol(symbol)
-                .and_then(|lineage| lineage.extends);
-        }
-
-        false
-    }
-
-    /// Check if a symbol's shape defines a matching member.
-    fn symbol_has_member_key(
-        &self,
-        symbol: GlobalSymbolId,
-        is_static: bool,
-        member_key: &StaticKey,
-        types: &TypeTable,
-    ) -> bool {
-        // resolve the correct side for member lookup
-        let type_id = if is_static {
-            types.get_value_type_id(symbol)
-        } else {
-            types.get_instance_type_id(symbol)
-        };
-        let Some(type_id) = type_id else {
-            return false;
-        };
-
-        // only object types expose fields for override checks
-        let Type::Object { fields, .. } = types.get_type(type_id) else {
-            return false;
-        };
-        fields.iter().any(|field| field.key.matches(member_key))
-    }
-
-    /// Resolve static keys from dynamic member keys.
-    fn static_key_for_dynamic_key(&self, key: &DynamicKey) -> Option<StaticKey> {
-        // only keep literal keys for static lookup
-        match key {
-            DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
-            DynamicKey::Private(_) => None,
-            DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
-            DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
-        }
-    }
-
-    /// Return true when the member modifiers mark it as static.
-    fn member_is_static_for_validation(modifiers: Option<&BindingModifier>) -> bool {
-        modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static))
     }
 
     /// Check if a binding modifier indicates a parameter property.

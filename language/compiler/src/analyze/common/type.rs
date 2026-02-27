@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Block, Expression, Freshness, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
     NodeTree, NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument,
@@ -12,10 +13,13 @@ use destack_workspace::Module;
 
 use super::{
     AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
-    NormalizationMode, RelationMode, SymbolTypeView, TypeContext, TypeView, TypeWalkContext,
-    TypeWalkKey,
+    NormalizationMode, RelationMode, SymbolTypeView, TreeSymbolView, TypeContext, TypeView,
+    TypeWalkContext, TypeWalkKey,
 };
-use crate::{AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult, InferState};
+use crate::{
+    AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult, InferState,
+    StaticMemberSymbolKind,
+};
 
 /// Maximum number of unwrap steps when chasing type value wrappers.
 const MAX_TYPE_VALUE_UNWRAP_STEPS: usize = 8;
@@ -64,6 +68,13 @@ enum TypeContainmentKind<'a> {
     InferBinding,
     /// Detect inference variables.
     InferVar,
+    /// Detect associated type references.
+    AssociatedTypeReference {
+        /// The compiler instance.
+        compiler: &'a Compiler,
+        /// The tree-and-symbol ctx view for the current module.
+        ctx: TreeSymbolView<'a>,
+    },
     /// Detect `this` type references.
     ThisType,
     /// Detect forbidden literal usage.
@@ -220,6 +231,19 @@ impl<'a> TypeContainmentVisitor<'a> {
         Self::new(TypeContainmentKind::InferVar, visited, None)
     }
 
+    /// Create a visitor for associated type reference containment.
+    fn new_associated_type_reference(
+        compiler: &'a Compiler,
+        ctx: TreeSymbolView<'a>,
+        visited: &'a mut HashSet<LocalTypeId>,
+    ) -> Self {
+        Self::new(
+            TypeContainmentKind::AssociatedTypeReference { compiler, ctx },
+            visited,
+            None,
+        )
+    }
+
     /// Create a visitor for `this` type containment.
     fn new_this_type(visited: &'a mut HashSet<LocalTypeId>) -> Self {
         Self::new(TypeContainmentKind::ThisType, visited, None)
@@ -301,6 +325,7 @@ impl<'a> TypeContainmentVisitor<'a> {
             TypeContainmentKind::FreeStaticParameter { .. } => VisitedMode::Set,
             TypeContainmentKind::InferBinding => VisitedMode::Set,
             TypeContainmentKind::InferVar => VisitedMode::Set,
+            TypeContainmentKind::AssociatedTypeReference { .. } => VisitedMode::Set,
             TypeContainmentKind::ThisType => VisitedMode::Set,
             TypeContainmentKind::ForbiddenLiteral { .. } => VisitedMode::Set,
             TypeContainmentKind::ManagedType { .. } => VisitedMode::Set,
@@ -494,6 +519,17 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
             }
             TypeContainmentKind::InferVar => {
                 if matches!(ty, Type::InferVar { .. }) {
+                    self.found = true;
+                    return;
+                }
+            }
+            TypeContainmentKind::AssociatedTypeReference { compiler, ctx } => {
+                if let Type::Reference { symbol, .. } = ty
+                    && compiler
+                        .query_static_member_symbol_kind_for_symbol(*ctx, *symbol)
+                        .ok()
+                        == Some(Some(StaticMemberSymbolKind::AssociatedType))
+                {
                     self.found = true;
                     return;
                 }
@@ -1136,6 +1172,69 @@ impl Compiler {
         visitor.found
     }
 
+    /// Return true when one type satisfies one interface symbol.
+    fn type_implements_interface_symbol(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        ty: &Type,
+        interface_symbol: GlobalSymbolId,
+    ) -> bool {
+        // resolve declared nominal references directly
+        if let Type::Reference { symbol, .. } = ty {
+            let canonical_symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                *symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            return self.is_type_lineage_assignable(ctx, canonical_symbol, interface_symbol);
+        }
+
+        // resolve well known wrappers for array-like receivers
+        let well_known_symbol = match ty {
+            Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
+                self.well_known_symbol_for_type(ty, ctx.types)
+            }
+            _ => None,
+        };
+        let Some(well_known_symbol) = well_known_symbol else {
+            return false;
+        };
+        let Some(well_known_type_symbol) =
+            self.get_well_known_type_symbol(ctx.profile, well_known_symbol)
+        else {
+            return false;
+        };
+
+        let canonical_symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            well_known_type_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+
+        self.is_type_lineage_assignable(ctx, canonical_symbol, interface_symbol)
+    }
+
+    /// Return true when one type satisfies one language interface item.
+    pub(crate) fn is_interface_implemented(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        ty: &Type,
+        interface_item: LanguageSymbol,
+    ) -> bool {
+        let interface_symbol = self.language_symbol(ctx.profile, interface_item);
+        match ty {
+            Type::Value { value } => {
+                let inner_ty = ctx.types.get_type(*value);
+                self.is_interface_implemented(ctx, inner_ty, interface_item)
+            }
+            Type::Union { elements } => elements.iter().all(|element_id| {
+                let element_ty = ctx.types.get_type(*element_id);
+                self.is_interface_implemented(ctx, element_ty, interface_item)
+            }),
+            _ => self.type_implements_interface_symbol(ctx, ty, interface_symbol),
+        }
+    }
+
     /// Check whether a type requires infer convergence before stable checking.
     pub(crate) fn type_requires_infer_convergence(
         &self,
@@ -1145,6 +1244,11 @@ impl Compiler {
         // inference variables are not stable yet
         let mut infer_var_visited = HashSet::new();
         if self.type_contains_infer_vars(type_id, ctx.types, &mut infer_var_visited) {
+            return true;
+        }
+
+        // unevaluated value wrappers are not stable yet
+        if self.unwrapped_value_type_is_unevaluated(type_id, ctx.types) {
             return true;
         }
 
@@ -1193,6 +1297,23 @@ impl Compiler {
         matches!(types.get_type(unwrapped_type_id), Type::Unevaluated(_))
     }
 
+    /// Unwrap one value type id and strip nested `as comptime` wrappers.
+    pub(crate) fn unwrapped_value_without_as_comptime_type_id(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> LocalTypeId {
+        let mut unwrapped_type_id = types.unwrap_value_type_id(type_id);
+        while let Type::Unary {
+            operator: TypeUnaryOperator::AsComptime,
+            right,
+        } = types.get_type(unwrapped_type_id)
+        {
+            unwrapped_type_id = *right;
+        }
+        unwrapped_type_id
+    }
+
     /// Return true when one unwrapped value type id is indeterminate for concrete runtime checks.
     pub(crate) fn unwrapped_value_type_is_indeterminate(
         &self,
@@ -1216,6 +1337,68 @@ impl Compiler {
         }
 
         self.type_is_solver_placeholder(unwrapped_type_id, types)
+    }
+
+    /// Resolve the owning enum symbol for one enum-field symbol.
+    pub(crate) fn enum_symbol_for_field_symbol(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        field_symbol: GlobalSymbolId,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // enum-field ownership is module-local metadata
+        if field_symbol.module_id != ctx.module.id {
+            return self
+                .with_module_symbols_at_stage(
+                    ctx.module,
+                    ctx.profile,
+                    field_symbol.module_id,
+                    AnalyzeDependencyStage::Declare,
+                    |owner_module, owner_symbols| {
+                        let field_entry = owner_symbols.get_symbol(field_symbol.local_id);
+                        let primary = field_entry.primary_declaration?;
+                        if primary.local_id.ty != NodeType::EnumField {
+                            return None;
+                        }
+
+                        let scope = owner_symbols.get_scope_by_symbol(field_symbol.local_id);
+                        let owner_id = scope.owner_id?;
+                        let owner_symbol = owner_id.into_global(owner_module.id);
+                        (owner_symbol.ty() == SymbolType::Enum).then_some(owner_symbol)
+                    },
+                )
+                .map_err(AnalyzeError::from);
+        }
+
+        let field_entry = ctx.symbols.get_symbol(field_symbol.local_id);
+        let Some(primary) = field_entry.primary_declaration else {
+            return Ok(None);
+        };
+        if primary.local_id.ty != NodeType::EnumField {
+            return Ok(None);
+        }
+
+        let scope = ctx.symbols.get_scope_by_symbol(field_symbol.local_id);
+        let Some(owner_id) = scope.owner_id else {
+            return Ok(None);
+        };
+        let owner_symbol = owner_id.into_global(ctx.module.id);
+
+        Ok((owner_symbol.ty() == SymbolType::Enum).then_some(owner_symbol))
+    }
+
+    /// Query the owning enum symbol for one enum-field symbol.
+    pub(crate) fn query_enum_symbol_for_field_symbol(
+        &self,
+        ctx: SymbolTypeView<'_>,
+        field_symbol: GlobalSymbolId,
+    ) -> Option<GlobalSymbolId> {
+        match self.enum_symbol_for_field_symbol(ctx, field_symbol) {
+            Ok(enum_symbol) => enum_symbol,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 
     /// Resolve a type symbol from a type reference or type-as-value.
@@ -1921,6 +2104,18 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         let mut visitor = TypeContainmentVisitor::new_unevaluated_static(visited);
+        visitor.visit_type_id(types, ty_id);
+        visitor.found
+    }
+
+    pub(crate) fn type_contains_associated_type_reference(
+        &self,
+        ctx: TreeSymbolView<'_>,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = TypeContainmentVisitor::new_associated_type_reference(self, ctx, visited);
         visitor.visit_type_id(types, ty_id);
         visitor.found
     }
