@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
+use destack_workspace::PlatformWindowsPacketBackend;
 use parking_lot::Mutex;
 use windows_sys::Win32::Foundation::{ERROR_BUFFER_OVERFLOW, ERROR_SUCCESS};
 use windows_sys::Win32::NetworkManagement::IpHelper::{
@@ -177,14 +178,13 @@ impl ResourceFinalizer for WindowsPacketFinalizer {
 static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketState>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Return whether one Windows packet backend is enabled.
-fn is_windows_packet_backend_enabled(context: &BindingCallContext) -> bool {
+/// Return configured packet backend mode for Windows packet lanes.
+fn windows_packet_backend_mode(context: &BindingCallContext) -> PlatformWindowsPacketBackend {
     context
         .runtime()
-        .module_options
-        .net
-        .windows_packet_backend_enabled
-        .unwrap_or(false)
+        .platform_options
+        .windows
+        .net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -197,11 +197,11 @@ fn require_windows_packet_backend(
     context: &BindingCallContext,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    if is_windows_packet_backend_enabled(context) {
-        return Ok(());
+    match windows_packet_backend_mode(context) {
+        PlatformWindowsPacketBackend::RawSocket => Ok(()),
+        PlatformWindowsPacketBackend::HostBackend => windows_packet_not_supported(operation),
+        PlatformWindowsPacketBackend::Disabled => windows_packet_not_supported(operation),
     }
-
-    windows_packet_not_supported(operation)
 }
 
 /// Return one `ioWouldBlock` timeout error for packet receive.

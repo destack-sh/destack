@@ -722,36 +722,36 @@ pub struct RuntimeOptions {
     pub tty: PlatformTtyOptions,
     /// Global crypto runtime defaults.
     pub crypto: PlatformCryptoOptions,
-    /// Platform-specific runtime configuration.
+    /// Platform-specific host runtime overrides.
     pub platform: PlatformOptions,
 }
 
-/// Platform-specific runtime configuration.
+/// Platform-specific host runtime overrides.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformOptions {
-    /// Android runtime configuration.
+    /// Android runtime host overrides.
     pub android: PlatformAndroidOptions,
-    /// DragonFly BSD runtime configuration.
+    /// DragonFly BSD runtime host overrides.
     pub dragonfly: PlatformDragonflyOptions,
-    /// FreeBSD runtime configuration.
+    /// FreeBSD runtime host overrides.
     pub freebsd: PlatformFreeBsdOptions,
-    /// Haiku runtime configuration.
+    /// Haiku runtime host overrides.
     pub haiku: PlatformHaikuOptions,
-    /// illumos runtime configuration.
+    /// illumos runtime host overrides.
     pub illumos: PlatformIllumosOptions,
-    /// iOS runtime configuration.
+    /// iOS runtime host overrides.
     pub ios: PlatformIosOptions,
-    /// Linux runtime configuration.
+    /// Linux runtime host overrides.
     pub linux: PlatformLinuxOptions,
-    /// macOS runtime configuration.
+    /// macOS runtime host overrides.
     pub macos: PlatformMacosOptions,
-    /// NetBSD runtime configuration.
+    /// NetBSD runtime host overrides.
     pub netbsd: PlatformNetBsdOptions,
-    /// OpenBSD runtime configuration.
+    /// OpenBSD runtime host overrides.
     pub openbsd: PlatformOpenBsdOptions,
-    /// Solaris runtime configuration.
+    /// Solaris runtime host overrides.
     pub solaris: PlatformSolarisOptions,
-    /// Windows runtime configuration.
+    /// Windows runtime host overrides.
     pub windows: PlatformWindowsOptions,
 }
 
@@ -826,8 +826,6 @@ pub struct PlatformNetOptions {
     pub proxy_url: Option<String>,
     /// Optional default egress interface binding.
     pub bind_interface: Option<String>,
-    /// Whether Windows packet lanes should dispatch through a host packet backend.
-    pub windows_packet_backend_enabled: Option<bool>,
 }
 
 /// Process runtime options.
@@ -956,594 +954,95 @@ pub struct PlatformThreadOptions {}
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformTtyOptions {}
 
-/// Android runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformAndroidOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
+/// Android runtime host overrides.
+pub type PlatformAndroidOptions = PlatformHostOptions;
+
+/// DragonFly BSD runtime host overrides.
+pub type PlatformDragonflyOptions = PlatformHostOptions;
+
+/// FreeBSD runtime host overrides.
+pub type PlatformFreeBsdOptions = PlatformHostOptions;
+
+/// Haiku runtime host overrides.
+pub type PlatformHaikuOptions = PlatformHostOptions;
+
+/// illumos runtime host overrides.
+pub type PlatformIllumosOptions = PlatformHostOptions;
+
+/// iOS runtime host overrides.
+pub type PlatformIosOptions = PlatformHostOptions;
+
+/// Linux runtime host overrides.
+pub type PlatformLinuxOptions = PlatformHostOptions;
+
+/// macOS runtime host overrides.
+pub type PlatformMacosOptions = PlatformHostOptions;
+
+/// NetBSD runtime host overrides.
+pub type PlatformNetBsdOptions = PlatformHostOptions;
+
+/// OpenBSD runtime host overrides.
+pub type PlatformOpenBsdOptions = PlatformHostOptions;
+
+/// Solaris runtime host overrides.
+pub type PlatformSolarisOptions = PlatformHostOptions;
+
+/// Windows packet backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum PlatformWindowsPacketBackend {
+    /// Disable packet backend lanes.
+    #[default]
+    Disabled,
+    /// Use the raw-socket packet backend.
+    RawSocket,
+    /// Use the host-bridge packet backend.
+    HostBackend,
 }
 
-/// DragonFly BSD runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformDragonflyOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// FreeBSD runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformFreeBsdOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// Haiku runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformHaikuOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// illumos runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIllumosOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// iOS runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIosOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// Linux runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformLinuxOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// macOS runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformMacosOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// NetBSD runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformNetBsdOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// OpenBSD runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformOpenBsdOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// Solaris runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformSolarisOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-}
-
-/// Windows runtime configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+/// Windows runtime host overrides.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PlatformWindowsOptions {
-    /// Host integration options.
-    pub host: PlatformHostOptions,
-    /// Crypto runtime options.
-    pub crypto: PlatformCryptoOptions,
-    /// Filesystem runtime options.
-    pub fs: PlatformFsOptions,
-    /// Network runtime options.
-    pub net: PlatformNetOptions,
-    /// Process runtime options.
-    pub process: PlatformProcessOptions,
-    /// Audio runtime options.
-    pub audio: PlatformAudioOptions,
-    /// Input runtime options.
-    pub input: PlatformInputOptions,
-    /// GPU runtime options.
-    pub gpu: PlatformGpuOptions,
-    /// TLS runtime options.
-    pub tls: PlatformTlsOptions,
-    /// Security runtime options.
-    pub security: PlatformSecurityOptions,
-    /// OS service runtime options.
-    pub os: PlatformOsOptions,
-    /// Device service runtime options.
-    pub device: PlatformDeviceOptions,
-    /// Debug runtime options.
-    pub debug: PlatformDebugOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// Error runtime options.
-    pub error: PlatformErrorOptions,
-    /// FFI runtime options.
-    pub ffi: PlatformFfiOptions,
-    /// I/O runtime options.
-    pub io: PlatformIoOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Memory runtime options.
-    pub memory: PlatformMemoryOptions,
-    /// Resource runtime options.
-    pub resource: PlatformResourceOptions,
-    /// Thread runtime options.
-    pub thread: PlatformThreadOptions,
-    /// TTY runtime options.
-    pub tty: PlatformTtyOptions,
-    /// Optional POSIX domain SID for uid/gid mapping.
+    /// Whether host lifecycle events are enabled.
+    pub enable_lifecycle_events: bool,
+    /// Whether host window events are enabled.
+    pub enable_window_events: bool,
+    /// Whether host permission events are enabled.
+    pub enable_permission_events: bool,
+    /// Whether host interruption events are enabled.
+    pub enable_interruption_events: bool,
+    /// Queue capacity for host events before drop behavior applies.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional POSIX domain SID for uid or gid mapping.
     pub posix_domain_sid: Option<String>,
+    /// Packet backend mode for Windows packet lanes.
+    pub net_packet_backend: PlatformWindowsPacketBackend,
+}
+
+impl Default for PlatformWindowsOptions {
+    fn default() -> Self {
+        Self {
+            enable_lifecycle_events: true,
+            enable_window_events: true,
+            enable_permission_events: true,
+            enable_interruption_events: true,
+            event_queue_capacity: None,
+            posix_domain_sid: None,
+            net_packet_backend: PlatformWindowsPacketBackend::Disabled,
+        }
+    }
+}
+
+impl PlatformWindowsOptions {
+    /// Build host integration options from Windows runtime host overrides.
+    pub fn host_options(&self) -> PlatformHostOptions {
+        PlatformHostOptions {
+            enable_lifecycle_events: self.enable_lifecycle_events,
+            enable_window_events: self.enable_window_events,
+            enable_permission_events: self.enable_permission_events,
+            enable_interruption_events: self.enable_interruption_events,
+            event_queue_capacity: self.event_queue_capacity,
+        }
+    }
 }
 pub(super) fn runtime_options_from_json(
     json: Option<&DsConfigRuntimeOptionsJson>,
@@ -1632,7 +1131,7 @@ pub struct DsConfigRuntimeOptionsJson {
     pub thread: Option<PlatformThreadOptionsJson>,
     /// Global tty runtime defaults.
     pub tty: Option<PlatformTtyOptionsJson>,
-    /// Platform-specific runtime configuration.
+    /// Platform-specific host runtime overrides.
     pub platform: Option<PlatformOptionsJson>,
 }
 
@@ -2552,34 +2051,34 @@ impl From<&RuntimeRuleJson> for RuntimeRule {
     }
 }
 
-/// Platform-specific runtime configuration.
+/// Platform-specific host runtime overrides.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformOptionsJson {
-    /// Android-specific runtime configuration.
+    /// Android-specific runtime host overrides.
     pub android: Option<PlatformAndroidOptionsJson>,
-    /// DragonFly BSD-specific runtime configuration.
+    /// DragonFly BSD-specific runtime host overrides.
     pub dragonfly: Option<PlatformDragonflyOptionsJson>,
-    /// FreeBSD-specific runtime configuration.
+    /// FreeBSD-specific runtime host overrides.
     pub freebsd: Option<PlatformFreeBsdOptionsJson>,
-    /// Haiku-specific runtime configuration.
+    /// Haiku-specific runtime host overrides.
     pub haiku: Option<PlatformHaikuOptionsJson>,
-    /// illumos-specific runtime configuration.
+    /// illumos-specific runtime host overrides.
     pub illumos: Option<PlatformIllumosOptionsJson>,
-    /// iOS-specific runtime configuration.
+    /// iOS-specific runtime host overrides.
     pub ios: Option<PlatformIosOptionsJson>,
-    /// Linux-specific runtime configuration.
+    /// Linux-specific runtime host overrides.
     pub linux: Option<PlatformLinuxOptionsJson>,
-    /// macOS-specific runtime configuration.
+    /// macOS-specific runtime host overrides.
     pub macos: Option<PlatformMacosOptionsJson>,
-    /// NetBSD-specific runtime configuration.
+    /// NetBSD-specific runtime host overrides.
     pub netbsd: Option<PlatformNetBsdOptionsJson>,
-    /// OpenBSD-specific runtime configuration.
+    /// OpenBSD-specific runtime host overrides.
     pub openbsd: Option<PlatformOpenBsdOptionsJson>,
-    /// Solaris-specific runtime configuration.
+    /// Solaris-specific runtime host overrides.
     pub solaris: Option<PlatformSolarisOptionsJson>,
-    /// Windows-specific runtime configuration.
+    /// Windows-specific runtime host overrides.
     pub windows: Option<PlatformWindowsOptionsJson>,
 }
 
@@ -2648,2005 +2147,136 @@ impl PlatformOptionsJson {
     }
 }
 
-/// Android runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+/// Android runtime host overrides.
+pub type PlatformAndroidOptionsJson = PlatformHostOptionsJson;
+
+/// DragonFly BSD runtime host overrides.
+pub type PlatformDragonflyOptionsJson = PlatformHostOptionsJson;
+
+/// FreeBSD runtime host overrides.
+pub type PlatformFreeBsdOptionsJson = PlatformHostOptionsJson;
+
+/// Haiku runtime host overrides.
+pub type PlatformHaikuOptionsJson = PlatformHostOptionsJson;
+
+/// illumos runtime host overrides.
+pub type PlatformIllumosOptionsJson = PlatformHostOptionsJson;
+
+/// iOS runtime host overrides.
+pub type PlatformIosOptionsJson = PlatformHostOptionsJson;
+
+/// Linux runtime host overrides.
+pub type PlatformLinuxOptionsJson = PlatformHostOptionsJson;
+
+/// macOS runtime host overrides.
+pub type PlatformMacosOptionsJson = PlatformHostOptionsJson;
+
+/// NetBSD runtime host overrides.
+pub type PlatformNetBsdOptionsJson = PlatformHostOptionsJson;
+
+/// OpenBSD runtime host overrides.
+pub type PlatformOpenBsdOptionsJson = PlatformHostOptionsJson;
+
+/// Solaris runtime host overrides.
+pub type PlatformSolarisOptionsJson = PlatformHostOptionsJson;
+
+/// Windows packet backend selection for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformAndroidOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
+pub enum PlatformWindowsPacketBackendJson {
+    /// Disable packet backend lanes.
+    Disabled,
+    /// Use the raw-socket packet backend.
+    RawSocket,
+    /// Use the host-bridge packet backend.
+    HostBackend,
 }
 
-impl PlatformAndroidOptionsJson {
-    /// Apply Android overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformAndroidOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
+impl From<PlatformWindowsPacketBackendJson> for PlatformWindowsPacketBackend {
+    fn from(value: PlatformWindowsPacketBackendJson) -> Self {
+        match value {
+            PlatformWindowsPacketBackendJson::Disabled => PlatformWindowsPacketBackend::Disabled,
+            PlatformWindowsPacketBackendJson::RawSocket => PlatformWindowsPacketBackend::RawSocket,
+            PlatformWindowsPacketBackendJson::HostBackend => {
+                PlatformWindowsPacketBackend::HostBackend
+            }
         }
     }
 }
 
-/// DragonFly BSD runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformDragonflyOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformDragonflyOptionsJson {
-    /// Apply DragonFly BSD overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformDragonflyOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
+impl From<PlatformWindowsPacketBackend> for PlatformWindowsPacketBackendJson {
+    fn from(value: PlatformWindowsPacketBackend) -> Self {
+        match value {
+            PlatformWindowsPacketBackend::Disabled => PlatformWindowsPacketBackendJson::Disabled,
+            PlatformWindowsPacketBackend::RawSocket => PlatformWindowsPacketBackendJson::RawSocket,
+            PlatformWindowsPacketBackend::HostBackend => {
+                PlatformWindowsPacketBackendJson::HostBackend
+            }
         }
     }
 }
 
-/// FreeBSD runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformFreeBsdOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformFreeBsdOptionsJson {
-    /// Apply FreeBSD overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformFreeBsdOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// Haiku runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformHaikuOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformHaikuOptionsJson {
-    /// Apply Haiku overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformHaikuOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// illumos runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformIllumosOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformIllumosOptionsJson {
-    /// Apply illumos overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformIllumosOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// iOS runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformIosOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformIosOptionsJson {
-    /// Apply iOS overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformIosOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// Linux runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformLinuxOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformLinuxOptionsJson {
-    /// Apply Linux overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformLinuxOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// macOS runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformMacosOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformMacosOptionsJson {
-    /// Apply macOS overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformMacosOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// NetBSD runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformNetBsdOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformNetBsdOptionsJson {
-    /// Apply NetBSD overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformNetBsdOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// OpenBSD runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformOpenBsdOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformOpenBsdOptionsJson {
-    /// Apply OpenBSD overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformOpenBsdOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// Solaris runtime configuration.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformSolarisOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-}
-
-impl PlatformSolarisOptionsJson {
-    /// Apply Solaris overrides to a base set of options.
-    pub fn apply_to(&self, options: &mut PlatformSolarisOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
-        }
-
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-    }
-}
-
-/// Windows runtime configuration.
+/// Windows runtime host overrides.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformWindowsOptionsJson {
-    /// Host integration options.
-    pub host: Option<PlatformHostOptionsJson>,
-    /// Crypto runtime options.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Filesystem runtime options.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Network runtime options.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Process runtime options.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Audio runtime options.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Input runtime options.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// GPU runtime options.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// TLS runtime options.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Security runtime options.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// OS service runtime options.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Device service runtime options.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Debug runtime options.
-    pub debug: Option<PlatformDebugOptionsJson>,
-    /// Display runtime options.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Error runtime options.
-    pub error: Option<PlatformErrorOptionsJson>,
-    /// FFI runtime options.
-    pub ffi: Option<PlatformFfiOptionsJson>,
-    /// I/O runtime options.
-    pub io: Option<PlatformIoOptionsJson>,
-    /// IPC runtime options.
-    pub ipc: Option<PlatformIpcOptionsJson>,
-    /// Memory runtime options.
-    pub memory: Option<PlatformMemoryOptionsJson>,
-    /// Resource runtime options.
-    pub resource: Option<PlatformResourceOptionsJson>,
-    /// Thread runtime options.
-    pub thread: Option<PlatformThreadOptionsJson>,
-    /// TTY runtime options.
-    pub tty: Option<PlatformTtyOptionsJson>,
-    /// Optional POSIX domain SID for uid/gid mapping.
+    /// Whether host lifecycle events are enabled.
+    pub enable_lifecycle_events: Option<bool>,
+    /// Whether host window events are enabled.
+    pub enable_window_events: Option<bool>,
+    /// Whether host permission events are enabled.
+    pub enable_permission_events: Option<bool>,
+    /// Whether host interruption events are enabled.
+    pub enable_interruption_events: Option<bool>,
+    /// Queue capacity for host events before drop behavior applies.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional POSIX domain SID for uid or gid mapping.
     pub posix_domain_sid: Option<String>,
+    /// Packet backend mode for Windows packet lanes.
+    pub net_packet_backend: Option<PlatformWindowsPacketBackendJson>,
 }
 
 impl PlatformWindowsOptionsJson {
-    /// Apply windows overrides to a base set of options.
+    /// Apply windows host overrides to a base set of options.
     pub fn apply_to(&self, options: &mut PlatformWindowsOptions) {
-        // apply host integration overrides
-        if let Some(host) = &self.host {
-            host.apply_to(&mut options.host);
+        // apply host lifecycle override
+        if let Some(enable_lifecycle_events) = self.enable_lifecycle_events {
+            options.enable_lifecycle_events = enable_lifecycle_events;
         }
 
-        // apply crypto overrides
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
+        // apply host window-event override
+        if let Some(enable_window_events) = self.enable_window_events {
+            options.enable_window_events = enable_window_events;
         }
 
-        // apply filesystem overrides
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
+        // apply host permission-event override
+        if let Some(enable_permission_events) = self.enable_permission_events {
+            options.enable_permission_events = enable_permission_events;
         }
 
-        // apply network overrides
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
+        // apply host interruption-event override
+        if let Some(enable_interruption_events) = self.enable_interruption_events {
+            options.enable_interruption_events = enable_interruption_events;
         }
 
-        // apply process overrides
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
+        // apply host queue-capacity override
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
         }
 
-        // apply audio overrides
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
+        // apply domain sid override
+        if let Some(posix_domain_sid) = &self.posix_domain_sid {
+            options.posix_domain_sid = Some(posix_domain_sid.clone());
         }
 
-        // apply input overrides
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu overrides
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls overrides
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security overrides
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os overrides
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device overrides
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply debug overrides
-        if let Some(debug) = &self.debug {
-            debug.apply_to(&mut options.debug);
-        }
-
-        // apply display overrides
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply error overrides
-        if let Some(error) = &self.error {
-            error.apply_to(&mut options.error);
-        }
-
-        // apply ffi overrides
-        if let Some(ffi) = &self.ffi {
-            ffi.apply_to(&mut options.ffi);
-        }
-
-        // apply io overrides
-        if let Some(io) = &self.io {
-            io.apply_to(&mut options.io);
-        }
-
-        // apply ipc overrides
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
-        }
-
-        // apply memory overrides
-        if let Some(memory) = &self.memory {
-            memory.apply_to(&mut options.memory);
-        }
-
-        // apply resource overrides
-        if let Some(resource) = &self.resource {
-            resource.apply_to(&mut options.resource);
-        }
-
-        // apply thread overrides
-        if let Some(thread) = &self.thread {
-            thread.apply_to(&mut options.thread);
-        }
-
-        // apply tty overrides
-        if let Some(tty) = &self.tty {
-            tty.apply_to(&mut options.tty);
-        }
-
-        // apply domain SID overrides
-        if let Some(domain_sid) = &self.posix_domain_sid {
-            options.posix_domain_sid = Some(domain_sid.clone());
+        // apply packet backend override
+        if let Some(net_packet_backend) = self.net_packet_backend {
+            options.net_packet_backend = PlatformWindowsPacketBackend::from(net_packet_backend);
         }
     }
 }
-
 /// Crypto runtime options.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -4768,8 +2398,6 @@ pub struct PlatformNetOptionsJson {
     pub proxy_url: Option<String>,
     /// Optional default egress interface binding.
     pub bind_interface: Option<String>,
-    /// Whether Windows packet lanes should dispatch through a host packet backend.
-    pub windows_packet_backend_enabled: Option<bool>,
 }
 
 impl PlatformNetOptionsJson {
@@ -4788,11 +2416,6 @@ impl PlatformNetOptionsJson {
         // apply interface binding overrides
         if let Some(bind_interface) = &self.bind_interface {
             options.bind_interface = Some(bind_interface.clone());
-        }
-
-        // apply windows packet backend overrides
-        if let Some(windows_packet_backend_enabled) = self.windows_packet_backend_enabled {
-            options.windows_packet_backend_enabled = Some(windows_packet_backend_enabled);
         }
     }
 }
