@@ -9,7 +9,7 @@ use destack_dir::{
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode,
     DynamicKey, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name, NodeTree, NodeType, Parameter,
-    Path, ScalarLiteral,
+    Path, ScalarLiteral, StaticKey,
 };
 
 const RESERVED_TYPE_NAMES: [&str; 19] = [
@@ -214,7 +214,9 @@ impl Compiler {
                 }
             }
 
-            Declaration::Struct { heritage, .. } => {
+            Declaration::Struct {
+                heritage, members, ..
+            } => {
                 // resolve the struct node for diagnostics
                 let node = id
                     .into_global_any(ctx.module.id)
@@ -238,6 +240,13 @@ impl Compiler {
                         implements_symbols: Vec::new(),
                         embedded_symbols: Vec::new(),
                     });
+                }
+
+                // report duplicate field names introduced through embedding
+                if let Err(error) =
+                    self.validate_duplicate_embedded_struct_fields(&mut ctx.reborrow(), members)
+                {
+                    self.error(error);
                 }
             }
 
@@ -391,6 +400,72 @@ impl Compiler {
 
             has_constructor_implementation = true;
         }
+    }
+
+    /// Validate duplicate struct fields introduced by embedding chains.
+    fn validate_duplicate_embedded_struct_fields(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        members: &[LocalNodeId<Member>],
+    ) -> Result<(), AnalyzeError> {
+        let mut seen_keys = Vec::new();
+
+        for member_id in members {
+            match ctx.tree.get(*member_id) {
+                Member::Field { key, .. } => {
+                    let Some(key) = key.and_then(|key| {
+                        self.static_key_from_dynamic_key(ctx.tree_symbol_type_view(), key)
+                    }) else {
+                        continue;
+                    };
+
+                    if seen_keys
+                        .iter()
+                        .any(|existing: &StaticKey| existing.matches(&key))
+                    {
+                        let node = (*member_id)
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
+                        self.error(AnalyzeError::DuplicateField { node, field: key });
+                        continue;
+                    }
+
+                    seen_keys.push(key);
+                }
+
+                Member::Embed { value, .. } => {
+                    let embed_shape = self.embed_member_shape(&mut ctx.reborrow(), *value)?;
+                    let mut reported_from_member = Vec::new();
+
+                    for field in embed_shape.fields {
+                        let key = field.key;
+                        let is_duplicate = seen_keys
+                            .iter()
+                            .any(|existing: &StaticKey| existing.matches(&key));
+                        let already_reported = reported_from_member
+                            .iter()
+                            .any(|existing: &StaticKey| existing.matches(&key));
+
+                        if is_duplicate && !already_reported {
+                            let node = (*member_id)
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile));
+                            self.error(AnalyzeError::DuplicateField {
+                                node,
+                                field: key.clone(),
+                            });
+                            reported_from_member.push(key.clone());
+                        }
+
+                        seen_keys.push(key);
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 
     /// Return true when a class method is a constructor definition.
