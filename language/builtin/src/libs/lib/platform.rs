@@ -780,6 +780,12 @@ builtin_lib_sources_targeted!(
             "platform/tls",
             "session.ds"
         ),
+        (
+            LIB_PLATFORM_TTY_HANDLE_DS,
+            "lib",
+            "platform/tty",
+            "handle.ds"
+        ),
         (LIB_PLATFORM_TTY_INDEX_DS, "lib", "platform/tty", "index.ds"),
         (LIB_PLATFORM_TTY_IO_DS, "lib", "platform/tty", "io.ds"),
         (LIB_PLATFORM_TTY_MODE_DS, "lib", "platform/tty", "mode.ds"),
@@ -952,6 +958,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_TLS_CONTEXT_DS,
         LIB_PLATFORM_TLS_INDEX_DS,
         LIB_PLATFORM_TLS_SESSION_DS,
+        LIB_PLATFORM_TTY_HANDLE_DS,
         LIB_PLATFORM_TTY_INDEX_DS,
         LIB_PLATFORM_TTY_IO_DS,
         LIB_PLATFORM_TTY_MODE_DS,

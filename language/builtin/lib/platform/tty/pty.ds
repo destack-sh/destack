@@ -24,7 +24,7 @@ declare namespace tty {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `tty.mode`.
+    /// Requires `tty.pty`.
     ///
     /// # Replay
     /// External, recordable.
@@ -33,7 +33,7 @@ declare namespace tty {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["tty.mode"],
+            capabilities: ["tty.pty"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
@@ -54,7 +54,7 @@ declare namespace tty {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `tty.mode`.
+    /// Requires `tty.pty`.
     ///
     /// # Replay
     /// External, recordable.
@@ -63,7 +63,7 @@ declare namespace tty {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["tty.mode"],
+            capabilities: ["tty.pty"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
