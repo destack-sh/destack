@@ -2,10 +2,13 @@
 
 #[path = "harness.rs"]
 mod harness;
+pub(super) use harness::HarnessValue;
 
 use std::net::ToSocketAddrs;
 
 use destack_vm as vm;
+#[cfg(windows)]
+use destack_workspace::RuntimeOptions;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
@@ -55,6 +58,14 @@ impl NativeNetHarness {
             runtime: TestRuntime::deterministic_random(),
         }
     }
+
+    /// Create a new native network harness with explicit runtime options.
+    #[cfg(windows)]
+    pub(crate) fn new_with_runtime_options(configure: &impl Fn(&mut RuntimeOptions)) -> Self {
+        Self {
+            runtime: TestRuntime::deterministic_random_with_options(|options| configure(options)),
+        }
+    }
 }
 
 /// VM network harness backed by VM bindings.
@@ -70,6 +81,14 @@ impl VmNetHarness {
     pub(crate) fn new() -> Self {
         Self {
             runtime: TestRuntime::deterministic_random(),
+        }
+    }
+
+    /// Create a new VM network harness with explicit runtime options.
+    #[cfg(windows)]
+    pub(crate) fn new_with_runtime_options(configure: &impl Fn(&mut RuntimeOptions)) -> Self {
+        Self {
+            runtime: TestRuntime::deterministic_random_with_options(|options| configure(options)),
         }
     }
 }
@@ -143,6 +162,22 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Run a test callback against both harness contexts with explicit runtime options.
+#[cfg(windows)]
+pub(crate) fn with_harness_context_with_runtime_options<F>(
+    configure: impl Fn(&mut RuntimeOptions),
+    mut callback: F,
+) where
+    F: for<'call> FnMut(NetHarnessContext<'call>) -> RuntimeResult<()>,
+{
+    // run the callback for each configured harness
+    let native = NetHarnessHandle::Native(NativeNetHarness::new_with_runtime_options(&configure));
+    native.run(&mut callback);
+
+    let vm = NetHarnessHandle::Vm(VmNetHarness::new_with_runtime_options(&configure));
+    vm.run(&mut callback);
 }
 
 #[cfg(windows)]
@@ -416,11 +451,10 @@ fn socket_addresses_vm(
 fn reverse_lookup_names_native(
     values: NativeArray<ReverseLookupName>,
 ) -> RuntimeResult<Vec<String>> {
-    let values = unsafe { values.as_slice()? };
+    let values = reverse_lookup_records_native(values)?;
     let mut decoded = Vec::with_capacity(values.len());
-    for value in values {
-        let host = unsafe { value.host.as_str()? };
-        decoded.push(host.to_string());
+    for (host, _service) in values {
+        decoded.push(host);
     }
 
     Ok(decoded)
@@ -431,6 +465,35 @@ fn reverse_lookup_names_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<platform_net::ReverseLookupNameVm>,
 ) -> RuntimeResult<Vec<String>> {
+    let values = reverse_lookup_records_vm(context, values)?;
+    let mut decoded = Vec::with_capacity(values.len());
+    for (host, _service) in values {
+        decoded.push(host);
+    }
+
+    Ok(decoded)
+}
+
+/// Decode reverse lookup records from native values.
+fn reverse_lookup_records_native(
+    values: NativeArray<ReverseLookupName>,
+) -> RuntimeResult<Vec<(String, String)>> {
+    let values = unsafe { values.as_slice()? };
+    let mut decoded = Vec::with_capacity(values.len());
+    for value in values {
+        let host = unsafe { value.host.as_str()? };
+        let service = unsafe { value.service.as_str()? };
+        decoded.push((host.to_string(), service.to_string()));
+    }
+
+    Ok(decoded)
+}
+
+/// Decode reverse lookup records from VM values.
+fn reverse_lookup_records_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: VmArray<platform_net::ReverseLookupNameVm>,
+) -> RuntimeResult<Vec<(String, String)>> {
     let values = values.raw_values(context)?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
@@ -448,7 +511,11 @@ fn reverse_lookup_names_vm(
         let host = context
             .string_ref(host)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        decoded.push(host.as_str().to_string());
+        let service = vm::StringHandle::new(slots[1]);
+        let service = context
+            .string_ref(service)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        decoded.push((host.as_str().to_string(), service.as_str().to_string()));
     }
 
     Ok(decoded)

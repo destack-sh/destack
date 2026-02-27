@@ -1,6 +1,7 @@
 use super::*;
 #[cfg(windows)]
 use crate::diagnostic::{RuntimeErrorId, RuntimeStatus};
+use crate::platform::net::{NetInterface, NetInterfaceVm};
 
 #[path = "harness.generated.rs"]
 mod generated;
@@ -95,6 +96,60 @@ impl<'call> NetHarnessContext<'call> {
         let mut bytes = self.bytes_from_slice_value(value)?;
         bytes.truncate(len);
         Ok(bytes)
+    }
+
+    /// Decode one backend-specific string value into a Rust string.
+    pub(crate) fn string_from_value(
+        &self,
+        value: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<String> {
+        match value {
+            HarnessValue::Native(value) => {
+                let value = unsafe { value.as_str()? };
+                Ok(value.to_string())
+            }
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm string value");
+                let value = context
+                    .string_ref(value)
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                Ok(value.as_str().to_string())
+            }
+        }
+    }
+
+    /// Decode one backend-specific interface list into name and index tuples.
+    pub(crate) fn interface_name_index_list_from_value(
+        &self,
+        value: HarnessValue<NativeArray<NetInterface>, VmArray<NetInterfaceVm>>,
+    ) -> RuntimeResult<Vec<(String, u32)>> {
+        match value {
+            HarnessValue::Native(value) => {
+                let interfaces = unsafe { value.as_slice()? };
+                let mut decoded = Vec::with_capacity(interfaces.len());
+                for interface in interfaces {
+                    let name = unsafe { interface.name.as_str()? };
+                    decoded.push((name.to_string(), interface.index));
+                }
+                Ok(decoded)
+            }
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm interface list");
+                let interfaces = value.read_values(context)?;
+                let mut decoded = Vec::with_capacity(interfaces.len());
+                for interface in interfaces {
+                    let name = context
+                        .string_ref(interface.name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    decoded.push((name.as_str().to_string(), interface.index));
+                }
+                Ok(decoded)
+            }
+        }
     }
 
     /// Build one backend-specific nested byte-slice value.
@@ -423,6 +478,25 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Decode one backend-specific reverse-lookup record list value.
+    pub(crate) fn reverse_lookup_records_from_value(
+        &self,
+        value: HarnessValue<
+            NativeArray<ReverseLookupName>,
+            VmArray<platform_net::ReverseLookupNameVm>,
+        >,
+    ) -> RuntimeResult<Vec<(String, String)>> {
+        match value {
+            HarnessValue::Native(value) => reverse_lookup_records_native(value),
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm reverse lookup records");
+                reverse_lookup_records_vm(context, value)
+            }
+        }
+    }
+
     /// Build one backend-specific UDS address from a path.
     pub(crate) fn uds_address_value(
         &self,
@@ -534,6 +608,40 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Decode one recv-message payload into address and control metadata.
+    pub(crate) fn recv_message_meta(
+        &self,
+        value: HarnessValue<SocketRecvMessage, platform_net::SocketRecvMessageVm>,
+    ) -> (bool, u32) {
+        match value {
+            HarnessValue::Native(value) => (value.has_address, value.control.0.len),
+            HarnessValue::Vm(value) => (value.has_address, value.control.0.len),
+        }
+    }
+
+    /// Extract one recv-message source address when present.
+    pub(crate) fn recv_message_address(
+        &self,
+        value: HarnessValue<SocketRecvMessage, platform_net::SocketRecvMessageVm>,
+    ) -> Option<HarnessValue<SocketAddress, SocketAddressVm>> {
+        match value {
+            HarnessValue::Native(value) => {
+                if value.has_address {
+                    Some(self.harness_value(value.address))
+                } else {
+                    None
+                }
+            }
+            HarnessValue::Vm(value) => {
+                if value.has_address {
+                    Some(self.harness_value_vm(value.address))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     /// Decode one backend-specific recv-mmsg value into byte counts.
     pub(crate) fn recv_mmsg_counts_from_value(
         &self,
@@ -547,10 +655,51 @@ impl<'call> NetHarnessContext<'call> {
                 let values = unsafe { value.as_slice()? };
                 Ok(values.iter().map(|value| value.bytes).collect())
             }
-            HarnessValue::Vm(_) => Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.net.recvMmsg",
-            ))
-            .boxed()),
+            HarnessValue::Vm(value) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm recv-mmsg decode");
+                let values = value.read_values(context)?;
+                Ok(values.iter().map(|value| value.bytes).collect())
+            }
+        }
+    }
+
+    /// Decode recv-mmsg request payload buffers after a receive operation.
+    pub(crate) fn recv_mmsg_payloads_from_requests(
+        &self,
+        requests: HarnessValue<
+            NativeSlice<SocketRecvBatchRequest>,
+            VmSlice<platform_net::SocketRecvBatchRequestVm>,
+        >,
+        counts: &[u64],
+    ) -> RuntimeResult<Vec<Vec<u8>>> {
+        match requests {
+            HarnessValue::Native(requests) => {
+                let requests = unsafe { requests.as_slice()? };
+                let mut payloads = Vec::with_capacity(requests.len());
+                for (request, count) in requests.iter().zip(counts.iter()) {
+                    let payload = unsafe { request.payload.as_slice()? };
+                    let count = (*count as usize).min(payload.len());
+                    payloads.push(payload[..count].to_vec());
+                }
+
+                Ok(payloads)
+            }
+            HarnessValue::Vm(requests) => {
+                let context = self
+                    .vm_context_mut()
+                    .expect("vm context required for vm recv-mmsg request decode");
+                let requests = requests.read_values(context)?;
+                let mut payloads = Vec::with_capacity(requests.len());
+                for (request, count) in requests.iter().zip(counts.iter()) {
+                    let payload = request.payload.read_bytes(context)?;
+                    let count = (*count as usize).min(payload.len());
+                    payloads.push(payload[..count].to_vec());
+                }
+
+                Ok(payloads)
+            }
         }
     }
 
@@ -619,6 +768,78 @@ impl<'call> NetHarnessContext<'call> {
         }
     }
 
+    /// Build one backend-specific send-message value with explicit destination and control bytes.
+    pub(crate) fn send_message_value(
+        &self,
+        address: HarnessValue<SocketAddress, SocketAddressVm>,
+        control: &[u8],
+        flags: u32,
+        has_credentials: bool,
+    ) -> RuntimeResult<HarnessValue<SocketSendMessage, SocketSendMessageVm>> {
+        match self.vm_context_mut() {
+            Some(context) => {
+                let address = match address {
+                    HarnessValue::Native(_) => {
+                        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                            "address",
+                            "SocketAddressVm",
+                        ))
+                        .boxed());
+                    }
+                    HarnessValue::Vm(address) => address,
+                };
+                let message = SocketSendMessageVm {
+                    has_address: true,
+                    address,
+                    fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
+                    control: platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
+                        context, control,
+                    )),
+                    flags: SocketMessageFlags(flags),
+                    has_credentials,
+                    credentials: SocketCredentialsVm {
+                        pid: 0,
+                        uid: 0,
+                        gid: 0,
+                    },
+                };
+                Ok(self.harness_value_vm(message))
+            }
+            None => {
+                let address = match address {
+                    HarnessValue::Native(address) => address,
+                    HarnessValue::Vm(_) => {
+                        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                            "address",
+                            "SocketAddress",
+                        ))
+                        .boxed());
+                    }
+                };
+                let message = SocketSendMessage {
+                    has_address: true,
+                    address,
+                    fds: NativeArray {
+                        data: std::ptr::null_mut(),
+                        len: 0,
+                        capacity: 0,
+                    },
+                    control: platform_net::SocketControlBufferAbi::<NativeAbi>(
+                        self.call_context.store_array(control.to_vec()),
+                    ),
+                    flags: SocketMessageFlags(flags),
+                    has_credentials,
+                    credentials: SocketCredentials {
+                        pid: 0,
+                        uid: 0,
+                        gid: 0,
+                    },
+                };
+                Ok(self.harness_value(message))
+            }
+        }
+    }
+
     /// Build one backend-specific send-mmsg message list.
     pub(crate) fn send_mmsg_messages_value(
         &self,
@@ -631,10 +852,35 @@ impl<'call> NetHarnessContext<'call> {
         >,
     > {
         match self.vm_context_mut() {
-            Some(_) => Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.net.sendMmsg",
-            ))
-            .boxed()),
+            Some(context) => {
+                let mut entries = Vec::with_capacity(buffers.len());
+                for buffer in buffers {
+                    let payload = VmSlice::from_bytes(context, buffer);
+                    let message = SocketSendMessageVm {
+                        has_address: false,
+                        address: SocketAddressVm {
+                            family: 0,
+                            length: 0,
+                            bytes: VmArray::from_bytes(context, &[]),
+                        },
+                        fds: VmArray::from_values(context, &[])?,
+                        control: platform_net::SocketControlBufferAbi::<VmAbi>(
+                            VmArray::from_bytes(context, &[]),
+                        ),
+                        flags: SocketMessageFlags(send_flags),
+                        has_credentials: false,
+                        credentials: SocketCredentialsVm {
+                            pid: 0,
+                            uid: 0,
+                            gid: 0,
+                        },
+                    };
+                    entries.push(platform_net::SocketSendBatchEntryVm { payload, message });
+                }
+
+                let entries = VmSlice::from_values(context, &entries)?;
+                Ok(self.harness_value_vm(entries))
+            }
             None => {
                 let payloads = buffers
                     .iter()
@@ -694,10 +940,19 @@ impl<'call> NetHarnessContext<'call> {
         >,
     > {
         match self.vm_context_mut() {
-            Some(_) => Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.net.recvMmsg",
-            ))
-            .boxed()),
+            Some(context) => {
+                let mut requests = Vec::with_capacity(buffers.len());
+                for buffer in buffers.iter() {
+                    let payload = VmSlice::from_bytes(context, &vec![0u8; buffer.len()]);
+                    requests.push(platform_net::SocketRecvBatchRequestVm {
+                        payload,
+                        recv_flags: SocketMessageFlags(recv_flags),
+                    });
+                }
+
+                let requests = VmSlice::from_values(context, &requests)?;
+                Ok(self.harness_value_vm(requests))
+            }
             None => {
                 let payloads = buffers
                     .iter_mut()

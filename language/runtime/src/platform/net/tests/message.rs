@@ -111,11 +111,13 @@ fn test_net_mmsg_roundtrip() {
         // receive both chunks into fixed-size buffers
         let mut receive_buffers = vec![vec![0u8; 4], vec![0u8; 4]];
         let requests = context.recv_mmsg_requests_value(&mut receive_buffers, 0)?;
-        let counts = context.destack_net_recv_mmsg(server, requests, 0, false, 0)?;
+        let (requests_call, requests_decode) = context.duplicate_value(requests);
+        let counts = context.destack_net_recv_mmsg(server, requests_call, 0, false, 0)?;
         let counts = context.recv_mmsg_counts_from_value(counts)?;
+        let payloads = context.recv_mmsg_payloads_from_requests(requests_decode, &counts)?;
         assert_eq!(counts, vec![4, 4]);
-        assert_eq!(&receive_buffers[0], b"ping");
-        assert_eq!(&receive_buffers[1], b"pong");
+        assert_eq!(&payloads[0], b"ping");
+        assert_eq!(&payloads[1], b"pong");
 
         // close resources
         context.destack_net_close(server)?;
@@ -184,10 +186,99 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
         assert!(!payload_truncated);
         assert!(!control_truncated);
 
+        // connected sockets should not report an explicit source address
+        let recv_buffer = context.zeroed_bytes_slice_value(16)?;
+        let sent = context.destack_net_send_msg(
+            client,
+            context.bytes_slice_value(b"hello")?,
+            context.empty_send_message_value(0, false)?,
+        )?;
+        assert_eq!(sent, 5);
+        let receive = context.destack_net_recv_msg(
+            server,
+            recv_buffer,
+            SocketMessageFlags(0),
+            0,
+            false,
+            64,
+        )?;
+        let (has_address, control_len) = context.recv_message_meta(receive);
+        assert!(!has_address);
+        assert!(control_len <= 64);
+
         // close resources
         context.destack_net_close(server)?;
         context.destack_net_close(client)?;
         context.destack_net_close_listener(listener)?;
+
+        Ok(())
+    });
+}
+
+/// Send one datagram with sendmsg destination metadata and decode source address with recvmsg.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_sendmsg_recvmsg_datagram_address_roundtrip() {
+    with_harness_context(|mut context| {
+        // set up one bound server socket
+        let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+        context.destack_net_udp_bind(
+            server,
+            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+        )?;
+        let server_address = context.destack_net_local_address(server)?;
+        let (_host, port, _family) = context.socket_address_from_value(server_address)?;
+
+        // set up one unconnected client socket
+        let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
+
+        // send one datagram through sendmsg with explicit destination address
+        let destination = context.socket_address_value_for_host_port("127.0.0.1", port)?;
+        let message = context.send_message_value(destination, &[], 0, false)?;
+        let sent =
+            context.destack_net_send_msg(client, context.bytes_slice_value(b"hello")?, message)?;
+        assert_eq!(sent, 5);
+
+        // receive through recvmsg and decode source metadata
+        let recv_buffer = context.zeroed_bytes_slice_value(32)?;
+        let (recv_call, recv_decode) = context.duplicate_value(recv_buffer);
+        let receive = context.destack_net_recv_msg(
+            server,
+            recv_call,
+            SocketMessageFlags(0),
+            0,
+            false,
+            256,
+        )?;
+        let (receive_fields, receive_meta) = context.duplicate_value(receive);
+        let (receive_meta, receive_address) = context.duplicate_value(receive_meta);
+        let (bytes, fds, has_credentials, recv_flags, payload_truncated, control_truncated) =
+            context.recv_message_fields(receive_fields);
+        assert_eq!(bytes, 5);
+        assert_eq!(fds, 0);
+        assert!(!has_credentials);
+        assert_eq!(recv_flags, 0);
+        assert!(!payload_truncated);
+        assert!(!control_truncated);
+
+        // verify source-address and control metadata from recvmsg
+        let (has_address, control_len) = context.recv_message_meta(receive_meta);
+        assert!(has_address);
+        assert!(control_len <= 256);
+        let source = context
+            .recv_message_address(receive_address)
+            .expect("recvmsg should include source address for datagrams");
+        let (host, source_port, family) = context.socket_address_from_value(source)?;
+        assert_eq!(family, SocketFamily::IPv4);
+        assert_eq!(host, "127.0.0.1");
+        assert!(source_port > 0);
+
+        let payload = context.bytes_prefix_from_slice_value(recv_decode, bytes as usize)?;
+        assert_eq!(payload, b"hello");
+
+        // close sockets
+        context.destack_net_close(client)?;
+        context.destack_net_close(server)?;
 
         Ok(())
     });

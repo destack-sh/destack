@@ -3,8 +3,8 @@
 use std::mem;
 use windows_sys::Win32::Networking::WinSock::{
     LPFN_WSARECVMSG, MSG_CTRUNC, MSG_TRUNC, SIO_GET_EXTENSION_FUNCTION_POINTER, SOCKADDR,
-    SOCKADDR_STORAGE, SOCKET_ERROR, WSABUF, WSAEMSGSIZE, WSAID_WSARECVMSG, WSAIoctl, WSAMSG,
-    WSASendMsg, recv, recvfrom, send, sendto,
+    SOCKADDR_STORAGE, SOCKET_ERROR, WSABUF, WSAEINVAL, WSAEMSGSIZE, WSAENOPROTOOPT, WSAEOPNOTSUPP,
+    WSAID_WSARECVMSG, WSAIoctl, WSAMSG, WSASendMsg, recv, recvfrom, send, sendto,
 };
 
 use super::util::*;
@@ -38,19 +38,41 @@ fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {
         )
     };
     if rc != 0 {
-        return Err(last_net_error(
+        let error_code = core_platform::last_wsa_error_code();
+
+        // report unavailable extension providers as non-fatal fallback conditions
+        if error_code == WSAEINVAL || error_code == WSAEOPNOTSUPP || error_code == WSAENOPROTOOPT {
+            return Ok(None);
+        }
+
+        return Err(net_error_with_code(
             "WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)",
+            error_code,
         ));
     }
 
     // ensure the extension pointer is available
     if receive_message.is_none() {
-        return Err(
-            RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed(),
-        );
+        return Ok(None);
     }
 
     Ok(receive_message)
+}
+
+/// Cast one socket-flag bitfield to WinSock i32 flags.
+fn socket_flags_i32(flags: u32, label: &str) -> RuntimeResult<i32> {
+    i32::try_from(flags).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            label,
+            "flags out of range for winsock",
+        ))
+        .boxed()
+    })
+}
+
+/// Return whether one Winsock status reports unavailable message extensions.
+fn is_message_extension_not_supported(code: i32) -> bool {
+    code == WSAEINVAL || code == WSAEOPNOTSUPP || code == WSAENOPROTOOPT
 }
 
 /// Read from a socket into the provided slice.
@@ -282,7 +304,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     recv_flags: SocketMessageFlags,
     max_fds: u32,
     want_credentials: bool,
-    _max_control_bytes: u32,
+    max_control_bytes: u32,
 ) -> RuntimeResult<()> {
     // ensure the output pointer is valid
     if out.is_null() {
@@ -296,7 +318,6 @@ pub(crate) unsafe fn destack_net_recv_msg(
         );
     }
 
-    // reserve explicit control size support for future winsock paths
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
 
@@ -309,11 +330,98 @@ pub(crate) unsafe fn destack_net_recv_msg(
         ))
         .boxed()
     })?;
+    let socket_buffer_length = i32::try_from(buffer_len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "buffer",
+            "buffer too large for winsock",
+        ))
+        .boxed()
+    })?;
 
-    // resolve the recvmsg extension entrypoint
+    // resolve the recvmsg extension entrypoint when available
     let receive_message = receive_message_extension(socket)?;
+
+    // fall back to recvfrom when ancillary capture is not requested
+    if receive_message.is_none() && max_control_bytes == 0 {
+        let mut address = unsafe { std::mem::zeroed::<SOCKADDR_STORAGE>() };
+        let mut address_length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
+        let recv_flags_i32 = socket_flags_i32(recv_flags.0, "recvFlags")?;
+
+        let rc = unsafe {
+            recvfrom(
+                socket,
+                buffer.as_mut_ptr() as *mut _,
+                socket_buffer_length,
+                recv_flags_i32,
+                &mut address as *mut _ as *mut SOCKADDR,
+                &mut address_length,
+            )
+        };
+
+        let (bytes_received, payload_truncated) = if rc >= 0 {
+            (rc as u64, false)
+        } else {
+            let error_code = core_platform::last_wsa_error_code();
+            if error_code == WSAEMSGSIZE {
+                (buffer_len as u64, true)
+            } else {
+                return Err(last_net_error("recvfrom"));
+            }
+        };
+
+        let has_address = address_length > 0;
+        let address = if has_address {
+            socket_address_raw_from_storage(context, &address, address_length)?
+        } else {
+            SocketAddress {
+                family: 0,
+                length: 0,
+                bytes: context.store_array(Vec::new()),
+            }
+        };
+        let recv_flags_value = if payload_truncated {
+            SocketMessageFlags(recv_flags.0 | MSG_TRUNC)
+        } else {
+            recv_flags
+        };
+        let empty_control = context.store_array(Vec::<u8>::new());
+        let empty_fds = context.store_array(Vec::<TransferredHandle>::new());
+        unsafe {
+            *out = SocketRecvMessage {
+                bytes: bytes_received,
+                has_address,
+                address,
+                recv_flags: recv_flags_value,
+                payload_truncated,
+                control_truncated: false,
+                control: SocketControlBufferAbi(empty_control),
+                fds: empty_fds,
+                has_credentials: false,
+                credentials: SocketCredentials {
+                    pid: 0,
+                    uid: 0,
+                    gid: 0,
+                },
+            };
+        }
+
+        return Ok(());
+    }
+
+    // reject ancillary-only calls when recvmsg extension is unavailable
     let receive_message = receive_message.ok_or_else(|| {
         RuntimeError::from(PlatformError::not_supported("destack.net.recvMsg")).boxed()
+    })?;
+
+    // allocate source-address and control storage
+    let mut address = unsafe { std::mem::zeroed::<SOCKADDR_STORAGE>() };
+    let mut control = vec![0u8; max_control_bytes as usize];
+    let control_len = u32::try_from(control.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "maxControlBytes",
+            "control buffer too large",
+        ))
+        .boxed()
     })?;
 
     // prepare the winsock message payload
@@ -322,13 +430,17 @@ pub(crate) unsafe fn destack_net_recv_msg(
         buf: buffer.as_mut_ptr(),
     };
     let mut message = WSAMSG {
-        name: std::ptr::null_mut(),
-        namelen: 0,
+        name: &mut address as *mut _ as *mut SOCKADDR,
+        namelen: std::mem::size_of::<SOCKADDR_STORAGE>() as i32,
         lpBuffers: &mut data,
         dwBufferCount: 1,
         Control: WSABUF {
-            len: 0,
-            buf: std::ptr::null_mut(),
+            len: control_len,
+            buf: if control.is_empty() {
+                std::ptr::null_mut()
+            } else {
+                control.as_mut_ptr()
+            },
         },
         dwFlags: recv_flags.0,
     };
@@ -354,13 +466,21 @@ pub(crate) unsafe fn destack_net_recv_msg(
         }
     }
 
-    // build an empty ancillary payload
-    let address = SocketAddress {
-        family: 0,
-        length: 0,
-        bytes: context.store_array(Vec::new()),
+    // decode source-address payload
+    let has_address = message.namelen > 0;
+    let address = if has_address {
+        socket_address_raw_from_storage(context, &address, message.namelen)?
+    } else {
+        SocketAddress {
+            family: 0,
+            length: 0,
+            bytes: context.store_array(Vec::new()),
+        }
     };
-    let control = context.store_array(Vec::new());
+
+    // decode raw ancillary payload
+    let control_len = (message.Control.len as usize).min(control.len());
+    let control = context.store_array(control[..control_len].to_vec());
     let fds: Vec<TransferredHandle> = Vec::new();
     let fds = context.store_array(fds);
 
@@ -375,7 +495,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     unsafe {
         *out = SocketRecvMessage {
             bytes: bytes_received as u64,
-            has_address: false,
+            has_address,
             address,
             recv_flags,
             payload_truncated,
@@ -494,6 +614,16 @@ pub(crate) unsafe fn destack_net_send_msg(
         );
     }
 
+    // decode raw control bytes
+    let control = unsafe { message.control.0.as_slice()? };
+    let control_len = u32::try_from(control.len()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "message.control",
+            "control buffer too large",
+        ))
+        .boxed()
+    })?;
+
     // resolve the socket descriptor
     let socket = socket_descriptor(context, handle)?;
 
@@ -506,38 +636,131 @@ pub(crate) unsafe fn destack_net_send_msg(
         ))
         .boxed()
     })?;
+    let socket_buffer_length = i32::try_from(buffer_len).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "buffer",
+            "buffer too large for winsock",
+        ))
+        .boxed()
+    })?;
+
+    // use send or sendto when no ancillary control payload is present
+    if control.is_empty() {
+        let flags = socket_flags_i32(message.flags.0, "message.flags")?;
+        let bytes_sent = if message.has_address {
+            with_socket_address_raw(message.address, |sockaddr, length| {
+                let rc = unsafe {
+                    sendto(
+                        socket,
+                        buffer.as_ptr() as *const _,
+                        socket_buffer_length,
+                        flags,
+                        sockaddr,
+                        length,
+                    )
+                };
+                if rc == SOCKET_ERROR {
+                    return Err(last_net_error("sendto"));
+                }
+
+                Ok(rc as u64)
+            })?
+        } else {
+            let rc = unsafe {
+                send(
+                    socket,
+                    buffer.as_ptr() as *const _,
+                    socket_buffer_length,
+                    flags,
+                )
+            };
+            if rc == SOCKET_ERROR {
+                return Err(last_net_error("send"));
+            }
+            rc as u64
+        };
+
+        unsafe {
+            *out = bytes_sent;
+        }
+
+        return Ok(());
+    }
 
     // prepare the winsock message payload
     let mut data = WSABUF {
         len: buffer_len,
         buf: buffer.as_ptr() as *mut _,
     };
-    let send_message = WSAMSG {
+    let mut send_message = WSAMSG {
         name: std::ptr::null_mut(),
         namelen: 0,
         lpBuffers: &mut data,
         dwBufferCount: 1,
         Control: WSABUF {
-            len: 0,
-            buf: std::ptr::null_mut(),
+            len: control_len,
+            buf: if control.is_empty() {
+                std::ptr::null_mut()
+            } else {
+                control.as_ptr() as *mut u8
+            },
         },
         dwFlags: 0,
     };
     let mut bytes_sent = 0u32;
 
-    // send payload bytes
-    let rc = unsafe {
-        WSASendMsg(
-            socket,
-            &send_message,
-            message.flags.0,
-            &mut bytes_sent,
-            std::ptr::null_mut(),
-            None,
-        )
-    };
-    if rc == SOCKET_ERROR {
-        return Err(last_net_error("WSASendMsg"));
+    // send payload bytes with optional explicit destination
+    if message.has_address {
+        with_socket_address_raw(message.address, |sockaddr, length| {
+            send_message.name = sockaddr as *mut SOCKADDR;
+            send_message.namelen = length;
+
+            let rc = unsafe {
+                WSASendMsg(
+                    socket,
+                    &send_message,
+                    message.flags.0,
+                    &mut bytes_sent,
+                    std::ptr::null_mut(),
+                    None,
+                )
+            };
+            if rc == SOCKET_ERROR {
+                let error_code = core_platform::last_wsa_error_code();
+                if is_message_extension_not_supported(error_code) {
+                    return Err(RuntimeError::from(PlatformError::not_supported(
+                        "destack.net.sendMsg",
+                    ))
+                    .boxed());
+                }
+
+                return Err(net_error_with_code("WSASendMsg", error_code));
+            }
+
+            Ok(())
+        })?;
+    } else {
+        let rc = unsafe {
+            WSASendMsg(
+                socket,
+                &send_message,
+                message.flags.0,
+                &mut bytes_sent,
+                std::ptr::null_mut(),
+                None,
+            )
+        };
+        if rc == SOCKET_ERROR {
+            let error_code = core_platform::last_wsa_error_code();
+            if is_message_extension_not_supported(error_code) {
+                return Err(RuntimeError::from(PlatformError::not_supported(
+                    "destack.net.sendMsg",
+                ))
+                .boxed());
+            }
+
+            return Err(net_error_with_code("WSASendMsg", error_code));
+        }
     }
 
     // write the output count

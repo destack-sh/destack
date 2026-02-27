@@ -527,8 +527,8 @@ impl<'call> NetHarnessContext<'call> {
     /// Mark value interpretation is host-network-stack specific.
     ///
     /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    /// Unix only.
+    /// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -1000,8 +1000,8 @@ impl<'call> NetHarnessContext<'call> {
     /// Mark interpretation is host-network-stack specific.
     ///
     /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    /// Unix only.
+    /// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -1300,7 +1300,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
+    /// Uses PACKET_FANOUT reset on Linux and returns `notSupported` where fanout groups are unavailable.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1331,7 +1333,10 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
+    /// Uses SO_DETACH_FILTER on Linux and BIOCSETF reset on macOS.
+    /// Returns `notSupported` on Unix targets without packet-filter backends.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1362,7 +1367,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
+    /// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns `notSupported` elsewhere.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1386,12 +1393,17 @@ impl<'call> NetHarnessContext<'call> {
 
     /// Open a packet capture or inject endpoint.
     ///
-    /// Opens a link-layer packet endpoint for packet capture and injection.
+    /// Opens one host packet endpoint for packet capture and injection.
+    /// Frame shape and metadata are backend specific.
     /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
+    /// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
+    /// Returns `notSupported` on Unix targets without a packet backend.
+    /// Uses one configured host packet backend on Windows.
+    /// Current Windows backend uses raw IPv4 sockets with `SIO_RCVALL`, payloads are IP packets rather than Ethernet frames.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1434,7 +1446,11 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
+    /// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
+    /// Returns `notSupported` on Unix targets without a packet backend.
+    /// Uses one configured host packet backend on Windows.
+    /// Current Windows backend reads raw IPv4 packets from `SOCK_RAW` capture lanes.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1484,7 +1500,11 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
+    /// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
+    /// Returns `notSupported` on Unix targets without a packet backend.
+    /// Uses one configured host packet backend on Windows.
+    /// Current Windows backend sends raw IPv4 packets through `SOCK_RAW`.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1534,7 +1554,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
+    /// Uses PACKET_FANOUT on Linux and returns `notSupported` where fanout groups are unavailable.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1570,7 +1592,10 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
+    /// Uses SO_ATTACH_FILTER on Linux and BIOCSETF on macOS.
+    /// Returns `notSupported` on Unix targets without packet-filter backends.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1615,7 +1640,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
+    /// Uses PACKET_RX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1651,7 +1678,10 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
+    /// Uses SO_TIMESTAMP families on Linux and BPF timestamp lanes on macOS.
+    /// Returns `notSupported` on Unix targets without timestamp-capable packet backends.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1686,7 +1716,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
+    /// Uses PACKET_TX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1722,7 +1754,10 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
+    /// Uses packet socket stats on Linux and BPF stats on macOS.
+    /// Returns `notSupported` on Unix targets without packet stats backends.
+    /// Uses one configured host packet backend on Windows.
+    /// Returns `notSupported` on Windows when no packet backend is configured.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -2074,7 +2109,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+    /// Uses netlink route mutation on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2107,7 +2144,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+    /// Uses netlink route mutation on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -2140,7 +2179,9 @@ impl<'call> NetHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
+    /// Uses netlink route tables on Linux and route sockets on macOS.
+    /// Returns `notSupported` on Unix targets without a route backend.
+    /// Uses iphlpapi route tables on Windows.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.

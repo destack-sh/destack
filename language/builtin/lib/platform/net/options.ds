@@ -401,8 +401,8 @@ declare namespace net {
     /// Mark interpretation is host-network-stack specific.
     ///
     /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    /// Unix only.
+    /// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -412,7 +412,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.setPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "host", blocking: "never" })
+    @binding("destack.net.options.setPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], scope: "host", blocking: "never" })
     export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>;
 
     /// Read socket packet mark.
@@ -421,8 +421,8 @@ declare namespace net {
     /// Mark value interpretation is host-network-stack specific.
     ///
     /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+    /// Unix only.
+    /// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
     ///
     /// # Errors
     /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -432,7 +432,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.options.getPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["windows", "unix"], scope: "host", blocking: "never" })
+    @binding("destack.net.options.getPacketMark", { effect: "external", replay: "recordable", capabilities: ["net.control"], platforms: ["unix"], scope: "host", blocking: "never" })
     export function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>;
 
     /// Read the read timeout in milliseconds.

@@ -412,8 +412,8 @@ pub(crate) unsafe fn destack_net_get_only_v6(
 /// Mark value interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -769,8 +769,8 @@ pub(crate) unsafe fn destack_net_set_only_v6(
 /// Mark interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
+/// Unix only.
+/// Uses SO_MARK on Linux and returns `notSupported` on Unix targets without socket-mark support.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
@@ -1036,7 +1036,9 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT reset on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1063,7 +1065,10 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_DETACH_FILTER on Linux and BIOCSETF reset on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1090,7 +1095,9 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
+/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns `notSupported` elsewhere.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1117,7 +1124,10 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
+/// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1144,7 +1154,10 @@ pub(crate) unsafe fn destack_net_packet_open(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
+/// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1175,7 +1188,10 @@ pub(crate) unsafe fn destack_net_packet_receive(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
+/// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
+/// Returns `notSupported` on Unix targets without a packet backend.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1203,7 +1219,9 @@ pub(crate) unsafe fn destack_net_packet_send(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
+/// Uses PACKET_FANOUT on Linux and returns `notSupported` where fanout groups are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1233,7 +1251,10 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
+/// Uses SO_ATTACH_FILTER on Linux and BIOCSETF on macOS.
+/// Returns `notSupported` on Unix targets without packet-filter backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1263,7 +1284,9 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_RX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1293,7 +1316,10 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
+/// Uses SO_TIMESTAMP families on Linux and BPF timestamp lanes on macOS.
+/// Returns `notSupported` on Unix targets without timestamp-capable packet backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1323,7 +1349,9 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
+/// Uses PACKET_TX_RING on Linux and returns `notSupported` where packet rings are unavailable.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1353,7 +1381,10 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
+/// Uses packet socket stats on Linux and BPF stats on macOS.
+/// Returns `notSupported` on Unix targets without packet stats backends.
+/// Uses one configured host packet backend on Windows.
+/// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
@@ -1779,7 +1810,9 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1803,7 +1836,9 @@ pub(crate) unsafe fn destack_net_route_add(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
+/// Uses netlink route mutation on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -1827,7 +1862,9 @@ pub(crate) unsafe fn destack_net_route_delete(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
+/// Uses netlink route tables on Linux and route sockets on macOS.
+/// Returns `notSupported` on Unix targets without a route backend.
+/// Uses iphlpapi route tables on Windows.
 ///
 /// # Errors
 /// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.

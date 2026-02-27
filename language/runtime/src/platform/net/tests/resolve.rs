@@ -91,3 +91,65 @@ fn test_net_reverse_lookup_localhost() {
         Ok(())
     });
 }
+
+/// Reverse-lookup numeric host and service fields when numeric flags are enabled.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_reverse_lookup_numeric_host_and_service() {
+    with_harness_context(|mut context| {
+        // construct one numeric loopback address with a fixed service port
+        let address = context.socket_address_value_for_host_port("127.0.0.1", 80)?;
+
+        // request numeric host and numeric service rendering
+        let flags = ReverseLookupFlags(0x1 | 0x2);
+        let records = context
+            .destack_net_reverse_lookup(address, flags)
+            .and_then(|value| context.reverse_lookup_records_from_value(value));
+
+        // assert numeric host and service output or accepted capability failures
+        match records {
+            Ok(records) => {
+                assert!(!records.is_empty(), "reverse lookup should return records");
+                let (host, service) = &records[0];
+                assert_eq!(host, "127.0.0.1");
+                assert_eq!(service, "80");
+            }
+            Err(error) => {
+                assert_platform_error_codes::<()>(
+                    Err(error),
+                    &[
+                        PlatformErrorCode::NotSupported,
+                        PlatformErrorCode::InvalidArgumentValue,
+                        PlatformErrorCode::NetDnsFailed,
+                    ],
+                )?;
+            }
+        }
+
+        Ok(())
+    });
+}
+
+/// Reject unknown reverse-lookup flag bits.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_net_reverse_lookup_rejects_unknown_flag_bits() {
+    with_harness_context(|mut context| {
+        // construct one numeric loopback address for reverse lookup
+        let address = context.socket_address_value_for_host_port("127.0.0.1", 80)?;
+
+        // pass one undefined flag bit
+        assert_platform_error_codes::<()>(
+            context
+                .destack_net_reverse_lookup(address, ReverseLookupFlags(1 << 31))
+                .and_then(|value| context.reverse_lookup_names_from_value(value))
+                .map(|_| ()),
+            &[
+                PlatformErrorCode::InvalidArgumentValue,
+                PlatformErrorCode::NotSupported,
+            ],
+        )?;
+
+        Ok(())
+    });
+}

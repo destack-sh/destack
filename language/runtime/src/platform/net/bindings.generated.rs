@@ -4908,7 +4908,6 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
         "netbsd",
         "openbsd",
         "solaris",
-        "windows",
     ]);
 
 /// Binding descriptor for destack.net.options.getReadTimeout.
@@ -5137,7 +5136,7 @@ pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::ex
     BindingScope::Host,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
 pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(

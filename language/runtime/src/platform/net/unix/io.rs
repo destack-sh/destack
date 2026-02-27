@@ -357,6 +357,9 @@ pub(crate) unsafe fn destack_net_recv_msg(
         iov_len: buffer.len(),
     };
 
+    // reserve source-address storage for recvmsg
+    let mut address_storage = std::mem::MaybeUninit::<libc::sockaddr_storage>::zeroed();
+
     // compute control buffer length
     let mut control_len = 0usize;
     if max_fds > 0 {
@@ -386,9 +389,14 @@ pub(crate) unsafe fn destack_net_recv_msg(
         } as usize);
     }
 
-    // cap control extraction to caller budget
+    // apply caller control-budget semantics
     if max_control_bytes > 0 {
-        control_len = control_len.min(max_control_bytes as usize);
+        let budget = max_control_bytes as usize;
+        if control_len == 0 {
+            control_len = budget;
+        } else {
+            control_len = control_len.min(budget);
+        }
     }
 
     // allocate the control buffer
@@ -396,6 +404,8 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // build the message header
     let mut message: libc::msghdr = unsafe { std::mem::zeroed() };
+    message.msg_name = address_storage.as_mut_ptr() as *mut libc::c_void;
+    message.msg_namelen = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
     message.msg_iov = &mut iovec;
     message.msg_iovlen = 1;
     if !control.is_empty() {
@@ -484,14 +494,30 @@ pub(crate) unsafe fn destack_net_recv_msg(
         credentials = Some(peer_socket_credentials(fd)?);
     }
 
+    // decode source address payload
+    let has_address = message.msg_namelen > 0;
+    let address = if has_address {
+        let storage = unsafe { address_storage.assume_init() };
+        socket_address_raw_from_storage(context, &storage, message.msg_namelen)?
+    } else {
+        SocketAddress {
+            family: 0,
+            length: 0,
+            bytes: context.store_array(Vec::new()),
+        }
+    };
+
+    // decode raw control payload bytes
+    let control_len = (message.msg_controllen as usize).min(control.len());
+    let control_bytes = if control_len == 0 {
+        Vec::new()
+    } else {
+        control[..control_len].to_vec()
+    };
+    let control = context.store_array(control_bytes);
+
     // build the response payload
     let fds = context.store_array(handles);
-    let control = context.store_array(Vec::<u8>::new());
-    let address = SocketAddress {
-        family: 0,
-        length: 0,
-        bytes: context.store_array(Vec::new()),
-    };
     let has_credentials = credentials.is_some();
     let credentials = if let Some(credentials) = credentials {
         credentials
@@ -505,7 +531,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
     unsafe {
         *out = SocketRecvMessage {
             bytes: rc as u64,
-            has_address: false,
+            has_address,
             address,
             recv_flags,
             payload_truncated,
@@ -560,6 +586,16 @@ pub(crate) unsafe fn destack_net_send_msg(
         raw_fds.push(transferable_descriptor(context, *handle)?);
     }
 
+    // decode raw control bytes
+    let raw_control = unsafe { message.control.0.as_slice()? };
+    if !raw_control.is_empty() && (!raw_fds.is_empty() || message.has_credentials) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "message.control",
+            "raw control cannot be combined with fds or explicit credentials",
+        ))
+        .boxed());
+    }
+
     // validate credentials support
     if message.has_credentials {
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -585,9 +621,11 @@ pub(crate) unsafe fn destack_net_send_msg(
         iov_len: buffer.len(),
     };
 
-    // compute control buffer length
-    let mut control_len = 0usize;
-    if !raw_fds.is_empty() {
+    // compute typed control buffer length
+    let mut typed_control_len = 0usize;
+    if !raw_control.is_empty() {
+        typed_control_len = raw_control.len();
+    } else if !raw_fds.is_empty() {
         let fd_bytes = raw_fds
             .len()
             .checked_mul(std::mem::size_of::<RawFd>())
@@ -605,18 +643,21 @@ pub(crate) unsafe fn destack_net_send_msg(
             ))
             .boxed());
         }
-        control_len =
-            control_len.saturating_add(unsafe { libc::CMSG_SPACE(fd_bytes as u32) } as usize);
+        typed_control_len =
+            typed_control_len.saturating_add(unsafe { libc::CMSG_SPACE(fd_bytes as u32) } as usize);
     }
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    if message.has_credentials {
-        control_len = control_len.saturating_add(unsafe {
+    if raw_control.is_empty() && message.has_credentials {
+        typed_control_len = typed_control_len.saturating_add(unsafe {
             libc::CMSG_SPACE(std::mem::size_of::<libc::ucred>() as u32)
         } as usize);
     }
 
     // allocate the control buffer
-    let mut control = vec![0u8; control_len];
+    let mut control = vec![0u8; typed_control_len];
+    if !raw_control.is_empty() {
+        control.copy_from_slice(raw_control);
+    }
 
     // build the message header
     let mut hdr: libc::msghdr = unsafe { std::mem::zeroed() };
@@ -635,59 +676,79 @@ pub(crate) unsafe fn destack_net_send_msg(
         hdr.msg_controllen = control_len as _;
     }
 
-    // fill control messages
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
-    if !raw_fds.is_empty() {
-        let header = unsafe { &mut *cmsg };
-        header.cmsg_level = libc::SOL_SOCKET;
-        header.cmsg_type = libc::SCM_RIGHTS;
-        let cmsg_len =
-            unsafe { libc::CMSG_LEN((raw_fds.len() * std::mem::size_of::<RawFd>()) as u32) }
-                as usize;
-        header.cmsg_len = cmsg_len as _;
-        let data = unsafe { libc::CMSG_DATA(cmsg) as *mut RawFd };
-        unsafe {
-            std::ptr::copy_nonoverlapping(raw_fds.as_ptr(), data, raw_fds.len());
-        }
+    // fill typed control messages when raw control is absent
+    if raw_control.is_empty() {
         #[cfg(any(target_os = "linux", target_os = "android"))]
-        {
-            cmsg = unsafe { libc::CMSG_NXTHDR(&hdr, cmsg) };
-        }
+        let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
-        {
-            let _ = cmsg;
+        let cmsg = unsafe { libc::CMSG_FIRSTHDR(&hdr) };
+        if !raw_fds.is_empty() {
+            let header = unsafe { &mut *cmsg };
+            header.cmsg_level = libc::SOL_SOCKET;
+            header.cmsg_type = libc::SCM_RIGHTS;
+            let cmsg_len =
+                unsafe { libc::CMSG_LEN((raw_fds.len() * std::mem::size_of::<RawFd>()) as u32) }
+                    as usize;
+            header.cmsg_len = cmsg_len as _;
+            let data = unsafe { libc::CMSG_DATA(cmsg) as *mut RawFd };
+            unsafe {
+                std::ptr::copy_nonoverlapping(raw_fds.as_ptr(), data, raw_fds.len());
+            }
+            #[cfg(any(target_os = "linux", target_os = "android"))]
+            {
+                cmsg = unsafe { libc::CMSG_NXTHDR(&hdr, cmsg) };
+            }
+            #[cfg(not(any(target_os = "linux", target_os = "android")))]
+            {
+                let _ = cmsg;
+            }
+        }
+
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        if message.has_credentials {
+            if cmsg.is_null() {
+                return Err(
+                    RuntimeError::from(PlatformError::io("missing control buffer")).boxed(),
+                );
+            }
+            let header = unsafe { &mut *cmsg };
+            header.cmsg_level = libc::SOL_SOCKET;
+            header.cmsg_type = libc::SCM_CREDENTIALS;
+            let cmsg_len =
+                unsafe { libc::CMSG_LEN(std::mem::size_of::<libc::ucred>() as u32) } as usize;
+            header.cmsg_len = cmsg_len as _;
+            let data = unsafe { libc::CMSG_DATA(cmsg) as *mut libc::ucred };
+            unsafe {
+                *data = libc::ucred {
+                    pid: message.credentials.pid as libc::pid_t,
+                    uid: message.credentials.uid,
+                    gid: message.credentials.gid,
+                };
+            }
         }
     }
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    if message.has_credentials {
-        if cmsg.is_null() {
-            return Err(RuntimeError::from(PlatformError::io("missing control buffer")).boxed());
-        }
-        let header = unsafe { &mut *cmsg };
-        header.cmsg_level = libc::SOL_SOCKET;
-        header.cmsg_type = libc::SCM_CREDENTIALS;
-        let cmsg_len =
-            unsafe { libc::CMSG_LEN(std::mem::size_of::<libc::ucred>() as u32) } as usize;
-        header.cmsg_len = cmsg_len as _;
-        let data = unsafe { libc::CMSG_DATA(cmsg) as *mut libc::ucred };
-        unsafe {
-            *data = libc::ucred {
-                pid: message.credentials.pid as libc::pid_t,
-                uid: message.credentials.uid,
-                gid: message.credentials.gid,
-            };
-        }
-    }
+    // send the message with optional explicit address routing
+    let rc = if message.has_address {
+        with_socket_address_raw(message.address, |sockaddr, length| {
+            hdr.msg_name = sockaddr as *mut libc::c_void;
+            hdr.msg_namelen = length;
 
-    // send the message
-    let rc = unsafe { libc::sendmsg(fd, &hdr, message.flags.0 as libc::c_int) };
-    if rc < 0 {
-        return Err(core_platform::net_error("sendmsg"));
-    }
+            let rc = unsafe { libc::sendmsg(fd, &hdr, message.flags.0 as libc::c_int) };
+            if rc < 0 {
+                return Err(core_platform::net_error("sendmsg"));
+            }
+
+            Ok(rc)
+        })?
+    } else {
+        let rc = unsafe { libc::sendmsg(fd, &hdr, message.flags.0 as libc::c_int) };
+        if rc < 0 {
+            return Err(core_platform::net_error("sendmsg"));
+        }
+
+        rc
+    };
 
     unsafe {
         *out = rc as u64;
