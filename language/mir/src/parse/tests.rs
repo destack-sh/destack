@@ -75,7 +75,7 @@ fn test_roundtrip_item_attributes() {
         r#"#[packed]
 type @Point = { #[offset(0)] x: i32, #[offset(4)] y: i32 }
 #[section(".rodata")]
-global @Count: i32 = 1i32 ; const
+global @Count: i32 = 1i32 ; readonly
 function @usePoint(v0: @Point) -> i32 {
 block0(v0: @Point):
     v1: i32 = field.get v0, 0
@@ -366,7 +366,7 @@ block0:
 #[test]
 fn test_roundtrip_string_constant() {
     roundtrip(
-        r#"global @literal:string:hello_world: ref<managed void> = "hello world" ; const
+        r#"global @literal:string:hello_world: ref<managed void> = "hello world" ; readonly
 function @stringTest() -> void {
 block0:
     v0: ref<managed void> = global.const @literal:string:hello_world
@@ -378,7 +378,7 @@ block0:
 #[test]
 fn test_roundtrip_string_with_escapes() {
     roundtrip(
-        r#"global @literal:string:hello_world_nl: ref<managed void> = "hello\nworld" ; const
+        r#"global @literal:string:hello_world_nl: ref<managed void> = "hello\nworld" ; readonly
 function @escapeTest() -> void {
 block0:
     v0: ref<managed void> = global.const @literal:string:hello_world_nl

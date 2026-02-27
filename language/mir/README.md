@@ -10,16 +10,18 @@ Our MIR is a pretty standard low-level IR with _some_ extras:
 2. **Value-semantic aggregate operations** (like LLVM, Swift SIL) for constructing and destructuring
 3. **Memory-semantic aggregate operations** (like Cranelift) for pointer-based access
 
-Admittedly, compared to some other "MIR"s in related compilers, our MIR is still somewhat high-level, but it's not _as_ high-level as DIR and it's actually executable efficiently so we'll just call it low-level. 
+Admittedly, compared to some other "MIR-level" IR in related compilers, this MIR is still somewhat high-level, but it's not _as_ high-level as DIR is and it's actually executable efficiently so we'll just call it low-level and move on. 
 
 ## Blocks and Values
 
 MIR uses single static assignment form (SSA) with block parameters, quite similar to what MLIR, Cranelift, and Swift's SIL do.
-Unlike most IRs, our SSA values are explicitly typed at their definition site in MIR text, which we found to be significantly easier to review and even slightly easier to implement (for parsing and validating handwritten test cases).
+(As a reminder, SSA means that every `vn` value is assigned exactly once. That's it.)
+Unlike most IRs, our SSA values are explicitly typed at their definition site in MIR text, which we found to be significantly easier to review and even slightly easier to implement.
+It's all the same in the main logic though.
 
 ### Blocks
 
-Functions introduce 0-n parameters which are passed to `block0`, each block has 0-n parameters and 0-n instructions with one terminator.
+Functions introduce `v0`-`vn` parameters which are passed to the first block, `block0`, each block has 0-n parameters and 0-n instructions with one terminator.
 Blocks are the basic control flow units with:
  - a single entry point with a list of parameters (typed SSA values)
  - a list of instructions
@@ -82,6 +84,22 @@ Each instruction defines at most one `Value`.
 | Allocation | `managed.alloc`, `managed.alloc_array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
 
+### Terminators
+
+Blocks end with a terminator that transfers control:
+
+| Terminator | Description |
+|------------|-------------|
+| `return` | Return from function |
+| `jump` | Unconditional branch |
+| `branch` | Conditional branch (if-then-else) |
+| `switch` | Multi-way branch on integer |
+| `yield` | Suspend coroutine (generators, async) |
+| `check` | Checked branch with semantic constraint |
+| `unreachable` | UB if reached (traps/panics somehow) |
+
+`check` carries a semantic constraint (bounds, null, division, shift, overflow, etc.) and splits control flow into success and failure paths.
+
 ### Memory
 
 `field.get/set` and `element.get/set` operate on aggregate values.
@@ -135,22 +153,6 @@ Layout tables live in MIR metadata, not in the MIR text format.
 The layout table stores concrete size, alignment, and field offsets for aggregate types.
 The layout table is the single source of truth for physical layout across optimizer, VM, and codegen.
 Union metadata describes logical union semantics, while the layout table describes physical offsets.
-
-### Terminators
-
-Blocks end with a terminator that transfers control:
-
-| Terminator | Description |
-|------------|-------------|
-| `return` | Return from function |
-| `jump` | Unconditional branch |
-| `branch` | Conditional branch (if-then-else) |
-| `switch` | Multi-way branch on integer |
-| `yield` | Suspend coroutine (generators, async) |
-| `check` | Checked branch with semantic constraint |
-| `unreachable` | UB if reached (traps/panics somehow) |
-
-`check` carries a semantic constraint (bounds, null, division, shift, overflow, etc.) and splits control flow into success and failure paths.
 
 ## Intrinsics
 
