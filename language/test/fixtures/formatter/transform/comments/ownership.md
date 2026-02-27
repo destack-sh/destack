@@ -81,6 +81,31 @@ type Value =
     | number;
 ```
 
+### leading pipe union line comment
+
+Leading-pipe union comments stay on the same declaration value.
+
+```ts:main.ts line-width=20
+type A2 =
+  | A
+  | B
+
+type A3 =
+  | // keep-leading-union
+  C
+  |
+  D;
+```
+
+```ts expected
+type A2 = A | B;
+
+type A3 =
+    | // keep-leading-union
+    C
+    | D;
+```
+
 ### union arm block comment
 
 Block comments between union arms are preserved in place.
@@ -110,8 +135,7 @@ export type Value = /** keep-doc
 export type Value =
     /** keep-doc
      */
-    | { ok: true }
-    | { ok: false; value: bigint | null };
+    { ok: true } | { ok: false; value: bigint | null };
 ```
 
 ## Variable Declarations

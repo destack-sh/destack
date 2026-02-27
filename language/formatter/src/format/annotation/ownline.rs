@@ -12,7 +12,7 @@ use super::boundary::{
     previous_non_newline_token_index,
 };
 use super::ownership::{
-    find_smallest_owner_enclosing_token, is_block_like_owner,
+    find_preferred_owner_starting_at, find_smallest_owner_enclosing_token, is_block_like_owner,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
     promote_owner_by_shared_start, promote_owner_to_nearest_statement_boundary,
     promote_owner_to_node_type_ancestor,
@@ -76,6 +76,28 @@ fn preceding_owner_with_token_fallback(
             .and_then(|token_index| context.semantic_tokens.get(token_index))
             .and_then(|token| find_smallest_owner_enclosing_token(context.tree, token.span))
     })
+}
+
+/// Return the next non-newline semantic token type after one seam comment.
+fn next_non_newline_token_type_after_seam_comment(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> Option<TokenType> {
+    if seam
+        .token_after_type
+        .is_some_and(|token_type| token_type != TokenType::Newline)
+    {
+        return seam.token_after_type;
+    }
+
+    let token_after_index = context.token_after?;
+    for token in context.semantic_tokens.iter().skip(token_after_index) {
+        if token.token.ty != TokenType::Newline {
+            return Some(token.token.ty);
+        }
+    }
+
+    None
 }
 
 /// Handle own-line comments before nested else seams.
@@ -234,6 +256,18 @@ fn attach_separator_or_closer_comment(
     preceding_owner: Option<u32>,
     token_before_span: Option<Span>,
 ) -> Option<CommentAttachment> {
+    if seam.token_after_is(TokenType::Dot) {
+        return None;
+    }
+
+    let token_after_is_elementwise_operator = matches!(
+        seam.token_after_type,
+        Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
+    );
+    if token_after_is_elementwise_operator {
+        return None;
+    }
+
     if seam.token_after_prefers_preceding
         && let Some(target_node) = preceding_owner
     {
@@ -272,6 +306,35 @@ fn attach_separator_or_closer_comment(
     }
 
     None
+}
+
+/// Attach own-line comments before member dots to the following member segment.
+fn attach_before_member_dot_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    token_before_span: Option<Span>,
+) -> Option<CommentAttachment> {
+    let token_after_is_dot =
+        next_non_newline_token_type_after_seam_comment(context, seam) == Some(TokenType::Dot);
+    if !seam.comment_is_line || !token_after_is_dot {
+        return None;
+    }
+
+    if seam.token_before_is(TokenType::Comma) || seam.token_before_is(TokenType::OpenBrace) {
+        return None;
+    }
+
+    let target_owner = token_before_span
+        .and_then(|span| find_preferred_owner_starting_at(tree, span))
+        .or(preceding_owner)?;
+    let target_owner =
+        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }
 
 /// Attach own-line line comments before leading statement semicolons to the following statement.
@@ -396,6 +459,18 @@ pub(crate) fn attach_own_line_comment(
         seam,
         following_owner,
         token_after_span,
+    ) {
+        return Some(attachment);
+    }
+
+    // member-dot prefix ownership
+    if let Some(attachment) = attach_before_member_dot_comment(
+        tree,
+        parents,
+        context,
+        seam,
+        preceding_owner,
+        token_before_span,
     ) {
         return Some(attachment);
     }

@@ -1,6 +1,6 @@
 use destack_ast::{
     AnnotationPosition, Block, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
-    TokenType, WhileKind,
+    TokenSpan, TokenType, WhileKind,
 };
 
 use super::boundary::{
@@ -32,6 +32,26 @@ fn normalize_parameter_or_argument_owner(
 fn normalize_argument_owner(tree: &NodeTree, parents: &NodeParentIndex, owner_id: u32) -> u32 {
     promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Argument)
         .unwrap_or(owner_id)
+}
+
+/// Return whether one owner token sits inside one decorator expression ancestry.
+fn seam_follows_decorator_head(context: &CommentSeamContext<'_>) -> bool {
+    let Some(mut token_index) = context.token_before else {
+        return false;
+    };
+
+    loop {
+        let token_type = context.semantic_tokens[token_index].token.ty;
+        if token_type == TokenType::At {
+            return true;
+        }
+
+        if token_type == TokenType::Newline || token_index == 0 {
+            return false;
+        }
+
+        token_index -= 1;
+    }
 }
 
 /// Resolve one else-body owner for comments between `else` and its body.
@@ -142,26 +162,10 @@ fn promote_owner_to_control_head_expression_ancestor(
 }
 
 /// Resolve one comment after a control-head `)` target.
-fn control_head_comment_target(
+fn control_head_comment_attachment_for_expression(
     tree: &NodeTree,
-    parents: &NodeParentIndex,
-    preceding_owner: Option<u32>,
-    following_owner: Option<u32>,
+    control_expression: LocalNodeId<Expression>,
 ) -> Option<CommentAttachment> {
-    let shared_owner =
-        preceding_owner
-            .zip(following_owner)
-            .and_then(|(preceding_owner, following_owner)| {
-                lowest_common_owner_ancestor(tree, parents, preceding_owner, following_owner)
-            });
-
-    let control_expression = [shared_owner, preceding_owner, following_owner]
-        .into_iter()
-        .flatten()
-        .find_map(|owner_id| {
-            promote_owner_to_control_head_expression_ancestor(tree, parents, owner_id)
-        })?;
-
     match tree.get(control_expression) {
         Expression::If {
             then_expression, ..
@@ -187,6 +191,44 @@ fn control_head_comment_target(
     }
 }
 
+/// Resolve one comment after a control-head token span.
+fn control_head_comment_target_from_token(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    token_before_span: Option<TokenSpan>,
+) -> Option<CommentAttachment> {
+    let token_before_span = token_before_span?;
+    let owner_id = find_smallest_owner_enclosing_token(tree, token_before_span.span)?;
+    let control_expression =
+        promote_owner_to_control_head_expression_ancestor(tree, parents, owner_id)?;
+
+    control_head_comment_attachment_for_expression(tree, control_expression)
+}
+
+/// Resolve one comment after a control-head `)` target.
+fn control_head_comment_target(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    let shared_owner =
+        preceding_owner
+            .zip(following_owner)
+            .and_then(|(preceding_owner, following_owner)| {
+                lowest_common_owner_ancestor(tree, parents, preceding_owner, following_owner)
+            });
+
+    let control_expression = [shared_owner, preceding_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner_id| {
+            promote_owner_to_control_head_expression_ancestor(tree, parents, owner_id)
+        })?;
+
+    control_head_comment_attachment_for_expression(tree, control_expression)
+}
+
 /// Resolve statement-prefix seam comment rules.
 pub(crate) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
@@ -198,6 +240,51 @@ pub(crate) fn try_attach_comment_statement_prefix(
 ) -> Option<CommentAttachment> {
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
+
+    // own-line comments between decorators and decorated items stay with the decorated owner
+    let comment_starts_after_token_before_newline =
+        context.token_before_span.is_some_and(|token| {
+            context
+                .file
+                .is_same_line(token.span.end.saturating_sub(1), context.trivia.span.start)
+        });
+    if seam.comment_is_line
+        && !comment_starts_after_token_before_newline
+        && seam_follows_decorator_head(context)
+    {
+        let target_owner = following_owner
+            .or_else(|| {
+                context
+                    .token_after_span
+                    .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            })
+            .and_then(|owner| {
+                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Parameter)
+                    .or_else(|| {
+                        promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+                    })
+                    .or_else(|| {
+                        promote_owner_to_node_type_ancestor(
+                            tree,
+                            parents,
+                            owner,
+                            NodeType::Property,
+                        )
+                    })
+                    .or_else(|| {
+                        promote_owner_to_node_type_ancestor(
+                            tree,
+                            parents,
+                            owner,
+                            NodeType::Declaration,
+                        )
+                    })
+            });
+        if let Some(target_owner) = target_owner {
+            let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+            return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+        }
+    }
 
     // own line trailing separator comments before `)` should stay on the container item
     if seam.has_leading_newline
@@ -228,7 +315,10 @@ pub(crate) fn try_attach_comment_statement_prefix(
             || seam.token_after_is(TokenType::Semicolon)
             || !seam.token_after_is(TokenType::OpenBrace))
         && let Some(attachment) =
-            control_head_comment_target(tree, parents, preceding_owner, following_owner)
+            control_head_comment_target_from_token(tree, parents, context.token_before_span)
+                .or_else(|| {
+                    control_head_comment_target(tree, parents, preceding_owner, following_owner)
+                })
     {
         return Some(attachment);
     }
@@ -276,6 +366,7 @@ pub(crate) fn try_attach_comment_statement_prefix(
 pub(crate) fn try_attach_comment_statement_suffix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
@@ -327,7 +418,10 @@ pub(crate) fn try_attach_comment_statement_suffix(
             || seam.token_after_is(TokenType::Semicolon)
             || !seam.token_after_is(TokenType::OpenBrace))
         && let Some(attachment) =
-            control_head_comment_target(tree, parents, preceding_owner, following_owner)
+            control_head_comment_target_from_token(tree, parents, context.token_before_span)
+                .or_else(|| {
+                    control_head_comment_target(tree, parents, preceding_owner, following_owner)
+                })
     {
         if seam.comment_is_star
             && !seam.has_trailing_newline

@@ -332,6 +332,15 @@ fn token_type_is_separator_after_annotation(token_type: TokenType) -> bool {
     )
 }
 
+/// Return whether one token can close a list element that may receive a virtual trailing separator.
+#[inline]
+fn token_type_is_virtual_trailing_separator_boundary(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::CloseBracket | TokenType::CloseBrace | TokenType::GreaterThan
+    )
+}
+
 /// Return whether inline block comments can remain tightly bound to one following separator.
 #[inline]
 fn inline_block_comment_allows_tight_separator(next_token_type: Option<TokenType>) -> bool {
@@ -715,7 +724,7 @@ pub(crate) fn annotation_is_declaration_generic_head_comment<T: Node>(
 /// Return whether one annotation is a declaration-body seam comment before `{`.
 pub(crate) fn annotation_is_declaration_body_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
-    _node_id: LocalNodeId<T>,
+    node_id: LocalNodeId<T>,
     annotation: Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
@@ -730,6 +739,26 @@ pub(crate) fn annotation_is_declaration_body_head_comment<T: Node>(
         position,
         AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
     ) {
+        return false;
+    }
+
+    let annotation_span = context.annotation_span(annotation_id);
+    let has_decorator_between_comment_and_body = context
+        .annotations(LocalNodeId::<Declaration>::new(node_id.id))
+        .is_some_and(|annotation_ids| {
+            annotation_ids.into_iter().any(|candidate_id| {
+                if candidate_id.id == annotation_id.id {
+                    return false;
+                }
+
+                let Annotation::Decorator { .. } = context.annotation(candidate_id) else {
+                    return false;
+                };
+                let candidate_span = context.annotation_span(candidate_id);
+                candidate_span.start > annotation_span.end
+            })
+        });
+    if has_decorator_between_comment_and_body {
         return false;
     }
 
@@ -1337,11 +1366,9 @@ fn has_blank_line_before_next_annotation(
 
     let current_span = context.annotation_span(current_item.annotation_id);
     let next_span = context.annotation_span(next_item.annotation_id);
-    if current_span.file != next_span.file || current_span.end >= next_span.start {
+    let Some(between_span) = current_span.gap_to(next_span) else {
         return false;
-    }
-
-    let between_span = Span::new(current_span.file, current_span.end, next_span.start);
+    };
     let newline_count = context
         .span_str(between_span)
         .chars()
@@ -1670,13 +1697,38 @@ pub(crate) fn write_inline_slash_line_postfix_comment<'ast>(
         return Ok(false);
     }
 
+    // own-line comments should keep normal prefix/postfix spacing semantics
+    // line_postfix is only for same-line suffix comments, except decorator seams
+    if flow.starts_on_own_line {
+        if flow.next_token_type == Some(TokenType::At)
+            && matches!(
+                position,
+                AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+            )
+        {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    format_with(|f: &mut DestackFormatter<'ast, '_>| annotation
+                        .format_node(annotation_id, f)),
+                    hard_line_break()
+                ]
+            )?;
+            return Ok(true);
+        }
+
+        return Ok(false);
+    }
+
+    let has_virtual_trailing_separator_boundary = flow
+        .next_token_type
+        .is_some_and(token_type_is_virtual_trailing_separator_boundary);
     let is_line_postfix = position == AnnotationPosition::LinePostfix;
     let is_separator_boundary = position == AnnotationPosition::LinePostfixBoundary
         && (flow.follows_separator
-            || matches!(
-                flow.next_token_type,
-                Some(TokenType::Comma | TokenType::CloseBrace | TokenType::CloseBracket)
-            ));
+            || flow.next_token_type == Some(TokenType::Comma)
+            || has_virtual_trailing_separator_boundary);
     if !is_line_postfix && !is_separator_boundary {
         return Ok(false);
     }
@@ -1848,6 +1900,10 @@ fn first_line_prefix_spacing(
     capture: AnnotationCapture,
     flow: AnnotationFlow,
 ) -> AnnotationSpacing {
+    if flow.is_slash_comment && flow.starts_on_own_line {
+        return AnnotationSpacing::HardLine;
+    }
+
     if capture == AnnotationCapture::DeclarationGenericHead {
         return AnnotationSpacing::Space;
     }
@@ -1934,16 +1990,6 @@ pub(crate) fn should_skip_blank_annotation_before_own_line_comment(
 
 /// Return trailing-spacing decision for one line prefix annotation.
 fn trailing_line_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
-    let operator_owns_spacing = flow.is_star_comment
-        && flow.next_token_is_on_same_line
-        && matches!(
-            flow.next_token_type,
-            Some(TokenType::ElementwiseOr | TokenType::ElementwiseAnd)
-        );
-    if operator_owns_spacing {
-        return AnnotationSpacing::None;
-    }
-
     if flow.is_slash_comment && flow.next_token_is_on_same_line {
         return AnnotationSpacing::Space;
     }
@@ -2042,6 +2088,20 @@ fn trailing_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 fn trailing_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
     if flow.next_annotation_is_own_line_comment && flow.has_blank_line_before_next_annotation {
         return AnnotationSpacing::EmptyLine;
+    }
+
+    // decorators stay inline by default, but own-line comments between decorator and owner
+    // must preserve their line boundary
+    if flow.is_inline_decorator_prefix && flow.next_annotation_is_own_line_comment {
+        return AnnotationSpacing::HardLine;
+    }
+
+    // keep adjacent inline block comments on one line before the next comment
+    if flow.is_star_comment
+        && (flow.next_annotation_is_inline_star_comment
+            || flow.next_annotation_is_inline_slash_comment)
+    {
+        return AnnotationSpacing::Space;
     }
 
     if flow.is_inline_block_star_comment {

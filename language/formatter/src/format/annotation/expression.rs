@@ -164,6 +164,29 @@ fn promote_owner_to_tagged_template_expression_ancestor(
     None
 }
 
+/// Promote one owner to the nearest mapped-type expression ancestor.
+fn promote_owner_to_mapped_type_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let mut current_owner = Some(owner_id);
+    while let Some(node_id) = current_owner {
+        if tree.get_node_type(node_id) == NodeType::Expression
+            && matches!(
+                tree.get(LocalNodeId::<Expression>::new(node_id)),
+                Expression::TypeMapped { .. }
+            )
+        {
+            return Some(node_id);
+        }
+
+        current_owner = parents.get_by_id(node_id);
+    }
+
+    None
+}
+
 /// Resolve expression and type seam comment rules.
 pub(crate) fn try_attach_comment_expression(
     tree: &NodeTree,
@@ -203,7 +226,7 @@ pub(crate) fn try_attach_comment_expression(
     let token_after_is_dot = seam.token_after_is(TokenType::Dot);
     let token_after_is_at = seam.token_after_is(TokenType::At);
     let token_after_is_less_than = seam.token_after_is(TokenType::LessThan);
-    let token_after_is_chain_or_index_boundary = token_after_is_dot || token_after_is_open_bracket;
+    let token_after_is_index_boundary = token_after_is_open_bracket;
     let token_after_is_open_bracket_or_open_parenthesis =
         token_after_is_open_bracket || token_after_is_open_parenthesis;
 
@@ -489,6 +512,26 @@ pub(crate) fn try_attach_comment_expression(
         }
     }
 
+    // own-line mapped-type entry comments after `{` should stay with the mapped member head
+    if has_leading_newline
+        && !has_trailing_newline
+        && (comment_is_star || comment_is_line)
+        && token_before_is_open_brace
+        && token_after_is_open_bracket
+        && let Some(target_node) = [
+            enclosing_owner,
+            following_owner,
+            following_token_owner,
+            preceding_owner,
+        ]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| promote_owner_to_mapped_type_expression_ancestor(tree, parents, owner))
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
     // comments between rest spread and binding names stay on the parameter owner
     if is_inline_star_comment
         && token_before_is_spread
@@ -545,9 +588,9 @@ pub(crate) fn try_attach_comment_expression(
         }
     }
 
-    // own-line seam comments before chain and index operators stay on the seam operation
+    // own-line seam comments before index operators stay on the seam operation
     if has_leading_newline
-        && token_after_is_chain_or_index_boundary
+        && token_after_is_index_boundary
         && seam_has_shared_expression_owner
         && !token_before_is_comma
         && !token_before_is_open_brace
@@ -574,9 +617,9 @@ pub(crate) fn try_attach_comment_expression(
         }
     }
 
-    // seam comments before chain and index operators stay with the left segment
+    // seam comments before index and inline member operators stay with the left segment
     if !has_leading_newline
-        && token_after_is_chain_or_index_boundary
+        && (token_after_is_index_boundary || (token_after_is_dot && comment_is_star))
         && seam_has_shared_expression_owner
         && !token_before_is_comma
         && !token_before_is_open_brace
@@ -771,7 +814,7 @@ pub(crate) fn try_attach_comment_expression(
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
-    // comments immediately after `?` should stay inside the consequent branch
+    // comments immediately after `?` should stay as leading comments of the consequent branch
     if comment_is_star
         && (token_before_is_maybe || token_before_is_colon)
         && is_ternary_seam

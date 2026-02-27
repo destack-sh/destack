@@ -294,7 +294,8 @@ type Value = First & // intersection-line
 ```
 
 ```ts expected
-type Value = First & // intersection-line
+type Value = First &
+    // intersection-line
     Second;
 ```
 

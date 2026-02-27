@@ -11,8 +11,8 @@ use super::boundary::{
 };
 use super::ownership::{
     find_owner_at_or_after_token_with_node_type, find_smallest_owner_enclosing_range,
-    normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
-    promote_owner_to_node_type_ancestor,
+    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
 };
 use crate::format::directive::directive_for_node;
 use crate::format::expression::format_expression;
@@ -115,6 +115,20 @@ fn declaration_owner_is_new_signature(tree: &NodeTree, owner_id: u32) -> bool {
     };
 
     signature.mode == Some(ast::FunctionMode::New)
+}
+
+/// Return the type-value expression owner for one type declaration owner.
+fn declaration_owner_type_value_expression_owner(tree: &NodeTree, owner_id: u32) -> Option<u32> {
+    if tree.get_node_type(owner_id) != NodeType::Declaration {
+        return None;
+    }
+
+    let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(owner_id);
+    let ast::Declaration::Type { value, .. } = tree.get(declaration_id) else {
+        return None;
+    };
+
+    Some(value.id)
 }
 
 /// Promote one owner to the nearest member-like owner.
@@ -228,6 +242,42 @@ pub(crate) fn try_attach_comment_declaration_implements_seam(
     Some((Some(target_node), AnnotationPosition::BlockPostfix))
 }
 
+/// Resolve declaration head comments before heritage keywords.
+pub(crate) fn try_attach_comment_declaration_heritage_head_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    owners: CommentAttachmentNeighbors,
+) -> Option<CommentAttachment> {
+    if !seam.has_trailing_newline {
+        return None;
+    }
+
+    if !seam.token_before_is(TokenType::GreaterThan) {
+        return None;
+    }
+
+    let token_after_is_heritage_keyword = seam.token_after_is_keyword(CommentSeamKeyword::Extends)
+        || seam.token_after_is_keyword(CommentSeamKeyword::Implements);
+    if !token_after_is_heritage_keyword {
+        return None;
+    }
+
+    let declaration_owner = owners
+        .preceding
+        .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        .or_else(|| {
+            owners
+                .following
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })?;
+    let declaration_owner = normalize_formatter_trivia_target_owner(tree, declaration_owner);
+    Some((
+        Some(declaration_owner),
+        AnnotationPosition::LinePostfixBoundary,
+    ))
+}
+
 /// Resolve declaration head comments directly before `{`.
 pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
     tree: &NodeTree,
@@ -257,7 +307,7 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
         })?;
 
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-    Some((Some(target_node), AnnotationPosition::LinePrefix))
+    Some((Some(target_node), AnnotationPosition::BlockPrefix))
 }
 
 /// Resolve declaration decorator-adjacent seam comments.
@@ -430,6 +480,75 @@ pub(crate) fn try_attach_comment_declaration_return_type_seam(
     Some((Some(target_node), AnnotationPosition::LinePrefix))
 }
 
+/// Resolve type-declaration comments between generic heads and `=`.
+pub(crate) fn try_attach_comment_declaration_type_value_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    owners: CommentAttachmentNeighbors,
+) -> Option<CommentAttachment> {
+    if !seam.comment_is_line || !seam.has_leading_newline || !seam.has_trailing_newline {
+        return None;
+    }
+
+    let is_type_value_assignment_seam =
+        seam.token_after_is(TokenType::Assign) || seam.token_before_is(TokenType::Assign);
+    if !is_type_value_assignment_seam {
+        return None;
+    }
+
+    let declaration_owner = if seam.token_before_is(TokenType::Assign) {
+        context
+            .token_after_span
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            .or_else(|| {
+                owners
+                    .following
+                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            })
+            .or_else(|| {
+                owners
+                    .preceding
+                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            })
+    } else if seam.token_after_is(TokenType::Assign) {
+        context
+            .token_before_span
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            .or_else(|| {
+                owners
+                    .preceding
+                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            })
+            .or_else(|| {
+                owners
+                    .following
+                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            })
+    } else {
+        owners
+            .preceding
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            .or_else(|| {
+                owners
+                    .following
+                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            })
+    }?;
+    let target_node = declaration_owner_type_value_expression_owner(tree, declaration_owner)?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+    let position = if seam.token_before_is(TokenType::Assign) {
+        AnnotationPosition::BlockPrefix
+    } else {
+        AnnotationPosition::LinePrefix
+    };
+
+    Some((Some(target_node), position))
+}
+
 /// Resolve declaration seam comment rules.
 pub(crate) fn try_attach_comment_declaration(
     tree: &NodeTree,
@@ -452,6 +571,12 @@ pub(crate) fn try_attach_comment_declaration(
     }
 
     if let Some(attachment) = try_attach_comment_declaration_implements_seam(tree, seam, owners) {
+        return Some(attachment);
+    }
+
+    if let Some(attachment) =
+        try_attach_comment_declaration_heritage_head_seam(tree, parents, seam, owners)
+    {
         return Some(attachment);
     }
 
@@ -483,6 +608,12 @@ pub(crate) fn try_attach_comment_declaration(
     }
 
     if let Some(attachment) = try_attach_comment_declaration_export_seam(tree, context, seam) {
+        return Some(attachment);
+    }
+
+    if let Some(attachment) =
+        try_attach_comment_declaration_type_value_seam(tree, parents, context, seam, owners)
+    {
         return Some(attachment);
     }
 

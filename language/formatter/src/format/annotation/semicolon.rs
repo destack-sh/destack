@@ -409,6 +409,17 @@ pub(crate) fn statement_wrapper_needs_semicolon(
         return false;
     }
 
+    if let Expression::Try {
+        catch_expression,
+        catch_pattern,
+        finally_expression,
+        ..
+    } = expression
+        && (catch_expression.is_some() || catch_pattern.is_some() || finally_expression.is_some())
+    {
+        return false;
+    }
+
     if matches!(
         expression,
         Expression::If {
@@ -420,7 +431,6 @@ pub(crate) fn statement_wrapper_needs_semicolon(
         } | Expression::ForEach { .. }
             | Expression::For { .. }
             | Expression::Loop { .. }
-            | Expression::Try { .. }
             | Expression::Match { .. }
             | Expression::Labelled { .. }
     ) {

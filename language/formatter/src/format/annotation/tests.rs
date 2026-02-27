@@ -1,12 +1,15 @@
 use super::render::annotation_precedes_separator;
 use crate::{
     Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-    assert_format, assert_format_program_idempotent_with_file_type, statement_list,
+    assert_format, assert_format_program_idempotent_with_file_type,
+    assert_format_program_roundtrip_with_file_type, statement_list,
 };
 use destack_ast::{
-    AnnotationPosition, DeclarationDescriptor, Expression, LocalNodeId, NodeParentIndex, NodeType,
+    AnnotationPosition, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
+    NodeParentIndex, NodeType,
 };
-use destack_source::FileType;
+use destack_source::{FileType, LanguageType};
+use destack_workspace::FormatterOptions;
 
 /// Build a formatter context for annotation routing assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
@@ -21,6 +24,14 @@ fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_>
             strings: &formatter.strings,
             parents: NodeParentIndex::from_tree(&formatter.tree),
         },
+    )
+}
+
+/// Return default formatter options for TypeScript mode.
+fn typescript_format_options() -> DestackFormatOptions {
+    DestackFormatOptions::from_formatter_options(
+        FormatterOptions::default(),
+        LanguageType::TypeScript,
     )
 }
 
@@ -49,6 +60,28 @@ fn find_annotation_by_marker(
     }
 
     None
+}
+
+/// Find all comment annotation ids by source marker text.
+fn find_annotations_by_marker(
+    context: &DestackFormatContext<'_>,
+    marker: &str,
+) -> Vec<LocalNodeId<Annotation>> {
+    let mut annotation_ids = Vec::new();
+
+    for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+        let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+        let annotation = context.annotation(annotation_id);
+        let matches_marker = matches!(
+            annotation,
+            Annotation::Comment { node, .. } if context.comment_text(node).trim() == marker
+        );
+        if matches_marker {
+            annotation_ids.push(annotation_id);
+        }
+    }
+
+    annotation_ids
 }
 
 /// Find the target owner node for one annotation id.
@@ -95,7 +128,95 @@ fn test_annotation_trailing_array_comma_line_comment_attaches_to_element_owner()
     assert_eq!(owner_node_type, NodeType::Argument);
 }
 
-/// Declarator seam line comments after `=` should attach as leading comments to rhs values.
+/// Own-line comments before array elements should attach to following element prefixes.
+#[test]
+fn test_annotation_array_element_own_line_comment_attaches_to_following_element() {
+    let source = "{
+    const rows = [
+        // array-element-prefix-marker-a
+        [1],
+        // array-element-prefix-marker-b
+        [2],
+    ];
+}";
+    let (formatter, _) = TestFormatter::parse(source, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse own-line array element comment source");
+    let context = context_from_formatter(&formatter);
+
+    for marker in [
+        "array-element-prefix-marker-a",
+        "array-element-prefix-marker-b",
+    ] {
+        let annotation_id =
+            find_annotation_by_marker(&context, marker).expect("expected array element marker");
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected array element marker owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+        assert_eq!(
+            position,
+            AnnotationPosition::LinePrefix,
+            "marker={marker}, owner={owner_node}, owner_type={owner_node_type:?}"
+        );
+        assert!(
+            matches!(owner_node_type, NodeType::Argument | NodeType::Expression),
+            "marker={marker}, owner={owner_node}, owner_type={owner_node_type:?}"
+        );
+    }
+}
+
+/// Own-line comments before list elements should stay as line prefixes in mixed list layouts.
+#[test]
+fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix() {
+    let source = "{
+    const test_cases = [
+        // mixed-array-prefix-marker-a
+        [\"--check\", \"!**/err.js\"],
+        // mixed-array-prefix-marker-b
+        [\"--check\", \"--ignore-path\", \"ignore1\"],
+        // mixed-array-prefix-marker-c
+        [\"--check\", \"--ignore-path\", \"ignore1\", \"should_format/ok.js\"],
+        // mixed-array-prefix-marker-d
+        [
+            \"--check\",
+            \"--ignore-path\",
+            \"ignore1\",
+            \"should_format/ok.js\",
+            \"--no-error-on-unmatched-pattern\",
+        ],
+    ];
+}";
+    let (formatter, _) = TestFormatter::parse(source, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse mixed array element own-line comments source");
+    let context = context_from_formatter(&formatter);
+
+    for marker in [
+        "mixed-array-prefix-marker-a",
+        "mixed-array-prefix-marker-b",
+        "mixed-array-prefix-marker-c",
+        "mixed-array-prefix-marker-d",
+    ] {
+        let annotation_id =
+            find_annotation_by_marker(&context, marker).expect("expected mixed array marker");
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected mixed array marker owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+        assert_eq!(
+            position,
+            AnnotationPosition::LinePrefix,
+            "marker={marker}, owner={owner_node}, owner_type={owner_node_type:?}"
+        );
+    }
+}
+
+/// Declarator seam line comments after `=` should stay inline with the rhs seam.
 #[test]
 fn test_annotation_declarator_assignment_line_comment_attaches_to_rhs_value() {
     let source = "{
@@ -143,7 +264,132 @@ fn test_annotation_declarator_assignment_array_line_comment_attaches_to_rhs_valu
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::BlockPrefix);
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "position={position:?}, owner={owner_node}"
+    );
+}
+
+/// Type declaration head comments before `=` should attach to the declaration value.
+#[test]
+fn test_annotation_type_declaration_value_seam_line_comment_attaches_to_rhs_value() {
+    let source = "type UploadState<E, EM, D>
+  // type-value-seam-marker
+  = A | B;";
+    let expected = "type UploadState<E, EM, D> =
+    // type-value-seam-marker
+    A | B;
+";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse type declaration value seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "type-value-seam-marker")
+        .expect("expected type value seam marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected type value seam marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "position={position:?}, owner={owner_node}"
+    );
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
+/// Type declaration comments after `=` should stay attached to the value expression.
+#[test]
+fn test_annotation_type_declaration_assignment_line_comment_attaches_to_rhs_value() {
+    let source = "type UploadState<E, EM, D> =
+// type-assignment-seam-marker
+| A
+| B;";
+    let expected = "type UploadState<E, EM, D> =
+    // type-assignment-seam-marker
+    A | B;
+";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse type declaration assignment seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "type-assignment-seam-marker")
+        .expect("expected type assignment seam marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected type assignment seam marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::BlockPrefix);
     assert_eq!(owner_node_type, NodeType::Expression);
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
+/// Type value-seam comments should stay on their own declaration across omitted-semicolon boundaries.
+#[test]
+fn test_annotation_type_declaration_value_seam_keeps_local_declaration_ownership() {
+    let source = r#"type First =
+  // first-type-value-seam-marker
+  FirstValue
+
+type Second =
+  // second-type-value-seam-marker
+  SecondValue
+"#;
+    let expected = r#"type First =
+    // first-type-value-seam-marker
+    FirstValue;
+
+type Second =
+    // second-type-value-seam-marker
+    SecondValue;
+"#;
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
+/// Type parameter seam comments before closers should keep separator comments on the comma seam.
+#[test]
+fn test_annotation_formats_type_parameter_comment_with_virtual_trailing_comma() {
+    let source = r#"interface Foo {
+    <
+        A // type-parameter-seam-marker
+    >(arg): any;
+}"#;
+    let expected = r#"interface Foo {
+    <
+        A, // type-parameter-seam-marker
+    >(arg): any;
+}
+"#;
+    let options = DestackFormatOptions::default();
+
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::TypeScript, options);
 }
 
 /// Same-line `, // comment` seams in call argument lists should attach to argument owners.
@@ -305,6 +551,43 @@ export {
     assert_eq!(
         previous_token_type,
         Some(destack_ast::TokenType::Identifier)
+    );
+}
+
+/// Heritage-head comments after declaration type parameters should stay on declaration heads.
+#[test]
+fn test_annotation_type_parameter_head_comment_before_extends_attaches_to_declaration() {
+    let source = r#"interface ReallyReallyLongName<
+  TypeArgumentNumberOne,
+  TypeArgumentNumberTwo,
+  TypeArgumentNumberThree
+> // heritage-head-seam-marker
+extends BaseInterface {}"#;
+    let expected = r#"interface ReallyReallyLongName<
+    TypeArgumentNumberOne,
+    TypeArgumentNumberTwo,
+    TypeArgumentNumberThree,
+> extends BaseInterface {} // heritage-head-seam-marker
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse declaration heritage head seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "heritage-head-seam-marker")
+        .expect("expected declaration heritage head seam marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected declaration heritage head seam marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Declaration);
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        typescript_format_options(),
     );
 }
 
@@ -553,6 +836,95 @@ fn test_annotation_type_union_assignment_head_block_comment_is_block_prefix() {
     assert_eq!(owner_node_type, NodeType::Expression);
 }
 
+/// Type alias trailing line comments should stay on the union value expression seam.
+#[test]
+fn test_annotation_type_alias_union_trailing_line_comment_stays_on_expression() {
+    let source = r#"
+type Value =
+  | First
+  | Second // second-tail
+"#;
+    let (formatter, expressions) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse trailing type alias comment source");
+    let [first_expression] = expressions.as_slice() else {
+        panic!("expected one top-level expression");
+    };
+    let Expression::Declaration(declaration_id) = formatter.tree.get(*first_expression) else {
+        panic!("expected declaration expression");
+    };
+    let Declaration::Type { value, .. } = formatter.tree.get(*declaration_id) else {
+        panic!("expected type declaration");
+    };
+    let _ = formatter.tree.get(*value);
+
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "second-tail")
+        .expect("expected trailing type alias marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected trailing type alias annotation owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Union fixture C1 and C2 comments should keep stable annotation metadata.
+#[test]
+fn test_annotation_union_c1_c2_comment_attachment_metadata() {
+    let source = r#"
+type C1 = | (
+  /* c1a */ /* c1b */ | (
+    | (
+          | A
+          // c1-tail
+          | B
+        )
+  )
+  );
+
+type C2 = | (
+  /* c2a */ /* c2b */
+  /* c2c */ | (
+    | (
+          | A
+          // c2-tail
+          | B
+        )
+  )
+  );
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse c1 c2 metadata source");
+    let context = context_from_formatter(&formatter);
+
+    let expected_positions = [
+        ("c1a", AnnotationPosition::LinePrefix),
+        ("c1b", AnnotationPosition::LinePrefix),
+        ("c1-tail", AnnotationPosition::LinePostfixBoundary),
+        ("c2a", AnnotationPosition::BlockPrefix),
+        ("c2b", AnnotationPosition::BlockPrefix),
+        ("c2c", AnnotationPosition::LinePrefix),
+        ("c2-tail", AnnotationPosition::LinePostfixBoundary),
+    ];
+
+    for (marker, expected_position) in expected_positions {
+        let annotation_id = find_annotation_by_marker(&context, marker)
+            .unwrap_or_else(|| panic!("expected marker annotation: {marker}"));
+        let position = context.annotation(annotation_id).position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .unwrap_or_else(|| panic!("expected owner for marker annotation: {marker}"));
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+        assert_eq!(owner_node_type, NodeType::Expression);
+        assert_eq!(position, expected_position);
+        assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
+    }
+}
+
 /// Type-binary block seam comments on expression statements must not be dropped.
 #[test]
 fn test_type_binary_block_comment_between_operator_and_right_type_expression_statement() {
@@ -596,7 +968,7 @@ fn test_type_mapped_remap_line_comment_attachment() {
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
     let position = context.annotation(annotation_id).position();
     assert_eq!(owner_node_type, NodeType::Expression);
-    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(position, AnnotationPosition::LinePostfix);
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::TypeScript,
@@ -906,6 +1278,56 @@ fn test_format_decorators_on_struct() {
     );
 }
 
+/// Comments between declaration decorators should stay declaration block-prefix comments.
+#[test]
+fn test_annotation_decorator_between_comments_attach_to_declaration_prefix() {
+    let source = r#"{
+    // comment before entity
+    @entity
+    // comment after entity
+    // comment before foo
+    @foo(1, 2, 3)
+    // comment after foo
+    struct Entity {}
+}"#;
+    let (formatter, _) = TestFormatter::parse(source, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse decorator comment ownership source");
+    let context = context_from_formatter(&formatter);
+
+    let comment_after_entity_id = find_annotation_by_marker(&context, "comment after entity")
+        .expect("expected comment after entity annotation");
+    let comment_before_foo_id = find_annotation_by_marker(&context, "comment before foo")
+        .expect("expected comment before foo annotation");
+
+    let comment_after_entity_owner =
+        find_annotation_target_owner_node(&context, comment_after_entity_id)
+            .expect("expected comment after entity owner");
+    let comment_before_foo_owner =
+        find_annotation_target_owner_node(&context, comment_before_foo_id)
+            .expect("expected comment before foo owner");
+
+    assert_eq!(
+        context.annotation(comment_after_entity_id).position(),
+        AnnotationPosition::BlockPrefix
+    );
+    assert_eq!(
+        context.annotation(comment_before_foo_id).position(),
+        AnnotationPosition::BlockPrefix
+    );
+    assert_eq!(
+        context
+            .tree
+            .get_node_type(comment_after_entity_owner as u32),
+        NodeType::Declaration
+    );
+    assert_eq!(
+        context.tree.get_node_type(comment_before_foo_owner as u32),
+        NodeType::Declaration
+    );
+}
+
 /// Decorator expressions should not grow extra parentheses across formatting.
 #[test]
 fn test_format_decorator_parentheses_are_stable() {
@@ -1109,6 +1531,101 @@ fn test_format_comment_in_array() {
         "[/* first */ 1, /* second */ 2, /* third */ 3]",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
+    );
+}
+
+/// Own-line array element comments should be preserved across formatting.
+#[test]
+fn test_format_own_line_array_element_comments_are_preserved() {
+    let source = r#"
+const test_cases = [
+    // first-marker
+    ["--check", "*", "!**/error.js"],
+    // second-marker
+    ["--check", "foo/**/*.js", "!**/bar/*"],
+];
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Ignore-range comments inside arrays should be preserved across formatting.
+#[test]
+fn test_format_ignore_range_array_comments_are_preserved() {
+    let source = r#"
+const values = [
+    1,
+    // format-ignore-start
+    foo(1, 2),
+    bar(3),
+    // format-ignore-end
+    baz(4),
+];
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line comments between nested array elements should be preserved.
+#[test]
+fn test_format_nested_array_element_comments_are_preserved() {
+    let source = r#"
+const test_cases = [
+    // nested-array-comment-a
+    ["--check", "*", "!**/error.js"],
+    // nested-array-comment-b
+    ["--check", "foo/**/*.js", "!**/bar/*"],
+];
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Real-world roundtrip fixture should preserve nested list comments.
+#[test]
+fn test_format_roundtrip_fixture_0052_preserves_comments() {
+    let source = include_str!("../../../../test/fixtures/formatter/roundtrip/formatter-0052.ts");
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Roundtrip fixture comment before the final nested array element should stay as a line prefix.
+#[test]
+fn test_annotation_roundtrip_fixture_0052_second_comment_stays_line_prefix() {
+    let source = include_str!("../../../../test/fixtures/formatter/roundtrip/formatter-0052.ts");
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse roundtrip fixture 0052 source");
+    let context = context_from_formatter(&formatter);
+
+    let marker = "Glob include foo/**/*.js, glob exclude bar directory";
+    let annotation_id = find_annotation_by_marker(&context, marker)
+        .expect("expected second glob include marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected second glob include marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePrefix,
+        "owner={owner_node}, owner_type={owner_node_type:?}, position={position:?}"
     );
 }
 
@@ -1430,6 +1947,47 @@ fn test_format_terminal_end_of_line_comment_stays_trailing() {
     );
 }
 
+/// Own-line comments before member dots should stay on the left seam boundary.
+#[test]
+fn test_annotation_member_dot_comment_attaches_as_left_boundary() {
+    let source = r#"
+verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // issue-10661-marker
+    .c
+);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse member-dot own-line comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "issue-10661-marker")
+        .expect("expected member-dot marker annotation");
+    let ignore_annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+        .expect("expected member-dot ignore annotation");
+    let position = context.annotation(annotation_id).position();
+    let ignore_position = context.annotation(ignore_annotation_id).position();
+    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected member-dot marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "expected member-dot marker to stay on the left seam boundary, got {position:?}, prev={previous_token_type:?}, next={next_token_type:?}"
+    );
+    assert_eq!(
+        ignore_position,
+        AnnotationPosition::LinePostfixBoundary,
+        "expected member-dot ignore directive to stay on the left seam boundary, got {ignore_position:?}"
+    );
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
 /// TypeScript mapped-type prettier-ignore seams should stay idempotent.
 #[test]
 fn test_format_typescript_mapped_type_ignore_directives_are_idempotent() {
@@ -1459,6 +2017,210 @@ type d= {
       // prettier-ignore
       C  |  D
   }
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Mapped-type value ignore directives should attach as line-prefix comments on the value owner.
+#[test]
+fn test_annotation_mapped_type_value_ignore_directive_attaches_line_prefix() {
+    let source = r#"
+type T = {
+    [A in B]:
+        // prettier-ignore
+        C  |  D
+}
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse mapped type value ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+        .expect("expected mapped type value ignore annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected mapped type value ignore owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Intersection rhs ignore directives should attach as line-prefix comments on rhs union owners.
+#[test]
+fn test_annotation_intersection_rhs_ignore_directive_attaches_line_prefix() {
+    let source = r#"
+type T = (A | B) & (
+    // prettier-ignore
+    A  |  B
+);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse intersection rhs ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+        .expect("expected intersection rhs ignore annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected intersection rhs ignore owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Union separator line comments should stay on the left operand boundary.
+#[test]
+fn test_annotation_union_separator_line_comment_attaches_left_operand_boundary() {
+    let source = r#"
+type Value = First | // union-seam-marker
+Second
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse union separator seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "union-seam-marker")
+        .expect("expected union seam marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected union seam marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Expression);
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Leading-pipe union line comments should stay on the following declaration value.
+#[test]
+fn test_annotation_union_leading_pipe_line_comment_stays_on_following_union_value() {
+    let source = r#"
+type A2 =
+  | A
+  | B
+
+type A3 =
+  | // leading-union-marker
+  C
+  |
+  D;
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse leading-pipe union comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "leading-union-marker")
+        .expect("expected leading-pipe union annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected leading-pipe union annotation owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(owner_node_type, NodeType::Expression);
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Union fixture ignore comments should have stable seam ownership and positions.
+#[test]
+fn test_annotation_union_fixture_18379_ignore_comment_positions() {
+    let source = r#"
+type A2 =
+  (
+    A | B // prettier-ignore
+  ) & (
+    // prettier-ignore
+    A | B
+  )
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse union fixture 18379 ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+    assert_eq!(ignore_annotations.len(), 2);
+
+    let positions: Vec<AnnotationPosition> = ignore_annotations
+        .iter()
+        .map(|annotation_id| context.annotation(*annotation_id).position())
+        .collect();
+
+    assert!(positions.contains(&AnnotationPosition::LinePostfixBoundary));
+    assert!(positions.contains(&AnnotationPosition::LinePrefix));
+}
+
+/// Mapped-type fixture ignore comments should all keep line-prefix ownership.
+#[test]
+fn test_annotation_mapped_type_ignore_comment_positions() {
+    let source = r#"
+type a= {
+    // prettier-ignore
+    [A in B]: C  |  D
+  }
+
+type b= {
+    [
+      // prettier-ignore
+      A in B
+    ]: C  |  D
+  }
+
+type c= {
+    [
+      A in
+      // prettier-ignore
+      B
+    ]: C  |  D
+  }
+
+type d= {
+    [A in B]:
+      // prettier-ignore
+      C  |  D
+  }
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse mapped type ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+    assert_eq!(ignore_annotations.len(), 4);
+    for annotation_id in ignore_annotations {
+        assert_eq!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::LinePrefix
+        );
+    }
+}
+
+/// Own-line comments before mapped-type entries should stay on the mapped head seam.
+#[test]
+fn test_format_typescript_mapped_type_entry_head_comment_is_idempotent() {
+    let source = r#"
+type M6  = {
+  /* 61 */ [b in long_long_long_long_long_long_type|long_long_long_long_long_long_type|long_long_long_long_long_long_type]: string
+}
 "#;
 
     assert_format_program_idempotent_with_file_type(
@@ -1530,6 +2292,59 @@ fn test_format_inline_comment_between_semicolon_and_guard_head_is_idempotent() {
 
     ;/* keep guard seam */[values[0]] = [2]
 }
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line comments between `for..of` heads and non-block bodies should stay idempotent.
+#[test]
+fn test_format_for_of_head_body_own_line_comment_is_idempotent() {
+    let source = r#"
+for (a of b)
+// marker
+foo();
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line comments between control heads and non-block bodies should stay idempotent.
+#[test]
+fn test_format_control_head_body_own_line_comments_are_idempotent() {
+    let source = r#"
+do
+// 21
+foo(); while(1)
+for(a in b)
+// 22
+foo();
+for(a of b)
+// 23
+foo();
+for(;;)
+// 24
+foo();
+if(a)
+// 25
+foo();
+else
+// 252
+foo();
+while(a)
+// 26
+foo();
+with(a)
+// 27
+foo();
 "#;
 
     assert_format_program_idempotent_with_file_type(

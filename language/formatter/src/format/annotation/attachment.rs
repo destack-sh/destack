@@ -1,6 +1,6 @@
 use ast::{
-    AnnotationPosition, Block, BlockFormat, DependencyMode, Expression, Keyword, LocalNodeId,
-    NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
+    AnnotationPosition, Block, BlockFormat, CommentDirective, DependencyMode, Expression, Keyword,
+    LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
 };
 use destack_ast as ast;
 use destack_source::{File, Span};
@@ -38,6 +38,18 @@ use crate::format::context::{Annotation, FormatterAnnotationEntry};
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
 
+/// Return whether one comment trivia directive is an ignore marker.
+#[inline]
+fn comment_directive_is_ignore(directive: CommentDirective) -> bool {
+    matches!(
+        directive,
+        CommentDirective::FormatIgnore
+            | CommentDirective::FormatIgnoreFile
+            | CommentDirective::FormatIgnoreStart
+            | CommentDirective::FormatIgnoreEnd
+    )
+}
+
 /// Return rhs owner for one doc annotation that belongs to an assignment seam.
 fn assignment_like_rhs_owner_for_doc_annotation(
     file: &File,
@@ -62,25 +74,55 @@ fn assignment_like_rhs_owner_for_doc_annotation(
 
     let token_after_annotation_index =
         tokens.partition_point(|token| token.span.start < annotation_span.end);
-    let expression_owner = find_owner_at_or_after_token_with_node_type(
-        tree,
-        owner_index,
-        token_after_annotation_index,
-        NodeType::Expression,
-    )?;
     let token_after_span = tokens
         .get(token_after_annotation_index)
         .map(|token| token.span);
-    let expression_owner =
-        promote_rhs_expression_owner(tree, parents, expression_owner, token_after_span);
-    let expression_span = tree.get_span_by_id(expression_owner);
-    if annotation_span.start >= expression_span.start {
+    if token_after_span.is_some_and(|span| annotation_span.start >= span.start) {
         return None;
     }
 
+    let assignment_owner =
+        find_smallest_owner_enclosing_token(tree, previous_token_span).and_then(|owner_id| {
+            let expression_owner = if tree.get_node_type(owner_id) == NodeType::Expression {
+                Some(owner_id)
+            } else {
+                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+            };
+            if let Some(expression_owner) = expression_owner {
+                let expression_id = LocalNodeId::<Expression>::new(expression_owner);
+                if let Expression::Assign { right, .. } = tree.get(expression_id) {
+                    return Some(right.id);
+                }
+            }
+
+            let declaration_owner = if tree.get_node_type(owner_id) == NodeType::Declaration {
+                Some(owner_id)
+            } else {
+                promote_owner_to_declaration_ancestor(tree, parents, owner_id)
+            }?;
+            let declaration_id = LocalNodeId::<ast::Declaration>::new(declaration_owner);
+            match tree.get(declaration_id) {
+                ast::Declaration::Type { value, .. } => Some(value.id),
+                _ => None,
+            }
+        });
+
+    let expression_owner = assignment_owner.or_else(|| {
+        find_owner_at_or_after_token_with_node_type(
+            tree,
+            owner_index,
+            token_after_annotation_index,
+            NodeType::Expression,
+        )
+    })?;
+    let expression_owner =
+        promote_rhs_expression_owner(tree, parents, expression_owner, token_after_span);
+
     let annotation_starts_on_assignment_line =
         file.is_same_line(previous_token_span.start, annotation_span.start);
-    let position = if annotation_starts_on_assignment_line {
+    let annotation_has_newline = annotation_span.start < annotation_span.end
+        && !file.is_same_line(annotation_span.start, annotation_span.end.saturating_sub(1));
+    let position = if annotation_starts_on_assignment_line && !annotation_has_newline {
         AnnotationPosition::LinePrefix
     } else {
         AnnotationPosition::BlockPrefix
@@ -629,7 +671,7 @@ pub(crate) fn comment_trivia_attachment(
     {
         attachment
     } else if let Some(attachment) =
-        try_attach_comment_statement_suffix(tree, parents, &seam, owners)
+        try_attach_comment_statement_suffix(tree, parents, &context, &seam, owners)
     {
         attachment
     } else if let Some(attachment) = try_attach_comment_assignment(
@@ -646,6 +688,15 @@ pub(crate) fn comment_trivia_attachment(
     } else {
         attach_comment_default(&context, &seam, &mut enclosing_owner_cache, owners)
     };
+
+    let (target_node, mut position) = attachment;
+    if seam.comment_is_line
+        && position == AnnotationPosition::BlockPrefix
+        && comment_directive_is_ignore(trivia.directive)
+    {
+        position = AnnotationPosition::LinePrefix;
+    }
+    let attachment = (target_node, position);
 
     normalize_trailing_object_member_comment_attachment(tree, parents, &context, &seam, attachment)
 }
@@ -1177,6 +1228,14 @@ fn fallback_preceding_owner(
     ))
 }
 
+/// Return whether one seam comment is an ignore directive line comment.
+fn seam_comment_is_ignore_directive(
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> bool {
+    seam.comment_is_line && comment_directive_is_ignore(context.trivia.directive)
+}
+
 /// Attach one own-line comment with one canonical placement fallback.
 fn attach_default_own_line_comment(
     context: &CommentSeamContext<'_>,
@@ -1185,9 +1244,16 @@ fn attach_default_own_line_comment(
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
     let tree = context.tree;
+    let comment_is_ignore_directive = seam_comment_is_ignore_directive(context, seam);
+
+    if comment_is_ignore_directive
+        && let Some(target_node) = fallback_following_owner(context, owners)
+    {
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
 
     if let Some(target_node) = fallback_following_owner(context, owners) {
-        let position = if seam.comment_is_line && owners.preceding.is_none() {
+        let position = if seam.comment_is_line {
             AnnotationPosition::LinePrefix
         } else {
             AnnotationPosition::BlockPrefix

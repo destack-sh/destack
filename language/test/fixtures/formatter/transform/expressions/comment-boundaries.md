@@ -266,6 +266,23 @@ const value = -/* unary-note */ 1
 const value = -(/* unary-note */ 1);
 ```
 
+### unary negative line comment boundary
+
+Line comments after unary minus stay attached to the unary expression with stable multiline layout.
+
+```ts:main.ts
+const value = -// unary-line-note
+1
+```
+
+```ts expected
+const value =
+    -(
+    // unary-line-note
+    1
+);
+```
+
 ### label expression boundary comment
 
 Label comments stay attached to the labeled statement body.

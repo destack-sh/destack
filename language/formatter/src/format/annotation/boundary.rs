@@ -111,6 +111,8 @@ pub(crate) enum CommentSeamKeyword {
     Export,
     /// One `implements` keyword.
     Implements,
+    /// One `extends` keyword.
+    Extends,
     /// One `else` keyword.
     Else,
     /// One `case` keyword.
@@ -145,6 +147,7 @@ pub(crate) fn comment_seam_keyword(
         Keyword::Satisfies => CommentSeamKeyword::Satisfies,
         Keyword::Export => CommentSeamKeyword::Export,
         Keyword::Implements => CommentSeamKeyword::Implements,
+        Keyword::Extends => CommentSeamKeyword::Extends,
         Keyword::Else => CommentSeamKeyword::Else,
         Keyword::Case => CommentSeamKeyword::Case,
         Keyword::Default => CommentSeamKeyword::Default,
