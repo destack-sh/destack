@@ -1,16 +1,45 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral, Type,
-    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 
-use super::RelationMode;
+use super::{CanonicalSymbolMode, RelationMode};
 use crate::analyze::common::{TypeContext, TypeView};
-use crate::{Assignability, Compiler};
+use crate::{AnalyzeResult, Assignability, Compiler, StaticMemberSymbolKind};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when one symbol is valid as a symbolic static value reference.
+    pub(crate) fn symbol_is_symbolic_static_value_reference(
+        &self,
+        ctx: TypeView<'_>,
+        symbol: GlobalSymbolId,
+    ) -> AnalyzeResult<bool> {
+        if self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
+            return Ok(true);
+        }
+
+        let symbol = self.canonical_symbol_id(
+            ctx.module_symbol_view(),
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let symbol = self
+            .declaration_symbol_id(ctx.module_symbol_view(), symbol)
+            .unwrap_or(symbol);
+
+        let kind =
+            self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), symbol)?;
+        Ok(matches!(
+            kind,
+            Some(
+                StaticMemberSymbolKind::AssociatedComptimeConst | StaticMemberSymbolKind::EnumField
+            )
+        ))
+    }
+
     /// Check whether a type requires evaluative normalization.
     pub(crate) fn type_requires_evaluative_normalization(
         &self,
@@ -56,6 +85,17 @@ impl Compiler {
             type_id,
             ctx.types,
             &mut static_argument_visited,
+        ) {
+            return true;
+        }
+
+        // associated type references require receiver projection substitutions
+        let mut associated_reference_visited = HashSet::new();
+        if self.type_contains_associated_type_reference(
+            ctx.tree_symbol_view(),
+            type_id,
+            ctx.types,
+            &mut associated_reference_visited,
         ) {
             return true;
         }

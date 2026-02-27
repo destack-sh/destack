@@ -1,36 +1,7 @@
 use super::*;
-use crate::analyze::common::SymbolTypeView;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    pub(crate) fn is_interface_implemented(
-        &self,
-        ctx: SymbolTypeView<'_>,
-        ty: &Type,
-        interface_item: LanguageSymbol,
-    ) -> bool {
-        let interface_symbol = self.language_symbol(ctx.profile, interface_item);
-        match ty {
-            Type::Value { value } => {
-                let inner_ty = ctx.types.get_type(*value);
-                self.is_interface_implemented(ctx, inner_ty, interface_item)
-            }
-            Type::Reference { symbol, .. } => {
-                let canonical_symbol = self.canonical_symbol_id(
-                    ctx.module_symbol_view(),
-                    *symbol,
-                    CanonicalSymbolMode::FollowAliases,
-                );
-                self.is_type_lineage_assignable(ctx, canonical_symbol, interface_symbol)
-            }
-            Type::Union { elements } => elements.iter().all(|element_id| {
-                let element_ty = ctx.types.get_type(*element_id);
-                self.is_interface_implemented(ctx, element_ty, interface_item)
-            }),
-            _ => false,
-        }
-    }
-
     /// Check whether a type is definitely a struct type.
     pub(crate) fn is_definitely_struct_type(&self, ty: &Type) -> bool {
         match ty {
