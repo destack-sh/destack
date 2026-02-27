@@ -34,11 +34,11 @@ instead of wrangling many disparate languages, tools, libraries, approaches, and
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 
 While Destack is designed from the ground up as an integrated system, you are of course free to pick and choose only the components you like.
-It's all open source, open standards, zero lock-in.
+It's all open source, open standards, zero lock-in - and, most importantly: highly experimental.
 
 ---
 
-### Higher-Order Programming
+## Higher-Order Programming
 
 It has been over 50 years since C introduced higher order programming as we know it today, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
@@ -53,22 +53,33 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 
 ---
 
-## Getting Started
+## Why You Shouldn't Use Destack
 
 > [!WARNING]
-> **Destack is alpha-stage software.**
-> Use at your own risk. Things may change or break or disappear without notice.
+> **Destack is an alpha-stage, experimental computing stack.**
+> Use at your own risk. Things may change or break or disappear entirely without notice.
 
-<!--TODO #Incomplete: getting started (`bun i -g @destack/cli`, `curl destack.sh/install`, and local development setup)-->
+Destack was developed over years, with a _lot_ of iteration, and it also deliberately follows known good standards like TypeScript, TSX, Node and Web-shaped APIs.
+However, obviously, it is still rather early, it is definitely quite radical, and there are sound arguments against doing things in a Destack-shaped way:
 
+1. The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a very different way may very well turn out net negative.
+2. Destack is compatible with JS/TS, yes, and runs modern TS, yes, but many of the most interesting features only work with "modern TS" (and of course "TS++") and when integrating with more of the "destack" libraries, which is a bigger shift.
+3. The ecosystem split implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has non-trivial friction.
+4. The existing (web) standards should be followed _less_ and since code transformation is now relatively cheap, and this is a unique time of disruption, Destack should be even _more_ adventorous and experimtal in its design to finally do software in the "most optimal" way.
+5. The existing (web) standards should be followed _more_ religiously, we shouldn't just pick and choose the "best" ones; they are pretty good by now and while they're not perfect, any deviation necessarily implies imperfect transformation at some lossy edge.
+6. The "++" in our "TS++" language is trying to do too much, TS is not meant to be load-bearing in this way, and systems programming should be left to systems languages.
+7. Following TS/TSX/Node/Web standards is nice, but the unique combination of features and technologies arranged in this way is still rather novel and might be difficult to understand / get used to.
+8. The value of a "stack", much like the value of many technologies, comes from having been around for a while and thus stand the new test of time; any new way of doing things is thus necessarily suspicious, _even if_ it has "objective" overall advantages.
+
+**If you _really_ insist on using Destack:**
 Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
 Create a new app with `npm create destack@latest my-app` or `bun create destack my-app`.
 
 ---
 
-## Targets
+## Platforms and Targets
 
-Destack supports Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still coming online.
+Destack supports the web, of course, but as a native target also runs on Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still coming online.
 
 | Tier | Target triples |
 |------|----------------|
