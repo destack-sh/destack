@@ -61,7 +61,7 @@ class User {
         User { name: "Ada" }
     }
 
-    name: string;
+    name: string = "";
 }
 
 const user = User.create();

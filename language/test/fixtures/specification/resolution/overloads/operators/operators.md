@@ -65,7 +65,7 @@ combined satisfies int32[];
 
 > Sets support `|` union when builtin overloads are available.
 
-```ds
+```ds libs=es2015
 declare const left: Set<int32>;
 declare const right: Set<int32>;
 
@@ -77,7 +77,7 @@ combined satisfies Set<int32>;
 
 > Maps support `|` merge when builtin overloads are available.
 
-```ds
+```ds libs=es2015
 declare const left: Map<string, int32>;
 declare const right: Map<string, int32>;
 
@@ -98,11 +98,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-extension for Counter implements Add<number> {
+export extension CounterNumberAdd for Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+export extension CounterIntAdd for Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
@@ -113,7 +113,7 @@ export { Counter as PublicCounter } from "./counter";
 
 ```ds:main.ds
 import { PublicCounter } from "./index";
-import "./extensions";
+import { CounterNumberAdd, CounterIntAdd } from "./extensions";
 
 declare let counter: PublicCounter;
 
@@ -132,11 +132,11 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-extension for Counter implements Add<number> {
+export extension CounterNumberAdd for Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+export extension CounterIntAdd for Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
@@ -147,7 +147,7 @@ export { Counter as PublicCounter } from "./counter";
 
 ```ds:main.ds
 import { PublicCounter } from "./index";
-import "./extensions";
+import { CounterNumberAdd, CounterIntAdd } from "./extensions";
 
 declare let counter: PublicCounter;
 

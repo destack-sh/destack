@@ -181,10 +181,6 @@ class Base {
 }
 
 class Derived extends Base {
-    override label(): "derived" {
-        "derived"
-    }
-
     fromSuper(): "base" {
         super.label()
     }
