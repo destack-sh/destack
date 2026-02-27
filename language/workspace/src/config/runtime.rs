@@ -826,6 +826,8 @@ pub struct PlatformNetOptions {
     pub proxy_url: Option<String>,
     /// Optional default egress interface binding.
     pub bind_interface: Option<String>,
+    /// Whether Windows packet lanes should dispatch through a host packet backend.
+    pub windows_packet_backend_enabled: Option<bool>,
 }
 
 /// Process runtime options.
@@ -4766,6 +4768,8 @@ pub struct PlatformNetOptionsJson {
     pub proxy_url: Option<String>,
     /// Optional default egress interface binding.
     pub bind_interface: Option<String>,
+    /// Whether Windows packet lanes should dispatch through a host packet backend.
+    pub windows_packet_backend_enabled: Option<bool>,
 }
 
 impl PlatformNetOptionsJson {
@@ -4784,6 +4788,11 @@ impl PlatformNetOptionsJson {
         // apply interface binding overrides
         if let Some(bind_interface) = &self.bind_interface {
             options.bind_interface = Some(bind_interface.clone());
+        }
+
+        // apply windows packet backend overrides
+        if let Some(windows_packet_backend_enabled) = self.windows_packet_backend_enabled {
+            options.windows_packet_backend_enabled = Some(windows_packet_backend_enabled);
         }
     }
 }

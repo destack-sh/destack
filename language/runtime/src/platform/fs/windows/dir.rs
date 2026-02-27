@@ -1,7 +1,7 @@
 use windows_sys::Wdk::Storage::FileSystem::{FILE_CREATE, FILE_DIRECTORY_FILE};
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_NO_MORE_FILES, HANDLE_FLAG_INHERIT, INVALID_HANDLE_VALUE,
-    SetHandleInformation,
+    CloseHandle, ERROR_FILE_NOT_FOUND, ERROR_NO_MORE_FILES, HANDLE_FLAG_INHERIT,
+    INVALID_HANDLE_VALUE, SetHandleInformation,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     CreateDirectoryW, CreateFileW, FILE_ATTRIBUTE_DIRECTORY, FILE_FLAG_BACKUP_SEMANTICS,
@@ -18,6 +18,42 @@ use crate::platform::fs::{
 use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
+use std::sync::{Arc, Mutex};
+
+/// Directory payload stored in the resource table.
+#[derive(Debug)]
+struct DirectoryResource {
+    /// Directory iteration cursor index.
+    cursor: Arc<Mutex<u64>>,
+}
+
+/// Resolve a directory cursor from one directory handle.
+fn directory_cursor(
+    context: &BindingCallContext,
+    handle: DirectoryHandle,
+) -> RuntimeResult<Arc<Mutex<u64>>> {
+    // resolve the cursor payload for this directory handle
+    core_fs::require_resource(
+        context,
+        handle.0,
+        ResourceKind::Directory,
+        "directory",
+        |entry| {
+            entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<DirectoryResource>())
+                .map(|directory| directory.cursor.clone())
+                .ok_or_else(|| {
+                    RuntimeError::from(PlatformError::generic(
+                        None,
+                        "directory cursor missing payload",
+                    ))
+                    .boxed()
+                })
+        },
+    )
+}
 
 /// Open a directory and return a handle.
 ///
@@ -75,8 +111,12 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     }
 
     // register the resource handle
+    let directory = DirectoryResource {
+        cursor: Arc::new(Mutex::new(0)),
+    };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_handle(handle as _)
+        .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
@@ -142,8 +182,12 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
     }
 
     // register the resource handle
+    let directory = DirectoryResource {
+        cursor: Arc::new(Mutex::new(0)),
+    };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_handle(handle as _)
+        .with_payload(directory)
         .with_finalizer(HandleFinalizer::new(handle));
     let resource_id = context.runtime().resources.insert(entry);
     unsafe {
@@ -623,76 +667,121 @@ pub(crate) unsafe fn destack_fs_readdir_next(
     out: *mut DirentNext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    #[cfg(unix)]
-    {
-        let directory_fd = directory_descriptor(context, handle)?;
-        let duplicate_fd = unsafe { libc::dup(directory_fd) };
-        if duplicate_fd < 0 {
-            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
-        }
+    // resolve the per-handle cursor index and directory path
+    let cursor = directory_cursor(context, handle)?;
+    let mut cursor = cursor.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory cursor lock is poisoned",
+        ))
+        .boxed()
+    })?;
+    let current_index = *cursor;
+    let handle = directory_handle(context, handle)?;
+    let mut search = final_path_from_handle(handle)?;
+    search.push('\\' as u16);
+    search.push('*' as u16);
+    search.push(0);
 
-        let directory = unsafe { libc::fdopendir(duplicate_fd) };
-        if directory.is_null() {
-            unsafe {
-                libc::close(duplicate_fd);
-            }
-            return Err(
-                RuntimeError::from(PlatformError::io("fdopendir failed".to_string())).boxed(),
-            );
-        }
-
-        loop {
-            let entry = unsafe { libc::readdir(directory) };
-            if entry.is_null() {
-                unsafe {
-                    libc::closedir(directory);
-                }
-                let empty_bytes = PathBytesAbi::<NativeAbi>(context.store_array(Vec::new()));
-                unsafe {
-                    *out = DirentNext {
-                        has_entry: false,
-                        entry: Dirent {
-                            name: core_fs::path_ref_from_bytes(empty_bytes),
-                            kind: DirentKind::Unknown,
-                        },
-                    };
-                }
-                return Ok(());
-            }
-
-            let name_pointer = unsafe { (*entry).d_name.as_ptr() };
-            let name = unsafe { std::ffi::CStr::from_ptr(name_pointer) };
-            let name_bytes = name.to_bytes();
-            if name_bytes == b"." || name_bytes == b".." {
-                continue;
-            }
-
-            let kind = dirent_kind_from_type(unsafe { (*entry).d_type });
-            let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
+    // start one transient enumeration stream
+    let mut data = unsafe { std::mem::zeroed::<WIN32_FIND_DATAW>() };
+    let find = unsafe { FindFirstFileW(search.as_ptr(), &mut data) };
+    if find == INVALID_HANDLE_VALUE {
+        let code = core_platform::last_error_code() as u32;
+        if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
             unsafe {
                 *out = DirentNext {
-                    has_entry: true,
+                    has_entry: false,
                     entry: Dirent {
-                        name: core_fs::path_ref_from_bytes(name),
-                        kind,
+                        name: core_fs::path_ref_from_utf16(core_fs::empty_path_utf16()),
+                        kind: DirentKind::Unknown,
                     },
                 };
             }
-            unsafe {
-                libc::closedir(directory);
-            }
+
             return Ok(());
         }
+
+        return Err(last_os_error("FindFirstFileW", None));
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = (context, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readdirNext")).boxed())
+    // close the transient enumeration stream automatically
+    struct FindGuard(isize);
+    impl Drop for FindGuard {
+        fn drop(&mut self) {
+            unsafe {
+                FindClose(self.0);
+            }
+        }
+    }
+    let _guard = FindGuard(find);
+
+    // walk entries until we reach the indexed cursor position
+    let mut visible_index = 0_u64;
+    loop {
+        // filter dot and dot-dot entries from the visible index stream
+        let name_length = data
+            .cFileName
+            .iter()
+            .position(|value| *value == 0)
+            .unwrap_or(data.cFileName.len());
+        let is_dot = name_length == 1 && data.cFileName[0] == 0x2e;
+        let is_dot_dot = name_length == 2 && data.cFileName[0] == 0x2e && data.cFileName[1] == 0x2e;
+        if !(is_dot || is_dot_dot) {
+            // skip entries before the current cursor
+            if visible_index < current_index {
+                visible_index = visible_index.saturating_add(1);
+            } else {
+                // emit one entry and advance the cursor index
+                let kind = if data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
+                    DirentKind::Directory
+                } else {
+                    DirentKind::File
+                };
+                let name = path_utf16_from_units(context, &data.cFileName[..name_length]);
+                *cursor = current_index.saturating_add(1);
+                unsafe {
+                    *out = DirentNext {
+                        has_entry: true,
+                        entry: Dirent {
+                            name: core_fs::path_ref_from_utf16(name),
+                            kind,
+                        },
+                    };
+                }
+
+                return Ok(());
+            }
+        }
+
+        // advance to the next native entry
+        let rc = unsafe { FindNextFileW(find, &mut data) };
+        if rc != 0 {
+            continue;
+        }
+
+        // report end-of-directory
+        let code = core_platform::last_error_code() as u32;
+        if code == ERROR_NO_MORE_FILES {
+            unsafe {
+                *out = DirentNext {
+                    has_entry: false,
+                    entry: Dirent {
+                        name: core_fs::path_ref_from_utf16(core_fs::empty_path_utf16()),
+                        kind: DirentKind::Unknown,
+                    },
+                };
+            }
+
+            return Ok(());
+        }
+
+        return Err(last_os_error("FindNextFileW", None));
     }
 }
 
@@ -717,34 +806,18 @@ pub(crate) unsafe fn destack_fs_rewinddir(
     context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    #[cfg(unix)]
-    {
-        let directory_fd = directory_descriptor(context, handle)?;
-        let duplicate_fd = unsafe { libc::dup(directory_fd) };
-        if duplicate_fd < 0 {
-            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
-        }
-        let directory = unsafe { libc::fdopendir(duplicate_fd) };
-        if directory.is_null() {
-            unsafe {
-                libc::close(duplicate_fd);
-            }
-            return Err(
-                RuntimeError::from(PlatformError::io("fdopendir failed".to_string())).boxed(),
-            );
-        }
-        unsafe {
-            libc::rewinddir(directory);
-            libc::closedir(directory);
-        }
-        Ok(())
-    }
+    // resolve and reset the per-handle directory cursor
+    let cursor = directory_cursor(context, handle)?;
+    let mut cursor = cursor.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory cursor lock is poisoned",
+        ))
+        .boxed()
+    })?;
+    *cursor = 0;
 
-    #[cfg(not(unix))]
-    {
-        let _ = (context, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rewinddir")).boxed())
-    }
+    Ok(())
 }
 
 /// Start watching a path and return a watch handle.
@@ -770,14 +843,26 @@ pub(crate) unsafe fn destack_fs_watch(
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, path, options);
 
-    // NOTE #Incomplete: implement filesystem watcher open
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watch")).boxed())
+    // decode the path and open the watch resource
+    let watch_path = core_fs::with_path_ref(
+        path,
+        "path",
+        |bytes| pathbuf_from_bytes(bytes, "path"),
+        |utf16| pathbuf_from_utf16(utf16, "path"),
+    )?;
+    let handle = core_fs::open_watch(context, &watch_path, options)?;
+
+    // store the returned watch handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Close a watch handle.
@@ -801,9 +886,7 @@ pub(crate) unsafe fn destack_fs_watch_close(
     context: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement filesystem watcher close
-    let _ = (context, handle);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
+    core_fs::close_watch(context, handle)
 }
 
 /// Read a batch of events from a watch handle.
@@ -828,14 +911,18 @@ pub(crate) unsafe fn destack_fs_watch_read(
     out: *mut WatchBatch,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    // NOTE #Incomplete: implement filesystem watcher read
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
+    // read one pending watch batch
+    let batch = core_fs::read_watch(context, handle)?;
+    unsafe {
+        *out = batch;
+    }
+
+    Ok(())
 }
 
 /// Start watching a path relative to a directory handle.
@@ -862,12 +949,32 @@ pub(crate) unsafe fn destack_fs_watchat(
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, directory, path, options);
 
-    // NOTE #Incomplete: implement relative filesystem watcher open
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchat")).boxed())
+    // resolve the directory base path
+    let directory_path = directory_path(context, directory)?;
+
+    // decode the path and resolve it relative to the directory
+    let watch_path = core_fs::with_path_ref(
+        path,
+        "path",
+        |bytes| pathbuf_from_bytes(bytes, "path"),
+        |utf16| pathbuf_from_utf16(utf16, "path"),
+    )?;
+    let watch_path = if watch_path.is_absolute() {
+        watch_path
+    } else {
+        directory_path.join(watch_path)
+    };
+    let handle = core_fs::open_watch(context, &watch_path, options)?;
+
+    // store the returned watch handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }

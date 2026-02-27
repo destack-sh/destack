@@ -1,9 +1,10 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{OsPath, XattrFlags};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::fs::{OsPath, PathEncoding, XattrFlags};
 use crate::platform::resource::FileHandle;
-use crate::platform::{NativeArray, NativeSlice, PlatformError};
+use crate::platform::{NativeArray, NativeSlice};
 use crate::runtime::BindingCallContext;
 
+use super::host as host_fs;
 #[allow(unused_imports)]
 pub(crate) use super::host::*;
 
@@ -25,15 +26,20 @@ pub(crate) use super::host::*;
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
-    _context: &BindingCallContext,
-    _out: *mut NativeArray<u8>,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
+    context: &BindingCallContext,
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.getxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_getxattr_bytes(context, out, path.bytes, name)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_getxattr_utf16(context, out, path.utf16, name)
+        },
+    }
 }
 
 /// Read an extended attribute without following symlinks, using a raw name payload.
@@ -54,15 +60,20 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
-    _context: &BindingCallContext,
-    _out: *mut NativeArray<u8>,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
+    context: &BindingCallContext,
+    out: *mut NativeArray<u8>,
+    path: OsPath,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.lgetxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_lgetxattr_bytes(context, out, path.bytes, name)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_lgetxattr_utf16(context, out, path.utf16, name)
+        },
+    }
 }
 
 /// Set an extended attribute by path with a raw name payload.
@@ -83,16 +94,21 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
-    _context: &BindingCallContext,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
-    _value: NativeSlice<u8>,
-    _flags: XattrFlags,
+    context: &BindingCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.setxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_setxattr_bytes(context, path.bytes, name, value, flags)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_setxattr_utf16(context, path.utf16, name, value, flags)
+        },
+    }
 }
 
 /// Set an extended attribute without following symlinks, using a raw name payload.
@@ -113,16 +129,21 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
-    _context: &BindingCallContext,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
-    _value: NativeSlice<u8>,
-    _flags: XattrFlags,
+    context: &BindingCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
+    value: NativeSlice<u8>,
+    flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.lsetxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_lsetxattr_bytes(context, path.bytes, name, value, flags)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_lsetxattr_utf16(context, path.utf16, name, value, flags)
+        },
+    }
 }
 
 /// List extended attribute names by path as raw byte payloads.
@@ -143,14 +164,19 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
-    _context: &BindingCallContext,
-    _out: *mut NativeArray<NativeArray<u8>>,
-    _path: OsPath,
+    context: &BindingCallContext,
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.listxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_listxattr_bytes(context, out, path.bytes)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_listxattr_utf16(context, out, path.utf16)
+        },
+    }
 }
 
 /// List extended attribute names without following symlinks as raw byte payloads.
@@ -171,14 +197,19 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
-    _context: &BindingCallContext,
-    _out: *mut NativeArray<NativeArray<u8>>,
-    _path: OsPath,
+    context: &BindingCallContext,
+    out: *mut NativeArray<NativeArray<u8>>,
+    path: OsPath,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.llistxattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_llistxattr_bytes(context, out, path.bytes)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_llistxattr_utf16(context, out, path.utf16)
+        },
+    }
 }
 
 /// Remove an extended attribute by path with a raw name payload.
@@ -199,14 +230,19 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
-    _context: &BindingCallContext,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
+    context: &BindingCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.removexattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_removexattr_bytes(context, path.bytes, name)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_removexattr_utf16(context, path.utf16, name)
+        },
+    }
 }
 
 /// Remove an extended attribute without following symlinks, using a raw name payload.
@@ -227,14 +263,19 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
-    _context: &BindingCallContext,
-    _path: OsPath,
-    _name: NativeSlice<u8>,
+    context: &BindingCallContext,
+    path: OsPath,
+    name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.lremovexattrBytes",
-    ))
-    .boxed())
+    // dispatch by path encoding
+    match path.encoding {
+        PathEncoding::Bytes => unsafe {
+            host_fs::destack_fs_lremovexattr_bytes(context, path.bytes, name)
+        },
+        PathEncoding::Utf16 => unsafe {
+            host_fs::destack_fs_lremovexattr_utf16(context, path.utf16, name)
+        },
+    }
 }
 
 /// Read an extended attribute by handle with a raw name payload.
@@ -255,16 +296,12 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<u8>,
     handle: FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (out, handle, name);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.fgetxattrBytes",
-    ))
-    .boxed())
+    unsafe { host_fs::destack_fs_fgetxattr_handle(context, out, handle, name) }
 }
 
 /// Set an extended attribute by handle with a raw name payload.
@@ -285,17 +322,13 @@ pub(crate) unsafe fn destack_fs_fgetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
     value: NativeSlice<u8>,
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
-    let _ = (handle, name, value, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.fsetxattrBytes",
-    ))
-    .boxed())
+    unsafe { host_fs::destack_fs_fsetxattr_handle(context, handle, name, value, flags) }
 }
 
 /// List extended attribute names by handle as raw byte payloads.
@@ -316,15 +349,11 @@ pub(crate) unsafe fn destack_fs_fsetxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_bytes(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
     handle: FileHandle,
 ) -> RuntimeResult<()> {
-    let _ = (out, handle);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.flistxattrBytes",
-    ))
-    .boxed())
+    unsafe { host_fs::destack_fs_flistxattr_handle(context, out, handle) }
 }
 
 /// Remove an extended attribute by handle with a raw name payload.
@@ -345,13 +374,9 @@ pub(crate) unsafe fn destack_fs_flistxattr_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_bytes(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: FileHandle,
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    let _ = (handle, name);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.fs.xattr.fremovexattrBytes",
-    ))
-    .boxed())
+    unsafe { host_fs::destack_fs_fremovexattr_handle(context, handle, name) }
 }

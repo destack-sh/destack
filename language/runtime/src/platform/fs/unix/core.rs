@@ -9,12 +9,13 @@ use crate::platform::fs::{
 use crate::platform::resource::{
     DirectoryHandle, FileHandle, ResourceFinalizer, ResourceId, ResourceKind,
 };
-use crate::platform::{NativeStringRef, PlatformError, core as core_platform};
+use crate::platform::{NativeSlice, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
+use std::sync::{Arc, Mutex};
 
 /// Directory payload stored in the resource table.
 #[derive(Debug, Clone)]
@@ -23,6 +24,8 @@ pub(super) struct DirectoryResource {
     pub(super) path: PathBuf,
     /// Directory file descriptor.
     pub(super) fd: RawFd,
+    /// Directory iteration cursor index.
+    pub(super) cursor: Arc<Mutex<u64>>,
 }
 
 /// Finalizer that closes a raw file descriptor.
@@ -91,9 +94,12 @@ pub(super) fn resolve_path_utf16_cstring(path: PathUtf16, name: &str) -> Runtime
     })
 }
 
-/// Resolve a string argument into a CString.
-pub(super) fn resolve_name_cstring(name: NativeStringRef, label: &str) -> RuntimeResult<CString> {
-    let name = unsafe { name.as_str()? };
+/// Resolve one raw-byte name argument into a CString.
+pub(super) fn resolve_name_bytes_cstring(
+    name: NativeSlice<u8>,
+    label: &str,
+) -> RuntimeResult<CString> {
+    let name = unsafe { name.as_slice()? };
     CString::new(name).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             label,

@@ -13,6 +13,40 @@ use crate::platform::fs::{
 };
 use crate::runtime::BindingCallContext;
 
+/// Map one fallback `Stat` snapshot into `Statx`.
+fn statx_from_fallback_stat(stat: Stat) -> Statx {
+    // derive major and minor pairs from encoded device ids
+    let dev_major = ((stat.dev >> 8) & 0xfff) as u32;
+    let dev_minor = ((stat.dev & 0xff) | ((stat.dev >> 12) & 0xfff00)) as u32;
+    let rdev_major = ((stat.rdev >> 8) & 0xfff) as u32;
+    let rdev_minor = ((stat.rdev & 0xff) | ((stat.rdev >> 12) & 0xfff00)) as u32;
+
+    // saturate block size into the statx field width
+    let blksize = stat.blksize.min(u64::from(u32::MAX)) as u32;
+
+    // map stat fields into the fallback statx payload
+    Statx {
+        mask: StatxMask(0),
+        blksize,
+        mount_id: 0,
+        dev_major,
+        dev_minor,
+        ino: stat.ino,
+        mode: stat.mode,
+        nlink: stat.nlink,
+        uid: stat.uid,
+        gid: stat.gid,
+        rdev_major,
+        rdev_minor,
+        size: stat.size,
+        blocks: stat.blocks,
+        atime_ns: stat.atime_ns,
+        btime_ns: stat.birthtime_ns,
+        ctime_ns: stat.ctime_ns,
+        mtime_ns: stat.mtime_ns,
+    }
+}
+
 /// Stat a file.
 ///
 /// Stat a file via host kernel APIs.
@@ -554,77 +588,36 @@ pub(crate) unsafe fn destack_fs_statx(
     flags: StatxFlags,
     _mask: StatxMask,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    core_fs::with_path_ref(
-        path,
-        "path",
-        |path| {
-            #[cfg(unix)]
-            {
-                let directory_fd = directory_descriptor(context, dir)?;
-                let path = path_bytes_to_cstring(path, "path")?;
-                let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
-                let result = unsafe {
-                    libc::fstatat(
-                        directory_fd,
-                        path.as_ptr(),
-                        stat.as_mut_ptr(),
-                        flags.0 as libc::c_int,
-                    )
-                };
-                if result != 0 {
-                    return Err(RuntimeError::from(PlatformError::io(
-                        "fstatat failed".to_string(),
-                    ))
-                    .boxed());
-                }
-                let stat = unsafe { stat.assume_init() };
+    // map statx flags to the statat no-follow lane
+    if flags.0 & !AT_SYMLINK_NOFOLLOW != 0 {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.fs.statx flags")).boxed(),
+        );
+    }
 
-                let atime_ns = (stat.st_atime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_atime_nsec as u64);
-                let btime_ns = 0;
-                let ctime_ns = (stat.st_ctime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_ctime_nsec as u64);
-                let mtime_ns = (stat.st_mtime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_mtime_nsec as u64);
+    // map supported statx flags into at-flag semantics
+    let mut at_flags = AtFlags(0);
+    if flags.0 & AT_SYMLINK_NOFOLLOW != 0 {
+        at_flags.0 |= AT_SYMLINK_NOFOLLOW;
+    }
 
-                unsafe {
-                    *out = Statx {
-                        mask: StatxMask(0),
-                        blksize: stat.st_blksize as u32,
-                        mount_id: 0,
-                        dev_major: ((stat.st_dev >> 8) & 0xfff) as u32,
-                        dev_minor: ((stat.st_dev & 0xff) | ((stat.st_dev >> 12) & 0xfff00)) as u32,
-                        ino: stat.st_ino,
-                        mode: FileMode(stat.st_mode as u32),
-                        nlink: stat.st_nlink as u32,
-                        uid: stat.st_uid,
-                        gid: stat.st_gid,
-                        rdev_major: ((stat.st_rdev >> 8) & 0xfff) as u32,
-                        rdev_minor: ((stat.st_rdev & 0xff) | ((stat.st_rdev >> 12) & 0xfff00))
-                            as u32,
-                        size: FileSize(stat.st_size as u64),
-                        blocks: stat.st_blocks as u64,
-                        atime_ns,
-                        btime_ns,
-                        ctime_ns,
-                        mtime_ns,
-                    };
-                }
-                Ok(())
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = (context, dir, path, flags);
-                Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statx")).boxed())
-            }
-        },
-        |_path| Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statx")).boxed()),
-    )
+    // read fallback stat metadata through the statat implementation
+    let mut stat = std::mem::MaybeUninit::<Stat>::uninit();
+    unsafe {
+        destack_fs_statat(context, stat.as_mut_ptr(), dir, path, at_flags)?;
+    }
+    let stat = unsafe { stat.assume_init() };
+    let statx = statx_from_fallback_stat(stat);
+
+    // write the fallback statx payload
+    unsafe {
+        *out = statx;
+    }
+
+    Ok(())
 }

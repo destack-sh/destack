@@ -66,13 +66,14 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     size: FileOffset,
 ) -> RuntimeResult<()> {
-    // report unsupported truncate calls on non-windows platforms
-    let _ = (path, size);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.truncateUtf16")).boxed())
+    // truncate the file by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_truncate_bytes(context, path, size)
+    })
 }
 
 /// Truncate a file.

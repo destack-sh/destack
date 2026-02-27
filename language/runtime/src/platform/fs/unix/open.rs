@@ -14,6 +14,7 @@ use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 /// Linux `openat2` argument payload.
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -104,9 +105,10 @@ pub(crate) unsafe fn destack_fs_open_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported open calls on non-windows platforms
-    let _ = (context, path, flags, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openUtf16")).boxed())
+    // open the file by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_open_bytes(context, out, path, flags, mode)
+    })
 }
 
 /// Open a directory and return a handle.
@@ -145,7 +147,11 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     }
 
     let path_buf = resolve_path_bytes(path, "path")?;
-    let resource = DirectoryResource { path: path_buf, fd };
+    let resource = DirectoryResource {
+        path: path_buf,
+        fd,
+        cursor: Arc::new(Mutex::new(0)),
+    };
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_payload(resource)
         .with_finalizer(FdFinalizer { fd });
@@ -183,9 +189,10 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported opendir calls on non-windows platforms
-    let _ = (context, path, out);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.opendirUtf16")).boxed())
+    // open the directory by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_opendir_bytes(context, out, path)
+    })
 }
 
 /// Open a file relative to a directory handle.
@@ -273,9 +280,10 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported openat calls on non-windows platforms
-    let _ = (context, out, dir, path, flags, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openatUtf16")).boxed())
+    // open the file by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_openat_bytes(context, out, dir, path, flags, mode)
+    })
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
@@ -379,9 +387,10 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    // report unsupported openat2 calls on non-windows platforms
-    let _ = (context, out, dir, path, how);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat2Utf16")).boxed())
+    // open the file by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_openat2_bytes(context, out, dir, path, how)
+    })
 }
 
 /// Open a directory and return a handle.

@@ -642,7 +642,12 @@ pub(super) struct FileResource {
     pub handle: isize,
     /// Cursor tracking for sequential reads and writes.
     pub cursor: Arc<Mutex<i64>>,
+    /// Status-flag tracking for get and set status flags lanes.
+    pub status_flags: Arc<Mutex<u32>>,
 }
+
+/// Shared runtime file state for cursor and status-flag lanes.
+type FileState = (Arc<Mutex<i64>>, Arc<Mutex<u32>>);
 
 /// Heap-allocated SID wrapper that frees on drop.
 #[derive(Debug)]
@@ -772,22 +777,45 @@ pub(super) fn file_resource(
     context: &BindingCallContext,
     handle: FileHandle,
 ) -> RuntimeResult<Arc<Mutex<i64>>> {
+    let (cursor, _) = file_state(context, handle)?;
+
+    Ok(cursor)
+}
+
+/// Resolve a resource entry for file cursor and status-flag state.
+pub(super) fn file_state(
+    context: &BindingCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<FileState> {
     // resolve the resource entry
-    let cursor =
+    let state =
         core_fs::require_resource(context, handle.0, ResourceKind::File, "file", |entry| {
-            entry
+            let Some(resource) = entry
                 .payload
                 .as_ref()
                 .and_then(|payload| payload.downcast_ref::<FileResource>())
-                .map(|resource| resource.cursor.clone())
-                .ok_or_else(|| {
-                    RuntimeError::from(PlatformError::generic(None, "file cursor missing payload"))
-                        .boxed()
-                })
+            else {
+                return Err(RuntimeError::from(PlatformError::generic(
+                    None,
+                    "file state missing payload",
+                ))
+                .boxed());
+            };
+
+            Ok((resource.cursor.clone(), resource.status_flags.clone()))
         })?;
 
-    // return the cursor
-    Ok(cursor)
+    Ok(state)
+}
+
+/// Resolve a resource entry for file status-flag state.
+pub(super) fn file_status_flags(
+    context: &BindingCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<Arc<Mutex<u32>>> {
+    let (_, status_flags) = file_state(context, handle)?;
+
+    Ok(status_flags)
 }
 
 /// Resolve a resource entry for a directory handle.

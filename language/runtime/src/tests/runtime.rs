@@ -26,6 +26,23 @@ pub(crate) struct TestRuntime {
 impl TestRuntime {
     /// Build a runtime with deterministic random settings.
     pub(crate) fn deterministic_random() -> Self {
+        Self::deterministic_random_with_options(|_| {})
+    }
+
+    /// Build a runtime with deterministic random settings and one options mutator.
+    pub(crate) fn deterministic_random_with_options(
+        configure: impl FnOnce(&mut RuntimeOptions),
+    ) -> Self {
+        // build baseline deterministic options
+        let mut options = Self::deterministic_runtime_options();
+        configure(&mut options);
+
+        // runtime with deterministic random state
+        Self::from_runtime_options(options)
+    }
+
+    /// Build the baseline deterministic runtime options.
+    fn deterministic_runtime_options() -> RuntimeOptions {
         // route host-backed crypto snapshots to deterministic local files
         let process_id = std::process::id();
         let user_store_path = std::env::temp_dir().join(format!(
@@ -44,7 +61,12 @@ impl TestRuntime {
         };
         options.crypto.host_store_paths.user = Some(user_store_path);
 
-        // runtime with deterministic random state
+        options
+    }
+
+    /// Build a test runtime from explicit runtime options.
+    fn from_runtime_options(options: RuntimeOptions) -> Self {
+        // build runtime state from explicit options
         let state = Arc::new(RuntimeState::from_options(
             PlatformContext::new(Vec::new()),
             &options,

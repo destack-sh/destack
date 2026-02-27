@@ -167,7 +167,8 @@ pub(crate) fn delete_credentials(
     // encode string arguments for host callback ABI
     let service = context.store_string(service);
     let account = context.store_string(account);
-    let access_group = context.store_string_option(access_group);
+    let access_group = access_group.map(str::to_owned);
+    let access_group = context.store_string_option(access_group.as_ref());
 
     let status = unsafe {
         destack_host_android_credentials_delete(runtime_id, service, account, access_group)
@@ -190,7 +191,8 @@ pub(crate) fn contains_credentials(
     // encode string arguments for host callback ABI
     let service = context.store_string(service);
     let account = context.store_string(account);
-    let access_group = context.store_string_option(access_group);
+    let access_group = access_group.map(str::to_owned);
+    let access_group = context.store_string_option(access_group.as_ref());
 
     let mut is_present = false;
     let status = unsafe {

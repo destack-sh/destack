@@ -25,6 +25,8 @@ mod tests;
 #[cfg(any(unix, windows))]
 mod utf16;
 #[cfg(any(unix, windows))]
+mod watch;
+#[cfg(any(unix, windows))]
 mod xattr;
 
 #[cfg(any(unix, windows))]

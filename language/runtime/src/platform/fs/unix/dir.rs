@@ -167,11 +167,13 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
-    _context: &BindingCallContext,
-    _path: PathUtf16,
+    context: &BindingCallContext,
+    path: PathUtf16,
 ) -> RuntimeResult<()> {
-    // report unsupported rmdir calls on non-windows platforms
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rmdirUtf16")).boxed())
+    // remove the directory by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_rmdir_bytes(context, path)
+    })
 }
 
 /// Create a directory.
@@ -224,13 +226,14 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    // report unsupported mkdir calls on non-windows platforms
-    let _ = (path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdirUtf16")).boxed())
+    // create the directory by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_mkdir_bytes(context, path, mode)
+    })
 }
 
 /// Create a directory relative to a directory handle.
@@ -289,9 +292,10 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
     path: PathUtf16,
     mode: FileMode,
 ) -> RuntimeResult<()> {
-    // report unsupported mkdirat calls on non-windows platforms
-    let _ = (context, dir, path, mode);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdiratUtf16")).boxed())
+    // create the directory by converting utf16 path input
+    core_fs::with_utf16_as_bytes(path, "path", |path| unsafe {
+        destack_fs_mkdirat_bytes(context, dir, path, mode)
+    })
 }
 
 /// Create a directory.
@@ -406,76 +410,131 @@ pub(crate) unsafe fn destack_fs_readdir_next(
     out: *mut DirentNext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    #[cfg(unix)]
-    {
-        let directory_fd = directory_descriptor(context, handle)?;
-        let duplicate_fd = unsafe { libc::dup(directory_fd) };
-        if duplicate_fd < 0 {
-            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
-        }
+    // resolve the directory resource and its iteration cursor
+    let resource = directory_resource(context, handle)?;
+    let mut cursor = resource.cursor.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory cursor lock is poisoned",
+        ))
+        .boxed()
+    })?;
+    let current_index = *cursor;
 
-        let directory = unsafe { libc::fdopendir(duplicate_fd) };
-        if directory.is_null() {
+    // open a fresh directory descriptor so host offsets do not leak across calls
+    let c_path = CString::new(resource.path.as_os_str().as_bytes()).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "path",
+            "path contains nul byte",
+        ))
+        .boxed()
+    })?;
+    let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC;
+    let duplicate_fd = unsafe { libc::open(c_path.as_ptr(), flags) };
+    if duplicate_fd < 0 {
+        return Err(core_platform::io_error(
+            "open",
+            Some(resource.path.to_string_lossy().as_ref()),
+        ));
+    }
+
+    // open a transient directory stream for this read step
+    let directory = unsafe { libc::fdopendir(duplicate_fd) };
+    if directory.is_null() {
+        unsafe {
+            libc::close(duplicate_fd);
+        }
+        return Err(core_platform::io_error("fdopendir", None));
+    }
+
+    // close the transient stream automatically on all exits
+    struct DirGuard(*mut libc::DIR);
+    impl Drop for DirGuard {
+        fn drop(&mut self) {
             unsafe {
-                libc::close(duplicate_fd);
+                libc::closedir(self.0);
             }
-            return Err(
-                RuntimeError::from(PlatformError::io("fdopendir failed".to_string())).boxed(),
-            );
         }
+    }
+    let _guard = DirGuard(directory);
 
-        loop {
-            let entry = unsafe { libc::readdir(directory) };
-            if entry.is_null() {
-                unsafe {
-                    libc::closedir(directory);
-                }
-                let empty_bytes = PathBytesAbi::<NativeAbi>(context.store_array(Vec::new()));
-                unsafe {
-                    *out = DirentNext {
-                        has_entry: false,
-                        entry: Dirent {
-                            name: core_fs::path_ref_from_bytes(empty_bytes),
-                            kind: DirentKind::Unknown,
-                        },
-                    };
-                }
-                return Ok(());
+    // walk entries until we reach the indexed cursor position
+    let mut visible_index = 0_u64;
+    loop {
+        core_platform::set_errno(0);
+        let entry = unsafe { libc::readdir(directory) };
+        if entry.is_null() {
+            if core_platform::get_errno() != 0 {
+                return Err(core_platform::io_error(
+                    "readdir",
+                    Some(resource.path.to_string_lossy().as_ref()),
+                ));
             }
 
-            let name_pointer = unsafe { (*entry).d_name.as_ptr() };
-            let name = unsafe { std::ffi::CStr::from_ptr(name_pointer) };
-            let name_bytes = name.to_bytes();
-            if name_bytes == b"." || name_bytes == b".." {
-                continue;
-            }
-
-            let kind = dirent_kind_from_type(unsafe { (*entry).d_type });
-            let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
+            // mark end-of-directory
+            let empty_bytes = PathBytesAbi::<NativeAbi>(context.store_array(Vec::new()));
             unsafe {
                 *out = DirentNext {
-                    has_entry: true,
+                    has_entry: false,
                     entry: Dirent {
-                        name: core_fs::path_ref_from_bytes(name),
-                        kind,
+                        name: core_fs::path_ref_from_bytes(empty_bytes),
+                        kind: DirentKind::Unknown,
                     },
                 };
             }
-            unsafe {
-                libc::closedir(directory);
-            }
             return Ok(());
         }
-    }
 
-    #[cfg(not(unix))]
-    {
-        let _ = (context, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readdirNext")).boxed())
+        // filter dot and dot-dot entries from the visible index stream
+        let name_pointer = unsafe { (*entry).d_name.as_ptr() };
+        let name = unsafe { std::ffi::CStr::from_ptr(name_pointer) };
+        let name_bytes = name.to_bytes();
+        if name_bytes == b"." || name_bytes == b".." {
+            continue;
+        }
+
+        // skip entries before the current cursor
+        if visible_index < current_index {
+            visible_index = visible_index.saturating_add(1);
+            continue;
+        }
+
+        // emit one entry and advance the cursor index
+        let mut kind = dirent_kind_from_type(unsafe { (*entry).d_type });
+        if kind == DirentKind::Unknown {
+            let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+            let rc = unsafe {
+                libc::fstatat(
+                    resource.fd,
+                    name_pointer,
+                    stat.as_mut_ptr(),
+                    libc::AT_SYMLINK_NOFOLLOW,
+                )
+            };
+            if rc == 0 {
+                let stat = unsafe { stat.assume_init() };
+                kind = dirent_kind_from_mode(stat.st_mode);
+            }
+        }
+
+        let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
+        *cursor = current_index.saturating_add(1);
+        unsafe {
+            *out = DirentNext {
+                has_entry: true,
+                entry: Dirent {
+                    name: core_fs::path_ref_from_bytes(name),
+                    kind,
+                },
+            };
+        }
+
+        return Ok(());
     }
 }
 
@@ -500,34 +559,18 @@ pub(crate) unsafe fn destack_fs_rewinddir(
     context: &BindingCallContext,
     handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
-    #[cfg(unix)]
-    {
-        let directory_fd = directory_descriptor(context, handle)?;
-        let duplicate_fd = unsafe { libc::dup(directory_fd) };
-        if duplicate_fd < 0 {
-            return Err(RuntimeError::from(PlatformError::io("dup failed".to_string())).boxed());
-        }
-        let directory = unsafe { libc::fdopendir(duplicate_fd) };
-        if directory.is_null() {
-            unsafe {
-                libc::close(duplicate_fd);
-            }
-            return Err(
-                RuntimeError::from(PlatformError::io("fdopendir failed".to_string())).boxed(),
-            );
-        }
-        unsafe {
-            libc::rewinddir(directory);
-            libc::closedir(directory);
-        }
-        Ok(())
-    }
+    // resolve the directory resource and reset its cursor
+    let resource = directory_resource(context, handle)?;
+    let mut cursor = resource.cursor.lock().map_err(|_| {
+        RuntimeError::from(PlatformError::generic(
+            None,
+            "directory cursor lock is poisoned",
+        ))
+        .boxed()
+    })?;
+    *cursor = 0;
 
-    #[cfg(not(unix))]
-    {
-        let _ = (context, handle);
-        Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rewinddir")).boxed())
-    }
+    Ok(())
 }
 
 /// Start watching a path and return a watch handle.
@@ -553,14 +596,32 @@ pub(crate) unsafe fn destack_fs_watch(
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, path, options);
 
-    // NOTE #Incomplete: implement filesystem watcher open
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watch")).boxed())
+    // decode the path and open the watch resource
+    let watch_path = core_fs::with_path_ref(
+        path,
+        "path",
+        |bytes| resolve_path_bytes(bytes, "path"),
+        |_utf16| {
+            Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "utf16 paths are not supported on unix",
+            ))
+            .boxed())
+        },
+    )?;
+    let handle = core_fs::open_watch(context, &watch_path, options)?;
+
+    // store the returned watch handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
 
 /// Close a watch handle.
@@ -584,9 +645,7 @@ pub(crate) unsafe fn destack_fs_watch_close(
     context: &BindingCallContext,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    // NOTE #Incomplete: implement filesystem watcher close
-    let _ = (context, handle);
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchClose")).boxed())
+    core_fs::close_watch(context, handle)
 }
 
 /// Read a batch of events from a watch handle.
@@ -611,14 +670,18 @@ pub(crate) unsafe fn destack_fs_watch_read(
     out: *mut WatchBatch,
     handle: WatchHandle,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle);
 
-    // NOTE #Incomplete: implement filesystem watcher read
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchRead")).boxed())
+    // read one pending watch batch
+    let batch = core_fs::read_watch(context, handle)?;
+    unsafe {
+        *out = batch;
+    }
+
+    Ok(())
 }
 
 /// Start watching a path relative to a directory handle.
@@ -645,12 +708,38 @@ pub(crate) unsafe fn destack_fs_watchat(
     path: OsPath,
     options: WatchOptions,
 ) -> RuntimeResult<()> {
-    // validate pointers and mark arguments as used
+    // validate the output pointer
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, directory, path, options);
 
-    // NOTE #Incomplete: implement relative filesystem watcher open
-    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.watchat")).boxed())
+    // resolve the directory base path
+    let directory = directory_resource(context, directory)?;
+
+    // decode the path and resolve it relative to the directory
+    let watch_path = core_fs::with_path_ref(
+        path,
+        "path",
+        |bytes| resolve_path_bytes(bytes, "path"),
+        |_utf16| {
+            Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "utf16 paths are not supported on unix",
+            ))
+            .boxed())
+        },
+    )?;
+    let watch_path = if watch_path.is_absolute() {
+        watch_path
+    } else {
+        directory.path.join(watch_path)
+    };
+    let handle = core_fs::open_watch(context, &watch_path, options)?;
+
+    // store the returned watch handle
+    unsafe {
+        *out = handle;
+    }
+
+    Ok(())
 }
