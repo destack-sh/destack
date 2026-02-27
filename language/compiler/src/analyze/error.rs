@@ -245,6 +245,17 @@ pub enum AnalyzeError {
         ty: GlobalTypeId,
     },
 
+    /// Call argument count does not satisfy the required arity.
+    #[error(
+        code = "EA236",
+        message = "expected {expected} arguments, found {actual}"
+    )]
+    InvalidArgumentArity {
+        node: AnchoredGlobalNodeId,
+        expected: usize,
+        actual: usize,
+    },
+
     /// Static arguments specified on both the member and the call.
     #[error(
         code = "EA206",
@@ -797,6 +808,13 @@ pub enum AnalyzeError {
     /// Rest parameters cannot be optional.
     #[error(code = "EA513", message = "optional rest parameters are not allowed")]
     InvalidOptionalRestParameter { node: AnchoredGlobalNodeId },
+
+    /// Object members cannot declare duplicate field names.
+    #[error(code = "EA514", message = "duplicate field '{field}'")]
+    DuplicateField {
+        node: AnchoredGlobalNodeId,
+        field: StaticKey,
+    },
 
     // -------------------------------------------------------------------------
     // 6xx: Accessibility

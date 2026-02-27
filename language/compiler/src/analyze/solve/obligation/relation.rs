@@ -75,7 +75,6 @@ impl Compiler {
             if assignability != Assignability::NotAssignable {
                 continue;
             }
-
             // emit the diagnostic selected by the obligation
             match obligation.diagnostic {
                 TypeRelationObligationDiagnostic::UnassignableType => {
@@ -166,6 +165,32 @@ impl Compiler {
 
                 // normalize value wrappers for discharged relation checks
                 let target_type_id = ctx.types.unwrap_value_type_id(target_type_id);
+                let source_type_id = ctx.types.unwrap_value_type_id(source_type_id);
+                Ok((target_type_id, source_type_id))
+            }
+            TypeRelationObligationOperands::CapturedTargetTypeAndSourceExpression {
+                target_type_id,
+                source_expression_id,
+            } => {
+                if source_expression_id.module_id != ctx.module.id {
+                    return Err(AnalyzeError::Internal {
+                        message:
+                            "cross-module type relation source expression operand is not supported"
+                                .to_string(),
+                    });
+                }
+
+                let source_type_id = infer
+                    .inferred_type_for_node(*source_expression_id)
+                    .or_else(|| ctx.types.get_inferred_type_id(*source_expression_id));
+                let Some(source_type_id) = source_type_id else {
+                    return Err(AnalyzeError::Internal {
+                        message: "missing inferred source operand for type relation obligation"
+                            .to_string(),
+                    });
+                };
+
+                let target_type_id = ctx.types.unwrap_value_type_id(*target_type_id);
                 let source_type_id = ctx.types.unwrap_value_type_id(source_type_id);
                 Ok((target_type_id, source_type_id))
             }

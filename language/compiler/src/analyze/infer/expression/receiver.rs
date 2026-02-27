@@ -121,7 +121,6 @@ impl Compiler {
     ) -> Option<GlobalSymbolId> {
         // resolve the direct reference symbol for the receiver
         let symbol = self.resolve_direct_receiver_symbol_for_expression(ctx, receiver_id)?;
-        let symbol = self.resolve_type_reference_symbol(ctx, symbol);
         let symbol = self
             .declaration_symbol_id(ctx.module_symbol_view(), symbol)
             .unwrap_or(symbol);

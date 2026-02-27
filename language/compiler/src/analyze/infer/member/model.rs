@@ -114,6 +114,8 @@ pub(crate) struct MemberAccessReceiver {
     pub(crate) receiver_requires_infer_convergence: bool,
     /// Whether missing-member diagnostics may defer while inference converges.
     pub(crate) allow_missing_member_deferral: bool,
+    /// Whether indeterminate receiver member checks should emit unknown-based diagnostics immediately.
+    pub(crate) force_unknown_receiver_diagnostic: bool,
     /// Whether optional chaining introduced nullish receivers.
     pub(crate) has_optional_nullish: bool,
 }

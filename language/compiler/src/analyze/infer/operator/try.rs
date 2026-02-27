@@ -995,13 +995,11 @@ impl Compiler {
         });
 
         // enforce propagated error compatibility after convergence when needed
-        let options = state.options;
         let assignability_check = self.enforce_assignability_or_defer_diagnostic(
             &mut ctx.reborrow(),
             expression_id.into_any(),
             return_error_ty_id,
             error_ty_id,
-            &options,
             UnassignableRelationFailureMode::ReportAndContinue,
         );
         if let Err(error) = assignability_check {

@@ -54,6 +54,15 @@ impl Compiler {
         let Some(expected_ty_id) = expected_ty_id else {
             return Ok(None);
         };
+        let expected_requires_convergence =
+            self.type_requires_infer_convergence(ctx.type_view(), expected_ty_id);
+
+        // keep unsolved object contexts stable until infer convergence
+        if matches!(ctx.types.get_type(expected_ty_id), Type::Object { .. })
+            && expected_requires_convergence
+        {
+            return Ok(Some(expected_ty_id));
+        }
 
         // normalize mapped, alias, and object shapes into concrete object types
         let normalized_ty_id = self.normalize_type_with_relation(
@@ -63,6 +72,11 @@ impl Compiler {
             RelationMode::EXPECTED_TYPE,
         );
         if matches!(ctx.types.get_type(normalized_ty_id), Type::Object { .. }) {
+            let normalized_requires_convergence =
+                self.type_requires_infer_convergence(ctx.type_view(), normalized_ty_id);
+            if expected_requires_convergence && !normalized_requires_convergence {
+                return Ok(Some(expected_ty_id));
+            }
             return Ok(Some(normalized_ty_id));
         }
 
