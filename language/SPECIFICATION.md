@@ -80,18 +80,14 @@ Destack adds tuples:
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives.
-It adds explicit reference semantics and types as values.
-It supports static parameterisation of values and other advanced type features.
-Declaration modules can declare values without providing implementations.
-Nominal declarations introduce both type and value bindings, including in declaration modules.
+Destack extends TypeScript's type system with tuples, precise primitives, explicit nominality, extension methods, broader compile time value spaces, and where clauses.
 See [Ownership](#ownership) for explicit ownership and borrow semantics.
 See [Declarations](#declarations) for declaration forms that introduce type and value symbols.
 
 **TSC, inference and TypeScript pain**:
 Destack tries very hard to be TSC faithful and support the full modern TS feature set.
-Out of necessity and some strong opinions, Destack is stricter in some places, and we want modern TS code to _just work_.
-Further, Destack is a completely different from-scratch compiler architecture, and there are some unavoidable differences in inference ordering and capabilities.
+Out of necessity and some strong opinions, Destack is stricter in some places, and we try very hard to make modern TS code _just work_.
+However, Destack is a completely different from-scratch compiler architecture, and there are some almost unavoidable differences in inference ordering and capabilities in gnarly edge cases.
 
 ### Primitives
 
@@ -239,6 +235,7 @@ int32[N]                   // fixed-size array
 readonly int32[N]          // readonly fixed-size array
 ```
 
+<!-- FUGU #Cleanup -->
 Supporting fixed sized arrays with this clean syntax is very nice, but unfortunately overloads T[N] with TypeScript's type indexing.
 So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays:
 - In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
@@ -287,9 +284,7 @@ Parameters with defaults are optional at the call site.
 
 ### Static Parameterisation ("Generics")
 
-Static parameters extend TypeScript-style generics with explicit comptime value parameters.
-Type parameters accept type arguments and use TypeScript-style bounds.
-Comptime value parameters accept static expressions and are constrained by value types.
+Static parameters extend TypeScript-style generics with explicit `comptime` value parameters.
 Value parameters must be explicitly marked with `comptime` in the static parameter list; type annotations alone do not make a parameter a value parameter. (See Comptime)
 
 Static value inference is limited and local:
@@ -352,7 +347,7 @@ value satisfies uint8[4];
 ### Variance Annotations
 
 Type parameters may be annotated with `in` or `out` to declare variance.
-`out` marks a parameter as covariant and `in` marks a parameter as contravariant.
+`out` marks a parameter as covariant and `in` marks a parameter as contravariant, exactly like in TypeScript.
 
 ```ds
 interface Producer<out T> {
@@ -501,8 +496,8 @@ struct Point {
 
 | | struct | class |
 |---|---|---|
-| Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
-| Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
+| Reference identity | No (`===` is error) | Yes (`===` compares pointers) |
+| Inheritance | No (use embedding) | Yes (`extends`) |
 | Default passing | Value | Reference |
 | Default storage | Inline | Managed reference |
 | JS output | Plain object | ES6 class |
@@ -651,9 +646,8 @@ struct Matrix<comptime Rows: uint, comptime Cols: uint> {
 ```
 
 Associated type parameters can include constraints and defaults just like other static parameters.
-When a type provides an associated type with parameters, projections must supply those parameters unless defaults are available.
 Implementor associated type parameters must accept all arguments that satisfy the interface constraints.
-Associated type parameters can include comptime static value parameters.
+Associated type parameters can also include comptime static value parameters.
 
 ##### Associated Type Projections
 
@@ -669,7 +663,6 @@ type View = Buffer<int>.View<float64>;
 
 Class-shaped declarations can also declare associated compile-time values with `comptime const`.
 Associated comptime constants are declaration members in static space, not instance fields, and are allowed on any object-like type.
-(Yes, this is very annoying to implement correctly.)
 
 ```ds
 interface LogStore<Record> {
@@ -682,7 +675,7 @@ class AuditLog implements LogStore<string> {
 }
 ```
 
-`comptime const` initializers must be statically evaluable expressions.
+`comptime const` initializers must be statically evaluatable expressions.
 In classes and structs, associated comptime constants must have initializers.
 In interfaces, associated comptime constants may be abstract (`;`) or defaulted (`= ...`).
 
@@ -708,8 +701,7 @@ Inside associated type and associated comptime declarations, `this` refers to th
 
 ### Enum
 
-Enums conceptually follow TypeScript, but remain strictly nominal types to avoid accidental implicit coercions.
-Correspondingly, enum values do _not_ implicitly coerce to their backing type.
+Enums mostly follow TypeScript, but remain strictly nominal to avoid accidental implicit coercions.
 Explicit casts are required to convert between enums and their backing types.
 
 When member values are omitted, the backing type defaults to the configured integer width.
@@ -768,40 +760,6 @@ extension for Vector2 {
     }
 }
 ```
-
-#### Extensible Types
-
-Extensions require **nominal types**—types with declaration identity:
-
-| Type | Nominal? | Extensible? |
-|------|----------|-------------|
-| `struct S { }` | ✅ | ✅ |
-| `class C { }` | ✅ | ✅ |
-| `enum E { }` | ✅ | ✅ |
-| `newtype N = T` | ✅ | ✅ |
-| `int32`, `string`, ... | ✅ (prelude) | ✅ |
-| `type X = T` | ❌ (alias) | ❌ |
-| `{ x: T }` inline | ❌ (structural) | ❌ |
-| `T | U` union | ❌ (structural) | ❌ |
-
-To extend a structural shape, wrap it in a nominal type:
-
-```ds
-// can NOT extend type aliases or inline types (structural)
-type Point = { x: number, y: number };
-extension for Point { ... }  // error: Point is a type alias
-
-// can extend newtype or struct (nominal)
-newtype Point = { x: number, y: number };
-extension for Point { ... }  // ok: Point is nominal
-```
-
-Unlike Rust's blanket `impl`s, Destack does not support generic extensions like `extension<T> T where T: Constraint`.
-Extensions target concrete nominal types only to keeps extension resolution predictable in TypeScript's expressive type system.
-
-Extension static parameters bind positionally to the target type's static parameters.
-The target type expression can reorder those parameters (e.g., `extension<Left, Right> for Pair<Right, Left>`), and that order defines how receiver static arguments map to extension parameters.
-Defaults on the target type apply when static arguments are omitted at the use site.
 
 #### Extension Visibility
 
@@ -1648,7 +1606,7 @@ See [Dispatch](#dispatch) for overload ordering and union based dynamic resoluti
 The receiver type determines which implementation "family" to look at, and the right operand type selects the specific overload within that family.
 For example, `Vector2` can implement both `Add<Vector2>` and `Add<float>` for vector addition and scalar addition respectively.
 
-### Explicit Operator Overloading
+### Operator Interfaces
 
 Operator interfaces are declared as **nominal interfaces** using `newtype interface`:
 
@@ -1659,7 +1617,7 @@ newtype interface Add<T, R = this> {
 ```
 
 Because they are nominal, operators only overload when a type explicitly `implements` that operator interface.
-(This prevents accidental conformance from types that happen to have a structurally-compatible method.)
+(This prevents accidental conformance from types that happen to have a structurally-compatible method. Symbol-branding with something like `Operator.add` was considered, but rejected, since nominal interfaces are a stronger contract and more readily apparent statically.)
 
 ```ds
 // Foo has an `add` method but doesn't implement Add<T>
@@ -1823,7 +1781,7 @@ The `extends` and `implements` operators return boolean literals (`true` or `fal
 ### Mapped Types
 
 Mapped types construct new object types by iterating over keys.
-Destack supports all the TS built-in mapped types:
+Destack supports all the TS built-in mapped types, defined in the exact same way:
 
 ```ds
 type Flags<T> = { [K in keyof T]: boolean };
@@ -1833,21 +1791,11 @@ type Frozen<T> = { readonly [K in keyof T]: T[K] };
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 ```
 
-Key remapping is supported with `as`:
+Key remapping is also supported with `as`:
 
 ```ds
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
 ```
-
-### Utility Types
-
-Destack provides the standard TypeScript utility types via the builtin libs.
-They are defined using mapped and conditional types and follow TypeScript semantics:
-
-- `Partial<T>`, `Required<T>`, `Readonly<T>`
-- `Pick<T, K>`, `Omit<T, K>`
-- `Exclude<T, U>`, `Extract<T, U>`
-- `NonNullable<T>`
 
 ### Other Operators
 
@@ -1875,7 +1823,6 @@ Destack also provides (optional) operator overloading for standard library types
 | `Map<K,V>` | `\|` (merge) | Map merging |
 
 These overloads transpile to explicit method calls in the generated TypeScript.
-
 
 ## Dispatch
 
@@ -2468,15 +2415,6 @@ Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both
 `noManaged` forbids GC-managed defaults and allocations.
 Explicit ownership operators remain valid and use raw allocation.
 
-Native and WASM outputs force strict defaults plus soundness defaults regardless of configuration.
-The soundness defaults enforce:
-- noAny.
-- noImprecisePrimitives.
-- noImplicitConversions and noUnsafeTypeAssertions.
-- noImplicitManaged and noManaged.
-- borrowMode = strict.
-- noDynamicEvaluation, noDynamicImport, noProxy, noDynamicShapes, noExceptions, and noGlobalThis.
-
 **Use after move:**
 
 ```ds
@@ -2708,13 +2646,14 @@ use(&buffer);
 
 It is often useful, especially in statically compiled languages, to denote some expression as evaluatable or evaluated at "compile time".
 There are many ways of doing this (hello `constexpr`), but we find Zig's `comptime` concept to be a natural fit to TypeScript's system (with some modifications).
-We support `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
+
+Destack supports `comptime` as a modifier on bindings like `T<comptime N>` to denote that the type `T` is a (value-space) value at compile time, or as an expression form that executes the expression during compilation like `comptime <expression>`.
 See [Types](#types) for static parameter declarations and constraints.
 See [Targets](#targets) for profile context used during comptime evaluation.
 
 ### Static vs Dynamic Comptime
 
-To keep language (and compiler) semantics sane, there are two different notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
+To keep language (and compiler) semantics sane, there are two distinct notions of "compile time"; the distinction basically centering around _when_ during compile time a value is evaluated:
 - **Static comptime execution**: Static parameters like `E` and `N` in `type FixedArray<E, comptime N: int> = E[N]` must be known statically _during analysis_, we require static parameters to be evaluatable statically using a powerful but restricted set of expressions.
 - **Dynamic comptime execution**: Comptime _expressions_  like `let precomputedTable = comptime { ... }`, on the other hand, support the full "comptime world" and basically all expressions. These are executed post-analyze in topological order (no cycles) and then patched into the IR.
 
