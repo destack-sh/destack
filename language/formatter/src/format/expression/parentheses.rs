@@ -131,6 +131,10 @@ pub(crate) fn parenthesized_boundary_comments(
             continue;
         }
 
+        if boundary_comment_is_owned_by_annotation(context, comment_trivia.comment) {
+            continue;
+        }
+
         comments.push((comment_trivia.span.start, comment_trivia.comment));
     }
 
@@ -139,6 +143,17 @@ pub(crate) fn parenthesized_boundary_comments(
         .into_iter()
         .map(|(_, comment_id)| comment_id)
         .collect()
+}
+
+/// Return whether one boundary comment node is already owned by formatter annotations.
+fn boundary_comment_is_owned_by_annotation(
+    context: &DestackFormatContext<'_>,
+    comment_id: LocalNodeId<Comment>,
+) -> bool {
+    context
+        .formatter_annotation_entries
+        .iter()
+        .any(|entry| matches!(entry.annotation, Annotation::Comment { node, .. } if node.id == comment_id.id))
 }
 
 /// Return whether source contains leading trivia between `(` and the inner expression.
@@ -1140,26 +1155,26 @@ pub(crate) fn parenthesized_has_leading_type_cast_comment(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let node_span = context.span(node_id);
-    let Some(comment_span) = context
-        .comment_spans
-        .iter()
-        .rev()
-        .copied()
-        .find(|comment_span| {
-            comment_span.file == node_span.file && comment_span.end <= node_span.start
-        })
-    else {
-        return false;
-    };
+    let mut cursor_start = node_span.start;
 
-    if comment_span
-        .gap_to(node_span)
-        .is_some_and(|between_span| context.has_non_whitespace_content(between_span))
-    {
-        return false;
+    for comment_span in context.comment_spans.iter().rev().copied() {
+        if comment_span.file != node_span.file || comment_span.end > cursor_start {
+            continue;
+        }
+
+        let between_span = Span::new(node_span.file, comment_span.end, cursor_start);
+        if context.has_non_whitespace_content(between_span) {
+            return false;
+        }
+
+        if comment_token_is_doc_block(context, comment_span) {
+            return true;
+        }
+
+        cursor_start = comment_span.start;
     }
 
-    comment_token_is_doc_block(context, comment_span)
+    false
 }
 
 /// Return whether one comment span is one doc-block comment token.

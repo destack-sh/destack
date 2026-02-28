@@ -117,22 +117,19 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### nullable union with object type breaks into union arms
+### nullable union with object type stays hugged inline
 
-Nullable unions break into union arms, and object arm formatting follows object type rules.
+Nullable unions with one object-like arm and void-like companions stay hugged inline.
 
 ```ds line-width=20
 type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
 ```ds expected
-type MaybeUser =
-    | {
-        name: string;
-        email: string;
-    }
-    | null
-    | undefined;
+type MaybeUser = {
+    name: string;
+    email: string;
+} | null | undefined;
 ```
 
 ### nullable union with comment keeps comment on object arm

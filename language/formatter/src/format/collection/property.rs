@@ -12,10 +12,10 @@ use crate::format::directive::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, Comment, Declaration, DeclarationKind, Expression, FunctionSignature, Key,
-    Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType,
-    Parameter, Property, Timing, VarianceModifier, is_identifier,
+    AbstractionModifier, AccessorKind, Argument, BinaryOperator, BindingAnchor, BindingKind,
+    BindingModifier, BindingOperator, Comment, Declaration, DeclarationKind, Expression,
+    FunctionSignature, Key, Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree,
+    NodeTreeImpl, NodeType, Parameter, Property, Timing, VarianceModifier, is_identifier,
 };
 use destack_base::StringId;
 use destack_fir::format::{FormatResult, text};
@@ -289,6 +289,79 @@ fn method_signature_is_multiline_before_body(
     context.has_newline(signature_span)
 }
 
+/// Return whether one expression subtree contains a type union or intersection binary.
+fn expression_contains_type_binary(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut pending = vec![expression_id];
+    while let Some(next_expression_id) = pending.pop() {
+        let next_expression_id =
+            crate::format::expression::transparent_inner_expression(context, next_expression_id);
+        match context.tree.get(next_expression_id) {
+            Expression::Binary {
+                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                ..
+            } => return true,
+            Expression::Binary { left, right, .. } => {
+                pending.push(*left);
+                pending.push(*right);
+            }
+            Expression::Path {
+                static_arguments: Some(static_arguments),
+                ..
+            }
+            | Expression::Member {
+                static_arguments: Some(static_arguments),
+                ..
+            }
+            | Expression::TypeImport {
+                static_arguments: Some(static_arguments),
+                ..
+            } => {
+                for argument_id in static_arguments.iter().copied() {
+                    let argument_value_id = match context.tree.get(argument_id) {
+                        Argument::Named { value, .. }
+                        | Argument::Labeled { value, .. }
+                        | Argument::Positional { value, .. }
+                        | Argument::Spread { value, .. } => *value,
+                    };
+                    pending.push(argument_value_id);
+                }
+            }
+            Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                pending.push(*left);
+                pending.push(*right);
+                pending.push(*then_type);
+                pending.push(*else_type);
+            }
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                pending.push(*expression);
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Return whether one method return type contains any type union or intersection.
+fn signature_return_type_is_union_or_intersection(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    let Some(return_type_id) = return_type else {
+        return false;
+    };
+
+    expression_contains_type_binary(context, return_type_id)
+}
+
 /// Format a block of properties with empty-annotation and ignore-range handling.
 #[allow(unused)]
 pub(crate) fn format_block_of_properties<'ast>(
@@ -548,7 +621,8 @@ where
         &signature.dynamic_parameters,
         signature.return_type,
         false,
-    );
+    ) || (signature_is_multiline_before_body
+        && signature_return_type_is_union_or_intersection(f.context(), signature.return_type));
     if signature.dynamic_parameters.is_empty() {
         write_empty_parameter_list_with_interior_annotations(f, node_id)?;
     } else if signature.dynamic_parameters.len() == 1

@@ -311,7 +311,7 @@ class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
 ```
 
 ```js expected
-class Box extends /** @type {{new (): Base}} */ (baseFactory()) {}
+class Box extends /** @type {{new (): Base}} */ baseFactory() {}
 ```
 
 ### closure cast in no-semi multiline parenthesized call

@@ -14,8 +14,8 @@ use destack_ast::{
     Argument, BinaryOperator, BlockContext, Declaration, DeclarationDescriptor, Expression,
     LocalNodeId, NodeParentIndex, NodeTree, NodeType,
 };
-use destack_source::FileType;
-use destack_workspace::{QuoteProperty, QuoteStyle};
+use destack_source::{FileType, LanguageType};
+use destack_workspace::{FormatterOptions, QuoteProperty, QuoteStyle};
 
 /// Build a formatter context for expression classifier assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
@@ -31,6 +31,15 @@ fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_>
             parents: NodeParentIndex::from_tree(&formatter.tree),
         },
     )
+}
+
+/// Build the JavaScript options used by prettier conformance tests.
+fn prettier_javascript_format_options() -> DestackFormatOptions {
+    let formatter_options = FormatterOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80)
+        .with_quote_style(QuoteStyle::Double);
+    DestackFormatOptions::from_formatter_options(formatter_options, LanguageType::JavaScript)
 }
 
 /// Find the first parenthesized expression whose inner expression satisfies a predicate.
@@ -800,6 +809,55 @@ fn test_format_optional_call_keeps_inline_boundary_star_comment() {
     );
 }
 
+/// Optional call comments between `?.` and `(` should move before the optional operator.
+#[test]
+fn test_format_optional_call_operator_parenthesis_comment_moves_before_optional_operator() {
+    let source = "call?./* 210 */()\ncall\n?./* 211 */()\n";
+    let expected = "call /* 210 */?.();\ncall /* 211 */?.();\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(4);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
+/// JS/TSX parse mode should normalize optional-call seam comments the same way.
+#[test]
+fn test_format_optional_call_operator_parenthesis_comment_moves_before_optional_operator_jsx_mode()
+{
+    let source = "call/* 209 */?.()\ncall?./* 210 */()\ncall\n?./* 211 */()\ncall? /* 212 */.()\n";
+    let expected =
+        "call /* 209 */?.();\ncall /* 210 */?.();\ncall /* 211 */?.();\ncall /* 212 */?.();\n";
+    let formatter_options = FormatterOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80)
+        .with_quote_style(QuoteStyle::Double);
+    let options = DestackFormatOptions::from_formatter_options(
+        formatter_options,
+        LanguageType::JavaScriptXml,
+    );
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScriptXml,
+        options,
+    );
+}
+
+/// Prettier no-argument optional-call fixture should stay idempotent in JS/TSX mode.
+#[test]
+fn test_format_optional_call_no_argument_fixture_is_idempotent_jsx_mode() {
+    let source = include_str!(
+        "../../../../test/fixtures/formatter/conformance/staging/prettier/tests/format/js/call/no-argument/no-arguments.js"
+    );
+    let formatter_options = FormatterOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80)
+        .with_quote_style(QuoteStyle::Double);
+    let options = DestackFormatOptions::from_formatter_options(
+        formatter_options,
+        LanguageType::JavaScriptXml,
+    );
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScriptXml, options);
+}
+
 /// Optional chains keep short member tails with the optional call that introduces them.
 #[test]
 fn test_format_optional_chain_keeps_short_member_tail_with_optional_call() {
@@ -1134,6 +1192,86 @@ fn test_format_type_conditional_nested() {
     );
 }
 
+/// Comments after conditional tests should keep trailing ownership across passes.
+#[test]
+fn test_format_type_conditional_test_trailing_line_comment_is_idempotent() {
+    let source = r#"type A =
+  B extends T // comment
+    ? foo
+    : bar;
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
+}
+
+/// Comments after ternary tests should keep test-trailing ownership across passes.
+#[test]
+fn test_format_ternary_test_trailing_line_comment_is_idempotent() {
+    let source = r#"var inspect = 4 === util.inspect.length // node <= 0.8.x
+  ? (function (v, colors) {
+      return util.inspect(v, void 0, void 0, colors);
+    })
+  : (
+    // node > 0.8.x
+    function (v, colors) {
+      return util.inspect(v, { colors: colors });
+    }
+  );
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Parenthesized ternary function branches with separator comments should be idempotent.
+#[test]
+fn test_format_ternary_parenthesized_function_branch_comments_are_idempotent() {
+    let source = r#"var inspect = 4 === util.inspect.length
+  ? (
+  // node <= 0.8.x
+  function (v, colors) {
+    return util.inspect(v, void 0, void 0, colors);
+  })
+  : (// node > 0.8.x
+  function (v, colors) {
+    return util.inspect(v, { colors: colors });
+  });
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Repeated ternary function branches with separator comments should stay idempotent.
+#[test]
+fn test_format_repeated_ternary_parenthesized_function_branch_comments_are_idempotent() {
+    let source = r#"var inspect = 4 === util.inspect.length
+  ? (
+  // node <= 0.8.x
+  function (v, colors) {
+    return util.inspect(v, void 0, void 0, colors);
+  })
+  : (// node > 0.8.x
+  function (v, colors) {
+    return util.inspect(v, { colors: colors });
+  });
+
+var inspect = 4 === util.inspect.length
+  ? (
+  // node <= 0.8.x
+  function (v, colors) {
+    return util.inspect(v, void 0, void 0, colors);
+  })
+  : (// node > 0.8.x
+  function (v, colors) {
+    return util.inspect(v, { colors: colors });
+  });
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
 /// Formats type intersections with trailing operators in Destack.
 #[test]
 fn test_format_type_intersection_trailing_operator_destack() {
@@ -1201,13 +1339,73 @@ fn test_format_type_template_literal_multiple_spans() {
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
-/// Normalizes template literal type unions to canonical inline layout.
+/// Normalizes template literal type unions to width-aware leading-pipe layout.
 #[test]
 fn test_format_type_template_literal_union_with_leading_pipe() {
-    let source = "type T = `${\n  | 'W'\n  | 'I'\n  | 'L'\n  | 'L'\n  | 'B'\n  | 'R'\n  | 'E'\n  | 'A'\n  | 'K'\n}${'!' | '!!'}`";
-    let expected =
-        "type T = `${'W' | 'I' | 'L' | 'L' | 'B' | 'R' | 'E' | 'A' | 'K'}${'!' | \"!!\"}`;";
+    let source = r#"type T = `${
+  | 'W'
+  | 'I'
+  | 'L'
+  | 'L'
+  | 'B'
+  | 'R'
+  | 'E'
+    | 'A'
+  | 'K'
+}${'!' | '!!'}`"#;
+    let expected = r#"type T = `${
+    | 'W'
+    | 'I'
+    | 'L'
+    | 'L'
+    | 'B'
+    | 'R'
+    | 'E'
+    | 'A'
+    | 'K'}${'!' | "!!"}`;"#;
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
+}
+
+#[test]
+fn test_template_literal_union_span_newline_signal() {
+    let source = r#"type T = `${
+  | 'W'
+  | 'I'
+  | 'L'
+  | 'L'
+  | 'B'
+  | 'R'
+  | 'E'
+  | 'A'
+  | 'K'
+}${'!' | '!!'}`"#;
+
+    let (formatter, expression_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_expression(Default::default())
+        })
+        .expect("parse template literal union");
+    let context = context_from_formatter(&formatter);
+
+    let Expression::Declaration(declaration_id) = formatter.tree.get(expression_id) else {
+        panic!("expected declaration expression");
+    };
+    let Declaration::Type { value, .. } = formatter.tree.get(*declaration_id) else {
+        panic!("expected type declaration");
+    };
+    let Expression::TypeTemplateLiteral { spans, .. } = formatter.tree.get(*value) else {
+        panic!("expected type template literal");
+    };
+
+    assert_eq!(spans.len(), 2);
+    assert!(
+        context.node_has_newline(spans[0]),
+        "first template span should keep multiline source signal"
+    );
+    assert!(
+        !context.node_has_newline(spans[1]),
+        "second template span should stay single-line in source signal"
+    );
 }
 
 /// Normalizes grouped leading-union wrappers in destack syntax.
@@ -2505,6 +2703,58 @@ fn test_format_switch_head_comment_before_default_is_idempotent() {
     );
 }
 
+/// Switch default label line comments should stay parse-stable across statements.
+#[test]
+fn test_format_switch_default_label_line_comment_seams_are_idempotent() {
+    let source = r#"
+switch(1){default: // comment1
+}
+
+switch(2){default: // comment2
+//comment2a
+}
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Switch default label comments before explicit blocks should remain idempotent.
+#[test]
+fn test_format_switch_default_label_comments_before_blocks_are_idempotent() {
+    let source = r#"
+switch(x) {
+  default: // comment
+    {break;}
+}
+
+switch(x) {
+  default: /* comment */
+    {break;}
+}
+
+switch(x) {
+  default:
+    /* comment */ {
+    break;}
+}
+
+switch(x) {
+  default: /* comment */ {
+    break;}
+}
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Switch label comments after one blank line should keep the `case ...:` seam parse-stable.
 #[test]
 fn test_format_switch_label_blank_comment_seam_is_idempotent() {
@@ -2513,6 +2763,36 @@ fn test_format_switch_label_blank_comment_seam_is_idempotent() {
         source,
         FileType::JavaScript,
         |p| p.eat_block(BlockContext::Expression),
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Switch explicit block cases with trailing empty statements should collapse in one pass.
+#[test]
+fn test_format_switch_case_explicit_block_with_trailing_empty_statement_roundtrip() {
+    let source = r#"
+switch (error.code) {
+  case ConfigurationEditingErrorCode.ERROR_INVALID_CONFIGURATION: {
+    nls.localize("errorInvalidConfiguration", "Unable to write into settings. Correct errors/warnings in the file and try again.");
+  };
+}
+"#
+    .trim_start();
+    let expected = r#"
+switch (error.code) {
+    case ConfigurationEditingErrorCode.ERROR_INVALID_CONFIGURATION: {
+        nls.localize(
+            "errorInvalidConfiguration",
+            "Unable to write into settings. Correct errors/warnings in the file and try again.",
+        );
+    }
+}
+"#
+    .trim_start();
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
         DestackFormatOptions::default(),
     );
 }
@@ -2567,6 +2847,47 @@ fn test_format_typescript_union_property_comments_keep_semicolon_position() {
 #[test]
 fn test_format_typescript_union_parenthesized_prefix_comments_are_idempotent() {
     let source = "let aa2: /*1*/ | /*2*/ C | /*3*/ D;\nlet aa3: /*1*/ | /*2*/ C | /*3*/ D /*4*/;\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Parenthesized constructor-function unions should remain stable across formatter passes.
+#[test]
+fn test_format_typescript_union_parenthesized_constructor_member_is_idempotent() {
+    let source = "type Ctor = (new () => X) | Y;\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Function-type union members should keep one outer grouping wrapper.
+#[test]
+fn test_format_typescript_union_function_member_keeps_single_outer_wrapper() {
+    let source = "type T = number | ((arg: any) => void);\n";
+    let expected = "type T = number | (arg: any) => void;\n";
+    let options = DestackFormatOptions::default();
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse function-type union member source");
+    let output = formatter.format(&statement_list(&roots), options);
+    assert_format_output_eq(expected, output);
+
+    assert_format_program_idempotent_with_file_type(
+        expected,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Leading union comments after `=` should keep one stable placement across passes.
+#[test]
+fn test_format_typescript_union_head_comment_after_equals_is_idempotent() {
+    let source = "type Aa1 = /*1*/ | /*2*/ C | D;\n";
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::TypeScript,
@@ -3047,6 +3368,29 @@ fn test_format_program_top_level_array_assignment_blank_lines_are_idempotent() {
 #[test]
 fn test_format_program_arrow_comment_before_arrow_is_idempotent() {
     let source = "a = () /* before arrow */ =>\nnull;\na = () => /* after arrow */\nnull;\na = (/* in parentheses */) =>\nnull;\n";
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// JSDoc comments after `=>` should stay attached to nested arrow bodies across passes.
+#[test]
+fn test_format_program_nested_arrow_jsdoc_after_arrow_is_idempotent() {
+    let source = r#"const createIdFilter =
+  (id) =>
+    /** @param {any} s */
+    (s) =>
+      /** @param {string} id */
+      s.id === id;
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Nested arrow postfix block comments should remain local to their owning arrow segment.
+#[test]
+fn test_format_program_nested_arrow_postfix_block_comments_are_idempotent() {
+    let source = r#"f((a) => ((b) => ((c) => (1 ? 2 : 3)/* b */ /* c */)) /* a */);
+"#;
     let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
 }

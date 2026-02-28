@@ -520,14 +520,6 @@ pub(crate) fn parameter_should_force_expand_in_signature(
     parameter_object_pattern_should_expand(context, pattern_id)
 }
 
-/// Return whether a signature return type is already multiline in source.
-pub(crate) fn signature_return_type_is_multiline(
-    context: &DestackFormatContext<'_>,
-    return_type: Option<LocalNodeId<Expression>>,
-) -> bool {
-    return_type.is_some_and(|return_type| context.node_has_newline(return_type))
-}
-
 /// Return whether a signature return type carries a boundary line-postfix annotation.
 pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
     context: &DestackFormatContext<'_>,
@@ -551,6 +543,14 @@ pub(crate) fn signature_return_type_has_line_postfix_boundary_annotation(
     })
 }
 
+/// Return whether a signature return type is multiline in source.
+pub(crate) fn signature_return_type_is_multiline(
+    context: &DestackFormatContext<'_>,
+    return_type: Option<LocalNodeId<Expression>>,
+) -> bool {
+    return_type.is_some_and(|return_type| context.node_has_newline(return_type))
+}
+
 /// Return whether spacing before a function body should be emitted by annotations.
 pub(crate) fn signature_should_elide_space_before_body(
     _context: &DestackFormatContext<'_>,
@@ -564,7 +564,7 @@ pub(crate) fn signature_parameters_should_expand(
     context: &DestackFormatContext<'_>,
     mode: Option<FunctionMode>,
     parameters: &[LocalNodeId<Parameter>],
-    return_type: Option<LocalNodeId<Expression>>,
+    _return_type: Option<LocalNodeId<Expression>>,
     include_parameter_shape_expansion: bool,
 ) -> bool {
     let should_expand_parameter_shapes = include_parameter_shape_expansion
@@ -579,14 +579,10 @@ pub(crate) fn signature_parameters_should_expand(
         .iter()
         .copied()
         .any(|parameter_id| parameter_has_line_comment_annotation(context, parameter_id));
-    let should_expand_single_for_multiline_return_type = parameters.len() == 1
-        && !parameter_is_variadic(context, parameters[0])
-        && signature_return_type_is_multiline(context, return_type);
 
     should_expand_parameter_shapes
         || should_break_constructor_parameters
         || should_expand_for_parameter_line_comments
-        || should_expand_single_for_multiline_return_type
 }
 
 /// Write a dynamic parameter list with shared expansion controls.

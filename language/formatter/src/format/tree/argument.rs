@@ -1454,9 +1454,9 @@ pub(crate) fn tree_child_should_inline_braced_expression(
                 matches!(context.tree.get(else_id), Expression::Parenthesized { .. })
             });
             let has_branch_prefix_star_comment =
-                expression_has_prefix_star_comment_annotation(context, *then_expression)
+                expression_chain_has_prefix_star_comment_annotation(context, *then_expression)
                     || else_expression.is_some_and(|else_id| {
-                        expression_has_prefix_star_comment_annotation(context, else_id)
+                        expression_chain_has_prefix_star_comment_annotation(context, else_id)
                     });
             if has_parenthesized_branch && has_branch_prefix_star_comment {
                 return false;
@@ -1558,6 +1558,25 @@ fn expression_has_prefix_star_comment_annotation(
         let comment = context.tree.get::<destack_ast::Comment>(node);
         comment.style == destack_ast::CommentStyle::Star
     })
+}
+
+/// Return whether one expression or its parenthesized inner chain has one prefix block-star comment.
+fn expression_chain_has_prefix_star_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_expression_id = expression_id;
+    loop {
+        if expression_has_prefix_star_comment_annotation(context, current_expression_id) {
+            return true;
+        }
+
+        let Expression::Parenthesized { expression } = context.tree.get(current_expression_id)
+        else {
+            return false;
+        };
+        current_expression_id = *expression;
+    }
 }
 
 /// Return whether one tree argument has a line-oriented slash comment annotation.
