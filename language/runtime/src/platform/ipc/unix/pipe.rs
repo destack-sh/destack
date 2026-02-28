@@ -1,0 +1,141 @@
+use crate::diagnostic::RuntimeResult;
+use crate::platform::ipc::PipePair;
+use crate::platform::{NativeSlice, resource};
+use crate::runtime::BindingCallContext;
+
+use super::core::{
+    ensure_out, ensure_zero_flags, invalid_argument, io_error, pipe_descriptor,
+    register_pipe_descriptor,
+};
+
+/// Open one unnamed pipe pair.
+const PIPE_OPEN_OPERATION: &str = "destack.ipc.pipe.open";
+/// Read bytes from one pipe endpoint.
+const PIPE_READ_OPERATION: &str = "destack.ipc.pipe.read";
+/// Write bytes to one pipe endpoint.
+const PIPE_WRITE_OPERATION: &str = "destack.ipc.pipe.write";
+
+/// Close one pipe endpoint.
+pub(crate) unsafe fn destack_ipc_pipe_close(
+    context: &BindingCallContext,
+    handle: resource::PipeHandle,
+) -> RuntimeResult<()> {
+    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    if !removed {
+        return Err(invalid_argument(
+            "handle",
+            "destack.ipc.pipe.close expected one valid pipe handle",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Create one unnamed pipe pair.
+pub(crate) unsafe fn destack_ipc_pipe_open(
+    context: &BindingCallContext,
+    out: *mut PipePair,
+    flags: u32,
+) -> RuntimeResult<()> {
+    // validate output and flag payload
+    ensure_out(out, "out")?;
+    ensure_zero_flags(flags, "flags")?;
+
+    // create one unix pipe pair
+    let mut descriptors = [0; 2];
+    let rc = unsafe { libc::pipe(descriptors.as_mut_ptr()) };
+    if rc != 0 {
+        return Err(io_error(
+            PIPE_OPEN_OPERATION,
+            "pipe",
+            "failed to create pipe",
+        ));
+    }
+
+    // register both endpoints in the runtime resource table
+    let read_handle = register_pipe_descriptor(context, descriptors[0]);
+    let write_handle = register_pipe_descriptor(context, descriptors[1]);
+    let pair = PipePair {
+        read: read_handle,
+        write: write_handle,
+    };
+
+    // write pair output
+    unsafe {
+        out.write(pair);
+    }
+
+    Ok(())
+}
+
+/// Read bytes from a pipe endpoint.
+pub(crate) unsafe fn destack_ipc_pipe_read(
+    context: &BindingCallContext,
+    out: *mut u64,
+    handle: resource::PipeHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // validate output argument and resolve pipe descriptor
+    ensure_out(out, "out")?;
+    let descriptor = pipe_descriptor(context, handle, PIPE_READ_OPERATION)?;
+
+    // decode caller buffer and issue one read call
+    let bytes = unsafe { buffer.as_mut_slice()? };
+    let rc = unsafe {
+        libc::read(
+            descriptor,
+            bytes.as_mut_ptr().cast::<libc::c_void>(),
+            bytes.len(),
+        )
+    };
+    if rc < 0 {
+        return Err(io_error(
+            PIPE_READ_OPERATION,
+            "read",
+            "failed to read pipe bytes",
+        ));
+    }
+
+    // write read-byte count
+    unsafe {
+        out.write(rc as u64);
+    }
+
+    Ok(())
+}
+
+/// Write bytes to a pipe endpoint.
+pub(crate) unsafe fn destack_ipc_pipe_write(
+    context: &BindingCallContext,
+    out: *mut u64,
+    handle: resource::PipeHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // validate output argument and resolve pipe descriptor
+    ensure_out(out, "out")?;
+    let descriptor = pipe_descriptor(context, handle, PIPE_WRITE_OPERATION)?;
+
+    // decode caller buffer and issue one write call
+    let bytes = unsafe { buffer.as_slice()? };
+    let rc = unsafe {
+        libc::write(
+            descriptor,
+            bytes.as_ptr().cast::<libc::c_void>(),
+            bytes.len(),
+        )
+    };
+    if rc < 0 {
+        return Err(io_error(
+            PIPE_WRITE_OPERATION,
+            "write",
+            "failed to write pipe bytes",
+        ));
+    }
+
+    // write written-byte count
+    unsafe {
+        out.write(rc as u64);
+    }
+
+    Ok(())
+}
