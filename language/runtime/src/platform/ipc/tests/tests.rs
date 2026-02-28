@@ -6,8 +6,11 @@ use crate::diagnostic::RuntimeResult;
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
+#[path = "harness.rs"]
 mod harness;
+
+#[allow(unused_imports)]
+pub(crate) use harness::*;
 
 /// Test harness context used by tests.
 pub(crate) struct IpcHarnessContext<'call> {
