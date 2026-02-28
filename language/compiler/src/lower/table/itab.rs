@@ -138,14 +138,13 @@ impl ModuleLowerer<'_> {
             let table = mir::Itab {
                 concrete: concrete_mir_type,
                 interface: interface_mir_type,
-                global: None,
+                storage: mir::ItabStorage::Handle,
                 entries,
             };
             self.builder
                 .tree_mut()
                 .type_table
-                .itab_registry
-                .insert_at(table_id, table);
+                .insert_itab_at(table_id, table);
             table_id
         };
 
@@ -155,7 +154,6 @@ impl ModuleLowerer<'_> {
             .type_metadata_by_id
             .entry(concrete_mir_type)
             .or_default();
-        metadata.itabs.push(table_id);
         metadata
             .itab_by_interface
             .insert(interface_mir_type, table_id);

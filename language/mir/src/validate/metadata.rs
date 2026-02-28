@@ -1,6 +1,6 @@
 use crate::{
     CallEffects, Function, Instruction, LocalNodeId, MemoryAccessKind, MemoryAccessMetadata,
-    MemoryEffect, NodeType, Repeatability, Type, Value,
+    MemoryEffect, NodeType, Repeatability, Type, Value, VtableEntry,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -183,6 +183,104 @@ impl<'a> Validator<'a> {
                 message: "call signature does not match callee".to_string(),
                 anchor,
             });
+        }
+
+        Ok(())
+    }
+
+    /// Validate a virtual dispatch slot when vtable metadata is available.
+    pub(super) fn validate_virtual_dispatch_slot(
+        &self,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        // skip when type metadata is unavailable
+        let Some(type_metadata) = self.tree.type_table.type_metadata(declaring_type) else {
+            return Ok(());
+        };
+
+        // skip when this type has no vtable metadata
+        let Some(vtable_id) = type_metadata.vtable else {
+            return Ok(());
+        };
+
+        // resolve the vtable entry
+        let Some(vtable) = self.tree.type_table.vtables.get(vtable_id.index()) else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "virtual dispatch references missing vtable metadata".to_string(),
+                anchor,
+            });
+        };
+        let Some(entry) = vtable.entries.get(slot_id as usize) else {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "virtual dispatch slot out of bounds".to_string(),
+                anchor,
+            });
+        };
+
+        // require method entries for call.virtual and tailcall.virtual
+        if !matches!(entry, VtableEntry::Method { .. }) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "virtual dispatch slot does not reference a method entry".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate an interface dispatch slot when itab metadata is available.
+    pub(super) fn validate_interface_dispatch_slot(
+        &self,
+        declaring_interface: LocalNodeId<Type>,
+        slot_id: u32,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        // collect matching itabs for the declaring interface
+        let mut found_itab = false;
+        let mut declared_method = None;
+        for (_itab_id, itab) in self.tree.type_table.iter_itabs() {
+            if itab.interface != declaring_interface {
+                continue;
+            }
+            found_itab = true;
+
+            let Some(entry) = itab.entries.get(slot_id as usize) else {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "interface dispatch slot out of bounds".to_string(),
+                    anchor,
+                });
+            };
+            let crate::ItabEntry::Method {
+                declared_method: slot_declared_method,
+                ..
+            } = entry
+            else {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "interface dispatch slot does not reference a method entry"
+                        .to_string(),
+                    anchor,
+                });
+            };
+
+            // ensure slot identity stays consistent across all itabs for this interface
+            if let Some(expected_declared_method) = declared_method {
+                if expected_declared_method != *slot_declared_method {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "interface dispatch slot maps inconsistent declared methods"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            } else {
+                declared_method = Some(*slot_declared_method);
+            }
+        }
+
+        // skip validation when no itab metadata exists yet
+        if !found_itab {
+            return Ok(());
         }
 
         Ok(())

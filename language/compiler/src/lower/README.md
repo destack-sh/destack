@@ -1057,7 +1057,7 @@ block0(v0: ref<@Sprite>, delta: f32):
 
 Interfaces use itabs, and interface values carry a fat pointer:
 ```ds
-type InterfaceRef<I> = { objectPtr: &Object; itabPtr: &InterfaceItab<I>; };
+type InterfaceRef<I> = { objectPtr: &Object; itab: usize };
 ```
 
 Each (Type, Interface) pair has its own itab mapping interface fields and methods to concrete layouts.
@@ -1083,13 +1083,13 @@ When a `Circle` is used as `Drawable`, we create a fat pointer:
 // fat pointer representation
 struct InterfaceRef<I> {
     objectPtr: &unknown;       // actual object (type erased)
-    itabPtr: &InterfaceItab<I>;  // interface itab
+    itab: usize;               // itab handle (ItabId)
 }
 ```
 
 **Fat pointer size:** Interface references are exactly `2 * sizeof(usize)` (16 bytes on 64-bit).
-The layout is `(objectPtr, itabPtr)` with no padding.
-This matches Go's interface representation.
+The layout is `(objectPtr, itab)` with no padding.
+This preserves Go's two word footprint, but uses an `ItabId` handle instead of an itab pointer.
 
 Each (Type, Interface) pair generates its own itab:
 
@@ -1118,7 +1118,7 @@ Members inherited with the same name and signature reuse the first slot.
 Fields reuse slots only when their declared types match.
 Conflicting member signatures are errors during analysis.
 Field entries store byte offsets, and method entries store function pointers.
-The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
+The compiler generates the itab metadata at compile time, and interface references carry an itab handle.
 Interface to interface casts rebuild the fat pointer.
 The object pointer is preserved and the source itab provides the concrete type tag.
 The target itab is resolved from `(typeTag, target interface)` and stored in the new interface reference.
@@ -1129,7 +1129,7 @@ function render(d: Drawable) { d.draw(); }
 
 Lowers to:
 ```mir
-type @Drawable = struct { ref<raw readonly void>, ref<raw readonly void> }
+type @Drawable = struct { ref<raw readonly void>, usize }
 
 function @render(v0: ref<raw readonly @Drawable>) -> void {
 block0(v0: ref<raw readonly @Drawable>):
@@ -1182,11 +1182,11 @@ extension for Circle implements Hashable {
 
 For each (Type, Interface) pair where the type implements the interface:
 
-1. Create a static itab with field offsets and method pointers in interface declaration order
-2. Store the itab as a global constant
-3. When creating an interface reference, pair the object with the appropriate itab
-4. For `unknown` or dynamic casts, build and cache the itab at runtime on first use
-5. The cache is global per runtime and keyed by `(concrete TypeTag, interface TypeTag)`
+1. Create an itab metadata entry with field offsets and method pointers in interface declaration order
+2. Assign the entry a deterministic `ItabId`
+3. When creating an interface reference, pair the object with the appropriate `ItabId`
+4. For `unknown` or dynamic casts, resolve the target `(Type, Interface)` pair and materialize the matching `ItabId`
+5. Runtime dispatch reads the `ItabId` and indexes the module itab table
 
 **Itab layout:**
 ```ds

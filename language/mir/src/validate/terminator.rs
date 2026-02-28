@@ -209,6 +209,7 @@ impl<'a> Validator<'a> {
             Terminator::TailCallVirtual {
                 arguments,
                 declaring_type,
+                slot_id,
                 declared_target,
                 signature,
                 ..
@@ -216,6 +217,7 @@ impl<'a> Validator<'a> {
             | Terminator::TailCallInterface {
                 arguments,
                 declaring_type,
+                slot_id,
                 declared_target,
                 signature,
                 ..
@@ -262,6 +264,24 @@ impl<'a> Validator<'a> {
                     return Err(ValidateError::TailCallReturnTypeMismatch {
                         anchor: ValidateAnchor::node(block_id),
                     });
+                }
+
+                // validate dispatch metadata when available
+                if self.options.validate_metadata {
+                    match terminator {
+                        Terminator::TailCallVirtual { .. } => self.validate_virtual_dispatch_slot(
+                            *declaring_type,
+                            *slot_id,
+                            ValidateAnchor::node(block_id),
+                        )?,
+                        Terminator::TailCallInterface { .. } => self
+                            .validate_interface_dispatch_slot(
+                                *declaring_type,
+                                *slot_id,
+                                ValidateAnchor::node(block_id),
+                            )?,
+                        _ => unreachable!(),
+                    }
                 }
             }
         }
