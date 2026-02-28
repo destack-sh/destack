@@ -8,7 +8,7 @@ use super::attachment::{
     attach_line_comment_after_ternary_colon, attach_star_comment_before_ternary_colon,
     attach_trailing_comma_close_brace_property_line_comment,
     following_owner_with_token_after_fallback, if_expression_then_owner_without_else,
-    try_attach_comment_before_empty_statement_semicolon,
+    promote_owner_to_tree_expression_parent, try_attach_comment_before_empty_statement_semicolon,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
@@ -487,6 +487,7 @@ fn attach_parenthesized_tree_head_line_comment(
     let target_owner = token_after_span
         .map(|span| promote_owner_by_shared_start(tree, parents, target_owner, span.start))
         .unwrap_or(target_owner);
+    let target_owner = promote_owner_to_tree_expression_parent(tree, parents, target_owner);
     let target_owner =
         promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
             .unwrap_or(target_owner);

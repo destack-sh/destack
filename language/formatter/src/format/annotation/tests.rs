@@ -1,3 +1,4 @@
+use super::ownership::find_smallest_owner_enclosing_range;
 use super::render::annotation_precedes_separator;
 use crate::{
     Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
@@ -222,6 +223,65 @@ fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix()
             "marker={marker}, owner={owner_node}, owner_type={owner_node_type:?}"
         );
     }
+}
+
+/// Optional-call seam line comments should attach once.
+#[test]
+fn test_annotation_optional_call_line_boundary_comment_attaches_once() {
+    let source = "const value = call // keep-line
+?.()";
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+        p.eat_expression(Default::default())
+    })
+    .expect("parse optional-call boundary comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_ids = find_annotations_by_marker(&context, "keep-line");
+    assert_eq!(
+        annotation_ids.len(),
+        1,
+        "optional-call line boundary comment should attach exactly once",
+    );
+
+    let annotation_id = annotation_ids[0];
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("optional-call boundary comment should have one owner");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_expression_kind = if owner_node_type == NodeType::Expression {
+        let owner_expression_id = LocalNodeId::<Expression>::new(owner_node as u32);
+        match context.tree.get(owner_expression_id) {
+            Expression::Path { .. } => "Path",
+            Expression::Maybe { .. } => "Maybe",
+            Expression::Call { .. } => "Call",
+            Expression::Member { .. } => "Member",
+            _ => "Other",
+        }
+    } else {
+        "NonExpression"
+    };
+    let owner_annotation_count = context.formatter_annotation_ids_by_node_id[owner_node]
+        .iter()
+        .filter(|candidate_id| candidate_id.id == annotation_id.id)
+        .count();
+    assert_eq!(
+        owner_annotation_count, 1,
+        "optional-call boundary comment should appear once in the owner annotation list",
+    );
+    assert_eq!(
+        owner_expression_kind, "Call",
+        "optional-call line boundary comment owner kind should be Call, found {owner_expression_kind}",
+    );
+
+    let total_owner_occurrences = context
+        .formatter_annotation_ids_by_node_id
+        .iter()
+        .flat_map(|annotation_ids| annotation_ids.iter())
+        .filter(|candidate_id| candidate_id.id == annotation_id.id)
+        .count();
+    assert_eq!(
+        total_owner_occurrences, 1,
+        "optional-call boundary comment should not be attached to multiple owners",
+    );
 }
 
 /// Declarator seam line comments after `=` should stay inline with the rhs seam.
@@ -2359,6 +2419,63 @@ Second
         source,
         FileType::TypeScript,
         DestackFormatOptions::default(),
+    );
+}
+
+/// JSX spread-value ignore comments should stay owned by the spread value expression.
+#[test]
+fn test_annotation_jsx_spread_value_ignore_comment_stays_on_value_expression() {
+    let source = "a = <div {...{/* prettier-ignore */}}/>;";
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
+            .expect("parse jsx spread value ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_ids = find_annotations_by_marker(&context, "prettier-ignore");
+    assert_eq!(
+        annotation_ids.len(),
+        1,
+        "expected exactly one prettier-ignore annotation, got {}",
+        annotation_ids.len()
+    );
+    let annotation_id = annotation_ids[0];
+    let position = context.annotation(annotation_id).position();
+    let annotation = context.annotation(annotation_id);
+    let comment_node = match annotation {
+        Annotation::Comment { node, .. } => node,
+        _ => panic!("expected comment annotation for prettier-ignore"),
+    };
+    let comment_span = context.span(comment_node);
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected prettier-ignore owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(owner_node as u32));
+    let smallest_owner =
+        find_smallest_owner_enclosing_range(context.tree, comment_span.start, comment_span.end);
+    let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_token_type = context
+        .annotation_next_non_whitespace_token(annotation_id)
+        .map(|token| token.token.ty);
+
+    assert!(
+        !roots.is_empty(),
+        "expected parsed roots for jsx spread value ignore source"
+    );
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "expected spread-value ignore comment owner to be expression, got owner={owner_node}, owner_type={owner_node_type:?}"
+    );
+    assert!(
+        matches!(owner_expression, Expression::ObjectExpression { .. }),
+        "expected spread-value ignore comment owner to be object expression, got owner={owner_node}, expression={owner_expression:?}, smallest_owner={smallest_owner:?}, prev={previous_token_type:?}, next={next_token_type:?}"
+    );
+    assert_eq!(
+        position,
+        AnnotationPosition::BlockInfix,
+        "expected spread-value ignore comment position to be block infix, got {position:?}, smallest_owner={smallest_owner:?}"
     );
 }
 

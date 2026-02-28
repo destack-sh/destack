@@ -1,6 +1,6 @@
 use ast::{
-    AnnotationPosition, Declaration, Expression, FunctionMode, LocalNodeId, NodeParentIndex,
-    NodeTree, NodeType, TokenType,
+    AnnotationPosition, Argument, Declaration, Expression, FunctionMode, LocalNodeId,
+    NodeParentIndex, NodeTree, NodeType, TokenType,
 };
 use destack_ast as ast;
 
@@ -109,6 +109,18 @@ fn is_call_or_new_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
         tree.get(expression_id),
         Expression::Call { .. } | Expression::New { .. }
     )
+}
+
+/// Promote one owner to the nearest spread-argument ancestor.
+fn promote_owner_to_spread_argument_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let argument_owner =
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Argument)?;
+    let argument_id = LocalNodeId::<Argument>::new(argument_owner);
+    matches!(tree.get(argument_id), Argument::Spread { .. }).then_some(argument_owner)
 }
 
 /// Return whether one token is the terminal token of one optional-call operator.
@@ -307,100 +319,6 @@ fn optional_call_seam_position(
     } else {
         AnnotationPosition::LinePostfix
     }
-}
-
-/// Resolve optional-call seam comment rules.
-#[allow(clippy::too_many_arguments)]
-fn try_attach_optional_call_expression_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
-    seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
-    preceding_token_owner: Option<u32>,
-    following_owner: Option<u32>,
-    following_token_owner: Option<u32>,
-    enclosing_owner: Option<u32>,
-    has_leading_newline: bool,
-    has_trailing_newline: bool,
-    comment_is_line: bool,
-    comment_is_star: bool,
-    is_inline_star_comment: bool,
-    token_after_is_maybe: bool,
-    token_after_is_open_parenthesis: bool,
-) -> Option<CommentAttachment> {
-    // optional-call seam rules
-    if let Some(attachment) = try_attach_optional_call_expression_comment(
-        tree,
-        parents,
-        context,
-        seam,
-        preceding_owner,
-        preceding_token_owner,
-        following_owner,
-        following_token_owner,
-        enclosing_owner,
-        has_leading_newline,
-        has_trailing_newline,
-        comment_is_line,
-        comment_is_star,
-        is_inline_star_comment,
-        token_after_is_maybe,
-        token_after_is_open_parenthesis,
-    ) {
-        return Some(attachment);
-    }
-
-    None
-}
-
-/// Resolve ternary seam comment rules.
-#[allow(clippy::too_many_arguments)]
-fn try_attach_ternary_expression_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
-    preceding_token_owner: Option<u32>,
-    token_before_source_span: Option<destack_source::Span>,
-    ternary_enclosing_owner: Option<u32>,
-    ternary_following_owner: Option<u32>,
-    is_ternary_seam: bool,
-    has_leading_newline: bool,
-    has_trailing_newline: bool,
-    comment_is_line: bool,
-    comment_is_star: bool,
-    is_inline_star_comment: bool,
-    token_before_is_maybe: bool,
-    token_before_is_colon: bool,
-    token_after_is_colon: bool,
-    token_after_is_maybe: bool,
-) -> Option<CommentAttachment> {
-    // ternary seam rules
-    if let Some(attachment) = try_attach_ternary_expression_comment(
-        tree,
-        parents,
-        seam,
-        preceding_owner,
-        preceding_token_owner,
-        token_before_source_span,
-        ternary_enclosing_owner,
-        ternary_following_owner,
-        is_ternary_seam,
-        has_leading_newline,
-        has_trailing_newline,
-        comment_is_line,
-        comment_is_star,
-        is_inline_star_comment,
-        token_before_is_maybe,
-        token_before_is_colon,
-        token_after_is_colon,
-        token_after_is_maybe,
-    ) {
-        return Some(attachment);
-    }
-
-    None
 }
 
 /// Return whether one owner belongs to a do-while expression ancestry.
@@ -649,32 +567,60 @@ pub(crate) fn try_attach_comment_expression(
         return Some(attachment);
     }
 
-    // line comments before jsx spread children should stay before the spread argument
-    if comment_is_line
-        && token_after_is_spread
-        && let Some(target_node) = enclosing_owner
-            .or(preceding_owner)
-            .or(following_owner)
-            .and_then(|owner| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Argument)
-            })
+    // spread seams keep ownership on the spread argument in expression contexts
+    if (token_after_is_spread || token_before_is_spread)
+        && let Some(target_node) = [
+            enclosing_owner,
+            preceding_owner,
+            following_owner,
+            preceding_token_owner,
+            following_token_owner,
+        ]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| promote_owner_to_spread_argument_ancestor(tree, parents, owner))
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        if token_after_is_spread {
+            return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        }
+
+        let position = if comment_is_line {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::LinePrefix
+        };
+        return Some((Some(target_node), position));
     }
 
-    // line comments after jsx spread operators should stay on the spread argument boundary
-    if comment_is_line
-        && token_before_is_spread
-        && let Some(target_node) = enclosing_owner
-            .or(preceding_owner)
-            .or(following_owner)
-            .and_then(|owner| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Argument)
-            })
+    // inline comments inside empty object spread values stay inside the object literal
+    if is_inline_star_comment
+        && token_before_is_open_brace
+        && token_after_is_close_brace
+        && let Some(spread_argument_owner) = [
+            enclosing_owner,
+            preceding_owner,
+            following_owner,
+            preceding_token_owner,
+            following_token_owner,
+        ]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| promote_owner_to_spread_argument_ancestor(tree, parents, owner))
     {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+        let spread_argument_id = LocalNodeId::<Argument>::new(spread_argument_owner);
+        if let Argument::Spread {
+            value: spread_value_id,
+            ..
+        } = tree.get(spread_argument_id)
+            && matches!(
+                tree.get(*spread_value_id),
+                Expression::ObjectExpression { properties, .. } if properties.is_empty()
+            )
+        {
+            let target_node = normalize_formatter_trivia_target_owner(tree, spread_value_id.id);
+            return Some((Some(target_node), AnnotationPosition::BlockInfix));
+        }
     }
 
     // line comments after label colons stay with the labelled statement owner
@@ -1085,6 +1031,26 @@ pub(crate) fn try_attach_comment_expression(
         }
     }
 
+    // inline block comments inside empty object literals stay as object infix comments
+    if is_inline_star_comment && token_before_is_open_brace && token_after_is_close_brace {
+        let object_owner = token_before_span
+            .and_then(|token| find_preferred_owner_starting_at(tree, token.span))
+            .or(following_token_owner)
+            .or(following_owner)
+            .or(enclosing_owner)
+            .filter(|owner| tree.get_node_type(*owner) == NodeType::Expression)
+            .filter(|owner| {
+                matches!(
+                    tree.get(LocalNodeId::<Expression>::new(*owner)),
+                    Expression::ObjectExpression { .. }
+                )
+            });
+        if let Some(target_node) = object_owner {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::BlockInfix));
+        }
+    }
+
     // line comments after logical operators belong to the right operand
     if is_trailing_line_comment
         && token_before_is_logical_operator
@@ -1189,9 +1155,9 @@ pub(crate) fn try_attach_comment_expression(
         return Some(attachment);
     }
 
-    // line comments before tree-expression container `}` stay on the container expression
+    // comments before tree-expression container `}` stay on the container expression
     if !has_leading_newline
-        && comment_is_line
+        && (comment_is_line || comment_is_star)
         && token_after_is_close_brace
         && let Some(preceding_expression_owner) = preceding_owner
             .filter(|owner| tree.get_node_type(*owner) == NodeType::Expression)
@@ -1201,10 +1167,12 @@ pub(crate) fn try_attach_comment_expression(
                     .is_some_and(|parent_id| tree.get_node_type(parent_id) == NodeType::Argument)
             })
     {
-        return Some((
-            Some(preceding_expression_owner),
-            AnnotationPosition::LinePostfixBoundary,
-        ));
+        let position = if comment_is_line || has_trailing_newline {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::LinePostfix
+        };
+        return Some((Some(preceding_expression_owner), position));
     }
 
     // inline comments between nested declaration wrappers should stay with the outer wrapper
