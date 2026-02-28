@@ -244,8 +244,20 @@ impl Parser {
     }
 
     /// Eat one statement expression when the parser cursor is already normalized.
+    /// Applies stack growth checks for recursive statement parsing.
     #[inline]
     fn eat_statement_expression_from_token_kind(
+        &mut self,
+        token_type: TokenType,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        destack_base::ensure_sufficient_stack(|| {
+            self.eat_statement_expression_from_token_kind_inner(token_type)
+        })
+    }
+
+    /// Eat one statement expression when the parser cursor is already normalized.
+    #[inline]
+    fn eat_statement_expression_from_token_kind_inner(
         &mut self,
         token_type: TokenType,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -1792,5 +1804,36 @@ mod tests {
         assert!(first_annotations.is_empty());
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "<- keep-marker");
+    }
+
+    /// Parse deeply nested JavaScript if statements without overflowing the parser stack.
+    #[test]
+    fn test_parse_deeply_nested_if_statement() {
+        let depth = 512;
+        let mut source = String::new();
+
+        // open nested if blocks
+        for _ in 0..depth {
+            source.push_str("if (true) {");
+        }
+
+        // terminal block expression
+        source.push('0');
+
+        // close nested if blocks
+        for _ in 0..depth {
+            source.push('}');
+        }
+
+        let mut test = TestParser::new_with_options(&source, LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
     }
 }
