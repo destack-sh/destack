@@ -59,21 +59,28 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 > **Destack is an alpha-stage, experimental computing stack.**
 > Use at your own risk. Things may change or break or disappear entirely without notice.
 
-Destack was developed over years, with a _lot_ of iteration, and it also deliberately follows known good standards like TypeScript, TSX, Node and Web-shaped APIs.
-However, obviously, it is still rather early, it is definitely quite radical, and there are sound arguments against doing things in a Destack-shaped way:
+Destack has been in development for years and underwent a _lot_ of iteration, and it intentionally follows known good standards like TypeScript, TSX, Node and Web-shaped APIs.
+However, obviously, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
-1. The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a very different way may very well turn out net negative.
-2. Destack is compatible with JS/TS, yes, and runs modern TS, yes, but many of the most interesting features only work with "modern TS" (and of course "TS++") and when integrating with more of the "destack" libraries, which is a bigger shift.
-3. The ecosystem split implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has non-trivial friction.
-4. The existing (web) standards should be followed _less_ and since code transformation is now relatively cheap, and this is a unique time of disruption, Destack should be even _more_ adventorous and experimtal in its design to finally do software in the "most optimal" way.
-5. The existing (web) standards should be followed _more_ religiously, we shouldn't just pick and choose the "best" ones; they are pretty good by now and while they're not perfect, any deviation necessarily implies imperfect transformation at some lossy edge.
-6. The "++" in our "TS++" language is trying to do too much, TS is not meant to be load-bearing in this way, and systems programming should be left to systems languages.
-7. Following TS/TSX/Node/Web standards is nice, but the unique combination of features and technologies arranged in this way is still rather novel and might be difficult to understand / get used to.
-8. The value of a "stack", much like the value of many technologies, comes from having been around for a while and thus stand the new test of time; any new way of doing things is thus necessarily suspicious, _even if_ it has "objective" overall advantages.
+1. **Maybe the existing stack is already good**: The existing "stack", its layers and components exist for a good reason and have withstood significant evolutionary pressure, thus trying to combine or even rearrange them in a very different way may very well turn out net negative.
+2. **Maybe Detsack is too Destack-special**: Destack is compatible with JS/TS, yes, and runs modern TS, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with more of the "destack" stack, which is a bigger shift.
+3. **Maybe any ecosystem split is too expensive**: The ecosystem split implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still have non-trivial friction.
+4. **Maybe Destack should be more radical**: The existing (web) standards should be followed _less_ and since code transformation is now relatively cheap, and this is a unique time of disruption, Destack should be even _more_ adventorous and experimtal in its design to finally do software in the "most optimal" way.
+5. **Maybe Destack should be less radical**: The existing (web) standards should be followed _more_ religiously, we shouldn't just pick and choose the "best" ones; they are pretty good by now and while they're not perfect, any deviation necessarily implies imperfect transformation at some lossy edge.
+6. **Maybe "TS++" is too complex and weird**: The "++" in our "TS++" language is trying to do too much; TypeScript is not meant to be load-bearing in this way, and systems programming should be left to "true" systems languages.
+7. **Maybe Destack is too complex and fancy** Following TS/TSX/Node/Web standards is nice, but there is still a novel combination of features and technologies here, and the ways of working and processes required to make the most of Destack are unconventional.
+8. **Maybe this is shown to work too late**: A non-trivial part of the value of the common "stack", much like with other technologies, comes from having been around for a while and thus to have stood the test of time; any new way of doing things is thus inherently suspicious, _even if_ it is "objectively" better overall.
+9. ...
 
 **If you _really_ insist on using Destack:**
 Install via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
 Create a new app with `npm create destack@latest my-app` or `bun create destack my-app`.
+
+---
+
+## Questions You Should be Asking
+
+...
 
 ---
 
