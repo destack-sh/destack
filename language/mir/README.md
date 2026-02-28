@@ -289,14 +289,16 @@ Layouts store size, alignment, stride, and field offsets in declaration order.
 Lineage tracks parent types, interfaces, and sealed or final flags.
 
 Dispatch tables describe vtables and itabs with slot ordering and targets.
-Dispatch tables are stored in `NodeTree.type_table.dispatch_registry`.
+Dispatch tables are stored in `NodeTree.type_table.vtables` and `NodeTree.type_table.itabs`.
 VTables are only emitted for classes that require virtual dispatch.
 Interface dispatch uses itabs for both struct and class implementations.
 Each itab is specific to a (Type, Interface) pair.
-Concrete type metadata stores both the itab list and a direct interface to itab map for fast lookup.
+Concrete type metadata stores a direct interface to itab map for fast lookup.
 Itab slots include field offsets and method targets in interface declaration order.
 Dynamic dispatch is represented explicitly as `call.virtual` and `call.interface` (and tailcall variants).
 Lowering those operations to `call` or `call.indirect` is a later optimization and codegen legalization decision.
+VTables currently use global backing storage.
+ITabs currently use immediate handle storage keyed by `ItabId`.
 
 Interface inheritance flattens base interfaces in extends list order before local members.
 Members inherited with the same name and signature reuse the first slot.

@@ -58,6 +58,8 @@ impl<'a> Validator<'a> {
                 }
                 Instruction::CallVirtual {
                     destination,
+                    declaring_type,
+                    slot_id,
                     signature,
                     effects,
                     declared_target,
@@ -77,9 +79,18 @@ impl<'a> Validator<'a> {
                         )?;
                     }
                     self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
+                    if self.options.validate_metadata {
+                        self.validate_virtual_dispatch_slot(
+                            *declaring_type,
+                            *slot_id,
+                            ValidateAnchor::node(instruction_id),
+                        )?;
+                    }
                 }
                 Instruction::CallInterface {
                     destination,
+                    declaring_type,
+                    slot_id,
                     signature,
                     effects,
                     declared_target,
@@ -99,6 +110,13 @@ impl<'a> Validator<'a> {
                         )?;
                     }
                     self.validate_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
+                    if self.options.validate_metadata {
+                        self.validate_interface_dispatch_slot(
+                            *declaring_type,
+                            *slot_id,
+                            ValidateAnchor::node(instruction_id),
+                        )?;
+                    }
                 }
                 Instruction::CallIndirect {
                     destination,

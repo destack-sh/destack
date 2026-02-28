@@ -28,7 +28,7 @@ pub struct TypeLineage {
 /// Identifier for a vtable entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct VtableId(
-    /// Raw index into the vtable registry.
+    /// Raw index into the vtable table.
     u32,
 );
 
@@ -47,7 +47,7 @@ impl VtableId {
 /// Identifier for an itab entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ItabId(
-    /// Raw index into the itab registry.
+    /// Raw index into the itab table.
     u32,
 );
 
@@ -106,10 +106,17 @@ pub enum ItabEntry {
 pub struct Vtable {
     /// The class type owning this table.
     pub ty: LocalNodeId<Type>,
-    /// Optional global symbol containing the table.
-    pub global: Option<LocalNodeId<Global>>,
+    /// Storage backing for this vtable.
+    pub storage: VtableStorage,
     /// Entries in declaration order.
     pub entries: Vec<VtableEntry>,
+}
+
+/// Storage backing for a class vtable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VtableStorage {
+    /// Global data symbol containing the vtable entries.
+    Global(LocalNodeId<Global>),
 }
 
 /// Metadata for an interface itab.
@@ -119,90 +126,19 @@ pub struct Itab {
     pub concrete: LocalNodeId<Type>,
     /// The interface type being dispatched.
     pub interface: LocalNodeId<Type>,
-    /// Optional global symbol containing the table.
-    pub global: Option<LocalNodeId<Global>>,
+    /// Storage backing for this itab.
+    pub storage: ItabStorage,
     /// Entries in declaration order.
     pub entries: Vec<ItabEntry>,
 }
 
-/// Registry of class vtables.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct VtableRegistry {
-    /// Registered class vtables.
-    pub tables: Vec<Option<Vtable>>,
-}
-
-impl VtableRegistry {
-    /// Create a new empty vtable registry.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert a vtable and return its id.
-    pub fn insert(&mut self, table: Vtable) -> VtableId {
-        let id = VtableId::new(self.tables.len() as u32);
-        self.tables.push(Some(table));
-        id
-    }
-
-    /// Insert a vtable at a specific id.
-    pub fn insert_at(&mut self, id: VtableId, table: Vtable) {
-        let index = id.index();
-        if self.tables.len() <= index {
-            self.tables.resize_with(index + 1, || None);
-        }
-        if self.tables[index].is_some() {
-            panic!("vtable slot {index} already populated");
-        }
-        self.tables[index] = Some(table);
-    }
-
-    /// Return the vtable for an id.
-    pub fn table(&self, id: VtableId) -> &Vtable {
-        self.tables[id.index()]
-            .as_ref()
-            .expect("missing vtable entry")
-    }
-}
-
-/// Registry of interface itabs.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ItabRegistry {
-    /// Registered interface itabs.
-    pub tables: Vec<Option<Itab>>,
-}
-
-impl ItabRegistry {
-    /// Create a new empty itab registry.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert an itab and return its id.
-    pub fn insert(&mut self, table: Itab) -> ItabId {
-        let id = ItabId::new(self.tables.len() as u32);
-        self.tables.push(Some(table));
-        id
-    }
-
-    /// Insert an itab at a specific id.
-    pub fn insert_at(&mut self, id: ItabId, table: Itab) {
-        let index = id.index();
-        if self.tables.len() <= index {
-            self.tables.resize_with(index + 1, || None);
-        }
-        if self.tables[index].is_some() {
-            panic!("itab slot {index} already populated");
-        }
-        self.tables[index] = Some(table);
-    }
-
-    /// Return the itab for an id.
-    pub fn table(&self, id: ItabId) -> &Itab {
-        self.tables[id.index()]
-            .as_ref()
-            .expect("missing itab entry")
-    }
+/// Storage backing for an interface itab.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ItabStorage {
+    /// Global data symbol containing the itab entries.
+    Global(LocalNodeId<Global>),
+    /// Immediate handle encoded as an itab id.
+    Handle,
 }
 
 /// Type metadata available for optimization and codegen.
@@ -216,8 +152,6 @@ pub struct TypeMetadata {
     pub lineage: Option<TypeLineage>,
     /// Vtable for class virtual dispatch.
     pub vtable: Option<VtableId>,
-    /// Itabs for interface dispatch.
-    pub itabs: Vec<ItabId>,
     /// Interface to itab mapping for this concrete type.
     pub itab_by_interface: HashMap<LocalNodeId<Type>, ItabId>,
     /// Runtime type descriptor global.
@@ -275,10 +209,10 @@ pub struct TypeTable {
     pub layout_table: LayoutTable,
     /// Type metadata keyed by type id.
     pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
-    /// Class vtables.
-    pub vtable_registry: VtableRegistry,
-    /// Interface itabs.
-    pub itab_registry: ItabRegistry,
+    /// Class vtables keyed by VtableId index.
+    pub vtables: Vec<Vtable>,
+    /// Interface itabs keyed by ItabId index.
+    pub itabs: Vec<Itab>,
 }
 
 impl TypeTable {
@@ -370,6 +304,74 @@ impl TypeTable {
     /// Return the cached float type id for a width.
     pub fn float_type(&self, width: u16) -> Option<LocalNodeId<Type>> {
         self.type_cache.floats.get(&width).copied()
+    }
+
+    /// Insert a vtable and return its id.
+    pub fn insert_vtable(&mut self, table: Vtable) -> VtableId {
+        let id = VtableId::new(self.vtables.len() as u32);
+        self.vtables.push(table);
+        id
+    }
+
+    /// Insert a vtable at a specific id.
+    pub fn insert_vtable_at(&mut self, id: VtableId, table: Vtable) {
+        let index = id.index();
+        if index > self.vtables.len() {
+            panic!("vtable index {index} out of order");
+        }
+        if index < self.vtables.len() {
+            panic!("vtable index {index} already populated");
+        }
+        self.vtables.push(table);
+    }
+
+    /// Return the vtable for an id.
+    pub fn vtable(&self, id: VtableId) -> &Vtable {
+        self.vtables
+            .get(id.index())
+            .unwrap_or_else(|| panic!("missing vtable entry {}", id.index()))
+    }
+
+    /// Iterate all populated vtables.
+    pub fn iter_vtables(&self) -> impl Iterator<Item = (VtableId, &Vtable)> {
+        self.vtables
+            .iter()
+            .enumerate()
+            .map(|(index, table)| (VtableId::new(index as u32), table))
+    }
+
+    /// Insert an itab and return its id.
+    pub fn insert_itab(&mut self, table: Itab) -> ItabId {
+        let id = ItabId::new(self.itabs.len() as u32);
+        self.itabs.push(table);
+        id
+    }
+
+    /// Insert an itab at a specific id.
+    pub fn insert_itab_at(&mut self, id: ItabId, table: Itab) {
+        let index = id.index();
+        if index > self.itabs.len() {
+            panic!("itab index {index} out of order");
+        }
+        if index < self.itabs.len() {
+            panic!("itab index {index} already populated");
+        }
+        self.itabs.push(table);
+    }
+
+    /// Return the itab for an id.
+    pub fn itab(&self, id: ItabId) -> &Itab {
+        self.itabs
+            .get(id.index())
+            .unwrap_or_else(|| panic!("missing itab entry {}", id.index()))
+    }
+
+    /// Iterate all populated itabs.
+    pub fn iter_itabs(&self) -> impl Iterator<Item = (ItabId, &Itab)> {
+        self.itabs
+            .iter()
+            .enumerate()
+            .map(|(index, table)| (ItabId::new(index as u32), table))
     }
 
     /// Return type metadata for a type id.

@@ -47,8 +47,7 @@ fn resolve_virtual_dispatch_target(
         .ok_or(Error::InvalidInstruction)?;
 
     // resolve the vtable slot for the virtual call
-    let vtable_registry = &state.interpreter.isolate.tree.type_table.vtable_registry;
-    let table = vtable_registry.table(table_id);
+    let table = state.interpreter.isolate.tree.type_table.vtable(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)
@@ -88,12 +87,7 @@ fn resolve_interface_dispatch_target(
     let table_id = mir::ItabId::new(raw_id);
 
     // resolve the itab slot for the interface call
-    let itab_registry = &state.interpreter.isolate.tree.type_table.itab_registry;
-    let table = itab_registry
-        .tables
-        .get(table_id.index())
-        .and_then(|table| table.as_ref())
-        .ok_or(Error::InvalidInstruction)?;
+    let table = state.interpreter.isolate.tree.type_table.itab(table_id);
     let slot = table
         .entries
         .get(slot_id as usize)

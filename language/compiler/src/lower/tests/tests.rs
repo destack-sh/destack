@@ -40,12 +40,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Vtable> {
         // collect class vtables
-        tree.type_table
-            .vtable_registry
-            .tables
-            .iter()
-            .filter_map(|table| table.as_ref())
-            .collect()
+        tree.type_table.vtables.iter().collect()
     }
 
     /// Collect interface dispatch tables from a MIR tree.
@@ -54,12 +49,7 @@ impl TestProgram {
         tree: &'a mir::NodeTree,
     ) -> Vec<&'a mir::Itab> {
         // collect interface itabs
-        tree.type_table
-            .itab_registry
-            .tables
-            .iter()
-            .filter_map(|table| table.as_ref())
-            .collect()
+        tree.type_table.itabs.iter().collect()
     }
 
     /// Resolve an interface dispatch table for a concrete and interface object pair.
@@ -74,10 +64,8 @@ impl TestProgram {
         let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
 
         tree.type_table
-            .itab_registry
-            .tables
+            .itabs
             .iter()
-            .filter_map(|table| table.as_ref())
             .find(|table| table.concrete == concrete_type && table.interface == interface_type)
             .unwrap_or_else(|| {
                 panic!(

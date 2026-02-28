@@ -165,14 +165,13 @@ impl ModuleLowerer<'_> {
             let table_id = self.require_vtable_id(symbol)?;
             let table = mir::Vtable {
                 ty: mir_type,
-                global: Some(vtable_global.global_id),
+                storage: mir::VtableStorage::Global(vtable_global.global_id),
                 entries,
             };
             self.builder
                 .tree_mut()
                 .type_table
-                .vtable_registry
-                .insert_at(table_id, table);
+                .insert_vtable_at(table_id, table);
             table_id
         };
 
