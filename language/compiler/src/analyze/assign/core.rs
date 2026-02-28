@@ -1,7 +1,7 @@
 pub(crate) use destack_dir::{
-    ExtensionKind, GlobalSymbolId, IntType, Lineage, LocalNodeIdAny, LocalTypeId, PrimitiveType,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticParameterKind, SymbolType, Type,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, VarianceModifier, WellKnownSymbol,
+    GlobalSymbolId, IntType, Lineage, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticParameterKind, SymbolType, Type, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeTable, VarianceModifier, WellKnownSymbol,
 };
 pub(crate) use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 pub(crate) use std::collections::{HashMap, HashSet};

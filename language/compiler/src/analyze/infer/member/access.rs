@@ -332,14 +332,10 @@ impl Compiler {
             )?;
         }
 
-        // re-resolve receiver type expressions when receiver typing is still unevaluated
+        // query pre-existing receiver type commitments when receiver typing is still unevaluated
         if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
-            && let Ok(resolved_receiver_ty_id) = self.resolve_declared_type_expression(
-                &mut ctx.type_context_reborrow(),
-                receiver_id,
-                true,
-                true,
-            )
+            && let Some(resolved_receiver_ty_id) =
+                self.query_member_access_receiver_type_for_query(ctx, receiver_id)
         {
             receiver_ty_id = self.normalize_type_with_relation(
                 &mut ctx.type_context_reborrow(),
@@ -351,7 +347,7 @@ impl Compiler {
 
         // resolve unevaluated receivers through canonical reference symbols
         if matches!(ctx.types.get_type(receiver_ty_id), Type::Unevaluated(_))
-            && let Some(fallback_receiver_ty_id) = self.resolve_member_receiver_type_from_symbol(
+            && let Some(symbol_receiver_ty_id) = self.resolve_member_receiver_type_from_symbol(
                 &mut ctx.reborrow(),
                 receiver_id,
                 state,
@@ -359,7 +355,7 @@ impl Compiler {
         {
             receiver_ty_id = self.normalize_member_receiver_type_for_lookup(
                 &mut ctx.reborrow(),
-                fallback_receiver_ty_id,
+                symbol_receiver_ty_id,
                 preserve_infer_vars_for_lookup,
                 state,
             )?;
@@ -453,6 +449,18 @@ impl Compiler {
             force_unknown_receiver_diagnostic,
             has_optional_nullish,
         }))
+    }
+
+    /// Query one receiver type id through the secondary receiver-resolution path.
+    fn query_member_access_receiver_type_for_query(
+        &self,
+        ctx: &InferContext<'_>,
+        receiver_id: LocalNodeId<Expression>,
+    ) -> Option<LocalTypeId> {
+        let receiver_node = receiver_id.into_global_any(ctx.module.id);
+        ctx.infer
+            .inferred_type_for_node(receiver_node)
+            .or_else(|| ctx.types.get_declared_or_inferred_type_id(receiver_node))
     }
 
     /// Materialize and normalize one member receiver type for lookup.

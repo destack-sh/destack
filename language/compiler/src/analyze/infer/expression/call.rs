@@ -4,7 +4,7 @@ use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberLookupModuleContext, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, TreeSymbolView,
+    AnalyzeDependencyStage, CanonicalSymbolMode, InferContext, TreeSymbolView, TypeView,
 };
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use crate::timing::tags;
@@ -15,7 +15,7 @@ use destack_dir::{
     LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
     Parameter, Property, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression,
     StaticKey, StaticParameter, StaticParameterKind, StringId, SymbolType, Timing, Type,
-    TypeLiteral, TypeTable, WellKnownSymbol,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::ModuleSource;
 
@@ -175,7 +175,7 @@ pub(crate) struct SignatureStaticResolutionContext<'a> {
     pub(crate) return_type: Option<LocalTypeId>,
     /// Expected return type used for reverse static inference.
     pub(crate) expected_return_type: Option<LocalTypeId>,
-    /// Resolution mode controlling diagnostics and fallback behavior.
+    /// Resolution mode controlling diagnostics and recovery behavior.
     pub(crate) mode: SignatureResolutionMode,
     /// Whether unresolved value static arguments may defer resolution.
     pub(crate) allow_missing_value_arguments: bool,
@@ -200,7 +200,7 @@ pub(crate) struct CallSignatureResolutionContext<'a> {
     pub(crate) call_receiver_ty_id: Option<LocalTypeId>,
     /// Expected return type used for reverse static inference.
     pub(crate) expected_return_type: Option<LocalTypeId>,
-    /// Resolution mode controlling diagnostics and fallback behavior.
+    /// Resolution mode controlling diagnostics and recovery behavior.
     pub(crate) mode: SignatureResolutionMode,
     /// Whether unresolved value static arguments may defer resolution.
     pub(crate) allow_missing_value_arguments: bool,
@@ -223,7 +223,7 @@ struct OverloadSelectionContext<'a> {
     dynamic_arguments: &'a [LocalNodeId<Argument>],
     /// Receiver type for `this` substitution in member calls.
     call_receiver_ty_id: Option<LocalTypeId>,
-    /// Resolution mode controlling diagnostics and fallback behavior.
+    /// Resolution mode controlling diagnostics and recovery behavior.
     mode: SignatureResolutionMode,
 }
 
@@ -1087,17 +1087,27 @@ impl Compiler {
         argument_value_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // evaluate to a scalar literal when possible
-        let value = self.evaluate_static_expression_value(
+        let value = self.query_static_expression_value(
             &mut ctx.type_context_reborrow(),
             argument_value_id,
             None,
         )?;
-        let Some(StaticExpression::ScalarLiteral { value }) = value else {
-            return Ok(None);
+        let literal_value = match value {
+            Some(StaticExpression::ScalarLiteral { value }) => value,
+            Some(StaticExpression::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value),
+            }) => value,
+            Some(StaticExpression::Type { ty }) => match ctx.types.get_type(ty) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value),
+                } => value.clone(),
+                _ => return Ok(None),
+            },
+            _ => return Ok(None),
         };
 
         let ty = Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(value),
+            value: TypeLiteral::ScalarLiteral(literal_value),
         };
         Ok(Some(
             ctx.types
@@ -1676,6 +1686,7 @@ impl Compiler {
             &mut ctx.reborrow(),
             signature_ty_id,
             dynamic_arguments,
+            call.callee_symbol,
         )? {
             self.infer_call_arguments_without_context(
                 &mut ctx.reborrow(),
@@ -1741,87 +1752,33 @@ impl Compiler {
         if !matches!(member_context.member_key, StaticKey::Name(name) if name == call_name) {
             return false;
         }
-
-        let Some(member_symbol) = call.callee_symbol else {
-            return false;
-        };
-        if !self.strict_bind_call_apply_member_matches_builtin_call(ctx, member_symbol) {
-            return false;
-        }
-
         let Some(receiver_ty_id) = call.call_receiver_ty_id else {
             return false;
         };
+        if self.receiver_declares_member_name(ctx.type_view(), receiver_ty_id, call_name) {
+            return false;
+        }
 
         !self
             .call_signatures_for_type(receiver_ty_id, &*ctx.types)
             .is_empty()
     }
 
-    /// Return true when one member symbol is the builtin strict `call` wrapper member.
-    fn strict_bind_call_apply_member_matches_builtin_call(
-        &self,
-        ctx: &InferContext<'_>,
-        member_symbol: GlobalSymbolId,
-    ) -> bool {
-        let member_symbol = self.canonical_symbol_id(
-            ctx.module_symbol_view(),
-            member_symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-        let member_symbol = self
-            .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
-            .unwrap_or(member_symbol);
-        let member_owner_symbol = self
-            .query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), member_symbol)
-            .ok()
-            .flatten();
-        let Some(member_owner_symbol) = member_owner_symbol else {
-            return false;
-        };
-        let member_owner_symbol = self.canonical_symbol_id(
-            ctx.module_symbol_view(),
-            member_owner_symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-        let member_owner_symbol = self
-            .declaration_symbol_id(ctx.module_symbol_view(), member_owner_symbol)
-            .unwrap_or(member_owner_symbol);
-
-        let function_symbols = [
-            self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Function),
-            self.get_well_known_symbol(ctx.profile, WellKnownSymbol::Function),
-        ];
-
-        for function_symbol in function_symbols.into_iter().flatten() {
-            let function_symbol = self.canonical_symbol_id(
-                ctx.module_symbol_view(),
-                function_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
-            let function_symbol = self
-                .declaration_symbol_id(ctx.module_symbol_view(), function_symbol)
-                .unwrap_or(function_symbol);
-
-            if member_owner_symbol == function_symbol {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Return the minimum required dynamic argument count for one resolved signature.
     fn minimum_required_dynamic_argument_count(
         &self,
-        tree: &NodeTree,
+        ctx: TypeView<'_>,
         signature_ty_id: LocalTypeId,
-        types: &TypeTable,
     ) -> Option<usize> {
         let dynamic_parameters =
-            self.dynamic_parameters_for_signature_source(tree, types, signature_ty_id)?;
+            self.dynamic_parameters_for_signature_source(ctx, signature_ty_id, None)?;
 
-        Some(self.minimum_required_dynamic_argument_count_for_parameters(tree, dynamic_parameters))
+        Some(
+            self.minimum_required_dynamic_argument_count_for_parameters(
+                ctx.tree,
+                dynamic_parameters,
+            ),
+        )
     }
 
     /// Return strict `call` minimum arity from receiver signatures, plus `thisArg`.
@@ -1836,7 +1793,7 @@ impl Compiler {
         let mut minimum_required_receiver_arguments: Option<usize> = None;
         for signature_ty_id in receiver_signatures {
             let Some(required_receiver_arguments) =
-                self.minimum_required_dynamic_argument_count(ctx.tree, signature_ty_id, ctx.types)
+                self.minimum_required_dynamic_argument_count(ctx.type_view(), signature_ty_id)
             else {
                 continue;
             };
@@ -1887,11 +1844,12 @@ impl Compiler {
         ctx: &mut InferContext<'_>,
         signature_ty_id: LocalTypeId,
         dynamic_arguments: &[LocalNodeId<Argument>],
+        expected_owner_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<bool> {
         let comptime_indexes = self.comptime_dynamic_parameter_indexes_for_signature(
-            ctx.tree,
-            ctx.types,
+            ctx.type_view(),
             signature_ty_id,
+            expected_owner_symbol,
         );
         if comptime_indexes.is_empty() {
             return Ok(true);
@@ -1903,7 +1861,7 @@ impl Compiler {
                 continue;
             };
             let argument_expression_id = ctx.tree.get(argument_id).value();
-            let value = self.evaluate_static_expression_value(
+            let value = self.query_static_expression_value(
                 &mut ctx.type_context_reborrow(),
                 argument_expression_id,
                 None,
@@ -1929,19 +1887,21 @@ impl Compiler {
     /// Return dynamic-parameter indexes marked as comptime on one signature source.
     fn comptime_dynamic_parameter_indexes_for_signature(
         &self,
-        tree: &NodeTree,
-        types: &TypeTable,
+        ctx: TypeView<'_>,
         signature_ty_id: LocalTypeId,
+        expected_owner_symbol: Option<GlobalSymbolId>,
     ) -> Vec<usize> {
-        let Some(dynamic_parameters) =
-            self.dynamic_parameters_for_signature_source(tree, types, signature_ty_id)
-        else {
+        let Some(dynamic_parameters) = self.dynamic_parameters_for_signature_source(
+            ctx,
+            signature_ty_id,
+            expected_owner_symbol,
+        ) else {
             return Vec::new();
         };
 
         let mut indexes = Vec::new();
         for (index, parameter_id) in dynamic_parameters.iter().enumerate() {
-            let parameter = tree.get(*parameter_id);
+            let parameter = ctx.tree.get(*parameter_id);
             let is_comptime = parameter.modifiers().and_then(|modifiers| modifiers.timing)
                 == Some(Timing::Comptime);
             if is_comptime {
@@ -1955,49 +1915,188 @@ impl Compiler {
     /// Return dynamic-parameter ids for one signature source when syntax metadata is available.
     fn dynamic_parameters_for_signature_source<'a>(
         &self,
-        tree: &'a NodeTree,
-        types: &TypeTable,
+        ctx: TypeView<'a>,
         signature_ty_id: LocalTypeId,
+        expected_owner_symbol: Option<GlobalSymbolId>,
     ) -> Option<&'a [LocalNodeId<Parameter>]> {
-        let signature_source = types.get_type_source(signature_ty_id);
-        match signature_source.ty {
+        let signature_source = ctx.types.get_type_source(signature_ty_id);
+        let (parameters, source_owner_symbol) = match signature_source.ty {
             NodeType::Declaration => {
                 let declaration_id = signature_source.into_typed::<Declaration>();
-                if !tree.has_node_id(declaration_id.id) {
+                if !ctx.tree.has_node_id(declaration_id.id) {
                     return None;
                 }
-                match tree.get(declaration_id) {
-                    Declaration::Function { signature, .. } => {
-                        Some(signature.dynamic_parameters.as_slice())
-                    }
-                    _ => None,
+                let declaration = ctx.tree.get(declaration_id);
+                match declaration {
+                    Declaration::Function { signature, .. } => (
+                        signature.dynamic_parameters.as_slice(),
+                        Some(declaration.symbol().into_global(ctx.module.id)),
+                    ),
+                    _ => return None,
                 }
             }
             NodeType::Member => {
                 let member_id = signature_source.into_typed::<Member>();
-                if !tree.has_node_id(member_id.id) {
+                if !ctx.tree.has_node_id(member_id.id) {
                     return None;
                 }
-                match tree.get(member_id) {
-                    Member::Method { signature, .. } => {
-                        Some(signature.dynamic_parameters.as_slice())
-                    }
-                    _ => None,
+                let member = ctx.tree.get(member_id);
+                match member {
+                    Member::Method { signature, .. } => (
+                        signature.dynamic_parameters.as_slice(),
+                        Some(member.symbol().into_global(ctx.module.id)),
+                    ),
+                    _ => return None,
                 }
             }
             NodeType::Property => {
                 let property_id = signature_source.into_typed::<Property>();
-                if !tree.has_node_id(property_id.id) {
+                if !ctx.tree.has_node_id(property_id.id) {
                     return None;
                 }
-                match tree.get(property_id) {
-                    Property::Method { signature, .. } => {
-                        Some(signature.dynamic_parameters.as_slice())
-                    }
-                    _ => None,
+                let property = ctx.tree.get(property_id);
+                match property {
+                    Property::Method {
+                        symbol, signature, ..
+                    } => (
+                        signature.dynamic_parameters.as_slice(),
+                        Some(symbol.into_global(ctx.module.id)),
+                    ),
+                    _ => return None,
                 }
             }
-            _ => None,
+            _ => return None,
+        };
+        if !self.signature_source_owner_matches_expected(
+            ctx,
+            source_owner_symbol,
+            expected_owner_symbol,
+        ) {
+            return None;
+        }
+        if !self.signature_source_parameters_match_signature(ctx, signature_ty_id, parameters) {
+            return None;
+        }
+
+        Some(parameters)
+    }
+
+    /// Return true when one signature source owner matches the expected callee symbol.
+    fn signature_source_owner_matches_expected(
+        &self,
+        ctx: TypeView<'_>,
+        source_owner_symbol: Option<GlobalSymbolId>,
+        expected_owner_symbol: Option<GlobalSymbolId>,
+    ) -> bool {
+        let Some(expected_owner_symbol) = expected_owner_symbol else {
+            return true;
+        };
+        let Some(source_owner_symbol) = source_owner_symbol else {
+            return false;
+        };
+
+        let normalize = |symbol| {
+            let symbol = self.canonical_symbol_id(
+                ctx.module_symbol_view(),
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            self.declaration_symbol_id(ctx.module_symbol_view(), symbol)
+                .unwrap_or(symbol)
+        };
+
+        normalize(source_owner_symbol) == normalize(expected_owner_symbol)
+    }
+
+    /// Return true when source parameters still match the function type signature.
+    fn signature_source_parameters_match_signature(
+        &self,
+        ctx: TypeView<'_>,
+        signature_ty_id: LocalTypeId,
+        parameters: &[LocalNodeId<Parameter>],
+    ) -> bool {
+        let Type::Function {
+            dynamic_parameters, ..
+        } = ctx.types.get_type(signature_ty_id)
+        else {
+            return false;
+        };
+        if dynamic_parameters.len() != parameters.len() {
+            return false;
+        }
+
+        for (index, parameter_id) in parameters.iter().enumerate() {
+            if !ctx.tree.has_node_id(parameter_id.id) {
+                return false;
+            }
+
+            let parameter = ctx.tree.get(*parameter_id);
+            let parameter_symbol = parameter.symbol().into_global(ctx.module.id);
+            let parameter_symbol_entry = ctx.symbols.get_symbol(parameter_symbol.local_id);
+            if parameter_symbol_entry.primary_declaration
+                != Some(parameter_id.into_global_any(ctx.module.id))
+            {
+                return false;
+            }
+
+            let parameter_type_id = ctx
+                .types
+                .get_declared_or_inferred_type_id(parameter_id.into_global_any(ctx.module.id));
+            let Some(parameter_type_id) = parameter_type_id else {
+                return false;
+            };
+
+            let source_parameter_type_id = self.unwrap_type_value(parameter_type_id, ctx.types);
+            let signature_parameter_type_id =
+                self.unwrap_type_value(dynamic_parameters[index], ctx.types);
+            if source_parameter_type_id != signature_parameter_type_id {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Return true when one receiver type declares a member field with the given name.
+    fn receiver_declares_member_name(
+        &self,
+        ctx: TypeView<'_>,
+        receiver_ty_id: LocalTypeId,
+        member_name: StringId,
+    ) -> bool {
+        let mut visited = HashSet::new();
+        self.receiver_declares_member_name_inner(ctx, receiver_ty_id, member_name, &mut visited)
+    }
+
+    /// Return true when one receiver type declares a member field with the given name.
+    fn receiver_declares_member_name_inner(
+        &self,
+        ctx: TypeView<'_>,
+        receiver_ty_id: LocalTypeId,
+        member_name: StringId,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        if !visited.insert(receiver_ty_id) {
+            return false;
+        }
+
+        match ctx.types.get_type(receiver_ty_id) {
+            Type::Object { fields, .. } => fields
+                .iter()
+                .any(|field| matches!(field.key, StaticKey::Name(name) if name == member_name)),
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|element_id| {
+                    self.receiver_declares_member_name_inner(ctx, *element_id, member_name, visited)
+                })
+            }
+            Type::Value { value }
+            | Type::Unary { right: value, .. }
+            | Type::ValueOf { right: value, .. }
+            | Type::ReferenceOf { right: value, .. }
+            | Type::PointerOf { right: value, .. } => {
+                self.receiver_declares_member_name_inner(ctx, *value, member_name, visited)
+            }
+            _ => false,
         }
     }
 

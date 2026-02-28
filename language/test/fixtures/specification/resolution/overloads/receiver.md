@@ -104,18 +104,18 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-extension for Counter implements Add<number> {
+export extension CounterNumberAdd for Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+export extension CounterIntAdd for Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
 
 ```ds:main.ds
 import { Counter } from "./counter";
-import "./extensions";
+import { CounterNumberAdd, CounterIntAdd } from "./extensions";
 
 declare let counter: Counter;
 
@@ -134,18 +134,18 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-extension for Counter implements Add<number> {
+export extension CounterNumberAdd for Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+export extension CounterIntAdd for Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
 
 ```ds:main.ds
 import { Counter } from "./counter";
-import "./extensions";
+import { CounterNumberAdd, CounterIntAdd } from "./extensions";
 
 declare let counter: Counter;
 
@@ -166,27 +166,30 @@ export struct Counter {}
 ```ds:extensions.ds
 import { Counter } from "./counter";
 
-extension for Counter implements Add<number> {
+export extension CounterNumberAdd for Counter implements Add<number> {
     add(other: number): "number" { return "number" }
 }
 
-extension for Counter implements Add<int32> {
+export extension CounterIntAdd for Counter implements Add<int32> {
     add(other: int32): "int32" { return "int32" }
 }
 ```
 
 ```ds:barrel.ds
-export * from "./extensions";
+export * from "./counter";
 ```
 
 ```ds:index.ds
-export { Counter as PublicCounter } from "./counter";
 export * from "./barrel";
+export { Counter as PublicCounter } from "./counter";
 ```
 
 ```ds:main.ds
 import { PublicCounter } from "./index";
-import "./barrel";
+import {
+    CounterNumberAdd as PublicCounterNumberAdd,
+    CounterIntAdd as PublicCounterIntAdd
+} from "./extensions";
 
 declare let counter: PublicCounter;
 

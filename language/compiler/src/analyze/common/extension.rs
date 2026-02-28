@@ -157,7 +157,6 @@ impl Compiler {
 
         Ok(extensions)
     }
-
     /// Load extension metadata for a symbol from its defining module.
     pub(crate) fn extension_for_symbol(
         &self,
