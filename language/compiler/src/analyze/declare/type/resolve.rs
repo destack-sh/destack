@@ -1,6 +1,5 @@
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, RelationMode, TreeSymbolView,
-    TypeContext,
+    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, TreeSymbolView, TypeContext,
 };
 use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::analyze::infer::RemoteValueTypeReadDomain;
@@ -11,7 +10,7 @@ use destack_dir::{
     DependencyItem, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    Type, TypeLiteral, TypeTable, TypeUnaryOperator, are_types_equal,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -116,19 +115,14 @@ impl Compiler {
                 enforce_implicit_managed,
             )?;
             let symbol = self.unwrap_type_value_symbol(ctx.types, index_ty_id);
-            let selection = if symbol.is_none() {
-                self.associated_comptime_selection_from_expression(
-                    &mut ctx.reborrow(),
-                    candidate_expression_id,
-                )?
-            } else {
-                None
-            };
-            let symbol = if let Some(symbol) = symbol {
-                Some(symbol)
-            } else {
-                selection.as_ref().map(|selection| selection.target_symbol)
-            };
+            let selection = self.associated_comptime_selection_from_expression(
+                &mut ctx.reborrow(),
+                candidate_expression_id,
+            )?;
+            let symbol = selection
+                .as_ref()
+                .map(|selection| selection.target_symbol)
+                .or(symbol);
             let Some(symbol) = symbol else {
                 if is_explicit_comptime {
                     self.error(AnalyzeError::InvalidComptimeExpression {
@@ -141,68 +135,72 @@ impl Compiler {
             };
             let is_static_parameter =
                 self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol);
-            let is_associated_comptime = matches!(
-                self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), symbol,)?,
-                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
-            );
+            let is_associated_comptime = selection.is_some()
+                || matches!(
+                    self.query_static_member_symbol_kind_for_symbol(
+                        ctx.tree_symbol_view(),
+                        symbol,
+                    )?,
+                    Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+                );
             if !is_static_parameter && !is_associated_comptime {
+                // explicit comptime aliases are allowed to stay symbolic for projection materialization
                 if is_explicit_comptime {
+                    let mut inferred_id = ctx.types.unwrap_value_type_id(index_ty_id);
+                    if matches!(
+                        ctx.types.get_type(inferred_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        }
+                    ) {
+                        let expression_arguments =
+                            ctx.tree.get(candidate_expression_id).static_arguments();
+                        let static_arguments = self
+                            .evaluate_static_arguments(&mut ctx.reborrow(), expression_arguments)?;
+                        let reference_type = Type::Reference {
+                            symbol,
+                            static_arguments,
+                        };
+                        inferred_id = ctx.types.insert_type_from_any(
+                            reference_type,
+                            candidate_expression_id.into_any(),
+                        );
+                    }
+                    ctx.types.set_inferred_type(
+                        expression_id.into_global_any(ctx.module.id),
+                        inferred_id,
+                    );
+                    return Ok(Some(inferred_id));
+                }
+
+                return Ok(None);
+            }
+            if is_associated_comptime {
+                // explicit comptime fixed-array lengths require fully resolved receiver substitutions
+                if let Some(selection) = selection.as_ref()
+                    && self.receiver_projection_arguments_require_deferral(
+                        ctx.type_view(),
+                        &selection.receiver_arguments,
+                    )
+                    && selection.receiver_symbol.module_id == ctx.module.id
+                    && is_explicit_comptime
+                {
                     self.error(AnalyzeError::InvalidComptimeExpression {
                         node: expression_id
                             .into_global_any(ctx.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
-                }
-                return Ok(None);
-            }
-            if is_associated_comptime {
-                // non-this projections must already fold to a concrete integer count
-                if !self.associated_projection_receiver_is_this(candidate_expression_id, ctx.tree) {
-                    let has_unresolved_receiver_arguments =
-                        selection.as_ref().is_some_and(|selection| {
-                            self.receiver_projection_arguments_require_deferral(
-                                ctx.type_view(),
-                                &selection.receiver_arguments,
-                            )
-                        });
-                    if has_unresolved_receiver_arguments {
-                        if is_explicit_comptime {
-                            self.error(AnalyzeError::InvalidComptimeExpression {
-                                node: expression_id
-                                    .into_global_any(ctx.module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                            });
-                            return Ok(None);
-                        }
-
-                        let inferred_id = ctx.types.unwrap_value_type_id(index_ty_id);
-                        ctx.types.set_inferred_type(
-                            expression_id.into_global_any(ctx.module.id),
-                            inferred_id,
-                        );
-                        return Ok(Some(inferred_id));
-                    }
-
-                    let has_concrete_count = self
-                        .evaluate_integer_static_literal(
-                            &mut ctx.reborrow(),
-                            candidate_expression_id,
-                        )?
-                        .is_some();
-                    if !has_concrete_count {
-                        self.error(AnalyzeError::InvalidComptimeExpression {
-                            node: expression_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                        return Ok(None);
-                    }
+                    return Ok(None);
                 }
 
-                // keep associated comptime references as symbols so substitution can resolve counts
+                // keep associated comptime projections symbolic, while preserving receiver args for substitution
+                let receiver_arguments = selection
+                    .as_ref()
+                    .map(|selection| selection.receiver_arguments.clone())
+                    .filter(|arguments| !arguments.is_empty());
                 let reference_type = Type::Reference {
                     symbol,
-                    static_arguments: None,
+                    static_arguments: receiver_arguments,
                 };
                 let reference_type_id = ctx
                     .types
@@ -255,47 +253,20 @@ impl Compiler {
             return Ok(true);
         }
 
-        if let Some(symbol) =
-            self.associated_comptime_symbol_from_expression(&mut ctx.reborrow(), expression_id)?
-            && matches!(
-                self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), symbol,)?,
-                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
-            )
+        if self
+            .associated_comptime_selection_from_expression(&mut ctx.reborrow(), expression_id)?
+            .is_some()
         {
             return Ok(true);
         }
 
-        let target_symbol = if let Some(target_symbol) = ctx.tree.get(expression_id).target_symbol()
-        {
-            Some(target_symbol)
-        } else {
-            let index_type_id = self.resolve_declared_type_expression(
-                &mut ctx.reborrow(),
-                expression_id,
-                true,
-                true,
-            )?;
-            self.unwrap_type_value_symbol(ctx.types, index_type_id)
-        };
-
-        let Some(target_symbol) = target_symbol else {
+        let Some(static_value) =
+            self.query_static_expression_value(&mut ctx.reborrow(), expression_id, None)?
+        else {
             return Ok(false);
         };
 
-        if self.symbol_is_static_parameter(ctx.symbol_type_view(), target_symbol) {
-            let kind = self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol);
-            return Ok(matches!(kind, StaticParameterKind::Value));
-        }
-
-        let is_associated_comptime = matches!(
-            self.query_static_member_symbol_kind_for_symbol(
-                ctx.tree_symbol_view(),
-                target_symbol,
-            )?,
-            Some(StaticMemberSymbolKind::AssociatedComptimeConst)
-        );
-
-        Ok(is_associated_comptime)
+        Ok(self.static_expression_may_be_numeric(&static_value, ctx.types))
     }
 
     /// Resolve an associated comptime member symbol from one projection expression.
@@ -319,31 +290,6 @@ impl Compiler {
         )
     }
 
-    /// Resolve an associated comptime member symbol from one projection expression.
-    pub(crate) fn associated_comptime_symbol_from_expression(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        expression_id: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let selection =
-            self.associated_comptime_selection_from_expression(&mut ctx.reborrow(), expression_id)?;
-        Ok(selection.map(|selection| selection.target_symbol))
-    }
-
-    /// Return true when one associated projection receiver is `this`.
-    fn associated_projection_receiver_is_this(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> bool {
-        let Expression::Member { left, .. } = tree.get(expression_id) else {
-            return false;
-        };
-
-        let left = self.unwrap_parenthesized_expression(*left, tree);
-        matches!(tree.get(left), Expression::This)
-    }
-
     /// Classify one `TypeIndex` expression as index-access or fixed-array construction.
     pub(crate) fn type_index_interpretation(
         &self,
@@ -362,13 +308,6 @@ impl Compiler {
         }
         let index_is_array_size_candidate =
             self.expression_is_array_size_candidate(&mut ctx.reborrow(), index_expression_id)?;
-        let should_evaluate_static_integer = index_is_array_size_candidate
-            || self.type_index_is_integer_literal(index_expression_id, ctx.tree);
-        let index_static_integer = if should_evaluate_static_integer {
-            self.evaluate_integer_static_literal(&mut ctx.reborrow(), index_expression_id)?
-        } else {
-            None
-        };
         let left_is_array_sized =
             matches!(ctx.types.get_type(left_type_id), Type::ArraySized { .. });
         let supports_index_access =
@@ -393,11 +332,10 @@ impl Compiler {
         let is_index_access = self.type_index_should_use_index_access(
             &mut ctx.reborrow(),
             left_type_id,
-            index_expression_id,
+            is_explicit_comptime,
             supports_index_access,
             left_is_array_sized,
             index_is_array_size_candidate,
-            index_static_integer.is_some(),
         )?;
 
         Ok(if is_index_access {
@@ -412,11 +350,10 @@ impl Compiler {
         &self,
         ctx: &mut TypeContext<'_>,
         left_type_id: LocalTypeId,
-        index_expression_id: LocalNodeId<Expression>,
+        is_explicit_comptime: bool,
         supports_index_access: bool,
         left_is_array_sized: bool,
         index_is_array_size_candidate: bool,
-        index_is_static_integer: bool,
     ) -> AnalyzeResult<bool> {
         // receivers that are primitive literals cannot use indexed-access type semantics
         let is_primitive_literal_receiver = self.type_is_primitive_literal(left_type_id, ctx.types);
@@ -424,65 +361,16 @@ impl Compiler {
             return Ok(false);
         }
 
-        // resolve strict index admissibility for the current receiver and key
-        let index_access_is_admissible = self.type_index_is_index_access_admissible(
-            &mut ctx.reborrow(),
-            left_type_id,
-            index_expression_id,
-        )?;
-
         // detect explicit fixed-array intent
-        let force_array_from_value_candidate = index_is_array_size_candidate;
-        let force_array_from_nested_sized = left_is_array_sized
-            && self.type_index_is_integer_literal(index_expression_id, ctx.tree);
+        let force_array_from_explicit_comptime =
+            is_explicit_comptime && index_is_array_size_candidate;
+        let force_array_from_nested_sized = left_is_array_sized && index_is_array_size_candidate;
 
-        // plain integer literals select fixed arrays only when indexed access is inadmissible
-        let force_array_from_static_integer =
-            index_is_static_integer && !index_access_is_admissible;
+        // keep indexed-access semantics for admissible index receivers, even when a concrete key
+        // is missing, so validation can report missing-member diagnostics in the index-access model
+        let force_fixed_array = force_array_from_explicit_comptime || force_array_from_nested_sized;
 
-        Ok(!(force_array_from_value_candidate
-            || force_array_from_nested_sized
-            || force_array_from_static_integer))
-    }
-
-    /// Check whether one type-index expression has admissible indexed-access semantics.
-    pub(crate) fn type_index_is_index_access_admissible(
-        &self,
-        ctx: &mut TypeContext<'_>,
-        left_type_id: LocalTypeId,
-        index_expression_id: LocalNodeId<Expression>,
-    ) -> AnalyzeResult<bool> {
-        // normalize the receiver before index admissibility checks
-        let receiver_resolution =
-            self.resolve_type_index_receiver_type(&mut ctx.reborrow(), left_type_id)?;
-        let receiver_type_id = match receiver_resolution {
-            TypeIndexReceiverState::Resolved(receiver_type_id) => receiver_type_id,
-            TypeIndexReceiverState::UnconstrainedStaticParameter => return Ok(true),
-            TypeIndexReceiverState::Unresolved => return Ok(false),
-        };
-
-        // resolve the index operand type before compatibility checks
-        let index_type_id = self.resolve_declared_type_expression(
-            &mut ctx.reborrow(),
-            index_expression_id,
-            true,
-            true,
-        )?;
-        let index_type_id = ctx.types.unwrap_value_type_id(index_type_id);
-
-        // resolve indexed-access types and collect missing literal keys
-        let mut visited = Vec::new();
-        let resolution = self.resolve_index_access_types(
-            &mut ctx.reborrow(),
-            index_expression_id.into_any(),
-            receiver_type_id,
-            index_type_id,
-            NormalizationMode::Flow,
-            RelationMode::INDEX_ACCESS,
-            &mut visited,
-        );
-
-        Ok(resolution.missing_keys.is_empty())
+        Ok(!force_fixed_array)
     }
 
     /// Resolve one type-index receiver through constraints, aliases, and instance targets.
@@ -572,18 +460,49 @@ impl Compiler {
         if !self.symbol_is_static_parameter(ctx.symbol_type_view(), target_symbol) {
             return Ok(false);
         }
-        if self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol)
-            != StaticParameterKind::Type
-        {
+        let parameter_kind =
+            if target_symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
+                Some(self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
+            } else {
+                self.with_module_types_or_local_at_stage(
+                    ctx.module,
+                    ctx.profile,
+                    target_symbol.module_id,
+                    ctx.types,
+                    AnalyzeDependencyStage::Declare,
+                    |_owner_module, owner_types| {
+                        owner_types.query_published_static_parameter_kind(target_symbol)
+                    },
+                )
+                .ok()
+                .flatten()
+            };
+        let Some(parameter_kind) = parameter_kind else {
+            return Ok(false);
+        };
+        if parameter_kind != StaticParameterKind::Type {
             return Ok(false);
         }
 
-        if self.type_index_constraint_matches_left_keyof(
+        let constraint_matches = self.type_index_constraint_matches_left_keyof(
             &mut ctx.reborrow(),
             target_symbol,
             left_type_id,
             candidate_expression_id.into_any(),
-        ) {
+        );
+        if constraint_matches {
+            return Ok(false);
+        }
+
+        let index_type_id = self.resolve_declared_type_expression(
+            &mut ctx.reborrow(),
+            candidate_expression_id,
+            true,
+            true,
+        )?;
+        let index_type_id = ctx.types.unwrap_value_type_id(index_type_id);
+        let index_value = StaticExpression::Type { ty: index_type_id };
+        if !self.static_expression_may_be_numeric(&index_value, ctx.types) {
             return Ok(false);
         }
 
@@ -672,6 +591,18 @@ impl Compiler {
             );
         }
 
+        if let Some(left_symbol) =
+            self.resolved_reference_symbol_for_type_id(&mut ctx.reborrow(), left_type_id)
+            && self.type_constraint_matches_keyof_symbol(
+                &mut ctx.reborrow(),
+                constraint_id,
+                left_symbol,
+                visited_symbols,
+            )
+        {
+            return true;
+        }
+
         let Type::Unary {
             operator: TypeUnaryOperator::Keyof,
             right,
@@ -682,7 +613,29 @@ impl Compiler {
 
         let left_type_id = ctx.types.unwrap_value_type_id(left_type_id);
         let right_type_id = ctx.types.unwrap_value_type_id(right);
+
+        // symbolic keyof constraints preserve index-space intent until substitutions are available
+        if let Some(right_symbol) =
+            self.resolved_reference_symbol_for_type_id(&mut ctx.reborrow(), right_type_id)
+            && self.symbol_is_static_parameter(ctx.symbol_type_view(), right_symbol)
+        {
+            return true;
+        }
+
         if left_type_id == right_type_id {
+            return true;
+        }
+
+        let normalized_left =
+            self.normalize_type(&mut ctx.reborrow(), left_type_id, NormalizationMode::Assign);
+        let normalized_right = self.normalize_type(
+            &mut ctx.reborrow(),
+            right_type_id,
+            NormalizationMode::Assign,
+        );
+        if normalized_left == normalized_right
+            || are_types_equal(normalized_left, normalized_right, ctx.types)
+        {
             return true;
         }
 
@@ -696,8 +649,8 @@ impl Compiler {
                 ..
             },
         ) = (
-            ctx.types.get_type(left_type_id),
-            ctx.types.get_type(right_type_id),
+            ctx.types.get_type(normalized_left),
+            ctx.types.get_type(normalized_right),
         )
         else {
             return false;
@@ -705,6 +658,148 @@ impl Compiler {
 
         self.resolve_type_reference_symbol(ctx, *left_symbol)
             == self.resolve_type_reference_symbol(ctx, *right_symbol)
+    }
+
+    /// Resolve one canonical reference symbol from a type id when possible.
+    fn resolved_reference_symbol_for_type_id(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        type_id: LocalTypeId,
+    ) -> Option<GlobalSymbolId> {
+        let mut current = ctx.types.unwrap_value_type_id(type_id);
+        for _ in 0..8 {
+            match ctx.types.get_type(current) {
+                Type::Value { value } => current = *value,
+                Type::Reference { symbol, .. } => {
+                    return Some(self.resolve_type_reference_symbol(ctx, *symbol));
+                }
+                _ => return None,
+            }
+        }
+
+        None
+    }
+
+    /// Return whether one static parameter has a declared `keyof` constraint for the receiver symbol.
+    fn static_parameter_declared_keyof_matches_left_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        parameter_symbol: GlobalSymbolId,
+        left_symbol: GlobalSymbolId,
+        visited_symbols: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        if !visited_symbols.insert(parameter_symbol) {
+            return false;
+        }
+
+        if parameter_symbol.module_id != ctx.module.id {
+            return false;
+        }
+
+        let symbol_entry = ctx.symbols.get_symbol(parameter_symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return false;
+        };
+        let Some(declared_type_id) = ctx.types.get_declared_type_id(primary_declaration) else {
+            return false;
+        };
+
+        self.type_constraint_matches_keyof_symbol(
+            &mut ctx.reborrow(),
+            declared_type_id,
+            left_symbol,
+            visited_symbols,
+        )
+    }
+
+    /// Return whether a declared constraint type resolves to `keyof left_symbol`.
+    fn type_constraint_matches_keyof_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        constraint_type_id: LocalTypeId,
+        left_symbol: GlobalSymbolId,
+        visited_symbols: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        let constraint_type_id = ctx.types.unwrap_value_type_id(constraint_type_id);
+        match ctx.types.get_type(constraint_type_id).clone() {
+            Type::Unevaluated(expression_id) => self
+                .type_constraint_expression_matches_keyof_symbol(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    left_symbol,
+                    visited_symbols,
+                ),
+            Type::Unary {
+                operator: TypeUnaryOperator::Keyof,
+                right,
+            } => self
+                .resolved_reference_symbol_for_type_id(&mut ctx.reborrow(), right)
+                .is_some_and(|symbol| symbol == left_symbol),
+            Type::Reference { symbol, .. } => {
+                let symbol = self.resolve_type_reference_symbol(&mut ctx.reborrow(), symbol);
+                if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
+                    return false;
+                }
+                self.static_parameter_declared_keyof_matches_left_symbol(
+                    &mut ctx.reborrow(),
+                    symbol,
+                    left_symbol,
+                    visited_symbols,
+                )
+            }
+            _ => {
+                let source_id = ctx.types.get_type_source(constraint_type_id);
+                if source_id.ty != NodeType::Expression {
+                    return false;
+                }
+
+                let expression_id = source_id.into_typed::<Expression>();
+                self.type_constraint_expression_matches_keyof_symbol(
+                    &mut ctx.reborrow(),
+                    expression_id,
+                    left_symbol,
+                    visited_symbols,
+                )
+            }
+        }
+    }
+
+    /// Return whether one constraint expression resolves to `keyof left_symbol`.
+    fn type_constraint_expression_matches_keyof_symbol(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        left_symbol: GlobalSymbolId,
+        visited_symbols: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, ctx.tree);
+        match ctx.tree.get(expression_id) {
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::Keyof,
+                right,
+            } => {
+                let right = self.unwrap_parenthesized_expression(*right, ctx.tree);
+                let Some(right_symbol) = ctx.tree.get(right).target_symbol() else {
+                    return false;
+                };
+                self.resolve_type_reference_symbol(ctx, right_symbol) == left_symbol
+            }
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                if !self.symbol_is_static_parameter(ctx.symbol_type_view(), *target_symbol) {
+                    return false;
+                }
+
+                self.static_parameter_declared_keyof_matches_left_symbol(
+                    &mut ctx.reborrow(),
+                    *target_symbol,
+                    left_symbol,
+                    visited_symbols,
+                )
+            }
+            _ => false,
+        }
     }
 
     /// Decide whether one `TypeIndex` expression should use index-access semantics.
@@ -719,40 +814,6 @@ impl Compiler {
             left_type_id,
             index_expression_id,
         )? == TypeIndexResolutionKind::IndexAccess)
-    }
-
-    /// Check whether a type-index expression is a plain integer literal.
-    pub(crate) fn type_index_is_integer_literal(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> bool {
-        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tree);
-        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
-
-        if matches!(
-            tree.get(expression_id),
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::Integer(_),
-            }
-        ) {
-            return true;
-        }
-
-        if let Expression::Unary {
-            operator: UnaryOperator::Negate,
-            right,
-        } = tree.get(expression_id)
-        {
-            return matches!(
-                tree.get(*right),
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::Integer(_),
-                }
-            );
-        }
-
-        false
     }
 
     /// Unwrap parenthesized expressions and explicit `as comptime` markers.

@@ -2960,7 +2960,7 @@ impl Compiler {
 
             // evaluate literal argument values when possible
             let expression_id = ctx.tree.get(*argument_id).value();
-            let value = self.evaluate_static_expression_value(
+            let value = self.query_static_expression_value(
                 &mut ctx.type_context_reborrow(),
                 expression_id,
                 None,

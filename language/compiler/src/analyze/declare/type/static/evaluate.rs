@@ -1,5 +1,5 @@
-use super::StaticEvaluationMode;
 use super::constant::StaticCycleDiagnosticMode;
+use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache,
@@ -31,6 +31,54 @@ impl Compiler {
             expression_id,
             enum_symbol,
             StaticEvaluationMode::Parametric,
+            StaticEvaluationDiagnosticMode::Report,
+            None,
+            AnalyzeDependencyStage::Infer,
+            &mut visited,
+        )
+    }
+
+    /// Evaluate one static expression value with concrete substitutions.
+    pub(crate) fn evaluate_static_expression_value_with_substitutions(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        enum_symbol: Option<GlobalSymbolId>,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_EVALUATE);
+
+        let mut visited = HashSet::new();
+        let mut inner_ctx = ctx.reborrow();
+        self.evaluate_static_expression_value_inner(
+            &mut inner_ctx,
+            expression_id,
+            enum_symbol,
+            StaticEvaluationMode::Instantiated,
+            StaticEvaluationDiagnosticMode::Report,
+            Some(substitutions),
+            AnalyzeDependencyStage::Infer,
+            &mut visited,
+        )
+    }
+
+    /// Query one static expression value without emitting diagnostics.
+    pub(crate) fn query_static_expression_value(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        enum_symbol: Option<GlobalSymbolId>,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_EVALUATE);
+
+        let mut visited = HashSet::new();
+        let mut inner_ctx = ctx.reborrow();
+        self.evaluate_static_expression_value_inner(
+            &mut inner_ctx,
+            expression_id,
+            enum_symbol,
+            StaticEvaluationMode::Parametric,
+            StaticEvaluationDiagnosticMode::Suppress,
             None,
             AnalyzeDependencyStage::Infer,
             &mut visited,
@@ -45,6 +93,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         enum_symbol: Option<GlobalSymbolId>,
         mode: StaticEvaluationMode,
+        diagnostic_mode: StaticEvaluationDiagnosticMode,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         remote_dependency_stage: AnalyzeDependencyStage,
         visited: &mut HashSet<GlobalSymbolId>,
@@ -65,6 +114,7 @@ impl Compiler {
                     *expression,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -76,6 +126,7 @@ impl Compiler {
                     *value,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -87,6 +138,7 @@ impl Compiler {
                     *value,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -98,6 +150,7 @@ impl Compiler {
                     *right,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -128,6 +181,7 @@ impl Compiler {
                     *left,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -137,6 +191,7 @@ impl Compiler {
                     *right,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -239,11 +294,13 @@ impl Compiler {
                         return Ok(Some(StaticExpression::Type { ty }));
                     }
 
-                    self.error(AnalyzeError::StaticParameterRequiresComptime {
-                        node: expression_id
-                            .into_global_any(ctx.module.id)
-                            .into_anchored(Some(ctx.profile)),
-                    });
+                    if diagnostic_mode == StaticEvaluationDiagnosticMode::Report {
+                        self.error(AnalyzeError::StaticParameterRequiresComptime {
+                            node: expression_id
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
+                    }
                     return Ok(None);
                 }
 
@@ -296,7 +353,7 @@ impl Compiler {
                 }
 
                 // preserve symbolic static value references for later substitution
-                // keep enum fields concrete so enum-member fallback can normalize them
+                // keep enum fields concrete so enum-member normalization can process them
                 if self.symbol_is_symbolic_static_value_reference(ctx.type_view(), lookup_symbol)?
                     && self.query_static_member_symbol_kind_for_symbol(
                         ctx.tree_symbol_view(),
@@ -337,11 +394,13 @@ impl Compiler {
                             visited_symbol.module_id == receiver_symbol.module_id
                         });
                     if reenters_active_module {
-                        self.error(AnalyzeError::CircularStaticArgument {
-                            node: expression_id
-                                .into_global_any(ctx.module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
+                        if diagnostic_mode == StaticEvaluationDiagnosticMode::Report {
+                            self.error(AnalyzeError::CircularStaticArgument {
+                                node: expression_id
+                                    .into_global_any(ctx.module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            });
+                        }
 
                         let error_type_id = ctx
                             .types
@@ -376,11 +435,11 @@ impl Compiler {
                     // compose projection substitutions with the current evaluation environment
                     let mut merged_substitutions =
                         HashMap::with_capacity(projection_substitutions.len());
+                    merged_substitutions.extend(projection_substitutions);
                     if let Some(substitutions) = substitutions {
                         merged_substitutions
                             .extend(substitutions.iter().map(|(key, value)| (*key, *value)));
                     }
-                    merged_substitutions.extend(projection_substitutions);
                     let projected_mode = if mode == StaticEvaluationMode::Instantiated
                         || !merged_substitutions.is_empty()
                     {
@@ -411,9 +470,14 @@ impl Compiler {
                     }
 
                     // preserve unresolved associated comptime projections as symbolic references
+                    let receiver_arguments = if selection.receiver_arguments.is_empty() {
+                        None
+                    } else {
+                        Some(selection.receiver_arguments.clone())
+                    };
                     let reference_type = Type::Reference {
                         symbol: selection.target_symbol,
-                        static_arguments: None,
+                        static_arguments: receiver_arguments,
                     };
                     let ty = ctx.types.insert_type_from(reference_type, expression_id);
                     return Ok(Some(StaticExpression::Type { ty }));
@@ -593,6 +657,7 @@ impl Compiler {
                     selected,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -695,6 +760,7 @@ impl Compiler {
                     selected,
                     enum_symbol,
                     mode,
+                    diagnostic_mode,
                     substitutions,
                     remote_dependency_stage,
                     visited,
@@ -719,6 +785,7 @@ impl Compiler {
                         element.value(),
                         enum_symbol,
                         mode,
+                        diagnostic_mode,
                         substitutions,
                         remote_dependency_stage,
                         visited,
@@ -741,6 +808,7 @@ impl Compiler {
                         element.value(),
                         enum_symbol,
                         mode,
+                        diagnostic_mode,
                         substitutions,
                         remote_dependency_stage,
                         visited,
@@ -773,6 +841,7 @@ impl Compiler {
                                 value_id,
                                 enum_symbol,
                                 mode,
+                                diagnostic_mode,
                                 substitutions,
                                 remote_dependency_stage,
                                 visited,
@@ -786,6 +855,7 @@ impl Compiler {
                                     default_id,
                                     enum_symbol,
                                     mode,
+                                    diagnostic_mode,
                                     substitutions,
                                     remote_dependency_stage,
                                     visited,

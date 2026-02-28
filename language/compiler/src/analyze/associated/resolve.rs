@@ -937,7 +937,7 @@ impl Compiler {
     }
 
     /// Build a projection receiver from one expression when type evaluation is unavailable.
-    fn associated_projection_receiver_from_expression(
+    pub(crate) fn associated_projection_receiver_from_expression(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,

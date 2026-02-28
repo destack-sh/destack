@@ -66,7 +66,7 @@ fn test_analyze_assignability_same_primitive() {
 
     let module = test.program.modules.get(module_id);
     let module = module.read();
-    let profile = test.default_profile_id(module_id);
+    let profile = test.default_profile_id_for_root();
     let dir = module.dir(profile);
     let symbols = dir.symbols.read();
     let mut types = dir.types.write();
@@ -112,6 +112,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
 "#;
     let module_id = test.add_module("test.ds", source);
     test.analyze_module(module_id);
+    test.compile();
     test.compile_check_clean();
 
     // load module state

@@ -1,6 +1,8 @@
 use crate::analyze::common::{AnalyzeDependencyStage, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind};
+use destack_dir::{
+    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, StaticParameterKind, SymbolSpace,
+};
 use std::collections::HashMap;
 
 impl Compiler {
@@ -71,6 +73,9 @@ impl Compiler {
 
         // fall back to a same-scope static parameter with the same key
         let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
+        if symbol_entry.space != SymbolSpace::Type {
+            return None;
+        }
         let key = symbol_entry.key?;
         let mut scope_cursor = Some(symbol_entry.scope);
         while let Some((scope_id, mark)) = scope_cursor {

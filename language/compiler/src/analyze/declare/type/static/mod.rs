@@ -13,3 +13,12 @@ enum StaticEvaluationMode {
     /// Evaluate with concrete projection substitutions.
     Instantiated,
 }
+
+/// The diagnostic mode for static expression evaluation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StaticEvaluationDiagnosticMode {
+    /// Emit diagnostics while evaluating static expressions.
+    Report,
+    /// Suppress diagnostics while querying static expressions.
+    Suppress,
+}

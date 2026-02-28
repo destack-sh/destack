@@ -978,9 +978,9 @@ impl Compiler {
                 }
 
                 if !self.array_sized_count_matches_length(
+                    &mut ctx.reborrow(),
                     *target_count,
                     source_elements.len(),
-                    ctx.types,
                 ) {
                     return Some(Assignability::NotAssignable);
                 }
@@ -1036,7 +1036,8 @@ impl Compiler {
                     *source_element,
                 );
 
-                if self.array_sized_counts_match(*target_count, *source_count, ctx.types) {
+                if self.array_sized_counts_match(&mut ctx.reborrow(), *target_count, *source_count)
+                {
                     Some(Assignability::Assignable)
                 } else {
                     Some(Assignability::NotAssignable)

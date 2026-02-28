@@ -9,6 +9,7 @@ use destack_workspace::Module;
 
 use super::{
     AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, RelationMode, TypeContext,
+    TypeRewriteCache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, Compiler};
@@ -456,12 +457,23 @@ impl Compiler {
                     relation_mode,
                     visited,
                 );
-                if normalized_element == original_element {
+
+                // normalize the static count type
+                let original_count = count;
+                let normalized_count = self.normalize_type_inner(
+                    &mut ctx.reborrow(),
+                    original_count,
+                    mode,
+                    relation_mode,
+                    visited,
+                );
+
+                if normalized_element == original_element && normalized_count == original_count {
                     type_id
                 } else {
                     let normalized = Type::ArraySized {
                         element: normalized_element,
-                        count,
+                        count: normalized_count,
                         is_readonly,
                     };
                     ctx.types.insert_type_from_any(normalized, source_id)
@@ -743,17 +755,8 @@ impl Compiler {
                 }
             }
             Type::Unevaluated(_) => {
-                // treat unevaluated ctx.types as unknown during assignability normalization
-                if matches!(mode, NormalizationMode::Assign) {
-                    ctx.types.insert_type_from_any(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        },
-                        source_id,
-                    )
-                } else {
-                    type_id
-                }
+                // keep unevaluated types symbolic so later substitution and obligation steps can resolve them
+                type_id
             }
             Type::Import {
                 target,
@@ -1143,13 +1146,30 @@ impl Compiler {
                         visited,
                     ))
                 } else {
-                    // substitute and normalize
-                    let mut cache = HashMap::new();
-                    let substituted = self.substitute_static_parameters(
+                    // instantiate and normalize with the full substitution pipeline
+                    let materialized_instance = self
+                        .apply_associated_projection_substitutions(
+                            &mut ctx.reborrow(),
+                            symbol,
+                            materialized_instance,
+                            &substitutions,
+                        )
+                        .unwrap_or(materialized_instance);
+                    let mut materialize_cache = TypeRewriteCache::new();
+                    let mut substitute_cache = HashMap::new();
+                    let substituted = self.instantiate_type_with_substitutions(
+                        &mut ctx.reborrow(),
+                        source_id,
+                        None,
                         materialized_instance,
                         &substitutions,
-                        ctx.types,
-                        &mut cache,
+                        &mut materialize_cache,
+                        &mut substitute_cache,
+                    );
+                    let substituted = self.resolve_unevaluated_alias_instantiation(
+                        &mut ctx.reborrow(),
+                        substituted,
+                        &substitutions,
                     );
                     let normalized_id = self.normalize_type_inner(
                         &mut ctx.reborrow(),
@@ -1181,6 +1201,64 @@ impl Compiler {
         normalized
     }
 
+    /// Resolve an instantiated unevaluated alias target under concrete substitutions.
+    fn resolve_unevaluated_alias_instantiation(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        type_id: LocalTypeId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+    ) -> LocalTypeId {
+        if substitutions.is_empty() {
+            return type_id;
+        }
+
+        let Type::Unevaluated(expression_id) = ctx.types.get_type(type_id).clone() else {
+            return type_id;
+        };
+        if !ctx.tree.has_node_id(expression_id.id) {
+            return type_id;
+        }
+
+        let Ok(Some(static_value)) = self.evaluate_static_expression_value_with_substitutions(
+            &mut ctx.reborrow(),
+            expression_id,
+            None,
+            substitutions,
+        ) else {
+            return type_id;
+        };
+        let Some(value_type_id) = self.static_expression_type_id_for_substitution(
+            expression_id.into_any(),
+            &static_value,
+            ctx.types,
+        ) else {
+            return type_id;
+        };
+
+        let mut mapped_type_id = value_type_id;
+        let mut substitution_cache = HashMap::new();
+        mapped_type_id = self.substitute_static_parameters(
+            mapped_type_id,
+            substitutions,
+            ctx.types,
+            &mut substitution_cache,
+        );
+
+        let mut materialize_cache = TypeRewriteCache::new();
+        mapped_type_id = self.materialize_static_arguments_in_type(
+            &mut ctx.reborrow(),
+            mapped_type_id,
+            &mut materialize_cache,
+        );
+
+        self.normalize_type_with_relation(
+            &mut ctx.reborrow(),
+            mapped_type_id,
+            NormalizationMode::Assign,
+            RelationMode::STATIC_EVAL,
+        )
+    }
+
     /// Resolve the instance type id used for alias normalization.
     fn instance_type_id_for_normalization(
         &self,
@@ -1192,6 +1270,38 @@ impl Compiler {
         if let Some(alias_target_id) =
             self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), symbol, source_id)
         {
+            // resolve unevaluated alias targets before assign normalization can collapse them to unknown
+            if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
+                if symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
+                    if let Err(error) =
+                        self.resolve_declared_type(&mut ctx.reborrow(), alias_target_id)
+                    {
+                        self.error(error);
+                    }
+                } else if let Err(error) = self.with_module_tree_symbol_view_at_stage(
+                    ctx.module,
+                    ctx.profile,
+                    symbol.module_id,
+                    AnalyzeDependencyStage::Declare,
+                    |view| {
+                        let options = self.analyze_context_options_for_module(view.module.id);
+                        let mut ctx = ctx.reborrow_for_module_with_options(
+                            view.module,
+                            &options,
+                            view.tree,
+                            view.symbols,
+                        );
+                        if let Err(error) =
+                            self.resolve_declared_type(&mut ctx.reborrow(), alias_target_id)
+                        {
+                            self.error(error);
+                        }
+                    },
+                ) {
+                    self.error(AnalyzeError::from(error));
+                }
+            }
+
             return Some(alias_target_id);
         }
 

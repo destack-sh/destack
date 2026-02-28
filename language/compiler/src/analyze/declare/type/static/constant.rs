@@ -1,4 +1,4 @@
-use super::StaticEvaluationMode;
+use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::{
     AnalyzeDependencyStage, RelationMode, TreeSymbolTypeView, TypeContext, TypeRewriteCache,
 };
@@ -624,6 +624,7 @@ impl Compiler {
                 value_id,
                 None,
                 mode,
+                StaticEvaluationDiagnosticMode::Report,
                 substitutions,
                 remote_dependency_stage,
                 visited,
@@ -648,6 +649,7 @@ impl Compiler {
                             *value_expression_id,
                             None,
                             mode,
+                            StaticEvaluationDiagnosticMode::Report,
                             substitutions,
                             remote_dependency_stage,
                             visited,
