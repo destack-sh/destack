@@ -8,8 +8,8 @@ use crate::format::expression::{
     TokenType, argument_value, block_indent, chain_nodes, format_with, group, hard_line_break,
     has_comment_between_expressions, if_group_breaks, is_complex_expression,
     is_expression_breakable, is_trivial_expression, lambda_expression_should_break,
-    member_has_intervening_comment, soft_block_indent, soft_line_break_or_space, space, token,
-    transparent_inner_expression,
+    line_postfix_boundary, member_has_intervening_comment, soft_block_indent,
+    soft_line_break_or_space, space, token, transparent_inner_expression,
 };
 use destack_ast::{Property, ScalarLiteral};
 use destack_fir::format::{Buffer, Format, GroupId};
@@ -38,6 +38,39 @@ fn annotation_ids_have_line_slash_comment(
         let comment = context.tree.get::<destack_ast::Comment>(node);
         comment.style == destack_ast::CommentStyle::Slash
     })
+}
+
+/// Return whether one annotation set contains one comment annotation.
+fn annotation_ids_have_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_ids: &[LocalNodeId<Annotation>],
+) -> bool {
+    annotation_ids.iter().any(|annotation_id| {
+        matches!(
+            context.annotation(*annotation_id),
+            Annotation::Comment { .. }
+        )
+    })
+}
+
+/// Return whether one argument node has at least one comment annotation.
+fn argument_has_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context
+        .annotations(argument_id)
+        .is_some_and(|annotation_ids| annotation_ids_have_comment(context, &annotation_ids))
+}
+
+/// Return whether one expression node has at least one comment annotation.
+fn expression_has_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .annotations(expression_id)
+        .is_some_and(|annotation_ids| annotation_ids_have_comment(context, &annotation_ids))
 }
 
 /// Return whether one annotation list has prefix comment or doc annotations.
@@ -388,6 +421,7 @@ fn tree_named_attribute_syntax_style(
 impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let argument = f.context().tree.get(self.argument_id);
+        let argument_is_spread = matches!(argument, Argument::Spread { .. });
         let stub_value_id = match argument {
             Argument::Positional { value, .. }
                 if matches!(f.context().tree.get(*value), Expression::Stub) =>
@@ -398,7 +432,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
         };
 
         // stub argument prefix comments and docs must stay inside `{ ... }`
-        if stub_value_id.is_none() {
+        if stub_value_id.is_none() && !argument_is_spread {
             write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
         }
 
@@ -572,8 +606,36 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                 }
             }
             Argument::Spread { value, .. } => {
-                // spread in jsx needs braces: {...props}
-                write!(f, [token("{"), token("..."), value, token("}")])?;
+                // keep spread-head annotations inside `{ ... }` like prettier and oxc
+                let has_spread_comment_annotation =
+                    argument_has_comment_annotation(f.context(), self.argument_id)
+                        || expression_has_comment_annotation(f.context(), *value);
+                let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
+                    write!(f, [token("..."), value])
+                });
+
+                if has_spread_comment_annotation {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("{"),
+                            soft_block_indent(&spread_inner),
+                            line_postfix_boundary(),
+                            token("}")
+                        ])]
+                    )?;
+                } else {
+                    write!(
+                        f,
+                        [
+                            token("{"),
+                            spread_inner,
+                            line_postfix_boundary(),
+                            token("}")
+                        ]
+                    )?;
+                }
             }
         }
 
@@ -1301,10 +1363,18 @@ pub(crate) fn tree_text_is_whitespace_only(
         return None;
     };
 
+    let has_annotation = context.has_annotation(argument_id) || context.has_annotation(*value);
+    let wrapped_in_braces = tree_argument_is_wrapped_in_braces(context, argument_id);
+    if wrapped_in_braces && has_annotation {
+        return Some((false, false));
+    }
+
     match tree.get(*value) {
         Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
             let content = strings.get(*string_id);
-            let has_non_whitespace = content.chars().any(|c| !c.is_whitespace());
+            let has_non_whitespace = content
+                .chars()
+                .any(|character| !is_jsx_whitespace_char(character));
             if has_non_whitespace {
                 return Some((false, false));
             }
@@ -1313,7 +1383,7 @@ pub(crate) fn tree_text_is_whitespace_only(
             Some((true, has_newline))
         }
         Expression::ScalarLiteral(ScalarLiteral::Character(value)) => {
-            if !value.is_whitespace() {
+            if !is_jsx_whitespace_char(*value) {
                 return Some((false, false));
             }
 
@@ -1324,49 +1394,10 @@ pub(crate) fn tree_text_is_whitespace_only(
     }
 }
 
-/// Check whether a tree text child needs separator spaces for newline boundaries.
-pub(crate) fn tree_text_boundary_separator_space(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<(bool, bool)> {
-    let tree = context.tree;
-    let strings = context.strings;
-
-    // locate the raw text content
-    let Argument::Positional { value, .. } = tree.get(argument_id) else {
-        return None;
-    };
-
-    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = tree.get(*value) else {
-        return None;
-    };
-
-    let text = strings.get(*string_id);
-
-    // identify the boundary whitespace runs
-    let leading_end = text
-        .char_indices()
-        .find(|(_, c)| !c.is_whitespace())
-        .map_or(text.len(), |(index, _)| index);
-    let trailing_start = text
-        .char_indices()
-        .rev()
-        .find(|(_, c)| !c.is_whitespace())
-        .map_or(0, |(index, c)| index + c.len_utf8());
-
-    let leading_whitespace = &text[..leading_end];
-    let trailing_whitespace = &text[trailing_start..];
-
-    let has_leading_whitespace = !leading_whitespace.is_empty();
-    let has_trailing_whitespace = !trailing_whitespace.is_empty();
-
-    let leading_is_inline = has_leading_whitespace && !leading_whitespace.contains(['\n', '\r']);
-    let trailing_is_inline = has_trailing_whitespace && !trailing_whitespace.contains(['\n', '\r']);
-
-    let needs_leading_separator = has_leading_whitespace && !leading_is_inline;
-    let needs_trailing_separator = has_trailing_whitespace && !trailing_is_inline;
-
-    Some((needs_leading_separator, needs_trailing_separator))
+/// Return whether one character is JSX whitespace.
+#[inline]
+fn is_jsx_whitespace_char(character: char) -> bool {
+    matches!(character, ' ' | '\n' | '\r' | '\t')
 }
 
 /// Return whether source preserves an empty line between two tree child arguments.

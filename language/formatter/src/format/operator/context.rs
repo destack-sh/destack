@@ -1,14 +1,11 @@
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-};
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, AssignOperator, BinaryOperator, Declaration,
     Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, OperatorPrecedence,
     Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
-    WhereClause, block_indent, format_expression, hard_line_break, is_trivial_expression,
-    parenthesized_boundary_comments, parenthesized_has_leading_inner_trivia, token,
-    transparent_inner_expression,
+    WhereClause, block_indent, format_expression_without_prefix_annotations, hard_line_break,
+    is_trivial_expression, parenthesized_boundary_comments, parenthesized_has_leading_inner_trivia,
+    token, transparent_inner_expression,
 };
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
@@ -641,32 +638,6 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
         }
     } else {
         write!(f, [operand_id])?;
-    }
-
-    Ok(())
-}
-
-/// Format one expression while omitting prefix annotation emission.
-fn format_expression_without_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let directive = directive_for_node(f.context(), expression_id);
-    let expression = f.context().tree.get(expression_id);
-
-    format_expression(f, expression_id, expression, directive)?;
-
-    if !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    ) {
-        write!(
-            f,
-            [f.context().any_infix_or_postfix_annotations(expression_id)]
-        )?;
     }
 
     Ok(())
