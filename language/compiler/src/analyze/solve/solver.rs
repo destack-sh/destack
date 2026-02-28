@@ -182,6 +182,31 @@ impl TypeRewriter for InferTypeMaterializer<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Materialize one type by rewriting infer vars with validation-mode bounds.
+    fn materialize_infer_type_for_validation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &InferTable,
+        ty_id: LocalTypeId,
+    ) -> LocalTypeId {
+        let mut materializer = InferTypeMaterializer::new(
+            self,
+            module,
+            profile,
+            tree,
+            symbols,
+            infer,
+            options,
+            MaterializationMode::Validation,
+        );
+        materializer.rewrite_type_id(types, ty_id)
+    }
+
     /// Replace infer vars inside a type with resolved bounds for assignability checks.
     pub(crate) fn materialize_infer_type_for_check(
         &self,
@@ -192,17 +217,16 @@ impl Compiler {
 
         // shape mode placeholder to keep the variant live
         let _ = MaterializationMode::Shape;
-        let mut materializer = InferTypeMaterializer::new(
-            self,
+        self.materialize_infer_type_for_validation(
             ctx.module,
             ctx.profile,
+            ctx.options,
             ctx.tree,
             ctx.symbols,
+            ctx.types,
             ctx.infer,
-            ctx.options,
-            MaterializationMode::Validation,
-        );
-        materializer.rewrite_type_id(ctx.types, ty_id)
+            ty_id,
+        )
     }
 
     /// Solve inference variables and commit the results into the TypeTable.
