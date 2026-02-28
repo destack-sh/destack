@@ -482,11 +482,15 @@ fn try_attach_comment_delimiter_interior(
         return None;
     }
 
-    let container_owner = find_smallest_owner_enclosing_range(
-        tree,
-        token_before_span.span.start,
-        token_after_span.span.end,
-    )?;
+    let container_owner = find_preferred_owner_starting_at(tree, token_before_span.span)
+        .filter(|owner_id| tree.get_span_by_id(*owner_id).end >= token_after_span.span.end)
+        .or_else(|| {
+            find_smallest_owner_enclosing_range(
+                tree,
+                token_before_span.span.start,
+                token_after_span.span.end,
+            )
+        })?;
 
     let target_node = if tree.get_node_type(container_owner) == NodeType::Expression {
         let expression_id = LocalNodeId::<ast::Expression>::new(container_owner);
@@ -1176,6 +1180,13 @@ fn try_attach_multiline_inline_block_comment_before_line_end(
     }
 
     let tree = context.tree;
+    if seam.token_before_is(TokenType::OpenBrace)
+        && !seam.token_after_is(TokenType::CloseBrace)
+        && let Some(target_node) = fallback_following_owner(context, owners)
+    {
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
     let preceding_owner_from_token_before = context
         .token_before_span
         .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));

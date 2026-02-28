@@ -4,7 +4,8 @@ use destack_ast::{
 use destack_source::Span;
 
 use super::attachment::{
-    following_owner_with_token_after_fallback, try_attach_comment_before_empty_statement_semicolon,
+    following_owner_with_token_after_fallback, promote_owner_to_tree_expression_parent,
+    try_attach_comment_before_empty_statement_semicolon,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
@@ -146,6 +147,7 @@ fn attach_else_comment(
 /// Handle own-line comments inside parenthesized groups before `<`.
 fn attach_before_less_than_comment(
     tree: &NodeTree,
+    parents: &NodeParentIndex,
     seam: &CommentSeamData,
     following_owner: Option<u32>,
     enclosing_owner: Option<u32>,
@@ -156,6 +158,7 @@ fn attach_before_less_than_comment(
         && seam.token_after_is(TokenType::LessThan)
         && let Some(target_node) = following_owner.or(enclosing_owner)
     {
+        let target_node = promote_owner_to_tree_expression_parent(tree, parents, target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
@@ -207,6 +210,7 @@ fn attach_before_jsx_statement_head_comment(
         let target_node = token_after_span
             .map(|span| promote_owner_by_shared_start(tree, parents, target_node, span.start))
             .unwrap_or(target_node);
+        let target_node = promote_owner_to_tree_expression_parent(tree, parents, target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
@@ -436,7 +440,7 @@ pub(crate) fn attach_own_line_comment(
 
     // delimiter interior less-than ownership
     if let Some(attachment) =
-        attach_before_less_than_comment(tree, seam, following_owner, enclosing_owner)
+        attach_before_less_than_comment(tree, parents, seam, following_owner, enclosing_owner)
     {
         return Some(attachment);
     }

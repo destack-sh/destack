@@ -2229,6 +2229,126 @@ fn should_keep_space_before_adjacent_block_comment(flow: AnnotationFlow) -> bool
                 .is_some_and(token_type_is_comment_trivia))
 }
 
+/// Format a prepared annotation render-item list for one capture mode.
+fn format_annotation_render_items<'ast, T: Node + Clone>(
+    f: &mut DestackFormatter<'ast, '_>,
+    capture: AnnotationCapture,
+    node_id: LocalNodeId<T>,
+    items: &[AnnotationRenderItem],
+) -> FormatResult<()>
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if items.is_empty() {
+        return Ok(());
+    }
+
+    let mut state = AnnotationOutput::default();
+
+    for (annotation_index, item) in items.iter().copied().enumerate() {
+        // annotation and flow signals
+        let annotation = f.context().annotation(item.annotation_id);
+        let flow = annotation_flow::<T>(
+            f.context(),
+            node_id.clone(),
+            items,
+            annotation_index,
+            item,
+            annotation,
+        );
+        let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
+
+        // skip repeated blank annotations
+        if is_blank_annotation && state.previous_was_blank_annotation {
+            continue;
+        }
+
+        // emit ignore directives at postfix seams on their own lines
+        if flow.is_ignore_directive_postfix_comment {
+            write!(
+                f,
+                [
+                    hard_line_break(),
+                    format_with(|f: &mut DestackFormatter<'ast, '_>| annotation
+                        .format_node(item.annotation_id, f)),
+                    hard_line_break()
+                ]
+            )?;
+            continue;
+        }
+
+        // handle inline slash line postfix comments via line_postfix
+        if write_inline_slash_line_postfix_comment(
+            f,
+            annotation,
+            item.position,
+            item.annotation_id,
+            flow,
+        )? {
+            continue;
+        }
+
+        // keep formatter directives on own lines for line prefix capture
+        if write_line_prefix_ignore_directive_comment(
+            f,
+            annotation,
+            item.position,
+            item.annotation_id,
+            flow,
+        )? {
+            continue;
+        }
+
+        // spacing before the first rendered annotation in this group
+        write_first_annotation_spacing(
+            f,
+            capture,
+            &mut state,
+            item.node_type,
+            item.position,
+            is_blank_annotation,
+            flow,
+        )?;
+
+        // suppress separator bound blank markers before own line comments
+        if should_skip_blank_annotation_before_own_line_comment(
+            item.node_type,
+            item.position,
+            is_blank_annotation,
+            flow,
+        ) {
+            state.previous_was_blank_annotation = true;
+            continue;
+        }
+
+        // emit annotation content
+        if annotation_is_indented_semicolon_guard_boundary_comment(
+            f.context(),
+            item.position,
+            item.annotation_id,
+            flow,
+        ) {
+            for _ in 0..f.context().options.indent_width {
+                write!(f, [space()])?;
+            }
+        }
+
+        annotation.format_node(item.annotation_id, f)?;
+
+        if is_blank_annotation {
+            state.previous_was_blank_annotation = true;
+            continue;
+        }
+
+        // spacing after one emitted annotation
+        write_annotation_trailing_spacing(f, capture, item.position, flow)?;
+
+        state.previous_was_blank_annotation = false;
+    }
+
+    Ok(())
+}
+
 impl<'ast, T> Format<DestackFormatContext<'ast>> for Annotations<T>
 where
     T: Node + Clone,
@@ -2237,113 +2357,6 @@ where
     /// Format captured annotations at one node and position.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let items = annotation_render_items(f.context(), self.position, self.node_id);
-        if items.is_empty() {
-            return Ok(());
-        }
-
-        let mut state = AnnotationOutput::default();
-
-        for (annotation_index, item) in items.iter().copied().enumerate() {
-            // annotation and flow signals
-            let annotation = f.context().annotation(item.annotation_id);
-            let flow = annotation_flow::<T>(
-                f.context(),
-                self.node_id,
-                &items,
-                annotation_index,
-                item,
-                annotation,
-            );
-            let is_blank_annotation = matches!(annotation, Annotation::Blank { .. });
-
-            // skip repeated blank annotations
-            if is_blank_annotation && state.previous_was_blank_annotation {
-                continue;
-            }
-
-            // emit ignore directives at postfix seams on their own lines
-            if flow.is_ignore_directive_postfix_comment {
-                write!(
-                    f,
-                    [
-                        hard_line_break(),
-                        format_with(|f: &mut DestackFormatter<'ast, '_>| annotation
-                            .format_node(item.annotation_id, f)),
-                        hard_line_break()
-                    ]
-                )?;
-                continue;
-            }
-
-            // handle inline slash line postfix comments via line_postfix
-            if write_inline_slash_line_postfix_comment(
-                f,
-                annotation,
-                item.position,
-                item.annotation_id,
-                flow,
-            )? {
-                continue;
-            }
-
-            // keep formatter directives on own lines for line prefix capture
-            if write_line_prefix_ignore_directive_comment(
-                f,
-                annotation,
-                item.position,
-                item.annotation_id,
-                flow,
-            )? {
-                continue;
-            }
-
-            // spacing before the first rendered annotation in this group
-            write_first_annotation_spacing(
-                f,
-                self.position,
-                &mut state,
-                item.node_type,
-                item.position,
-                is_blank_annotation,
-                flow,
-            )?;
-
-            // suppress separator bound blank markers before own line comments
-            if should_skip_blank_annotation_before_own_line_comment(
-                item.node_type,
-                item.position,
-                is_blank_annotation,
-                flow,
-            ) {
-                state.previous_was_blank_annotation = true;
-                continue;
-            }
-
-            // emit annotation content
-            if annotation_is_indented_semicolon_guard_boundary_comment(
-                f.context(),
-                item.position,
-                item.annotation_id,
-                flow,
-            ) {
-                for _ in 0..f.context().options.indent_width {
-                    write!(f, [space()])?;
-                }
-            }
-
-            annotation.format_node(item.annotation_id, f)?;
-
-            if is_blank_annotation {
-                state.previous_was_blank_annotation = true;
-                continue;
-            }
-
-            // spacing after one emitted annotation
-            write_annotation_trailing_spacing(f, self.position, item.position, flow)?;
-
-            state.previous_was_blank_annotation = false;
-        }
-
-        Ok(())
+        format_annotation_render_items(f, self.position, self.node_id, &items)
     }
 }

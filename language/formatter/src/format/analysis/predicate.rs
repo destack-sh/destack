@@ -4,7 +4,7 @@ use crate::format::expression::{
     argument_is_block_callback, argument_is_object_literal, argument_value_id, is_trivial_argument,
     is_trivial_expression, transparent_inner_expression,
 };
-use destack_ast::{Comment, CommentStyle, Keyword, TemplateLiteral, TokenSpan};
+use destack_ast::{Keyword, TemplateLiteral, TokenSpan};
 
 /// Store shared argument simplicity checks for call and chain classifiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -591,58 +591,6 @@ pub(crate) fn argument_is_inline_closure_cast_object(
         .unwrap_or(false);
 
     argument_has_inline_prefix || value_has_inline_prefix
-}
-
-/// Return whether an argument has one slash comment annotation on a source comma seam.
-pub(crate) fn argument_has_separator_line_comment_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    context
-        .visit_annotations(argument_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { node, position } = context.annotation(*annotation_id)
-                else {
-                    return false;
-                };
-
-                if !matches!(
-                    position,
-                    AnnotationPosition::LinePrefix
-                        | AnnotationPosition::LinePostfix
-                        | AnnotationPosition::LinePostfixBoundary
-                        | AnnotationPosition::BlockPostfix
-                ) {
-                    return false;
-                }
-
-                let comment = context.tree.get::<Comment>(node);
-                if comment.style != CommentStyle::Slash {
-                    return false;
-                }
-
-                let has_preceding_separator =
-                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                        .is_some_and(|token| token.token.ty == TokenType::Comma);
-                let has_following_separator =
-                    next_non_whitespace_token_after_annotation(context, *annotation_id)
-                        .is_some_and(|token| token.token.ty == TokenType::Comma);
-                let has_virtual_trailing_separator = position
-                    == AnnotationPosition::LinePostfixBoundary
-                    && next_non_whitespace_token_after_annotation(context, *annotation_id)
-                        .is_some_and(|token| {
-                            matches!(
-                                token.token.ty,
-                                TokenType::CloseBrace
-                                    | TokenType::CloseBracket
-                                    | TokenType::CloseParenthesis
-                            )
-                        });
-
-                has_preceding_separator || has_following_separator || has_virtual_trailing_separator
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Return whether a call-like expression has static type arguments.
