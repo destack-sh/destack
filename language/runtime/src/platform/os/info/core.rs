@@ -1,0 +1,263 @@
+#[cfg(not(target_vendor = "apple"))]
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+#[cfg(unix)]
+use crate::platform::core as core_platform;
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::os::{LoadAverage, SystemSnapshot};
+use crate::runtime::BindingCallContext;
+
+use super::backend;
+
+/// Binding operation name for system snapshot reads.
+pub(crate) const OS_INFO_SYSTEM_SNAPSHOT_OPERATION: &str = "destack.os.info.systemSnapshot";
+/// Binding operation name for uptime reads.
+pub(crate) const OS_INFO_UPTIME_NS_OPERATION: &str = "destack.os.info.uptimeNs";
+/// Binding operation name for boot time reads.
+pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS_OPERATION: &str = "destack.os.info.bootTimeUnixNs";
+/// Binding operation name for load-average reads.
+pub(crate) const OS_INFO_LOAD_AVERAGE_OPERATION: &str = "destack.os.info.loadAverage";
+
+/// Validate one output pointer argument.
+pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer(field)).boxed());
+    }
+
+    Ok(())
+}
+
+/// Build one ioInvalidData runtime error.
+pub(super) fn invalid_data(
+    operation: &'static str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoInvalidData),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
+
+#[cfg(not(any(unix, windows)))]
+/// Build one notSupported runtime error.
+pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+}
+
+#[cfg(unix)]
+/// Convert one signed integer into one checked u64 value.
+pub(super) fn checked_u64_from_i64(
+    value: i64,
+    operation: &'static str,
+    field: &'static str,
+) -> RuntimeResult<u64> {
+    if value < 0 {
+        return Err(invalid_data(
+            operation,
+            format!("{field} was negative: {value}"),
+        ));
+    }
+
+    Ok(value as u64)
+}
+
+#[cfg(unix)]
+/// Multiply two u64 values with overflow validation.
+pub(super) fn checked_mul_u64(
+    left: u64,
+    right: u64,
+    operation: &'static str,
+    field: &'static str,
+) -> RuntimeResult<u64> {
+    left.checked_mul(right).ok_or_else(|| {
+        invalid_data(
+            operation,
+            format!("{field} overflowed while multiplying {left} and {right}"),
+        )
+    })
+}
+
+/// Read one unix clock value and convert it to nanoseconds.
+#[cfg(unix)]
+pub(super) fn clock_gettime_ns(
+    clock_id: libc::clockid_t,
+    operation: &'static str,
+) -> RuntimeResult<u64> {
+    // read one timespec from the requested clock
+    let mut value = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    let status = unsafe { libc::clock_gettime(clock_id, &mut value) };
+    if status != 0 {
+        return Err(core_platform::io_error("clock_gettime", None));
+    }
+
+    // convert seconds and nanoseconds fields into one u64 nanosecond value
+    let seconds = checked_u64_from_i64(value.tv_sec, operation, "timespec.tv_sec")?;
+    let nanoseconds = checked_u64_from_i64(value.tv_nsec, operation, "timespec.tv_nsec")?;
+    let seconds_ns = checked_mul_u64(seconds, 1_000_000_000, operation, "timespec.secondsNs")?;
+    let total = seconds_ns
+        .checked_add(nanoseconds)
+        .ok_or_else(|| invalid_data(operation, "timespec to nanoseconds conversion overflowed"))?;
+
+    Ok(total)
+}
+
+/// Read current unix time in nanoseconds.
+#[cfg(not(target_vendor = "apple"))]
+pub(super) fn system_time_unix_ns(operation: &'static str) -> RuntimeResult<u64> {
+    // sample wall-clock unix time from std time APIs
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| {
+            invalid_data(operation, format!("system time before unix epoch: {error}"))
+        })?;
+
+    // validate nanosecond conversion stays in u64 range
+    u64::try_from(duration.as_nanos()).map_err(|_| {
+        invalid_data(
+            operation,
+            "system time nanoseconds exceeded u64 range during conversion",
+        )
+    })
+}
+
+/// Read host system information.
+///
+/// Return one normalized system-information payload.
+/// Topology and capacity fields are sampled from host APIs at call time.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.sysinfo`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_system_snapshot(
+    context: &BindingCallContext,
+    out: *mut SystemSnapshot,
+) -> RuntimeResult<()> {
+    // validate output argument before host calls
+    ensure_out(out, "out")?;
+
+    // query one backend snapshot and write output
+    let snapshot = backend::read_system_snapshot(context)?;
+    unsafe {
+        out.write(snapshot);
+    }
+
+    Ok(())
+}
+
+/// Read host uptime.
+///
+/// Return host uptime in nanoseconds from system boot.
+/// Uptime source follows host monotonic uptime facilities.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.sysinfo`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_uptime_ns(
+    context: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    // validate output argument before host calls
+    ensure_out(out, "out")?;
+
+    // query one backend uptime value and write output
+    let uptime_ns = backend::read_uptime_ns(context)?;
+    unsafe {
+        out.write(uptime_ns);
+    }
+
+    Ok(())
+}
+
+/// Read host boot time.
+///
+/// Return the Unix timestamp for host boot time in nanoseconds.
+/// Timestamp origin and precision follow host timekeeping interfaces.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses boot-time sysctl or procfs style sources on Unix and boot-time system info on Windows.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.sysinfo`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_boot_time_unix_ns(
+    context: &BindingCallContext,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    // validate output argument before host calls
+    ensure_out(out, "out")?;
+
+    // query one backend boot-time value and write output
+    let boot_time_unix_ns = backend::read_boot_time_unix_ns(context)?;
+    unsafe {
+        out.write(boot_time_unix_ns);
+    }
+
+    Ok(())
+}
+
+/// Read host load averages.
+///
+/// Return host load averages over one, five, and fifteen minute windows.
+/// Values reflect host scheduler accounting and may be unavailable on some kernels.
+///
+/// # Platform
+/// Unix only.
+/// Uses getloadavg style interfaces or kernel load-average exports.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `os.sysinfo`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_os_load_average(
+    context: &BindingCallContext,
+    out: *mut LoadAverage,
+) -> RuntimeResult<()> {
+    // validate output argument before host calls
+    ensure_out(out, "out")?;
+
+    // query one backend load-average payload and write output
+    let load_average = backend::read_load_average(context)?;
+    unsafe {
+        out.write(load_average);
+    }
+
+    Ok(())
+}

@@ -791,6 +791,12 @@ builtin_lib_sources_targeted!(
         (LIB_PLATFORM_TTY_MODE_DS, "lib", "platform/tty", "mode.ds"),
         (LIB_PLATFORM_TTY_PTY_DS, "lib", "platform/tty", "pty.ds"),
         (LIB_PLATFORM_TTY_SIZE_DS, "lib", "platform/tty", "size.ds"),
+        (
+            LIB_PLATFORM_TTY_TERMIOS_DS,
+            "lib",
+            "platform/tty",
+            "termios.ds"
+        ),
     ]
 );
 
@@ -964,6 +970,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_TTY_MODE_DS,
         LIB_PLATFORM_TTY_PTY_DS,
         LIB_PLATFORM_TTY_SIZE_DS,
+        LIB_PLATFORM_TTY_TERMIOS_DS,
     ],
     &["native"],
 );
