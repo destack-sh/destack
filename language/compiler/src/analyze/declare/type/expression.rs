@@ -168,6 +168,10 @@ impl Compiler {
             };
             expression_id
         };
+        if !ctx.tree.has_node_id(expression_id.id) {
+            ctx.types.update_type(ty_id, Type::Error);
+            return Ok(());
+        }
 
         // evaluate and update in place
         // avoid eager static argument resolution for declaration modules
@@ -216,6 +220,10 @@ impl Compiler {
         use_expression_cache: bool,
     ) -> AnalyzeResult<Type> {
         // build cache context for this evaluation
+        if !ctx.tree.has_node_id(expression_id.id) {
+            return Ok(Type::Error);
+        }
+
         let global_node_id = expression_id.into_global_any(ctx.module.id);
         let cache_context = DeclaredTypeResolutionContext::new(
             validate_static_argument_bounds,

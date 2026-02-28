@@ -401,6 +401,25 @@ impl<'a> AssignContext<'a> {
         }
     }
 
+    /// Reborrow this assign context as a type-resolution context for one module-local view with explicit options and one explicit type table.
+    pub(crate) fn type_context_reborrow_for_module_with_options_and_types<'b>(
+        &'b self,
+        module: &'b Module,
+        options: &'b AnalyzeOptions,
+        tree: &'b NodeTree,
+        symbols: &'b SymbolTable,
+        types: &'b mut TypeTable,
+    ) -> TypeContext<'b> {
+        TypeContext {
+            module,
+            profile: self.profile,
+            options,
+            tree,
+            symbols,
+            types,
+        }
+    }
+
     /// Borrow this assign context as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {

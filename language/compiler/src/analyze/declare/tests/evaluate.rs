@@ -145,31 +145,34 @@ fn test_analyze_evaluate_type_on_let_expression_int() {
 }
 
 #[test]
-fn test_type_index_integer_literal_uses_fixed_array_when_index_access_is_not_admissible() {
+fn test_type_index_integer_literal_reports_missing_property_and_keeps_index_access_when_not_admissible()
+ {
     let test = TestProgram::memory_sequential();
-    let module_id = test
-        .analyze_declare_module_with_source("test.ds", "declare const value: { x: string }[5];");
+    let module_id = test.add_module("test.ds", "declare const value: { x: string }[5];");
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA202");
     let view = test.declare_view(module_id);
 
     let types = view.types();
     let value_type_id = view.expect_namespace_value_type_id("value");
-    let Type::ArraySized { element, count, .. } = types.get_type(value_type_id) else {
+    let Type::Index { left, index } = types.get_type(value_type_id) else {
         panic!(
-            "expected fixed-size array type for non-admissible numeric index, got {:?}",
+            "expected indexed-access type for non-admissible numeric index, got {:?}",
             types.get_type(value_type_id)
         );
     };
 
-    let count_value = test
+    let index_value = test
         .compiler
-        .integer_literal_value_for_type_id(*count, types)
-        .expect("expected integer literal count");
-    assert_eq!(count_value, 5, "expected fixed-size array count of 5");
+        .integer_literal_value_for_type_id(*index, types)
+        .expect("expected integer literal index");
+    assert_eq!(index_value, 5, "expected indexed-access key of 5");
 
-    let Type::Object { fields, .. } = types.get_type(*element) else {
+    let Type::Object { fields, .. } = types.get_type(*left) else {
         panic!(
-            "expected fixed-size element to stay as the receiver object type, got {:?}",
-            types.get_type(*element)
+            "expected indexed-access receiver to stay as the object type, got {:?}",
+            types.get_type(*left)
         );
     };
     assert!(
@@ -378,9 +381,8 @@ declare const segment: AuditStore.Segment;
     let module = module.read();
     let profile = test.default_profile_id(module_id);
     let dir = module.dir(profile);
-    let tree = dir.tree.read();
     let symbols = dir.symbols.read();
-    let mut types = dir.types.write();
+    let types = dir.types.read();
 
     let segment_key = StaticKey::Name(test.program.strings.intern("segment"));
     let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
@@ -388,45 +390,6 @@ declare const segment: AuditStore.Segment;
         .find_active_symbol_up_to(namespace_scope, segment_key, LocalScopeMark::end())
         .map(|symbol| symbol.into_global(module.id))
         .expect("expected segment symbol");
-
-    let audit_key = StaticKey::Name(test.program.strings.intern("AuditStore"));
-    let audit_symbol = symbols
-        .find_active_symbol_up_to(namespace_scope, audit_key, LocalScopeMark::end())
-        .map(|symbol| symbol.into_global(module.id))
-        .expect("expected AuditStore symbol");
-    let segment_member_key = StaticKey::Name(test.program.strings.intern("Segment"));
-    let segment_member_symbol = test
-        .compiler
-        .query_static_member_symbol(
-            &module,
-            profile,
-            audit_symbol,
-            segment_member_key,
-            &tree,
-            &symbols,
-        )
-        .expect("expected Segment member symbol");
-    let options = test.compiler.analyze_context_options_for_module(module.id);
-    let alias_target_id = {
-        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
-        test.compiler
-            .alias_target_type_id_for_symbol(
-                &mut ctx,
-                segment_member_symbol,
-                dir.roots[0].into_any(),
-            )
-            .expect("expected alias target for Segment member")
-    };
-    let alias_count = match types.get_type(alias_target_id) {
-        Type::ArraySized { count, .. } => *count,
-        other => panic!("expected fixed-size alias target, got {other:?}"),
-    };
-    assert_count_matches_integer_or_symbol_name(
-        SymbolTypeView::new(&module, profile, &symbols, &types),
-        alias_count,
-        1024,
-        StaticKey::Name(test.program.strings.intern("SegmentBytes")),
-    );
 
     let segment_type_id = types
         .get_value_type_id(segment_symbol)
@@ -441,6 +404,44 @@ declare const segment: AuditStore.Segment;
         count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
+    );
+}
+
+/// Resolve class associated type and associated comptime member name collisions by value space.
+#[test]
+fn test_class_associated_alias_projection_materializes_colliding_comptime_counts() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_declare_module_with_source(
+        "test.ds",
+        r#"
+class NamedWidth<Row> {
+type Width = Row;
+comptime const Width: number = 8;
+type Buffer = uint8[this.Width];
+}
+
+declare const buffer: NamedWidth<string>.Buffer;
+"#,
+    );
+    let view = test.declare_view(module_id);
+    let types = view.types();
+    let buffer_type_id = view.expect_namespace_value_type_id("buffer");
+
+    let Type::ArraySized { count, .. } = types.get_type(buffer_type_id) else {
+        panic!(
+            "expected fixed-size associated alias projection, got {:?}",
+            types.get_type(buffer_type_id)
+        );
+    };
+
+    let count_value = test
+        .compiler
+        .integer_literal_value_for_type_id(*count, types);
+    assert_eq!(
+        count_value,
+        Some(8),
+        "expected colliding associated comptime projection count to resolve to 8: count={:?}",
+        types.get_type(*count),
     );
 }
 

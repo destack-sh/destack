@@ -9,9 +9,9 @@ use crate::analyze::declare::StaticConstantResolutionMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, NodeType, NormalizationMode, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolType, Type, TypeLiteral,
-    TypeMappedParameter, TypeRewriter, TypeTable, TypeUnaryOperator,
+    LocalNodeIdAny, LocalTypeId, Member, NodeType, NormalizationMode, StaticArgument,
+    StaticExpression, StaticKey, SymbolType, Type, TypeLiteral, TypeMappedParameter, TypeRewriter,
+    TypeTable, TypeUnaryOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -1203,7 +1203,7 @@ impl Compiler {
     }
 
     /// Apply associated projection substitutions by alias expression shape.
-    fn apply_projection_substitutions_from_expression(
+    pub(crate) fn apply_projection_substitutions_from_expression(
         &self,
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
@@ -1518,6 +1518,36 @@ impl Compiler {
         Ok(Some(mapped_alias_target))
     }
 
+    /// Resolve one alias expression node for projection substitution by declaration kind.
+    fn projection_alias_expression_for_symbol(
+        &self,
+        view: TreeSymbolView<'_>,
+        target_symbol: GlobalSymbolId,
+    ) -> Option<LocalNodeId<Expression>> {
+        let symbol_entry = view.symbols.get_symbol(target_symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+        match primary_declaration.local_id.ty {
+            NodeType::Member => {
+                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                match view.tree.get(member_id) {
+                    Member::Type {
+                        value: Some(alias_expression),
+                        ..
+                    } => Some(*alias_expression),
+                    _ => None,
+                }
+            }
+            NodeType::Declaration => {
+                let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
+                match view.tree.get(declaration_id) {
+                    Declaration::Type { value, .. } => Some(*value),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Return one projection-substituted type for an unevaluated reference expression.
     fn substitute_projection_unevaluated_type(
         &self,
@@ -1598,17 +1628,22 @@ impl Compiler {
         local_type_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> AnalyzeResult<LocalTypeId> {
-        let array_parts = match ctx.types.get_type(local_type_id) {
+        let type_index_parts = match ctx.types.get_type(local_type_id) {
             Type::ArraySized {
                 element,
                 count,
                 is_readonly,
-            } => Some((*element, *count, *is_readonly)),
+            } => Some((*element, *count, Some(*is_readonly))),
+            Type::Index {
+                left: element,
+                index: count,
+            } => Some((*element, *count, None)),
             _ => None,
         };
-        let Some((element, count, is_readonly)) = array_parts else {
+        let Some((element, count, is_readonly)) = type_index_parts else {
             return Ok(local_type_id);
         };
+
         let mut substitution_cache = HashMap::new();
         let mut mapped_count = self.substitute_static_parameters(
             count,
@@ -1676,19 +1711,13 @@ impl Compiler {
             substitutions,
         )?;
 
-        // keep indexed-access semantics when substitution makes the receiver indexable
-        let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, ctx.tree);
-        let mapped_count_is_numeric_literal = matches!(
-            ctx.types.get_type(mapped_count),
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(
-                    ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
-                ),
-            }
-        );
-        let mapped_element_is_array =
-            matches!(ctx.types.get_type(mapped_element), Type::Array { .. });
-        if !is_explicit_comptime && mapped_element_is_array && mapped_count_is_numeric_literal {
+        if mapped_element == element && mapped_count == count {
+            return Ok(local_type_id);
+        }
+
+        let uses_index_access =
+            self.type_index_uses_index_access(&mut ctx.reborrow(), mapped_element, index)?;
+        if uses_index_access {
             return Ok(ctx.types.insert_type_from_type(
                 Type::Index {
                     left: mapped_element,
@@ -1698,15 +1727,11 @@ impl Compiler {
             ));
         }
 
-        if mapped_element == element && mapped_count == count {
-            return Ok(local_type_id);
-        }
-
         Ok(ctx.types.insert_type_from_type(
             Type::ArraySized {
                 element: mapped_element,
                 count: mapped_count,
-                is_readonly,
+                is_readonly: is_readonly.unwrap_or(false),
             },
             local_type_id,
         ))
@@ -1832,21 +1857,23 @@ impl Compiler {
             changed = true;
         }
 
-        if !changed {
-            return Ok(local_type_id);
-        }
+        let mapped_reference_type_id = if changed {
+            ctx.types.insert_type_from_type(
+                Type::Reference {
+                    symbol,
+                    static_arguments: Some(mapped_arguments.clone()),
+                },
+                local_type_id,
+            )
+        } else {
+            local_type_id
+        };
 
-        Ok(ctx.types.insert_type_from_type(
-            Type::Reference {
-                symbol,
-                static_arguments: Some(mapped_arguments),
-            },
-            local_type_id,
-        ))
+        Ok(mapped_reference_type_id)
     }
 
     /// Apply associated projection substitutions to imported alias targets when needed.
-    pub(super) fn apply_associated_projection_substitutions(
+    pub(crate) fn apply_associated_projection_substitutions(
         &self,
         ctx: &mut TypeContext<'_>,
         target_symbol: GlobalSymbolId,
@@ -1866,33 +1893,10 @@ impl Compiler {
                 ctx.symbols,
                 AnalyzeDependencyStage::Declare,
                 |view| -> AnalyzeResult<LocalTypeId> {
-                    let symbol_entry = view.symbols.get_symbol(target_symbol.local_id);
+                    let owner_view =
+                        TreeSymbolView::new(view.module, ctx.profile, view.tree, view.symbols);
                     let expression_id =
-                        if let Some(primary_declaration) = symbol_entry.primary_declaration {
-                            if primary_declaration.local_id.ty == NodeType::Member {
-                                let member_id = primary_declaration.local_id.into_typed::<Member>();
-                                match view.tree.get(member_id) {
-                                    Member::Type {
-                                        value: Some(alias_expression),
-                                        ..
-                                    } => Some(*alias_expression),
-                                    _ => None,
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                        .or_else(|| {
-                            let source = ctx.types.get_type_source(alias_target_id);
-                            let expression_id = source.try_into_typed::<Expression>().ok()?;
-                            if view.tree.has_node_id(expression_id.id) {
-                                Some(expression_id)
-                            } else {
-                                None
-                            }
-                        });
+                        self.projection_alias_expression_for_symbol(owner_view, target_symbol);
                     let Some(expression_id) = expression_id else {
                         return Ok(alias_target_id);
                     };

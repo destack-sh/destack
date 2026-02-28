@@ -20,7 +20,7 @@ class UserLookup implements ServiceProfile<{ id: int32 }, { name: string, active
 
 // mapped response shape should preserve nullable projection per field
 declare const batch: UserLookup.RequestBatch;
-batch satisfies { id: int32 }[64];
+batch satisfies { id: int32 }[64 as comptime];
 
 // projected member should reflect substituted operator results
 declare const envelope: UserLookup.ResponseEnvelope;

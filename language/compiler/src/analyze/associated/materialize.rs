@@ -101,11 +101,13 @@ impl Compiler {
 
             // keep unresolved associated comptime projections explicit
             // this allows post-convergence obligation reporting to reject unresolved value-space projections
-            if let Ok(expression_id) = source_id.try_into_typed::<Expression>() {
+            if let Ok(expression_id) = source_id.try_into_typed::<Expression>()
+                && ctx.tree.has_node_id(expression_id.id)
+            {
                 return Ok(Type::Unevaluated(expression_id));
             }
 
-            return Ok(Type::Error);
+            return Ok(member_ty);
         }
 
         // materialize associated type alias targets with merged substitutions

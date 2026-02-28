@@ -1000,19 +1000,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
     ) -> Option<LocalTypeId> {
-        if let Some(type_id) = substitutions.get(&symbol) {
-            return Some(*type_id);
-        }
-
-        substitutions.iter().find_map(|(candidate, type_id)| {
-            if candidate.module_id == symbol.module_id
-                && candidate.local_id.id == symbol.local_id.id
-            {
-                Some(*type_id)
-            } else {
-                None
-            }
-        })
+        substitutions.get(&symbol).copied()
     }
 
     /// Resolve one projection receiver reference from the projection source expression.
