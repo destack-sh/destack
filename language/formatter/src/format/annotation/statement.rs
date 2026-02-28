@@ -1,6 +1,6 @@
 use destack_ast::{
-    AnnotationPosition, Block, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
-    TokenSpan, TokenType, WhileKind,
+    AnnotationPosition, Block, BlockFormat, Expression, LocalNodeId, MatchCase, MatchSelector,
+    NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType, WhileKind,
 };
 
 use super::boundary::{
@@ -131,6 +131,104 @@ fn case_or_default_prefix_target(
 
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
     Some((Some(target_owner), AnnotationPosition::BlockPrefix))
+}
+
+/// Return the match-case ancestor owner for one optional owner id.
+fn owner_match_case_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner: Option<u32>,
+) -> Option<u32> {
+    owner.and_then(|owner_id| {
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::MatchCase)
+    })
+}
+
+/// Resolve one switch-label seam owner from neighboring owners.
+fn switch_label_comment_match_case_owner(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<u32> {
+    owner_match_case_ancestor(tree, parents, preceding_owner)
+        .or_else(|| owner_match_case_ancestor(tree, parents, following_owner))
+        .or_else(|| {
+            context
+                .token_before_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+                .and_then(|owner| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
+                })
+        })
+        .or_else(|| {
+            context
+                .token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+                .and_then(|owner| {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
+                })
+        })
+}
+
+/// Return the explicit block consequent owner for one match case.
+fn explicit_match_case_consequent_block_owner(
+    tree: &NodeTree,
+    match_case_owner: u32,
+) -> Option<LocalNodeId<Block>> {
+    if tree.get_node_type(match_case_owner) != NodeType::MatchCase {
+        return None;
+    }
+
+    let match_case_id = LocalNodeId::<MatchCase>::new(match_case_owner);
+    match tree.get(match_case_id) {
+        MatchCase::Expression { body, .. } => {
+            let Expression::Block(block_id) = tree.get(*body) else {
+                return None;
+            };
+            let block = tree.get(*block_id);
+            if block.format != BlockFormat::Implicit {
+                return Some(*block_id);
+            }
+        }
+        MatchCase::Block { body, .. } => {
+            let block = tree.get(*body);
+            if block.format != BlockFormat::Implicit {
+                return Some(*body);
+            }
+        }
+    }
+
+    None
+}
+
+/// Return one switch-label explicit block leading attachment for comments before `{`.
+fn switch_label_explicit_block_attachment(
+    tree: &NodeTree,
+    match_case_owner: u32,
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if !seam.token_after_is(TokenType::OpenBrace) {
+        return None;
+    }
+
+    let explicit_block_owner = explicit_match_case_consequent_block_owner(tree, match_case_owner)?;
+    let (target_owner, position) = block_leading_comment_target(tree, explicit_block_owner);
+    Some((Some(target_owner), position))
+}
+
+/// Return whether one match-case owner is the `default` selector case.
+fn match_case_owner_is_default(tree: &NodeTree, match_case_owner: u32) -> bool {
+    if tree.get_node_type(match_case_owner) != NodeType::MatchCase {
+        return false;
+    }
+
+    let match_case_id = LocalNodeId::<MatchCase>::new(match_case_owner);
+    let selector = match tree.get(match_case_id) {
+        MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => selector,
+    };
+    matches!(selector, MatchSelector::Default)
 }
 
 /// Promote one owner to the nearest control-head expression ancestor.
@@ -331,6 +429,44 @@ pub(crate) fn try_attach_comment_statement_prefix(
         return Some(attachment);
     }
 
+    // own-line comments after switch labels should stay with the case body or label seam
+    if seam.has_leading_newline
+        && seam.token_before_is(TokenType::Colon)
+        && !seam.token_after_is_case_or_default()
+    {
+        let match_case_owner = switch_label_comment_match_case_owner(
+            tree,
+            parents,
+            context,
+            preceding_owner,
+            following_owner,
+        );
+        if let Some(match_case_owner) = match_case_owner {
+            if let Some(attachment) =
+                switch_label_explicit_block_attachment(tree, match_case_owner, seam)
+            {
+                return Some(attachment);
+            }
+
+            let following_match_case_owner =
+                owner_match_case_ancestor(tree, parents, following_owner);
+            if following_match_case_owner == Some(match_case_owner)
+                && let Some(target_owner) = following_owner
+            {
+                let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+                let position = if seam.comment_is_line {
+                    AnnotationPosition::LinePrefix
+                } else {
+                    AnnotationPosition::BlockPrefix
+                };
+                return Some((Some(target_owner), position));
+            }
+
+            let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
+            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
+        }
+    }
+
     // own line comments between switch labels should stay with the following label
     if seam.has_leading_newline
         && seam.token_before_is(TokenType::Colon)
@@ -470,30 +606,46 @@ pub(crate) fn try_attach_comment_statement_suffix(
         }
     }
 
-    // trailing line comments after switch label `:` should stay before the case body
+    // trailing line comments after switch labels should stay on the switch-label seam
     if !seam.has_leading_newline
         && seam.has_trailing_newline
-        && seam.comment_is_line
+        && (seam.comment_is_line || seam.comment_is_star)
         && seam.token_before_is(TokenType::Colon)
         && !seam.token_after_is_case_or_default()
     {
-        let in_match_case = preceding_owner
-            .and_then(|owner| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
-            })
-            .is_some()
-            || following_owner
-                .and_then(|owner| {
-                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
-                })
-                .is_some();
-        if in_match_case {
-            let target_owner = following_owner
-                .or(preceding_owner)
-                .map(|owner| normalize_formatter_trivia_target_owner(tree, owner));
-            if let Some(target_owner) = target_owner {
-                return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+        let match_case_owner = switch_label_comment_match_case_owner(
+            tree,
+            parents,
+            context,
+            preceding_owner,
+            following_owner,
+        );
+        if let Some(match_case_owner) = match_case_owner {
+            if !match_case_owner_is_default(tree, match_case_owner) {
+                if !seam.comment_is_line {
+                    return None;
+                }
+
+                let target_owner = following_owner
+                    .or(preceding_owner)
+                    .map(|owner| normalize_formatter_trivia_target_owner(tree, owner));
+                if let Some(target_owner) = target_owner {
+                    return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+                }
+
+                return None;
             }
+
+            // default line comments before explicit block consequents become block-leading comments
+            if seam.comment_is_line
+                && let Some(attachment) =
+                    switch_label_explicit_block_attachment(tree, match_case_owner, seam)
+            {
+                return Some(attachment);
+            }
+
+            let target_owner = normalize_formatter_trivia_target_owner(tree, match_case_owner);
+            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
         }
     }
 

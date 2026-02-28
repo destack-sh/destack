@@ -35,6 +35,14 @@ fn typescript_format_options() -> DestackFormatOptions {
     )
 }
 
+/// Return default formatter options for JavaScript mode.
+fn javascript_format_options() -> DestackFormatOptions {
+    DestackFormatOptions::from_formatter_options(
+        FormatterOptions::default(),
+        LanguageType::JavaScript,
+    )
+}
+
 /// Find an annotation node by source marker text.
 fn find_annotation_by_marker(
     context: &DestackFormatContext<'_>,
@@ -523,6 +531,56 @@ fn test_annotation_import_item_separator_line_comment_attaches_to_dependency_ite
     assert_eq!(next_token_type, Some(destack_ast::TokenType::Identifier));
 }
 
+/// Import alias comments before separator commas should stay on dependency-item boundaries.
+#[test]
+fn test_annotation_import_alias_comment_before_separator_comma_attaches_to_dependency_item() {
+    let source = "import {
+  a as b // import-alias-separator-marker
+  ,
+} from \"pkg\";";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import alias separator marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "import-alias-separator-marker")
+        .expect("expected import alias separator marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected import alias separator marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+
+    assert_eq!(owner_node_type, NodeType::DependencyItem);
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
+}
+
+/// Import block comments before separator commas should stay on dependency-item boundaries.
+#[test]
+fn test_annotation_import_block_comment_before_separator_comma_attaches_to_dependency_item() {
+    let source = "import {
+  SelectionSetNode /* import-block-separator-marker */
+  ,
+} from \"graphql\";";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import block separator marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "import-block-separator-marker")
+        .expect("expected import block separator marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected import block separator marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+
+    assert_eq!(owner_node_type, NodeType::DependencyItem);
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
+}
+
 /// Export alias line comments after `as` should attach as dependency-item prefixes.
 #[test]
 fn test_annotation_export_alias_line_comment_after_as_attaches_to_dependency_item_prefix() {
@@ -567,7 +625,8 @@ extends BaseInterface {}"#;
     TypeArgumentNumberOne,
     TypeArgumentNumberTwo,
     TypeArgumentNumberThree,
-> extends BaseInterface {} // heritage-head-seam-marker
+> // heritage-head-seam-marker
+    extends BaseInterface {}
 "#;
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
@@ -581,7 +640,7 @@ extends BaseInterface {}"#;
         .expect("expected declaration heritage head seam marker owner node");
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
 
-    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(owner_node_type, NodeType::Declaration);
     assert_format_program_roundtrip_with_file_type(
         source,
@@ -670,6 +729,63 @@ fn test_annotation_semicolon_guard_comment_before_parenthesized_call_uses_bounda
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Trailing block comments after import semicolons should stay on the import statement boundary.
+#[test]
+fn test_annotation_import_trailing_block_comment_after_semicolon_uses_boundary_position() {
+    let source = "import \"a\"; /* import-tail-marker */\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse import trailing block comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "import-tail-marker")
+        .expect("expected import trailing block comment marker");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected import trailing block comment owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// JavaScript import tails should keep one space before inline block postfix comments.
+#[test]
+fn test_format_import_trailing_block_comment_after_semicolon_keeps_space_javascript() {
+    let source = "import \"a\";/* import-tail-marker */\n";
+    let expected = "import \"a\"; /* import-tail-marker */\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// TypeScript import tails should keep one space before inline block postfix comments.
+#[test]
+fn test_format_import_trailing_block_comment_after_semicolon_keeps_space_typescript() {
+    let source = "import type {} from \"a\";/* import-type-tail-marker */\n";
+    let expected = "import type {} from \"a\"; /* import-type-tail-marker */\n";
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Empty import-assertion comments should stay idempotent when lowered to postfix tails.
+#[test]
+fn test_format_import_assertion_empty_comment_tail_is_idempotent() {
+    let source = "export * as baz from \"baz.json\" assert { /* comment */ }\nimport * as baz from \"baz.json\" assert { /* comment */ }\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
 }
 
 /// Single call argument trailing line comments stay discoverable with stable positions.
@@ -919,10 +1035,37 @@ type C2 = | (
             .unwrap_or_else(|| panic!("expected owner for marker annotation: {marker}"));
         let owner_node_type = context.tree.get_node_type(owner_node as u32);
         let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
-        assert_eq!(owner_node_type, NodeType::Expression);
-        assert_eq!(position, expected_position);
+        assert_eq!(owner_node_type, NodeType::Expression, "marker={marker}");
+        assert_eq!(position, expected_position, "marker={marker}");
         assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
     }
+}
+
+/// Conformance C2 comment before `|` should stay line-prefix even with trailing-space noise.
+#[test]
+fn test_annotation_union_c2_comment_before_pipe_stays_line_prefix() {
+    let source = r#"
+type C2 = | (
+  /* c2a */ /* c2b */ 
+  /* c2c */ | (
+    | (
+          | A
+          // c2-tail
+          | B
+        )
+  )
+  );
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse c2 line-prefix source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id =
+        find_annotation_by_marker(&context, "c2c").expect("expected c2c annotation");
+    let position = context.annotation(annotation_id).position();
+    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+    assert_eq!(position, AnnotationPosition::LinePrefix);
+    assert_eq!(next_token, Some(destack_ast::TokenType::ElementwiseOr));
 }
 
 /// Type-binary block seam comments on expression statements must not be dropped.
@@ -951,6 +1094,75 @@ fn test_type_binary_block_comment_between_operator_and_right_type_expression_sta
 
     let formatted = formatter.format(&block_id, DestackFormatOptions::default());
     assert_eq!(formatted, expected);
+}
+
+/// Own-line comments after `as` should attach to the rhs type seam.
+#[test]
+fn test_annotation_type_binary_own_line_comment_after_as_attaches_to_rhs() {
+    let source = "{\n    value = a as\n        // own-line-as-marker\n        Foo | Bar;\n}";
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse own-line as comment source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "own-line-as-marker")
+        .expect("expected own-line as marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+    assert_eq!(
+        position,
+        AnnotationPosition::BlockPrefix,
+        "position={position:?}, next_token={next_token:?}"
+    );
+}
+
+/// Own-line comments after `as` in long unions should keep rhs-leading ownership.
+#[test]
+fn test_annotation_type_binary_own_line_comment_after_as_with_union_attaches_to_rhs() {
+    let source = "{\n    functionArg = a as\n        // own-line-as-union-marker\n        TSESTree.ArrowFunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined;\n}";
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse own-line as union comment source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "own-line-as-union-marker")
+        .expect("expected own-line as union marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
+    assert_eq!(
+        position,
+        AnnotationPosition::BlockPrefix,
+        "position={position:?}, next_token={next_token:?}"
+    );
+}
+
+/// Re-parsed output should keep own-line `as` seam comments as rhs-leading annotations.
+#[test]
+fn test_annotation_type_binary_own_line_comment_after_as_with_union_reparse_keeps_rhs() {
+    let source = "{\n    functionArg = a as\n        // own-line-as-union-reparse-marker\n        TSESTree.ArrowFunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | undefined;\n}";
+    let (formatter, block_id) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("parse own-line as union reparse source");
+    let formatted = formatter.format(&block_id, typescript_format_options());
+
+    let (reparsed_formatter, _) =
+        TestFormatter::parse_with_file_type(&formatted, FileType::TypeScript, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .expect("reparse own-line as union reparse formatted source");
+    let reparsed_context = context_from_formatter(&reparsed_formatter);
+    let annotation_id =
+        find_annotation_by_marker(&reparsed_context, "own-line-as-union-reparse-marker")
+            .expect("expected own-line as union reparse marker annotation");
+    let position = reparsed_context.annotation(annotation_id).position();
+    let next_token = reparsed_context.annotation_next_non_whitespace_token_type(annotation_id);
+    assert_eq!(
+        position,
+        AnnotationPosition::BlockPrefix,
+        "position={position:?}, next_token={next_token:?}, formatted={formatted}"
+    );
 }
 
 #[test]
@@ -1743,6 +1955,19 @@ fn test_format_inline_block_comment_before_arrow_body_call_is_idempotent() {
     assert_eq!(first, second);
 }
 
+/// Nested parenthesized arrow postfix comments should keep stable owner layering.
+#[test]
+fn test_format_nested_parenthesized_arrow_postfix_comments_are_idempotent() {
+    let source = "{
+    f((a) => ((b) => ((c) => (1, 2, 3)/* b */ /* c */)/* a */) /* b */);
+}";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 /// Member-chain inline block comments should stay attached at the original chain seam.
 #[test]
 fn test_format_member_chain_inline_block_comments_stay_on_chain_seams() {
@@ -1782,6 +2007,38 @@ fn test_format_class_head_block_comment_stays_before_open_brace() {
 }",
         |p| p.eat_block(destack_ast::BlockContext::Expression),
         DestackFormatOptions::default()
+    );
+}
+
+#[test]
+fn test_format_class_head_and_body_seam_comments_are_idempotent() {
+    let source = r#"class A2 /* marker-head-inline */ extends B
+// marker-before-body-1
+// marker-before-body-2
+{
+  // marker-body
+}
+class A3 extends B /* marker-a3-before-body */ {}"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+#[test]
+fn test_format_class_implements_comment_indentation_is_idempotent() {
+    let source = r#"class a3 extends b
+implements
+// marker-implements-comment
+z,
+y {
+  constructor() {}
+}"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        typescript_format_options(),
     );
 }
 

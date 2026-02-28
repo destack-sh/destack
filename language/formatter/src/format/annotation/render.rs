@@ -560,6 +560,21 @@ fn declaration_is_new_signature(
     signature.mode == Some(destack_ast::FunctionMode::New)
 }
 
+/// Return whether one declaration uses declaration-generic-head annotation capture.
+fn declaration_supports_generic_head_capture(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    matches!(
+        context.tree.get(declaration_id),
+        Declaration::Type { .. }
+            | Declaration::Struct { .. }
+            | Declaration::Class { .. }
+            | Declaration::Enum { .. }
+            | Declaration::Interface { .. }
+    )
+}
+
 /// Return whether one annotation is a constructor-head seam comment after `new`.
 pub(crate) fn annotation_is_declaration_new_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
@@ -698,7 +713,7 @@ pub(crate) fn annotation_is_declaration_export_head_comment<T: Node>(
 /// Return whether one annotation is a generic-head seam comment for a declaration.
 pub(crate) fn annotation_is_declaration_generic_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
-    _node_id: LocalNodeId<T>,
+    node_id: LocalNodeId<T>,
     annotation: Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
@@ -706,19 +721,24 @@ pub(crate) fn annotation_is_declaration_generic_head_comment<T: Node>(
         return false;
     }
 
-    let Annotation::Comment {
-        node,
-        position: AnnotationPosition::LinePrefix,
-    } = annotation
-    else {
+    let declaration_id = LocalNodeId::<Declaration>::new(node_id.id);
+    if !declaration_supports_generic_head_capture(context, declaration_id) {
+        return false;
+    }
+
+    let Annotation::Comment { position, .. } = annotation else {
         return false;
     };
-    let comment = context.tree.get::<Comment>(node);
-    if comment.style != CommentStyle::Slash {
+    if !matches!(
+        position,
+        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+    ) {
         return false;
     }
 
     context.annotation_next_non_whitespace_token_type(annotation_id) == Some(TokenType::LessThan)
+        || context.annotation_next_token_is_keyword(annotation_id, Keyword::Extends)
+        || context.annotation_next_token_is_keyword(annotation_id, Keyword::Implements)
 }
 
 /// Return whether one annotation is a declaration-body seam comment before `{`.
@@ -1828,6 +1848,15 @@ fn first_block_infix_spacing(
         return AnnotationSpacing::Space;
     }
 
+    if flow.is_inline_block_star_comment
+        && !flow.starts_on_own_line
+        && capture == AnnotationCapture::AnyInfixOrPostfix
+        && flow.inline_block_comment_follows_opening_delimiter
+        && flow.next_token_type == Some(TokenType::CloseBrace)
+    {
+        return AnnotationSpacing::Space;
+    }
+
     if flow.is_inline_block_star_comment {
         return AnnotationSpacing::None;
     }
@@ -1849,7 +1878,17 @@ fn first_block_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 }
 
 /// Return first-spacing decision for one block prefix annotation.
-fn first_block_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+fn first_block_prefix_spacing(
+    capture: AnnotationCapture,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if capture == AnnotationCapture::DeclarationGenericHead
+        && flow.is_star_comment
+        && !flow.starts_on_own_line
+    {
+        return AnnotationSpacing::Space;
+    }
+
     let is_block_prefix_after_colon =
         flow.is_star_comment && flow.follows_colon && !flow.starts_on_own_line;
 
@@ -1932,7 +1971,7 @@ fn first_annotation_spacing(
     match position {
         AnnotationPosition::BlockInfix => first_block_infix_spacing(capture, flow),
         AnnotationPosition::BlockPostfix => first_block_postfix_spacing(flow),
-        AnnotationPosition::BlockPrefix => first_block_prefix_spacing(flow),
+        AnnotationPosition::BlockPrefix => first_block_prefix_spacing(capture, flow),
         AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary => {
             first_line_postfix_spacing(position, flow)
         }

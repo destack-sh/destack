@@ -14,7 +14,8 @@ use crate::format::expression::{
     call_arguments_are_multiline_span, detect_for_each_binding_keyword, format_declarator,
     format_expression, format_for_each_binding_pattern, format_if_else_chain, format_match,
     format_statement_body_block, format_ternary, format_with, group, hard_line_break,
-    is_empty_statement_block, list_like, space, token, tree_literal_should_break,
+    is_empty_statement_block, line_postfix_boundary, list_like, space, token,
+    tree_literal_should_break,
 };
 use destack_ast::{Comment, CommentStyle, Doc, DocumentationStyle, ImportTarget};
 use destack_fir::format::{Buffer, Format, FormatError};
@@ -764,7 +765,14 @@ fn format_while_expression<'ast>(
         WhileKind::While => {
             write!(
                 f,
-                [Keyword::While, space(), token("("), condition, token(")")]
+                [
+                    Keyword::While,
+                    space(),
+                    token("("),
+                    condition,
+                    line_postfix_boundary(),
+                    token(")")
+                ]
             )?;
             if statement_body_requires_head_space(f.context(), body) {
                 write!(f, [space()])?;
@@ -786,6 +794,7 @@ fn format_while_expression<'ast>(
                     space(),
                     token("("),
                     condition,
+                    line_postfix_boundary(),
                     token(")"),
                 ]
             )?;
@@ -872,7 +881,17 @@ fn format_for_each_expression<'ast>(
     }
 
     // iterator + body
-    write!(f, [space(), keyword, space(), iterator, token(")")])?;
+    write!(
+        f,
+        [
+            space(),
+            keyword,
+            space(),
+            iterator,
+            line_postfix_boundary(),
+            token(")")
+        ]
+    )?;
     if statement_body_requires_head_space(f.context(), body) {
         write!(f, [space()])?;
     }
@@ -902,6 +921,7 @@ fn format_for_expression<'ast>(
             token(";"),
             space(),
             increment,
+            line_postfix_boundary(),
             token(")")
         ]
     )?;
