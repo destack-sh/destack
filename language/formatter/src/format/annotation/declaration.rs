@@ -103,6 +103,21 @@ fn declaration_owner_has_head_before_open_brace(tree: &NodeTree, owner_id: u32) 
     )
 }
 
+/// Return whether one declaration owner supports heritage keywords.
+fn declaration_owner_has_heritage_keywords(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = ast::LocalNodeId::<ast::Declaration>::new(owner_id);
+    matches!(
+        tree.get(declaration_id),
+        ast::Declaration::Class { .. }
+            | ast::Declaration::Struct { .. }
+            | ast::Declaration::Interface { .. }
+    )
+}
+
 /// Return whether one declaration owner is a `new (...) => ...` function signature.
 fn declaration_owner_is_new_signature(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) != NodeType::Declaration {
@@ -239,43 +254,65 @@ pub(crate) fn try_attach_comment_declaration_implements_seam(
 
     let target_node = owners.preceding?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-    Some((Some(target_node), AnnotationPosition::BlockPostfix))
+    Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))
 }
 
-/// Resolve declaration head comments before heritage keywords.
-pub(crate) fn try_attach_comment_declaration_heritage_head_seam(
+/// Resolve declaration comments directly before `extends` and `implements`.
+pub(crate) fn try_attach_comment_declaration_heritage_keyword_seam(
     tree: &NodeTree,
     parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    if !seam.has_trailing_newline {
+    if !seam.token_after_is_keyword(CommentSeamKeyword::Extends)
+        && !seam.token_after_is_keyword(CommentSeamKeyword::Implements)
+    {
         return None;
     }
 
-    if !seam.token_before_is(TokenType::GreaterThan) {
-        return None;
-    }
-
-    let token_after_is_heritage_keyword = seam.token_after_is_keyword(CommentSeamKeyword::Extends)
-        || seam.token_after_is_keyword(CommentSeamKeyword::Implements);
-    if !token_after_is_heritage_keyword {
-        return None;
-    }
-
-    let declaration_owner = owners
-        .preceding
+    let declaration_owner = context
+        .token_before_span
+        .zip(context.token_after_span)
+        .and_then(|(before, after)| {
+            find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+        })
         .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        .or_else(|| {
+            owners
+                .preceding
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })
         .or_else(|| {
             owners
                 .following
                 .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-        })?;
+        })
+        .filter(|owner| declaration_owner_has_heritage_keywords(tree, *owner))?;
     let declaration_owner = normalize_formatter_trivia_target_owner(tree, declaration_owner);
-    Some((
-        Some(declaration_owner),
-        AnnotationPosition::LinePostfixBoundary,
-    ))
+
+    if seam.token_after_is_keyword(CommentSeamKeyword::Implements)
+        && let Some(preceding_owner) = owners.preceding
+        && tree.get_node_type(preceding_owner) == NodeType::Expression
+        && let Some(preceding_declaration_owner) =
+            promote_owner_to_declaration_ancestor(tree, parents, preceding_owner)
+        && preceding_declaration_owner == declaration_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, preceding_owner);
+        let position = if seam.comment_is_star {
+            AnnotationPosition::BlockPostfix
+        } else {
+            AnnotationPosition::LinePostfixBoundary
+        };
+        return Some((Some(target_node), position));
+    }
+
+    let position = if seam.comment_is_star {
+        AnnotationPosition::BlockPrefix
+    } else {
+        AnnotationPosition::LinePrefix
+    };
+    Some((Some(declaration_owner), position))
 }
 
 /// Resolve declaration head comments directly before `{`.
@@ -285,13 +322,23 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    if seam.has_leading_newline || !seam.comment_is_star {
-        return None;
-    }
-
     if !seam.token_after_is(TokenType::OpenBrace) {
         return None;
     }
+
+    let position = if seam.comment_is_star {
+        if seam.has_leading_newline {
+            return None;
+        }
+        AnnotationPosition::BlockPrefix
+    } else if seam.comment_is_line {
+        if !seam.has_leading_newline {
+            return None;
+        }
+        AnnotationPosition::LinePrefix
+    } else {
+        return None;
+    };
 
     let target_node = context
         .token_before_span
@@ -307,7 +354,7 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
         })?;
 
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-    Some((Some(target_node), AnnotationPosition::BlockPrefix))
+    Some((Some(target_node), position))
 }
 
 /// Resolve declaration decorator-adjacent seam comments.
@@ -575,7 +622,7 @@ pub(crate) fn try_attach_comment_declaration(
     }
 
     if let Some(attachment) =
-        try_attach_comment_declaration_heritage_head_seam(tree, parents, seam, owners)
+        try_attach_comment_declaration_heritage_keyword_seam(tree, parents, context, seam, owners)
     {
         return Some(attachment);
     }

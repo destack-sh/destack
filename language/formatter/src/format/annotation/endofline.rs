@@ -137,6 +137,37 @@ fn attach_after_dependency_item_separator_comma_line_comment(
     Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }
 
+/// Attach one same-line dependency-item comment before a separator comma.
+fn attach_before_dependency_item_separator_comma_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+    is_same_line_line_comment: bool,
+    is_same_line_trailing_block_comment: bool,
+) -> Option<CommentAttachment> {
+    if !seam.token_after_is(TokenType::Comma)
+        || (!is_same_line_line_comment && !is_same_line_trailing_block_comment)
+    {
+        return None;
+    }
+
+    let token_before_owner = context
+        .token_before_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let target_owner = [preceding_owner, following_owner, token_before_owner]
+        .into_iter()
+        .flatten()
+        .find_map(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::DependencyItem)
+        })?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
 /// Return whether one token type is one additive binary operator token.
 #[inline]
 fn token_type_is_additive_binary_operator(token_type: TokenType) -> bool {
@@ -312,6 +343,7 @@ fn attach_after_ternary_colon_comment(
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
     enclosing_owner: Option<u32>,
     token_before_span: Option<Span>,
     is_same_line_line_comment: bool,
@@ -349,7 +381,7 @@ fn attach_after_ternary_colon_comment(
                     Expression::If {
                         kind: IfKind::Ternary,
                         ..
-                    }
+                    } | Expression::TypeConditional { .. }
                 )
             })
         });
@@ -357,7 +389,13 @@ fn attach_after_ternary_colon_comment(
         return None;
     }
 
-    attach_line_comment_after_ternary_colon(tree, parents, preceding_owner, token_before_span)
+    attach_line_comment_after_ternary_colon(
+        tree,
+        parents,
+        preceding_owner,
+        following_owner,
+        token_before_span,
+    )
 }
 
 /// Attach one block comment before one ternary `:` seam.
@@ -671,6 +709,20 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
+    // import and export specifier comments before separator commas stay on dependency items
+    if let Some(attachment) = attach_before_dependency_item_separator_comma_comment(
+        tree,
+        parents,
+        context,
+        seam,
+        preceding_owner,
+        following_owner,
+        is_same_line_line_comment,
+        is_same_line_trailing_block_comment,
+    ) {
+        return Some(attachment);
+    }
+
     // close-delimiter comments before standalone semicolons belong to the following statement
     if let Some(attachment) = attach_close_delimiter_semicolon_line_comment(
         tree,
@@ -744,6 +796,7 @@ pub(crate) fn attach_end_of_line_comment(
         parents,
         seam,
         preceding_owner,
+        following_owner,
         enclosing_owner,
         token_before_span,
         is_same_line_line_comment,

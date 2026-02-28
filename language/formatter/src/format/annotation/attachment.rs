@@ -72,8 +72,15 @@ fn assignment_like_rhs_owner_for_doc_annotation(
     }
     let previous_token_span = tokens[previous_index].span;
 
-    let token_after_annotation_index =
+    let mut token_after_annotation_index =
         tokens.partition_point(|token| token.span.start < annotation_span.end);
+    while let Some(token) = tokens.get(token_after_annotation_index) {
+        if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+            token_after_annotation_index += 1;
+            continue;
+        }
+        break;
+    }
     let token_after_span = tokens
         .get(token_after_annotation_index)
         .map(|token| token.span);
@@ -107,14 +114,25 @@ fn assignment_like_rhs_owner_for_doc_annotation(
             }
         });
 
-    let expression_owner = assignment_owner.or_else(|| {
-        find_owner_at_or_after_token_with_node_type(
-            tree,
-            owner_index,
-            token_after_annotation_index,
-            NodeType::Expression,
-        )
-    })?;
+    let fallback_expression_owner = token_after_span
+        .and_then(|span| find_preferred_owner_starting_at(tree, span))
+        .and_then(|owner_id| {
+            if tree.get_node_type(owner_id) == NodeType::Expression {
+                Some(owner_id)
+            } else {
+                promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+            }
+        })
+        .or_else(|| {
+            find_owner_at_or_after_token_with_node_type(
+                tree,
+                owner_index,
+                token_after_annotation_index,
+                NodeType::Expression,
+            )
+        });
+
+    let expression_owner = assignment_owner.or(fallback_expression_owner)?;
     let expression_owner =
         promote_rhs_expression_owner(tree, parents, expression_owner, token_after_span);
 
@@ -1036,16 +1054,21 @@ pub(crate) fn attach_line_comment_after_ternary_colon(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
     token_before_span: Option<Span>,
 ) -> Option<CommentAttachment> {
-    let target_owner = preceding_owner
-        .map(|owner| normalize_owner_with_shared_end(tree, parents, owner, token_before_span))?;
-    if tree.get_node_type(target_owner) != NodeType::Expression {
-        return None;
+    if let Some(target_owner) = preceding_owner {
+        let target_owner =
+            normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+        if tree.get_node_type(target_owner) == NodeType::Expression {
+            let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
+        }
     }
 
+    let target_owner = following_owner?;
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
 /// Promote one owner from a tree tag path to the enclosing tree expression when needed.
