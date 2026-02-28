@@ -7,12 +7,12 @@ use crate::format::expression::{
 };
 use crate::format::tree::argument::{
     TreeExpressionArgument, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
-    tree_child_breaks_element, tree_children_have_blank_line_between,
-    tree_text_boundary_separator_space, tree_text_is_whitespace_only,
+    tree_child_breaks_element, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
 };
 use destack_ast::{IfKind, NodeType};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
+use destack_workspace::QuoteStyle;
 
 /// Store computed tree-child layout data for one tree body.
 #[derive(Clone, Copy, Debug, Default)]
@@ -51,6 +51,26 @@ enum TreeChildrenRenderMode {
     Fill,
 }
 
+/// The spacing kind carried by one whitespace-only JSX child run.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TreeWhitespaceSpacing {
+    /// One inline whitespace separator (` ` / `{" "}`).
+    Inline,
+    /// One newline-oriented separator.
+    Newline,
+}
+
+/// The separator to emit before one fill-visible tree child.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TreeFillSeparator {
+    /// No separator before the current child.
+    None,
+    /// One inline JSX whitespace separator.
+    InlineWhitespace,
+    /// One hard line break separator.
+    HardBreak,
+}
+
 /// Return the value expression id for one tree child argument.
 fn tree_child_value_id(
     tree: &NodeTree,
@@ -75,18 +95,16 @@ fn tree_children_layout(
     let mut tree_child_count = 0usize;
     let mut expression_child_count = 0usize;
     let mut has_breaking_child = false;
-    let mut has_braced_whitespace_child = false;
     let mut has_non_whitespace_text_child = false;
     let mut has_newline_whitespace_text_child = false;
     let mut only_tree_or_comment_children = true;
 
     for element_id in elements {
         let value_id = tree_child_value_id(tree, *element_id);
-        let raw_value = tree.get(value_id);
         let value_id = transparent_inner_expression(context, value_id);
         let value = tree.get(value_id);
 
-        if matches!(raw_value, Expression::TreeExpression { .. }) {
+        if matches!(value, Expression::TreeExpression { .. }) {
             tree_child_count += 1;
         }
 
@@ -100,22 +118,12 @@ fn tree_children_layout(
             expression_child_count += 1;
         }
 
-        if !matches!(value, Expression::TreeExpression { .. } | Expression::Stub) {
-            only_tree_or_comment_children = false;
-        }
-
         if tree_child_breaks_element(context, *element_id) {
             has_breaking_child = true;
         }
 
         let whitespace_info = tree_text_is_whitespace_only(context, *element_id);
         if let Some((is_whitespace_only, has_newline)) = whitespace_info {
-            let is_braced_whitespace =
-                tree_argument_is_wrapped_in_braces(context, *element_id) && is_whitespace_only;
-            if is_braced_whitespace {
-                has_braced_whitespace_child = true;
-            }
-
             if !is_whitespace_only {
                 has_non_whitespace_text_child = true;
             }
@@ -127,10 +135,18 @@ fn tree_children_layout(
                 has_newline_whitespace_text_child = true;
             }
         }
+
+        // tree per line layout ignores pure whitespace text separators
+        let is_non_content_text_separator =
+            whitespace_info.is_some_and(|(is_whitespace_only, _)| is_whitespace_only);
+        if !matches!(value, Expression::TreeExpression { .. } | Expression::Stub)
+            && !is_non_content_text_separator
+        {
+            only_tree_or_comment_children = false;
+        }
     }
 
     let has_tree_child = tree_child_count > 0;
-    let has_multiple_tree_children = tree_child_count >= 2;
     let has_multiple_expression_children = expression_child_count >= 2;
     let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
     let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
@@ -143,14 +159,12 @@ fn tree_children_layout(
                 || has_tree_child
                 || has_multiple_expression_children
                 || has_newline_whitespace_text_child))
-            // ts/js/tsx/jsx: tree children can still stay inline if trivial
+            // ts/js/tsx/jsx: any tag child forces multiline, like prettier and oxc
             || (!is_destack
                 && (force_break_attributes
                     || has_breaking_child
-                    || has_multiple_tree_children
-                    || has_multiple_expression_children
-                    || has_tree_and_expression_children
-                    || (has_tree_child && has_braced_whitespace_child)));
+                    || has_tree_child
+                    || has_multiple_expression_children));
     let force_break_with_fill = !context.options.language_type.is_destack()
         && force_break
         && has_tree_and_text_children
@@ -197,27 +211,11 @@ fn format_tree_children_multiline<'ast>(
         let is_whitespace_only =
             whitespace_info.is_some_and(|(is_whitespace_only, _)| is_whitespace_only);
         let has_blank_line = whitespace_info.is_some_and(|(_, has_blank_line)| has_blank_line);
-        let is_braced_whitespace =
-            tree_argument_is_wrapped_in_braces(f.context(), *element_id) && is_whitespace_only;
 
-        if is_whitespace_only && !is_braced_whitespace {
+        if is_whitespace_only {
             if has_blank_line && wrote_child {
                 pending_blank_line = true;
             }
-            continue;
-        }
-
-        // keep explicit `{ " " }` style separators attached to previous child
-        if is_braced_whitespace {
-            if !wrote_child {
-                continue;
-            }
-            write!(
-                f,
-                [TreeExpressionArgument {
-                    argument_id: *element_id
-                }]
-            )?;
             continue;
         }
 
@@ -279,58 +277,183 @@ fn tree_child_is_fill_visible(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let whitespace_info = tree_text_is_whitespace_only(context, argument_id);
-    let is_whitespace_only =
-        whitespace_info.is_some_and(|(is_whitespace_only, _)| is_whitespace_only);
+    let Some((is_whitespace_only, _)) = whitespace_info else {
+        return true;
+    };
+
     if !is_whitespace_only {
         return true;
     }
 
-    tree_argument_is_wrapped_in_braces(context, argument_id)
+    false
 }
 
 /// Build separator rules between adjacent fill-visible tree children.
 fn tree_fill_separators(
     context: &DestackFormatContext<'_>,
+    all_elements: &[LocalNodeId<Argument>],
     inline_elements: &[LocalNodeId<Argument>],
-) -> Vec<(bool, bool)> {
-    let whitespace_flags = inline_elements
-        .iter()
-        .map(|element_id| tree_text_is_whitespace_only(context, *element_id))
-        .map(|info| info.unwrap_or((false, false)))
-        .collect::<Vec<_>>();
-    let boundary_spaces = inline_elements
-        .iter()
-        .map(|element_id| {
-            tree_text_boundary_separator_space(context, *element_id).unwrap_or((false, false))
-        })
-        .collect::<Vec<_>>();
+) -> Vec<TreeFillSeparator> {
+    // map each visible element back to its position in the original child list
+    let mut inline_indices = Vec::with_capacity(inline_elements.len());
+    let mut all_index = 0usize;
+    for inline_element_id in inline_elements {
+        while all_index < all_elements.len() && all_elements[all_index] != *inline_element_id {
+            all_index += 1;
+        }
+        if all_index >= all_elements.len() {
+            return vec![TreeFillSeparator::None; inline_elements.len()];
+        }
+
+        inline_indices.push(all_index);
+        all_index += 1;
+    }
+
     let inline_child_breaks = inline_elements
         .iter()
         .map(|element_id| tree_child_breaks_element(context, *element_id))
         .collect::<Vec<_>>();
 
     let mut separators = Vec::with_capacity(inline_elements.len());
-    separators.push((false, false));
+    separators.push(TreeFillSeparator::None);
     for index in 1..inline_elements.len() {
-        let prev_is_whitespace_only = whitespace_flags[index - 1].0;
-        let current_is_whitespace_only = whitespace_flags[index].0;
         let force_hard_break = inline_child_breaks[index - 1] || inline_child_breaks[index];
-        if prev_is_whitespace_only || current_is_whitespace_only {
-            separators.push((false, force_hard_break));
+
+        // preserve dropped jsx whitespace children between visible entries
+        let previous_all_index = inline_indices[index - 1];
+        let current_all_index = inline_indices[index];
+        let skipped_elements = &all_elements[previous_all_index + 1..current_all_index];
+        let skipped_has_newline_whitespace = skipped_elements.iter().any(|element_id| {
+            tree_text_is_whitespace_only(context, *element_id)
+                .is_some_and(|(is_whitespace_only, has_newline)| is_whitespace_only && has_newline)
+        });
+        let skipped_has_inline_whitespace = skipped_elements.iter().any(|element_id| {
+            tree_text_is_whitespace_only(context, *element_id)
+                .is_some_and(|(is_whitespace_only, has_newline)| is_whitespace_only && !has_newline)
+        });
+        if skipped_has_newline_whitespace {
+            separators.push(TreeFillSeparator::HardBreak);
             continue;
         }
 
-        let prev_trailing_space = boundary_spaces[index - 1].1;
-        let current_leading_space = boundary_spaces[index].0;
-        let boundary_prefers_line_break = prev_trailing_space || current_leading_space;
-        let force_hard_break = force_hard_break || boundary_prefers_line_break;
-        separators.push((
-            prev_trailing_space || current_leading_space,
-            force_hard_break,
-        ));
+        if skipped_has_inline_whitespace {
+            if force_hard_break {
+                separators.push(TreeFillSeparator::HardBreak);
+            } else {
+                separators.push(TreeFillSeparator::InlineWhitespace);
+            }
+            continue;
+        }
+
+        let previous_newline_flags =
+            tree_text_boundary_newline_flags(context, inline_elements[index - 1]);
+        let current_newline_flags =
+            tree_text_boundary_newline_flags(context, inline_elements[index]);
+        let previous_trailing_has_newline =
+            previous_newline_flags.is_some_and(|(_, trailing_has_newline)| trailing_has_newline);
+        let current_leading_has_newline =
+            current_newline_flags.is_some_and(|(leading_has_newline, _)| leading_has_newline);
+        let force_hard_break =
+            force_hard_break || previous_trailing_has_newline || current_leading_has_newline;
+        if force_hard_break {
+            separators.push(TreeFillSeparator::HardBreak);
+        } else {
+            separators.push(TreeFillSeparator::None);
+        }
     }
 
     separators
+}
+
+/// Return whether one tree text child has leading or trailing newline whitespace.
+fn tree_text_boundary_newline_flags(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<(bool, bool)> {
+    let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
+        return None;
+    };
+    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = context.tree.get(*value)
+    else {
+        return None;
+    };
+
+    let text = context.strings.get(*string_id);
+    let leading_end = text
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(text.len(), |(index, _)| index);
+    let trailing_start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(0, |(index, c)| index + c.len_utf8());
+
+    let leading_whitespace = &text[..leading_end];
+    let trailing_whitespace = &text[trailing_start..];
+
+    Some((
+        leading_whitespace.contains(['\n', '\r']),
+        trailing_whitespace.contains(['\n', '\r']),
+    ))
+}
+
+/// Return whether one whitespace-only child run contains inline or newline spacing.
+fn tree_whitespace_run_spacing(
+    context: &DestackFormatContext<'_>,
+    elements: &[LocalNodeId<Argument>],
+) -> Option<TreeWhitespaceSpacing> {
+    let mut has_inline_whitespace = false;
+    let mut has_newline_whitespace = false;
+
+    for element_id in elements {
+        let Some((is_whitespace_only, has_newline)) =
+            tree_text_is_whitespace_only(context, *element_id)
+        else {
+            continue;
+        };
+        if !is_whitespace_only {
+            continue;
+        }
+
+        if has_newline {
+            has_newline_whitespace = true;
+        } else {
+            has_inline_whitespace = true;
+        }
+    }
+
+    if has_newline_whitespace {
+        return Some(TreeWhitespaceSpacing::Newline);
+    }
+
+    if has_inline_whitespace {
+        return Some(TreeWhitespaceSpacing::Inline);
+    }
+
+    None
+}
+
+/// Return one raw JSX space token that matches the configured quote style.
+fn tree_raw_jsx_space_token(context: &DestackFormatContext<'_>) -> &'static str {
+    match context.options.quote_style {
+        QuoteStyle::Single => "{' '}",
+        QuoteStyle::Double | QuoteStyle::Semantic => "{\" \"}",
+    }
+}
+
+/// Emit one JSX whitespace separator that stays inline in flat mode.
+fn write_tree_jsx_whitespace_separator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    let raw_space = token(tree_raw_jsx_space_token(f.context()));
+    write!(
+        f,
+        [
+            if_group_breaks(&format_args![raw_space, soft_line_break()]),
+            if_group_fits_on_line(&space())
+        ]
+    )
 }
 
 /// Return whether one tree child is a multiline tree expression in source.
@@ -339,6 +462,7 @@ fn tree_child_is_multiline_tree_expression(
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let value_id = tree_child_value_id(context.tree, argument_id);
+    let value_id = transparent_inner_expression(context, value_id);
     matches!(
         context.tree.get(value_id),
         Expression::TreeExpression { .. }
@@ -383,114 +507,92 @@ fn format_tree_children_fill<'ast>(
         .filter(|element_id| tree_child_is_fill_visible(f.context(), *element_id))
         .collect::<Vec<_>>();
     if inline_elements.is_empty() {
+        let spacing = tree_whitespace_run_spacing(f.context(), elements);
+        if let Some(spacing) = spacing {
+            match spacing {
+                TreeWhitespaceSpacing::Newline => write!(f, [hard_line_break()])?,
+                TreeWhitespaceSpacing::Inline => write_tree_jsx_whitespace_separator(f)?,
+            }
+        }
+
         return Ok(());
     }
 
-    let separators = tree_fill_separators(f.context(), &inline_elements);
-    let braced_whitespace_flags = inline_elements
-        .iter()
-        .map(|element_id| {
-            tree_text_is_whitespace_only(f.context(), *element_id)
-                .is_some_and(|(is_whitespace_only, _)| is_whitespace_only)
-                && tree_argument_is_wrapped_in_braces(f.context(), *element_id)
+    let first_inline_element_id = inline_elements.first().copied();
+    let last_inline_element_id = inline_elements.last().copied();
+    let first_inline_index = first_inline_element_id
+        .and_then(|element_id| {
+            elements
+                .iter()
+                .position(|candidate| *candidate == element_id)
         })
-        .collect::<Vec<_>>();
-    let keep_expression_whitespace_flags = inline_elements
-        .iter()
-        .enumerate()
-        .map(|(index, _)| {
-            if !braced_whitespace_flags[index] {
-                return false;
-            }
+        .unwrap_or(0);
+    let last_inline_index = last_inline_element_id
+        .and_then(|element_id| {
+            elements
+                .iter()
+                .rposition(|candidate| *candidate == element_id)
+        })
+        .unwrap_or(elements.len().saturating_sub(1));
 
-            let previous_forces_break = separators[index].1;
-            let next_forces_break = separators
-                .get(index + 1)
-                .is_some_and(|(_, force_break)| *force_break);
-            let previous_is_multiline_tree = index
-                .checked_sub(1)
-                .and_then(|previous_index| inline_elements.get(previous_index).copied())
-                .is_some_and(|argument_id| {
-                    tree_child_is_multiline_tree_expression(f.context(), argument_id)
-                });
-            let next_is_multiline_tree =
-                inline_elements
-                    .get(index + 1)
-                    .copied()
-                    .is_some_and(|argument_id| {
-                        tree_child_is_multiline_tree_expression(f.context(), argument_id)
-                    });
+    let prefix_spacing = tree_whitespace_run_spacing(f.context(), &elements[..first_inline_index]);
+    let suffix_spacing =
+        tree_whitespace_run_spacing(f.context(), &elements[last_inline_index + 1..]);
+    let prefix_has_boundary_newline = first_inline_element_id
+        .and_then(|element_id| tree_text_boundary_newline_flags(f.context(), element_id))
+        .is_some_and(|(leading_has_newline, _)| leading_has_newline);
+    let suffix_has_boundary_newline = last_inline_element_id
+        .and_then(|element_id| tree_text_boundary_newline_flags(f.context(), element_id))
+        .is_some_and(|(_, trailing_has_newline)| trailing_has_newline);
 
-            previous_forces_break
-                || next_forces_break
-                || previous_is_multiline_tree
-                || next_is_multiline_tree
-        })
-        .collect::<Vec<_>>();
-    let tree_expression_flags = inline_elements
-        .iter()
-        .map(|argument_id| {
-            let value_id = tree_child_value_id(f.context().tree, *argument_id);
-            matches!(
-                f.context().tree.get(value_id),
-                Expression::TreeExpression { .. }
-            )
-        })
-        .collect::<Vec<_>>();
+    let separators = tree_fill_separators(f.context(), elements, &inline_elements);
+
+    if let Some(spacing) = prefix_spacing {
+        match spacing {
+            TreeWhitespaceSpacing::Newline => write!(f, [hard_line_break()])?,
+            TreeWhitespaceSpacing::Inline => write_tree_jsx_whitespace_separator(f)?,
+        }
+    } else if prefix_has_boundary_newline {
+        write!(f, [hard_line_break()])?;
+    }
 
     let mut fill = f.fill();
     for (index, element_id) in inline_elements.iter().enumerate() {
-        let (should_insert_space_inline, force_break) = separators[index];
+        let separator_kind = separators[index];
         let separator = format_with(|f| {
             if index == 0 {
                 return Ok(());
             }
 
-            if force_break {
-                write!(f, [hard_line_break()])?;
-            } else if should_insert_space_inline {
-                write!(f, [soft_line_break_or_space()])?;
-            } else {
-                write!(f, [token("")])?;
+            match separator_kind {
+                TreeFillSeparator::None => write!(f, [token("")])?,
+                TreeFillSeparator::InlineWhitespace => write_tree_jsx_whitespace_separator(f)?,
+                TreeFillSeparator::HardBreak => write!(f, [hard_line_break()])?,
             }
 
             Ok(())
         });
 
-        let is_braced_whitespace = braced_whitespace_flags[index];
-        if is_braced_whitespace {
-            let keep_expression_whitespace = keep_expression_whitespace_flags[index];
-            let whitespace_argument_id = *element_id;
-            let whitespace_entry = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                if keep_expression_whitespace {
-                    let value_id = tree_child_value_id(f.context().tree, whitespace_argument_id);
-                    write!(f, [token("{"), value_id, token("}"), hard_line_break()])?;
-                } else {
-                    write!(f, [space()])?;
-                }
-
-                Ok(())
-            });
-            fill.entry(&separator, &whitespace_entry);
-        } else {
-            let entry = TreeExpressionArgument {
+        fill.entry(
+            &separator,
+            &TreeExpressionArgument {
                 argument_id: *element_id,
-            };
-            let previous_keeps_expression_whitespace =
-                index.checked_sub(1).is_some_and(|previous_index| {
-                    braced_whitespace_flags[previous_index]
-                        && keep_expression_whitespace_flags[previous_index]
-                });
-            if tree_expression_flags[index] && previous_keeps_expression_whitespace {
-                let expanded_entry = group(&entry).should_expand(true);
-                fill.entry(&separator, &expanded_entry);
-            } else {
-                fill.entry(&separator, &entry);
-            }
-        }
+            },
+        );
     }
 
-    fill.finish()
+    fill.finish()?;
+
+    if let Some(spacing) = suffix_spacing {
+        match spacing {
+            TreeWhitespaceSpacing::Newline => write!(f, [hard_line_break()])?,
+            TreeWhitespaceSpacing::Inline => write_tree_jsx_whitespace_separator(f)?,
+        }
+    } else if suffix_has_boundary_newline {
+        write!(f, [hard_line_break()])?;
+    }
+
+    Ok(())
 }
 
 /// Format tree children using the selected layout rules.
