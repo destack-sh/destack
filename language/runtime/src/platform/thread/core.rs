@@ -94,6 +94,39 @@ pub(crate) fn timeout_from_ns(timeoutns: u64) -> Option<Duration> {
     Some(Duration::from_nanos(timeoutns))
 }
 
+/// Convert one address argument into one checked aligned u32 word pointer.
+#[allow(dead_code)]
+pub(crate) fn checked_u32_word_pointer(address: u64, field: &str) -> RuntimeResult<*const u32> {
+    // reject null addresses explicitly
+    if address == 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "address must not be zero",
+        ))
+        .boxed());
+    }
+
+    // reject misaligned futex or wait-on-address words
+    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "address must be aligned to 4 bytes",
+        ))
+        .boxed());
+    }
+
+    // reject values that do not fit the host pointer width
+    let address = usize::try_from(address).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "address exceeds host pointer width",
+        ))
+        .boxed()
+    })?;
+
+    Ok(address as *const u32)
+}
+
 /// Canonical owner identifier for one host thread.
 #[cfg(any(unix, windows))]
 #[allow(dead_code)]
@@ -107,7 +140,7 @@ pub(crate) type ThreadOwnerId = std::thread::ThreadId;
 #[cfg(unix)]
 #[allow(dead_code)]
 pub(crate) fn current_thread_owner_id() -> ThreadOwnerId {
-    unsafe { libc::pthread_self() as usize as u64 }
+    unsafe { libc::pthread_self() as u64 }
 }
 
 /// Return the current host thread owner identifier.

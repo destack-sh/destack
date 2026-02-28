@@ -52,6 +52,18 @@ fn ipv6_multicast_interface(interface_index: u32) -> RuntimeResult<Ipv6Multicast
     }
 }
 
+/// Convert one host timeval timeout payload into milliseconds.
+fn timeout_millis_from_timeval(timeout: libc::timeval) -> u32 {
+    // convert seconds and micros with signed-host safety
+    let seconds = u64::try_from(timeout.tv_sec)
+        .unwrap_or(0)
+        .saturating_mul(1_000);
+    let millis = u64::try_from(timeout.tv_usec).unwrap_or(0) / 1_000;
+
+    // clamp to binding width
+    seconds.saturating_add(millis).min(u32::MAX as u64) as u32
+}
+
 /// Build one IPv6 sockaddr-storage payload for multicast source filtering.
 #[cfg(target_os = "linux")]
 fn ipv6_sockaddr_storage(address: Ipv6Addr) -> libc::sockaddr_storage {
@@ -1348,10 +1360,8 @@ pub(crate) unsafe fn destack_net_get_read_timeout(
         return Err(RuntimeError::from(PlatformError::io("getsockopt failed".to_string())).boxed());
     }
 
-    let seconds = (timeout.tv_sec as u64).saturating_mul(1_000);
-    let millis = (timeout.tv_usec as u64) / 1_000;
     unsafe {
-        *out = (seconds.saturating_add(millis)).min(u32::MAX as u64) as u32;
+        *out = timeout_millis_from_timeval(timeout);
     }
 
     Ok(())
@@ -1403,10 +1413,8 @@ pub(crate) unsafe fn destack_net_get_write_timeout(
         return Err(RuntimeError::from(PlatformError::io("getsockopt failed".to_string())).boxed());
     }
 
-    let seconds = (timeout.tv_sec as u64).saturating_mul(1_000);
-    let millis = (timeout.tv_usec as u64) / 1_000;
     unsafe {
-        *out = (seconds.saturating_add(millis)).min(u32::MAX as u64) as u32;
+        *out = timeout_millis_from_timeval(timeout);
     }
 
     Ok(())

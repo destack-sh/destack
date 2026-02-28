@@ -496,16 +496,10 @@ pub(crate) unsafe fn destack_fs_statx(
                 }
                 let stat = unsafe { stat.assume_init() };
 
-                let atime_ns = (stat.st_atime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_atime_nsec as u64);
+                let atime_ns = nanos_from_secs_and_nanos(stat.st_atime, stat.st_atime_nsec);
                 let btime_ns = 0;
-                let ctime_ns = (stat.st_ctime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_ctime_nsec as u64);
-                let mtime_ns = (stat.st_mtime as u64)
-                    .saturating_mul(1_000_000_000)
-                    .saturating_add(stat.st_mtime_nsec as u64);
+                let ctime_ns = nanos_from_secs_and_nanos(stat.st_ctime, stat.st_ctime_nsec);
+                let mtime_ns = nanos_from_secs_and_nanos(stat.st_mtime, stat.st_mtime_nsec);
 
                 unsafe {
                     *out = Statx {
@@ -522,8 +516,8 @@ pub(crate) unsafe fn destack_fs_statx(
                         rdev_major: ((stat.st_rdev >> 8) & 0xfff) as u32,
                         rdev_minor: ((stat.st_rdev & 0xff) | ((stat.st_rdev >> 12) & 0xfff00))
                             as u32,
-                        size: FileSize(stat.st_size as u64),
-                        blocks: stat.st_blocks as u64,
+                        size: FileSize(stat_u64(stat.st_size)),
+                        blocks: stat_u64(stat.st_blocks),
                         atime_ns,
                         btime_ns,
                         ctime_ns,

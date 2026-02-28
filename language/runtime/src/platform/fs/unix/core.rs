@@ -244,7 +244,7 @@ where
 }
 
 /// Convert a stat numeric field into a u64.
-fn stat_u64<T>(value: T) -> u64
+pub(super) fn stat_u64<T>(value: T) -> u64
 where
     T: TryInto<u64>,
 {
@@ -253,7 +253,14 @@ where
 
 /// Return nanosecond timestamps for stat fields.
 /// Build a nanosecond timestamp from seconds + nanoseconds.
-pub(super) fn nanos_from_secs_and_nanos(seconds: u64, nanos: u64) -> u64 {
+pub(super) fn nanos_from_secs_and_nanos<Seconds, Nanos>(seconds: Seconds, nanos: Nanos) -> u64
+where
+    Seconds: TryInto<u64>,
+    Nanos: TryInto<u64>,
+{
+    let seconds = seconds.try_into().unwrap_or(0);
+    let nanos = nanos.try_into().unwrap_or(0);
+
     seconds.saturating_mul(1_000_000_000).saturating_add(nanos)
 }
 

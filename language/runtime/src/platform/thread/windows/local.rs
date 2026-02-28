@@ -139,7 +139,7 @@ pub(crate) unsafe fn destack_thread_local_get(
         ));
     }
 
-    let value = value_ptr as usize as u64;
+    let value = value_ptr as u64;
     unsafe {
         *out = value;
     }
@@ -178,7 +178,14 @@ pub(crate) unsafe fn destack_thread_local_set(
     )?;
 
     // write this thread-local value
-    let value_ptr = argument_value as usize as *mut std::ffi::c_void;
+    let value = usize::try_from(argument_value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "argument_value",
+            "value exceeds host pointer width",
+        ))
+        .boxed()
+    })?;
+    let value_ptr = value as *mut std::ffi::c_void;
     let rc = unsafe { TlsSetValue(resource.key, value_ptr) };
     if rc == 0 {
         return Err(core_platform::io_error("TlsSetValue"));
