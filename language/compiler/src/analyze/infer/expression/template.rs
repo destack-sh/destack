@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
-use crate::analyze::common::{InferContext, ModuleTypeView};
+use crate::analyze::common::{InferContext, ModuleTypeView, NormalizationMode, RelationMode};
 use crate::{AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     Argument, Constraint, Expression, InferOrigin, InferScope, InferVarId, LocalNodeId,
@@ -366,6 +366,7 @@ impl Compiler {
         }
 
         // match each span against the literal segments
+        let mut repeated_span_values = HashMap::new();
         let mut visited = HashSet::new();
         for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
             if !self.infer_template_span_from_string_value(
@@ -373,6 +374,7 @@ impl Compiler {
                 *span_ty_id,
                 span_value,
                 &mut ctx.reborrow(),
+                &mut repeated_span_values,
                 &mut visited,
             ) {
                 break;
@@ -408,13 +410,17 @@ impl Compiler {
         }
 
         // infer spans pairwise
+        let mut repeated_span_types = HashMap::new();
         for (span_ty_id, argument_span) in spans.iter().zip(argument_spans.iter()) {
-            self.infer_template_span_from_template_argument(
+            if !self.infer_template_span_from_template_argument(
                 context,
                 *span_ty_id,
                 *argument_span,
                 &mut ctx.reborrow(),
-            );
+                &mut repeated_span_types,
+            ) {
+                break;
+            }
         }
     }
 
@@ -425,6 +431,7 @@ impl Compiler {
         span_ty_id: LocalTypeId,
         span_value: &str,
         ctx: &mut InferContext<'_>,
+        repeated_span_values: &mut HashMap<LocalTypeId, StringId>,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span inference target when possible
@@ -442,6 +449,20 @@ impl Compiler {
                 visited,
             );
         };
+        let span_value_id = self.program.strings.intern(span_value);
+        if let Some(previous_span_value_id) = repeated_span_values.get(&target.infer_ty_id) {
+            if *previous_span_value_id != span_value_id {
+                self.report_template_inference_unassignable(
+                    ctx.module_type_view(),
+                    context.argument_id,
+                    context.param_ty_id,
+                    context.argument_ty_id,
+                );
+                return false;
+            }
+        } else {
+            repeated_span_values.insert(target.infer_ty_id, span_value_id);
+        }
 
         // reject spans that violate the constraint
         if let Some(constraint_id) = target.constraint_id
@@ -485,7 +506,8 @@ impl Compiler {
         span_ty_id: LocalTypeId,
         argument_span: LocalTypeId,
         ctx: &mut InferContext<'_>,
-    ) {
+        repeated_span_types: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> bool {
         // resolve the span inference target when possible
         let target = self.template_span_inference_target(
             &mut ctx.reborrow(),
@@ -494,7 +516,26 @@ impl Compiler {
             context.source_node,
         );
         let Some(target) = target else {
-            return;
+            return true;
+        };
+
+        if let Some(previous_argument_span) = repeated_span_types.get(&target.infer_ty_id).copied()
+        {
+            if !self.template_inference_repeated_span_types_match(
+                &mut ctx.reborrow(),
+                previous_argument_span,
+                argument_span,
+            ) {
+                self.report_template_inference_unassignable(
+                    ctx.module_type_view(),
+                    context.argument_id,
+                    context.param_ty_id,
+                    context.argument_ty_id,
+                );
+                return false;
+            }
+        } else {
+            repeated_span_types.insert(target.infer_ty_id, argument_span);
         };
 
         // validate argument spans against constraints
@@ -511,7 +552,7 @@ impl Compiler {
                 context.param_ty_id,
                 context.argument_ty_id,
             );
-            return;
+            return false;
         }
 
         // record inference bindings for the span
@@ -519,6 +560,42 @@ impl Compiler {
             left: target.infer_ty_id,
             right: argument_span,
         });
+        true
+    }
+
+    /// Return true when repeated template span argument types match in both directions.
+    fn template_inference_repeated_span_types_match(
+        &self,
+        ctx: &mut InferContext<'_>,
+        left_type_id: LocalTypeId,
+        right_type_id: LocalTypeId,
+    ) -> bool {
+        let left_type_id = self.normalize_type_with_relation(
+            &mut ctx.type_context_reborrow(),
+            left_type_id,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
+        let right_type_id = self.normalize_type_with_relation(
+            &mut ctx.type_context_reborrow(),
+            right_type_id,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
+        let left_to_right = self.is_type_assignable(
+            &mut ctx.type_context_reborrow(),
+            left_type_id,
+            right_type_id,
+        ) != Assignability::NotAssignable;
+        if !left_to_right {
+            return false;
+        }
+
+        self.is_type_assignable(
+            &mut ctx.type_context_reborrow(),
+            right_type_id,
+            left_type_id,
+        ) != Assignability::NotAssignable
     }
 
     /// Infer the full template literal into a single span.
