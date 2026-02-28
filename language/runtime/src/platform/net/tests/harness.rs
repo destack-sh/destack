@@ -421,10 +421,8 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let service = port.to_string();
                 self.harness_value_vm(platform_net::ResolveQueryVm {
-                    has_host: true,
-                    host: host_from_vm(context, host),
-                    has_service: true,
-                    service: host_from_vm(context, &service),
+                    host: Some(host_from_vm(context, host)),
+                    service: Some(host_from_vm(context, &service)),
                     family,
                     flags,
                 })
@@ -432,10 +430,8 @@ impl<'call> NetHarnessContext<'call> {
             None => {
                 let service = port.to_string();
                 self.harness_value(ResolveQuery {
-                    has_host: true,
-                    host: NativeStringRef::from(host),
-                    has_service: true,
-                    service: NativeStringRef::from(service.as_str()),
+                    host: Some(NativeStringRef::from(host)),
+                    service: Some(NativeStringRef::from(service.as_str())),
                     family,
                     flags,
                 })
@@ -592,7 +588,7 @@ impl<'call> NetHarnessContext<'call> {
             HarnessValue::Native(value) => (
                 value.bytes,
                 value.fds.len,
-                value.has_credentials,
+                value.credentials.is_some(),
                 value.recv_flags.0,
                 value.payload_truncated,
                 value.control_truncated,
@@ -600,7 +596,7 @@ impl<'call> NetHarnessContext<'call> {
             HarnessValue::Vm(value) => (
                 value.bytes,
                 value.fds.len,
-                value.has_credentials,
+                value.credentials.is_some(),
                 value.recv_flags.0,
                 value.payload_truncated,
                 value.control_truncated,
@@ -614,8 +610,8 @@ impl<'call> NetHarnessContext<'call> {
         value: HarnessValue<SocketRecvMessage, platform_net::SocketRecvMessageVm>,
     ) -> (bool, u32) {
         match value {
-            HarnessValue::Native(value) => (value.has_address, value.control.0.len),
-            HarnessValue::Vm(value) => (value.has_address, value.control.0.len),
+            HarnessValue::Native(value) => (value.address.is_some(), value.control.0.len),
+            HarnessValue::Vm(value) => (value.address.is_some(), value.control.0.len),
         }
     }
 
@@ -625,20 +621,8 @@ impl<'call> NetHarnessContext<'call> {
         value: HarnessValue<SocketRecvMessage, platform_net::SocketRecvMessageVm>,
     ) -> Option<HarnessValue<SocketAddress, SocketAddressVm>> {
         match value {
-            HarnessValue::Native(value) => {
-                if value.has_address {
-                    Some(self.harness_value(value.address))
-                } else {
-                    None
-                }
-            }
-            HarnessValue::Vm(value) => {
-                if value.has_address {
-                    Some(self.harness_value_vm(value.address))
-                } else {
-                    None
-                }
-            }
+            HarnessValue::Native(value) => value.address.map(|address| self.harness_value(address)),
+            HarnessValue::Vm(value) => value.address.map(|address| self.harness_value_vm(address)),
         }
     }
 
@@ -712,39 +696,28 @@ impl<'call> NetHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let message = SocketSendMessageVm {
-                    has_address: false,
-                    address: SocketAddressVm {
-                        family: 0,
-                        length: 0,
-                        bytes: VmArray::from_bytes(context, &[]),
-                    },
+                    address: None,
                     fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
                     control: platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
                         context,
                         &[],
                     )),
                     flags: SocketMessageFlags(flags),
-                    has_credentials,
-                    credentials: SocketCredentialsVm {
-                        pid: 0,
-                        uid: 0,
-                        gid: 0,
+                    credentials: if has_credentials {
+                        Some(SocketCredentialsVm {
+                            pid: 0,
+                            uid: 0,
+                            gid: 0,
+                        })
+                    } else {
+                        None
                     },
                 };
                 Ok(self.harness_value_vm(message))
             }
             None => {
                 let message = SocketSendMessage {
-                    has_address: false,
-                    address: SocketAddress {
-                        family: 0,
-                        length: 0,
-                        bytes: NativeArray {
-                            data: std::ptr::null_mut(),
-                            len: 0,
-                            capacity: 0,
-                        },
-                    },
+                    address: None,
                     fds: NativeArray {
                         data: std::ptr::null_mut(),
                         len: 0,
@@ -756,11 +729,14 @@ impl<'call> NetHarnessContext<'call> {
                         capacity: 0,
                     }),
                     flags: SocketMessageFlags(flags),
-                    has_credentials,
-                    credentials: SocketCredentials {
-                        pid: 0,
-                        uid: 0,
-                        gid: 0,
+                    credentials: if has_credentials {
+                        Some(SocketCredentials {
+                            pid: 0,
+                            uid: 0,
+                            gid: 0,
+                        })
+                    } else {
+                        None
                     },
                 };
                 Ok(self.harness_value(message))
@@ -789,18 +765,20 @@ impl<'call> NetHarnessContext<'call> {
                     HarnessValue::Vm(address) => address,
                 };
                 let message = SocketSendMessageVm {
-                    has_address: true,
-                    address,
+                    address: Some(address),
                     fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
                     control: platform_net::SocketControlBufferAbi::<VmAbi>(VmArray::from_bytes(
                         context, control,
                     )),
                     flags: SocketMessageFlags(flags),
-                    has_credentials,
-                    credentials: SocketCredentialsVm {
-                        pid: 0,
-                        uid: 0,
-                        gid: 0,
+                    credentials: if has_credentials {
+                        Some(SocketCredentialsVm {
+                            pid: 0,
+                            uid: 0,
+                            gid: 0,
+                        })
+                    } else {
+                        None
                     },
                 };
                 Ok(self.harness_value_vm(message))
@@ -817,8 +795,7 @@ impl<'call> NetHarnessContext<'call> {
                     }
                 };
                 let message = SocketSendMessage {
-                    has_address: true,
-                    address,
+                    address: Some(address),
                     fds: NativeArray {
                         data: std::ptr::null_mut(),
                         len: 0,
@@ -828,11 +805,14 @@ impl<'call> NetHarnessContext<'call> {
                         self.call_context.store_array(control.to_vec()),
                     ),
                     flags: SocketMessageFlags(flags),
-                    has_credentials,
-                    credentials: SocketCredentials {
-                        pid: 0,
-                        uid: 0,
-                        gid: 0,
+                    credentials: if has_credentials {
+                        Some(SocketCredentials {
+                            pid: 0,
+                            uid: 0,
+                            gid: 0,
+                        })
+                    } else {
+                        None
                     },
                 };
                 Ok(self.harness_value(message))
@@ -857,23 +837,13 @@ impl<'call> NetHarnessContext<'call> {
                 for buffer in buffers {
                     let payload = VmSlice::from_bytes(context, buffer);
                     let message = SocketSendMessageVm {
-                        has_address: false,
-                        address: SocketAddressVm {
-                            family: 0,
-                            length: 0,
-                            bytes: VmArray::from_bytes(context, &[]),
-                        },
+                        address: None,
                         fds: VmArray::from_values(context, &[])?,
                         control: platform_net::SocketControlBufferAbi::<VmAbi>(
                             VmArray::from_bytes(context, &[]),
                         ),
                         flags: SocketMessageFlags(send_flags),
-                        has_credentials: false,
-                        credentials: SocketCredentialsVm {
-                            pid: 0,
-                            uid: 0,
-                            gid: 0,
-                        },
+                        credentials: None,
                     };
                     entries.push(platform_net::SocketSendBatchEntryVm { payload, message });
                 }
@@ -891,16 +861,7 @@ impl<'call> NetHarnessContext<'call> {
                     .map(|payload| SocketSendBatchEntry {
                         payload: *payload,
                         message: SocketSendMessage {
-                            has_address: false,
-                            address: SocketAddress {
-                                family: 0,
-                                length: 0,
-                                bytes: NativeArray {
-                                    data: std::ptr::null_mut(),
-                                    len: 0,
-                                    capacity: 0,
-                                },
-                            },
+                            address: None,
                             fds: NativeArray {
                                 data: std::ptr::null_mut(),
                                 len: 0,
@@ -914,12 +875,7 @@ impl<'call> NetHarnessContext<'call> {
                                 },
                             ),
                             flags: SocketMessageFlags(send_flags),
-                            has_credentials: false,
-                            credentials: SocketCredentials {
-                                pid: 0,
-                                uid: 0,
-                                gid: 0,
-                            },
+                            credentials: None,
                         },
                     })
                     .collect::<Vec<_>>();

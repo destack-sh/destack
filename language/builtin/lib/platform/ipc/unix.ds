@@ -4,8 +4,8 @@ import { SocketHandle, TransferredHandle } from "../resource/index.ds";
 
 /// Peer credentials for one unix-domain socket endpoint.
 export struct UnixPeerCredentials {
-    /// Peer process identifier.
-    pid: uint32;
+    /// Peer process identifier when available.
+    pid: uint32 | void;
     /// Peer user identifier.
     uid: uint32;
     /// Peer group identifier.
@@ -19,7 +19,7 @@ export struct UnixReceiveAncillary {
     /// Received transferred handles.
     handles: Array<TransferredHandle>;
     /// Peer credentials when available.
-    credentials: UnixPeerCredentials;
+    credentials: UnixPeerCredentials | void;
 }
 
 /// Unix ancillary bindings.

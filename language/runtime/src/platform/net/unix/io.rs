@@ -495,16 +495,15 @@ pub(crate) unsafe fn destack_net_recv_msg(
     }
 
     // decode source address payload
-    let has_address = message.msg_namelen > 0;
-    let address = if has_address {
+    let address = if message.msg_namelen > 0 {
         let storage = unsafe { address_storage.assume_init() };
-        socket_address_raw_from_storage(context, &storage, message.msg_namelen)?
+        Some(socket_address_raw_from_storage(
+            context,
+            &storage,
+            message.msg_namelen,
+        )?)
     } else {
-        SocketAddress {
-            family: 0,
-            length: 0,
-            bytes: context.store_array(Vec::new()),
-        }
+        None
     };
 
     // decode raw control payload bytes
@@ -518,27 +517,15 @@ pub(crate) unsafe fn destack_net_recv_msg(
 
     // build the response payload
     let fds = context.store_array(handles);
-    let has_credentials = credentials.is_some();
-    let credentials = if let Some(credentials) = credentials {
-        credentials
-    } else {
-        SocketCredentials {
-            pid: 0,
-            uid: 0,
-            gid: 0,
-        }
-    };
     unsafe {
         *out = SocketRecvMessage {
             bytes: rc as u64,
-            has_address,
             address,
             recv_flags,
             payload_truncated,
             control_truncated,
             control: SocketControlBufferAbi(control),
             fds,
-            has_credentials,
             credentials,
         };
     }
@@ -588,7 +575,7 @@ pub(crate) unsafe fn destack_net_send_msg(
 
     // decode raw control bytes
     let raw_control = unsafe { message.control.0.as_slice()? };
-    if !raw_control.is_empty() && (!raw_fds.is_empty() || message.has_credentials) {
+    if !raw_control.is_empty() && (!raw_fds.is_empty() || message.credentials.is_some()) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "message.control",
             "raw control cannot be combined with fds or explicit credentials",
@@ -597,7 +584,7 @@ pub(crate) unsafe fn destack_net_send_msg(
     }
 
     // validate credentials support
-    if message.has_credentials {
+    if message.credentials.is_some() {
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         {
             return Err(
@@ -647,7 +634,7 @@ pub(crate) unsafe fn destack_net_send_msg(
             typed_control_len.saturating_add(unsafe { libc::CMSG_SPACE(fd_bytes as u32) } as usize);
     }
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    if raw_control.is_empty() && message.has_credentials {
+    if raw_control.is_empty() && message.credentials.is_some() {
         typed_control_len = typed_control_len.saturating_add(unsafe {
             libc::CMSG_SPACE(std::mem::size_of::<libc::ucred>() as u32)
         } as usize);
@@ -705,7 +692,7 @@ pub(crate) unsafe fn destack_net_send_msg(
         }
 
         #[cfg(any(target_os = "linux", target_os = "android"))]
-        if message.has_credentials {
+        if let Some(credentials) = message.credentials {
             if cmsg.is_null() {
                 return Err(
                     RuntimeError::from(PlatformError::io("missing control buffer")).boxed(),
@@ -720,17 +707,17 @@ pub(crate) unsafe fn destack_net_send_msg(
             let data = unsafe { libc::CMSG_DATA(cmsg) as *mut libc::ucred };
             unsafe {
                 *data = libc::ucred {
-                    pid: message.credentials.pid as libc::pid_t,
-                    uid: message.credentials.uid,
-                    gid: message.credentials.gid,
+                    pid: credentials.pid as libc::pid_t,
+                    uid: credentials.uid,
+                    gid: credentials.gid,
                 };
             }
         }
     }
 
     // send the message with optional explicit address routing
-    let rc = if message.has_address {
-        with_socket_address_raw(message.address, |sockaddr, length| {
+    let rc = if let Some(address) = message.address {
+        with_socket_address_raw(address, |sockaddr, length| {
             hdr.msg_name = sockaddr as *mut libc::c_void;
             hdr.msg_namelen = length;
 

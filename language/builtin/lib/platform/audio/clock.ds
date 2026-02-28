@@ -43,28 +43,20 @@ export struct AudioClockSnapshot {
     clockNs: uint64;
     /// Selected clock sample quality.
     clockQuality: AudioClockQuality;
-    /// Whether callback timestamp is available.
-    hasCallbackNs: boolean;
     /// Callback timestamp in nanoseconds when available.
-    callbackNs: uint64;
+    callbackNs: uint64 | void;
     /// Callback timestamp quality.
     callbackQuality: AudioClockQuality;
-    /// Whether ADC capture timestamp is available.
-    hasInputAdcNs: boolean;
     /// ADC capture timestamp in nanoseconds when available.
-    inputAdcNs: uint64;
+    inputAdcNs: uint64 | void;
     /// ADC capture timestamp quality.
     inputAdcQuality: AudioClockQuality;
-    /// Whether DAC presentation timestamp is available.
-    hasOutputDacNs: boolean;
     /// DAC presentation timestamp in nanoseconds when available.
-    outputDacNs: uint64;
+    outputDacNs: uint64 | void;
     /// DAC presentation timestamp quality.
     outputDacQuality: AudioClockQuality;
-    /// Whether device timeline timestamp is available.
-    hasDeviceNs: boolean;
     /// Device timeline timestamp in nanoseconds when available.
-    deviceNs: uint64;
+    deviceNs: uint64 | void;
     /// Device timeline timestamp quality.
     deviceQuality: AudioClockQuality;
     /// Runtime monotonic timestamp in nanoseconds.

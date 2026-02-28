@@ -2501,6 +2501,86 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
     }
 }
 
+/// ABI struct for InputPenState.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct InputPenState {
+    /// The pressure field.
+    pub pressure: f64,
+    /// The tangential_pressure field.
+    pub tangential_pressure: f64,
+    /// The tilt_x field.
+    pub tilt_x: f64,
+    /// The tilt_y field.
+    pub tilt_y: f64,
+    /// The twist field.
+    pub twist: f64,
+    /// The in_contact field.
+    pub in_contact: bool,
+    /// The in_range field.
+    pub in_range: bool,
+}
+
+pub type InputPenStateVm = InputPenState;
+
+impl VmAggregateCodec for InputPenState {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputPenState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_tangential_pressure =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_in_contact = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_in_range = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            pressure: field_pressure,
+            tangential_pressure: field_tangential_pressure,
+            tilt_x: field_tilt_x,
+            tilt_y: field_tilt_y,
+            twist: field_twist,
+            in_contact: field_in_contact,
+            in_range: field_in_range,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tangential_pressure, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputPointerButtonEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2653,22 +2733,8 @@ pub struct InputPointerState {
     pub buttons: u32,
     /// The modifiers field.
     pub modifiers: u32,
-    /// The has_pen_data field.
-    pub has_pen_data: bool,
-    /// The pressure field.
-    pub pressure: f64,
-    /// The tangential_pressure field.
-    pub tangential_pressure: f64,
-    /// The tilt_x field.
-    pub tilt_x: f64,
-    /// The tilt_y field.
-    pub tilt_y: f64,
-    /// The twist field.
-    pub twist: f64,
-    /// The in_contact field.
-    pub in_contact: bool,
-    /// The in_range field.
-    pub in_range: bool,
+    /// The pen field.
+    pub pen: Option<InputPenState>,
 }
 
 pub type InputPointerStateVm = InputPointerState;
@@ -2688,10 +2754,10 @@ impl VmAggregateCodec for InputPointerState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 12 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 12 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -2699,29 +2765,14 @@ impl VmAggregateCodec for InputPointerState {
         let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_modifiers = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_has_pen_data =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_tangential_pressure =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_in_contact = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_in_range = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_pen =
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             x: field_x,
             y: field_y,
             buttons: field_buttons,
             modifiers: field_modifiers,
-            has_pen_data: field_has_pen_data,
-            pressure: field_pressure,
-            tangential_pressure: field_tangential_pressure,
-            tilt_x: field_tilt_x,
-            tilt_y: field_tilt_y,
-            twist: field_twist,
-            in_contact: field_in_contact,
-            in_range: field_in_range,
+            pen: field_pen,
         })
     }
 
@@ -2734,14 +2785,7 @@ impl VmAggregateCodec for InputPointerState {
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_pen_data, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tangential_pressure, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }

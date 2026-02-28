@@ -369,15 +369,14 @@ pub(crate) unsafe fn destack_net_recv_msg(
             }
         };
 
-        let has_address = address_length > 0;
-        let address = if has_address {
-            socket_address_raw_from_storage(context, &address, address_length)?
+        let address = if address_length > 0 {
+            Some(socket_address_raw_from_storage(
+                context,
+                &address,
+                address_length,
+            )?)
         } else {
-            SocketAddress {
-                family: 0,
-                length: 0,
-                bytes: context.store_array(Vec::new()),
-            }
+            None
         };
         let recv_flags_value = if payload_truncated {
             SocketMessageFlags(recv_flags.0 | MSG_TRUNC)
@@ -389,19 +388,13 @@ pub(crate) unsafe fn destack_net_recv_msg(
         unsafe {
             *out = SocketRecvMessage {
                 bytes: bytes_received,
-                has_address,
                 address,
                 recv_flags: recv_flags_value,
                 payload_truncated,
                 control_truncated: false,
                 control: SocketControlBufferAbi(empty_control),
                 fds: empty_fds,
-                has_credentials: false,
-                credentials: SocketCredentials {
-                    pid: 0,
-                    uid: 0,
-                    gid: 0,
-                },
+                credentials: None,
             };
         }
 
@@ -467,15 +460,14 @@ pub(crate) unsafe fn destack_net_recv_msg(
     }
 
     // decode source-address payload
-    let has_address = message.namelen > 0;
-    let address = if has_address {
-        socket_address_raw_from_storage(context, &address, message.namelen)?
+    let address = if message.namelen > 0 {
+        Some(socket_address_raw_from_storage(
+            context,
+            &address,
+            message.namelen,
+        )?)
     } else {
-        SocketAddress {
-            family: 0,
-            length: 0,
-            bytes: context.store_array(Vec::new()),
-        }
+        None
     };
 
     // decode raw ancillary payload
@@ -495,19 +487,13 @@ pub(crate) unsafe fn destack_net_recv_msg(
     unsafe {
         *out = SocketRecvMessage {
             bytes: bytes_received as u64,
-            has_address,
             address,
             recv_flags,
             payload_truncated,
             control_truncated,
             control: SocketControlBufferAbi(control),
             fds,
-            has_credentials: false,
-            credentials: SocketCredentials {
-                pid: 0,
-                uid: 0,
-                gid: 0,
-            },
+            credentials: None,
         };
     }
 
@@ -608,7 +594,7 @@ pub(crate) unsafe fn destack_net_send_msg(
 
     // reject unsupported ancillary send features
     let fds = unsafe { message.fds.as_slice()? };
-    if !fds.is_empty() || message.has_credentials {
+    if !fds.is_empty() || message.credentials.is_some() {
         return Err(
             RuntimeError::from(PlatformError::not_supported("destack.net.sendMsg")).boxed(),
         );
@@ -647,8 +633,8 @@ pub(crate) unsafe fn destack_net_send_msg(
     // use send or sendto when no ancillary control payload is present
     if control.is_empty() {
         let flags = socket_flags_i32(message.flags.0, "message.flags")?;
-        let bytes_sent = if message.has_address {
-            with_socket_address_raw(message.address, |sockaddr, length| {
+        let bytes_sent = if let Some(address) = message.address {
+            with_socket_address_raw(address, |sockaddr, length| {
                 let rc = unsafe {
                     sendto(
                         socket,
@@ -710,8 +696,8 @@ pub(crate) unsafe fn destack_net_send_msg(
     let mut bytes_sent = 0u32;
 
     // send payload bytes with optional explicit destination
-    if message.has_address {
-        with_socket_address_raw(message.address, |sockaddr, length| {
+    if let Some(address) = message.address {
+        with_socket_address_raw(address, |sockaddr, length| {
             send_message.name = sockaddr as *mut SOCKADDR;
             send_message.namelen = length;
 

@@ -308,10 +308,8 @@ pub(crate) struct AudioEventRecord {
     pub(crate) status_flags: AudioStreamStatusFlags,
     /// Xrun delta for stream-related events.
     pub(crate) xrun_count_delta: u64,
-    /// Whether one stream target is attached.
-    pub(crate) has_stream: bool,
     /// Stream target when available.
-    pub(crate) stream: resource::AudioStreamHandle,
+    pub(crate) stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Build one initial stream state payload for newly opened streams.

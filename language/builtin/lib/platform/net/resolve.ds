@@ -16,14 +16,10 @@ export newtype ReverseLookupFlags = uint32;
 
 /// Host and service query payload for address resolution.
 export struct ResolveQuery {
-    /// Whether to resolve one host value.
-    hasHost: boolean;
-    /// Hostname or numeric host literal when `hasHost` is true.
-    host: string;
-    /// Whether to resolve one service value.
-    hasService: boolean;
-    /// Service name or numeric port string when `hasService` is true.
-    service: string;
+    /// Hostname or numeric host literal when provided.
+    host: string | void;
+    /// Service name or numeric port string when provided.
+    service: string | void;
     /// Requested address family filter.
     family: SocketFamily;
     /// Native resolver flags.

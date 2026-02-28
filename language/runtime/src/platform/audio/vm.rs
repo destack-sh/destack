@@ -134,11 +134,13 @@ fn event_to_vm(
         flags: value.flags,
         status_flags: value.status_flags,
         xrun_count_delta: value.xrun_count_delta,
-        has_device_id: value.has_device_id,
-        device_id: vm::StringHandle::new(
-            context.intern_string(unsafe { value.device_id.as_str()? }),
-        ),
-        has_stream: value.has_stream,
+        device_id: if let Some(device_id) = value.device_id {
+            Some(vm::StringHandle::new(
+                context.intern_string(unsafe { device_id.as_str()? }),
+            ))
+        } else {
+            None
+        },
         stream: value.stream,
     })
 }
@@ -382,16 +384,12 @@ pub(crate) fn destack_audio_stream_clock(
         stream_frames: value.stream_frames,
         clock_ns: value.clock_ns,
         clock_quality: value.clock_quality,
-        has_callback_ns: value.has_callback_ns,
         callback_ns: value.callback_ns,
         callback_quality: value.callback_quality,
-        has_input_adc_ns: value.has_input_adc_ns,
         input_adc_ns: value.input_adc_ns,
         input_adc_quality: value.input_adc_quality,
-        has_output_dac_ns: value.has_output_dac_ns,
         output_dac_ns: value.output_dac_ns,
         output_dac_quality: value.output_dac_quality,
-        has_device_ns: value.has_device_ns,
         device_ns: value.device_ns,
         device_quality: value.device_quality,
         monotonic_ns: value.monotonic_ns,

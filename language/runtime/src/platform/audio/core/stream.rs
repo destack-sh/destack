@@ -141,15 +141,28 @@ pub(crate) fn stream_timing_snapshot(
     AudioStreamTiming {
         stream_frames: state.stream_frames,
         stream_time_ns: state.last_callback_mono_ns,
-        has_input_adc_time: state.last_input_adc_ns > 0,
-        input_adc_time_ns: state.last_input_adc_ns,
-        has_output_dac_time: state.last_output_dac_ns > 0,
-        output_dac_time_ns: state.last_output_dac_ns,
-        has_callback_time_ns: state.last_callback_mono_ns > 0,
-        callback_time_ns: state.last_callback_mono_ns,
-        has_device_clock_ns: binding.runtime_capabilities.supports_hardware_timestamps
-            && device_clock_ns > 0,
-        device_clock_ns,
+        input_adc_time_ns: if state.last_input_adc_ns > 0 {
+            Some(state.last_input_adc_ns)
+        } else {
+            None
+        },
+        output_dac_time_ns: if state.last_output_dac_ns > 0 {
+            Some(state.last_output_dac_ns)
+        } else {
+            None
+        },
+        callback_time_ns: if state.last_callback_mono_ns > 0 {
+            Some(state.last_callback_mono_ns)
+        } else {
+            None
+        },
+        device_clock_ns: if binding.runtime_capabilities.supports_hardware_timestamps
+            && device_clock_ns > 0
+        {
+            Some(device_clock_ns)
+        } else {
+            None
+        },
         monotonic_clock_ns: context.runtime().time.mono_nanos(),
         drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,

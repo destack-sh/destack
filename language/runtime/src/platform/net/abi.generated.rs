@@ -1050,14 +1050,10 @@ impl VmAggregateCodec for PacketRingOptions {
 /// ABI struct for ResolveQuery.
 #[repr(C)]
 pub struct ResolveQueryAbi<A: BindingAbi> {
-    /// The has_host field.
-    pub has_host: bool,
     /// The host field.
-    pub host: A::String,
-    /// The has_service field.
-    pub has_service: bool,
+    pub host: Option<A::String>,
     /// The service field.
-    pub service: A::String,
+    pub service: Option<A::String>,
     /// The family field.
     pub family: SocketFamily,
     /// The flags field.
@@ -1103,27 +1099,23 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
-        let field_has_host = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_host =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_has_service = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_service =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_family =
-            <SocketFamily as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <SocketFamily as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_flags =
-            <ResolveFlags as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <ResolveFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
-            has_host: field_has_host,
             host: field_host,
-            has_service: field_has_service,
             service: field_service,
             family: field_family,
             flags: field_flags,
@@ -1135,10 +1127,13 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_host, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.host, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_service, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.host, context,
+            )?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.service,
+                context,
+            )?,
             <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?,
             <ResolveFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
         ];
@@ -1696,10 +1691,8 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
 pub struct SocketRecvMessageAbi<A: BindingAbi> {
     /// The bytes field.
     pub bytes: u64,
-    /// The has_address field.
-    pub has_address: bool,
     /// The address field.
-    pub address: platform_net::SocketAddressAbi<A>,
+    pub address: Option<platform_net::SocketAddressAbi<A>>,
     /// The recv_flags field.
     pub recv_flags: SocketMessageFlags,
     /// The payload_truncated field.
@@ -1710,10 +1703,8 @@ pub struct SocketRecvMessageAbi<A: BindingAbi> {
     pub control: platform_net::SocketControlBufferAbi<A>,
     /// The fds field.
     pub fds: A::Array<resource::TransferredHandle>,
-    /// The has_credentials field.
-    pub has_credentials: bool,
     /// The credentials field.
-    pub credentials: SocketCredentials,
+    pub credentials: Option<SocketCredentials>,
 }
 
 pub type SocketRecvMessage = SocketRecvMessageAbi<NativeAbi>;
@@ -1755,43 +1746,40 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 10 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
         let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_has_address = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_address =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<SocketAddressVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_recv_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_payload_truncated =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_control_truncated =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_control =
-            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_fds =
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_credentials =
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_with_context(
                 context, slots[7],
             )?;
-        let field_has_credentials =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_credentials =
-            <SocketCredentialsVm as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         Ok(Self {
             bytes: field_bytes,
-            has_address: field_has_address,
             address: field_address,
             recv_flags: field_recv_flags,
             payload_truncated: field_payload_truncated,
             control_truncated: field_control_truncated,
             control: field_control,
             fds: field_fds,
-            has_credentials: field_has_credentials,
             credentials: field_credentials,
         })
     }
@@ -1802,8 +1790,10 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_address, context)?,
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
+                self.address,
+                context,
+            )?,
             <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
                 self.recv_flags,
                 context,
@@ -1817,8 +1807,7 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::encode_with_context(
                 self.fds, context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_credentials, context)?,
-            <SocketCredentialsVm as VmAggregateCodec>::encode_with_context(
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::encode_with_context(
                 self.credentials,
                 context,
             )?,
@@ -1907,20 +1896,16 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
 /// ABI struct for SocketSendMessage.
 #[repr(C)]
 pub struct SocketSendMessageAbi<A: BindingAbi> {
-    /// The has_address field.
-    pub has_address: bool,
     /// The address field.
-    pub address: platform_net::SocketAddressAbi<A>,
+    pub address: Option<platform_net::SocketAddressAbi<A>>,
     /// The fds field.
     pub fds: A::Array<resource::TransferredHandle>,
     /// The control field.
     pub control: platform_net::SocketControlBufferAbi<A>,
     /// The flags field.
     pub flags: SocketMessageFlags,
-    /// The has_credentials field.
-    pub has_credentials: bool,
     /// The credentials field.
-    pub credentials: SocketCredentials,
+    pub credentials: Option<SocketCredentials>,
 }
 
 pub type SocketSendMessage = SocketSendMessageAbi<NativeAbi>;
@@ -1962,35 +1947,32 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
-        let field_has_address = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_address =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<SocketAddressVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_fds =
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+                context, slots[1],
             )?;
         let field_control =
-            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_has_credentials =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_credentials =
-            <SocketCredentialsVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
         Ok(Self {
-            has_address: field_has_address,
             address: field_address,
             fds: field_fds,
             control: field_control,
             flags: field_flags,
-            has_credentials: field_has_credentials,
             credentials: field_credentials,
         })
     }
@@ -2000,8 +1982,10 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_address, context)?,
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
+                self.address,
+                context,
+            )?,
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::encode_with_context(
                 self.fds, context,
             )?,
@@ -2010,8 +1994,7 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
                 context,
             )?,
             <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_credentials, context)?,
-            <SocketCredentialsVm as VmAggregateCodec>::encode_with_context(
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::encode_with_context(
                 self.credentials,
                 context,
             )?,
@@ -2451,14 +2434,10 @@ pub struct NetInterfaceReplayRecord {
 /// Replay struct for ResolveQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ResolveQueryReplayRecord {
-    /// The has_host field.
-    pub has_host: bool,
     /// The host field.
-    pub host: String,
-    /// The has_service field.
-    pub has_service: bool,
+    pub host: Option<String>,
     /// The service field.
-    pub service: String,
+    pub service: Option<String>,
     /// The family field.
     pub family: SocketFamily,
     /// The flags field.
@@ -2529,10 +2508,8 @@ pub struct SocketRecvFromReplayRecord {
 pub struct SocketRecvMessageReplayRecord {
     /// The bytes field.
     pub bytes: u64,
-    /// The has_address field.
-    pub has_address: bool,
     /// The address field.
-    pub address: SocketAddressReplayRecord,
+    pub address: Option<SocketAddressReplayRecord>,
     /// The recv_flags field.
     pub recv_flags: SocketMessageFlags,
     /// The payload_truncated field.
@@ -2543,10 +2520,8 @@ pub struct SocketRecvMessageReplayRecord {
     pub control: Vec<u8>,
     /// The fds field.
     pub fds: Vec<resource::TransferredHandle>,
-    /// The has_credentials field.
-    pub has_credentials: bool,
     /// The credentials field.
-    pub credentials: SocketCredentials,
+    pub credentials: Option<SocketCredentials>,
 }
 
 /// Replay struct for SocketSendBatchEntry.
@@ -2561,20 +2536,16 @@ pub struct SocketSendBatchEntryReplayRecord {
 /// Replay struct for SocketSendMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendMessageReplayRecord {
-    /// The has_address field.
-    pub has_address: bool,
     /// The address field.
-    pub address: SocketAddressReplayRecord,
+    pub address: Option<SocketAddressReplayRecord>,
     /// The fds field.
     pub fds: Vec<resource::TransferredHandle>,
     /// The control field.
     pub control: Vec<u8>,
     /// The flags field.
     pub flags: SocketMessageFlags,
-    /// The has_credentials field.
-    pub has_credentials: bool,
     /// The credentials field.
-    pub credentials: SocketCredentials,
+    pub credentials: Option<SocketCredentials>,
 }
 
 /// Replay struct for SocketSendTo.

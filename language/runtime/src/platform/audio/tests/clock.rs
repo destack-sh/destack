@@ -55,10 +55,10 @@ fn test_audio_stream_clock_returns_device_and_endpoint_domains() {
 
         // wait briefly for one callback cycle to publish endpoint timing lanes
         for _ in 0..20 {
-            if device_snapshot.has_device_ns
-                && callback_snapshot.has_callback_ns
-                && input_snapshot.has_input_adc_ns
-                && output_snapshot.has_output_dac_ns
+            if device_snapshot.device_ns.is_some()
+                && callback_snapshot.callback_ns.is_some()
+                && input_snapshot.input_adc_ns.is_some()
+                && output_snapshot.output_dac_ns.is_some()
             {
                 break;
             }
@@ -79,19 +79,19 @@ fn test_audio_stream_clock_returns_device_and_endpoint_domains() {
         }
 
         assert!(
-            device_snapshot.has_device_ns && device_snapshot.clock_ns > 0,
+            device_snapshot.device_ns.is_some() && device_snapshot.clock_ns > 0,
             "stream.clock device domain should be available and non-zero",
         );
         assert!(
-            callback_snapshot.has_callback_ns && callback_snapshot.clock_ns > 0,
+            callback_snapshot.callback_ns.is_some() && callback_snapshot.clock_ns > 0,
             "stream.clock callback domain should be available and non-zero",
         );
         assert!(
-            input_snapshot.has_input_adc_ns && input_snapshot.clock_ns > 0,
+            input_snapshot.input_adc_ns.is_some() && input_snapshot.clock_ns > 0,
             "stream.clock input domain should be available and non-zero",
         );
         assert!(
-            output_snapshot.has_output_dac_ns && output_snapshot.clock_ns > 0,
+            output_snapshot.output_dac_ns.is_some() && output_snapshot.clock_ns > 0,
             "stream.clock output domain should be available and non-zero",
         );
 

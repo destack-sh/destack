@@ -720,7 +720,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Read a single directory entry from an open directory handle.
     ///
     /// Read at most one entry from the current directory cursor and advance the host iterator.
-    /// Callers can iterate deterministically by repeatedly invoking this operation until `hasEntry` is false.
+    /// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

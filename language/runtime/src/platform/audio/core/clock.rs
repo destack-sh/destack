@@ -141,17 +141,25 @@ pub(crate) fn stream_clock_snapshot(
         stream_frames: state.stream_frames,
         clock_ns,
         clock_quality,
-        has_callback_ns: callback_ns > 0,
-        callback_ns,
+        callback_ns: if callback_ns > 0 {
+            Some(callback_ns)
+        } else {
+            None
+        },
         callback_quality,
-        has_input_adc_ns: input_adc_ns > 0,
-        input_adc_ns,
+        input_adc_ns: if input_adc_ns > 0 {
+            Some(input_adc_ns)
+        } else {
+            None
+        },
         input_adc_quality: input_quality,
-        has_output_dac_ns: output_dac_ns > 0,
-        output_dac_ns,
+        output_dac_ns: if output_dac_ns > 0 {
+            Some(output_dac_ns)
+        } else {
+            None
+        },
         output_dac_quality: output_quality,
-        has_device_ns: device_ns > 0,
-        device_ns,
+        device_ns: if device_ns > 0 { Some(device_ns) } else { None },
         device_quality,
         monotonic_ns,
     })

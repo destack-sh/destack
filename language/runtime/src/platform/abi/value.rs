@@ -43,6 +43,30 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
     }
 }
 
+impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() == vm::ValueTag::Void {
+            return Ok(None);
+        }
+
+        let decoded = T::decode_with_context(context, value)?;
+        Ok(Some(decoded))
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        match self {
+            Some(value) => T::encode_with_context(value, context),
+            None => Ok(vm::Value::VOID),
+        }
+    }
+}
+
 /// Decode an integer value with an expected width.
 fn decode_int(value: vm::Value, bits: u8) -> RuntimeResult<i64> {
     let (raw, width) = value.as_int_with_width().ok_or_else(|| {

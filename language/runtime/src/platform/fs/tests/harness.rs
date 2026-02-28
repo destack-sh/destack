@@ -130,20 +130,8 @@ impl<'call> FsHarnessContext<'call> {
         value: HarnessValue<DirentNext, DirentNextVm>,
     ) -> RuntimeResult<Option<FsDirent>> {
         match value {
-            HarnessValue::Native(value) => {
-                if !value.has_entry {
-                    return Ok(None);
-                }
-
-                Ok(Some(FsDirent::Native(value.entry)))
-            }
-            HarnessValue::Vm(value) => {
-                if !value.has_entry {
-                    return Ok(None);
-                }
-
-                Ok(Some(FsDirent::Vm(value.entry)))
-            }
+            HarnessValue::Native(value) => Ok(value.entry.map(FsDirent::Native)),
+            HarnessValue::Vm(value) => Ok(value.entry.map(FsDirent::Vm)),
         }
     }
 

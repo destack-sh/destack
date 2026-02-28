@@ -798,14 +798,7 @@ pub(super) fn pointer_state_snapshot(operation: &'static str) -> RuntimeResult<I
         y,
         buttons,
         modifiers,
-        has_pen_data: false,
-        pressure: 0.0,
-        tangential_pressure: 0.0,
-        tilt_x: 0.0,
-        tilt_y: 0.0,
-        twist: 0.0,
-        in_contact: buttons != 0,
-        in_range: true,
+        pen: None,
     })
 }
 

@@ -202,6 +202,8 @@ pub(crate) enum BindingType {
     Slice(Box<BindingType>),
     /// Owned array of binding values.
     Array(Box<BindingType>),
+    /// Optional binding value.
+    Optional(Box<BindingType>),
     /// Nominal newtype wrapper.
     Newtype {
         /// Nominal type name.

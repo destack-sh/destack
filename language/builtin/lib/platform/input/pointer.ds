@@ -12,18 +12,8 @@ export enum InputPointerGrabMode {
     Locked = 2,
 }
 
-/// Pointer state snapshot.
-export struct InputPointerState {
-    /// Pointer position or delta x value.
-    x: float64;
-    /// Pointer position or delta y value.
-    y: float64;
-    /// Backend button bitset for currently pressed buttons.
-    buttons: uint32;
-    /// Backend modifier bitset.
-    modifiers: uint32;
-    /// Whether pen-specific fields contain backend data.
-    hasPenData: boolean;
+/// Pen-specific pointer state.
+export struct InputPenState {
     /// Pen pressure in the normalized range [0, 1] when available.
     pressure: float64;
     /// Pen tangential pressure in the normalized range [-1, 1] when available.
@@ -38,6 +28,20 @@ export struct InputPointerState {
     inContact: boolean;
     /// Whether the pen is currently in proximity range.
     inRange: boolean;
+}
+
+/// Pointer state snapshot.
+export struct InputPointerState {
+    /// Pointer position or delta x value.
+    x: float64;
+    /// Pointer position or delta y value.
+    y: float64;
+    /// Backend button bitset for currently pressed buttons.
+    buttons: uint32;
+    /// Backend modifier bitset.
+    modifiers: uint32;
+    /// Pen-specific state when available.
+    pen: InputPenState | void;
 }
 
 /// Input pointer bindings.

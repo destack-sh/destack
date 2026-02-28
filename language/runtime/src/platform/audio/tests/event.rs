@@ -22,8 +22,7 @@ fn default_event_options() -> AudioEventSubscriptionOptions {
         flags: AudioEventSubscriptionFlags(0),
         delivery_mode: AudioEventDeliveryMode::Auto,
         overflow_policy: AudioEventOverflowPolicy::DropOldest,
-        has_stream: false,
-        stream: AudioStreamHandle(ResourceId(0)),
+        stream: None,
         queue_capacity: 0,
         poll_interval_ns: 0,
     }
@@ -71,8 +70,7 @@ fn test_audio_event_open_native_only_delivers_stream_events_without_polling() {
 
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = stream;
+        event_options.stream = Some(stream);
         event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
         let event_options = harness_event_options(&mut context, event_options);
         let events = context.destack_audio_event_open(event_options)?;
@@ -101,8 +99,7 @@ fn test_audio_event_open_native_only_reports_stream_xruns_for_null_playback() {
 
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = stream;
+        event_options.stream = Some(stream);
         event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
         let event_options = harness_event_options(&mut context, event_options);
         let events = context.destack_audio_event_open(event_options)?;
@@ -493,8 +490,7 @@ fn test_audio_event_open_rejects_unknown_stream_handle() {
     with_harness_context(|mut context| {
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = AudioStreamHandle(ResourceId(999_999));
+        event_options.stream = Some(AudioStreamHandle(ResourceId(999_999)));
 
         let event_options = harness_event_options(&mut context, event_options);
         assert_platform_error_code(
@@ -514,8 +510,7 @@ fn test_audio_event_open_with_stream_target_has_no_initial_snapshot_events() {
 
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = stream;
+        event_options.stream = Some(stream);
 
         let event_options = harness_event_options(&mut context, event_options);
         let events = context.destack_audio_event_open(event_options)?;
@@ -581,8 +576,7 @@ fn test_audio_event_batch_read_returns_events_when_stream_changes_state() {
 
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = stream;
+        event_options.stream = Some(stream);
         event_options.poll_interval_ns = audio_core::MIN_EVENT_POLL_INTERVAL_NS;
 
         let event_options = harness_event_options(&mut context, event_options);
@@ -617,8 +611,7 @@ fn test_audio_event_sequence_rows_stay_monotonic_during_random_stream_churn() {
 
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.has_stream = true;
-        event_options.stream = stream;
+        event_options.stream = Some(stream);
         event_options.queue_capacity = 2;
         event_options.poll_interval_ns = audio_core::MIN_EVENT_POLL_INTERVAL_NS;
 

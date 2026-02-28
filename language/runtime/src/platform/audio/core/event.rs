@@ -406,7 +406,7 @@ pub(crate) fn publish_stream_event_native(
             return true;
         }
 
-        if !active_binding.options.has_stream || active_binding.options.stream != stream {
+        if active_binding.options.stream != Some(stream) {
             return true;
         }
 
@@ -427,8 +427,7 @@ pub(crate) fn publish_stream_event_native(
                 flags: 0,
                 status_flags,
                 xrun_count_delta,
-                has_stream: true,
-                stream,
+                stream: Some(stream),
             },
         );
 
@@ -571,10 +570,10 @@ pub(crate) fn normalize_event_subscription_options(
 
     // require explicit stream target when stream related flags are requested
     let stream_flags = options.flags.0 & STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK;
-    if stream_flags != 0 && !options.has_stream {
+    if stream_flags != 0 && options.stream.is_none() {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "options.hasStream",
-            "stream subscription flags require options.hasStream true",
+            "options.stream",
+            "stream subscription flags require options.stream",
         ))
         .boxed());
     }
@@ -597,8 +596,8 @@ pub(crate) fn normalize_event_subscription_options(
     }
 
     // ensure the stream target exists and matches the selected backend
-    if options.has_stream {
-        let stream = resolve_stream_binding(context, options.stream, operation)?;
+    if let Some(stream_handle) = options.stream {
+        let stream = resolve_stream_binding(context, stream_handle, operation)?;
         if stream.device.backend != backend {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options.backend",
@@ -637,8 +636,8 @@ pub(crate) fn build_event_binding(
     let mut previous_stream_xrun_count = 0;
 
     // seed stream baseline so first refresh only reports true deltas
-    if options.has_stream {
-        let stream = resolve_stream_binding(context, options.stream, "destack.audio.event.open")?;
+    if let Some(stream_handle) = options.stream {
+        let stream = resolve_stream_binding(context, stream_handle, "destack.audio.event.open")?;
         let state = stream_state_snapshot(&stream);
         previous_stream_state = Some(state.state);
         previous_stream_device_id = Some(stream.device.id.clone());
@@ -728,8 +727,7 @@ fn push_device_event(
             flags: 0,
             status_flags: AudioStreamStatusFlags(0),
             xrun_count_delta: 0,
-            has_stream: false,
-            stream: resource::AudioStreamHandle(resource::ResourceId(0)),
+            stream: None,
         },
     );
 }
@@ -758,8 +756,7 @@ fn push_stream_event(
             flags: 0,
             status_flags,
             xrun_count_delta,
-            has_stream: true,
-            stream,
+            stream: Some(stream),
         },
     );
 }
@@ -893,12 +890,15 @@ pub(crate) fn refresh_event_queue(
     let snapshot = monitor_snapshot(backend)?;
     refresh_device_events_from_snapshot(binding, &snapshot, now, AudioEventSource::SyntheticPoll);
 
-    let should_track_stream = binding.options.has_stream
+    let should_track_stream = binding.options.stream.is_some()
         && (event_subscription_enabled(binding, EVENT_SUBSCRIBE_STREAM)
             || event_subscription_enabled(binding, EVENT_SUBSCRIBE_INTERRUPTION)
             || event_subscription_enabled(binding, EVENT_SUBSCRIBE_BACKEND));
     if should_track_stream {
-        let stream_handle = binding.options.stream;
+        let stream_handle = binding
+            .options
+            .stream
+            .expect("stream tracking requires stream");
         let stream_result =
             resolve_stream_binding(context, stream_handle, "destack.audio.event.read");
 
@@ -1071,7 +1071,7 @@ pub(crate) fn refresh_device_subscriptions_for_rescan(
         let mut active_binding = active_binding
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if active_binding.options.backend != backend || active_binding.options.has_stream {
+        if active_binding.options.backend != backend || active_binding.options.stream.is_some() {
             continue;
         }
 
@@ -1106,9 +1106,11 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         flags: event.flags,
         status_flags: event.status_flags,
         xrun_count_delta: event.xrun_count_delta,
-        has_device_id: !event.device_id.is_empty(),
-        device_id: context.store_string(&event.device_id),
-        has_stream: event.has_stream,
+        device_id: if event.device_id.is_empty() {
+            None
+        } else {
+            Some(context.store_string(&event.device_id))
+        },
         stream: event.stream,
     }
 }
@@ -1130,8 +1132,7 @@ mod tests {
                 flags: AudioEventSubscriptionFlags(0),
                 delivery_mode: AudioEventDeliveryMode::PollOnly,
                 overflow_policy,
-                has_stream: false,
-                stream: resource::AudioStreamHandle(resource::ResourceId(0)),
+                stream: None,
                 queue_capacity,
                 poll_interval_ns: EVENT_POLL_INTERVAL_NS,
             },
@@ -1163,8 +1164,7 @@ mod tests {
             flags: 0,
             status_flags: AudioStreamStatusFlags(0),
             xrun_count_delta: 0,
-            has_stream: false,
-            stream: resource::AudioStreamHandle(resource::ResourceId(0)),
+            stream: None,
         }
     }
 

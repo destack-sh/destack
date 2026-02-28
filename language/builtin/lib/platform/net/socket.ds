@@ -37,30 +37,24 @@ export newtype SocketControlBuffer = uint8[];
 
 /// Outbound message metadata for sendmsg.
 export struct SocketSendMessage {
-    /// Whether to send to one explicit destination address.
-    hasAddress: boolean;
-    /// Destination address when `hasAddress` is true.
-    address: SocketAddress;
+    /// Destination address for explicit routing.
+    address: SocketAddress | void;
     /// Resource handles to pass.
     fds: Array<TransferredHandle>;
     /// Raw ancillary control payload.
     control: SocketControlBuffer;
     /// Per-send flags passed to sendmsg.
     flags: SocketMessageFlags;
-    /// Whether to include explicit credentials.
-    hasCredentials: boolean;
     /// Credentials to send when enabled.
-    credentials: SocketCredentials;
+    credentials: SocketCredentials | void;
 }
 
 /// Inbound message metadata for recvmsg.
 export struct SocketRecvMessage {
     /// Number of payload bytes received.
     bytes: uint64;
-    /// Whether one source address was returned.
-    hasAddress: boolean;
-    /// Source address when `hasAddress` is true.
-    address: SocketAddress;
+    /// Source address when returned by the host.
+    address: SocketAddress | void;
     /// Flags returned by recvmsg.
     recvFlags: SocketMessageFlags;
     /// Whether payload bytes were truncated.
@@ -71,10 +65,8 @@ export struct SocketRecvMessage {
     control: SocketControlBuffer;
     /// Resource handles received from the peer.
     fds: Array<TransferredHandle>;
-    /// Whether credentials were captured.
-    hasCredentials: boolean;
     /// Credentials captured from the peer when available.
-    credentials: SocketCredentials;
+    credentials: SocketCredentials | void;
 }
 
 /// Outbound payload for sendto-style calls.

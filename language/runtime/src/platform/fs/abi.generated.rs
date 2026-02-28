@@ -927,10 +927,8 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
 /// ABI struct for DirentNext.
 #[repr(C)]
 pub struct DirentNextAbi<A: BindingAbi> {
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: platform_fs::DirentAbi<A>,
+    pub entry: Option<platform_fs::DirentAbi<A>>,
 }
 
 pub type DirentNext = DirentNextAbi<NativeAbi>;
@@ -972,29 +970,25 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        if slots.len() != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 2 fields",
+                "expected 1 fields",
             ))
             .boxed());
         }
-        let field_has_entry = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_entry = <DirentVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            has_entry: field_has_entry,
-            entry: field_entry,
-        })
+        let field_entry =
+            <Option<DirentVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { entry: field_entry })
     }
 
     fn encode_with_context(
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_entry, context)?,
-            <DirentVm as VmAggregateCodec>::encode_with_context(self.entry, context)?,
-        ];
+        let slots = vec![<Option<DirentVm> as VmAggregateCodec>::encode_with_context(
+            self.entry, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -1143,10 +1137,8 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SpliceCursor {
-    /// The has_offset field.
-    pub has_offset: bool,
     /// The offset field.
-    pub offset: FileOffset,
+    pub offset: Option<FileOffset>,
 }
 
 pub type SpliceCursorVm = SpliceCursor;
@@ -1166,18 +1158,16 @@ impl VmAggregateCodec for SpliceCursor {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        if slots.len() != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 2 fields",
+                "expected 1 fields",
             ))
             .boxed());
         }
-        let field_has_offset = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_offset =
-            <FileOffset as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<FileOffset> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         Ok(Self {
-            has_offset: field_has_offset,
             offset: field_offset,
         })
     }
@@ -1187,8 +1177,7 @@ impl VmAggregateCodec for SpliceCursor {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_offset, context)?,
-            <FileOffset as VmAggregateCodec>::encode_with_context(self.offset, context)?,
+            <Option<FileOffset> as VmAggregateCodec>::encode_with_context(self.offset, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1770,10 +1759,8 @@ pub struct DirentReplayRecord {
 /// Replay struct for DirentNext.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentNextReplayRecord {
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: DirentReplayRecord,
+    pub entry: Option<DirentReplayRecord>,
 }
 
 /// Replay struct for OsPath.

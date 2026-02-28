@@ -391,7 +391,7 @@ pub(crate) unsafe fn destack_fs_rmdir(
 /// Read a single directory entry from an open directory handle.
 ///
 /// Read at most one entry from the current directory cursor and advance the host iterator.
-/// Callers can iterate deterministically by repeatedly invoking this operation until `hasEntry` is false.
+/// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -477,15 +477,8 @@ pub(crate) unsafe fn destack_fs_readdir_next(
             }
 
             // mark end-of-directory
-            let empty_bytes = PathBytesAbi::<NativeAbi>(context.store_array(Vec::new()));
             unsafe {
-                *out = DirentNext {
-                    has_entry: false,
-                    entry: Dirent {
-                        name: core_fs::path_ref_from_bytes(empty_bytes),
-                        kind: DirentKind::Unknown,
-                    },
-                };
+                *out = DirentNext { entry: None };
             }
             return Ok(());
         }
@@ -526,11 +519,10 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         *cursor = current_index.saturating_add(1);
         unsafe {
             *out = DirentNext {
-                has_entry: true,
-                entry: Dirent {
+                entry: Some(Dirent {
                     name: core_fs::path_ref_from_bytes(name),
                     kind,
-                },
+                }),
             };
         }
 

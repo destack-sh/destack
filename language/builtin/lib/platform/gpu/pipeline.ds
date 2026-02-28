@@ -235,10 +235,8 @@ export newtype GpuColorWriteMask = uint32;
 export struct GpuColorTargetState {
     /// Render-target texture format identifier.
     format: uint32;
-    /// Whether blend state is provided.
-    hasBlend: boolean;
-    /// Blend-state descriptor when `hasBlend` is true.
-    blend: GpuBlendState;
+    /// Blend-state descriptor when provided.
+    blend: GpuBlendState | void;
     /// Color-write channel mask.
     writeMask: GpuColorWriteMask;
 }
@@ -337,10 +335,8 @@ export struct GpuPipelineConstant {
 export struct GpuFragmentState {
     /// Fragment shader-module handle.
     module: GpuShaderHandle;
-    /// Whether an explicit fragment entry point is provided.
-    hasEntry: boolean;
-    /// Fragment entry point when `hasEntry` is true.
-    entry: string;
+    /// Fragment entry point when provided.
+    entry: string | void;
     /// Fragment-stage specialization constants.
     constants: Slice<GpuPipelineConstant>;
     /// Color-target states.
@@ -351,10 +347,8 @@ export struct GpuFragmentState {
 export struct GpuVertexState {
     /// Vertex shader-module handle.
     module: GpuShaderHandle;
-    /// Whether an explicit vertex entry point is provided.
-    hasEntry: boolean;
-    /// Vertex entry point when `hasEntry` is true.
-    entry: string;
+    /// Vertex entry point when provided.
+    entry: string | void;
     /// Vertex-stage specialization constants.
     constants: Slice<GpuPipelineConstant>;
     /// Vertex buffer layouts.
@@ -365,10 +359,8 @@ export struct GpuVertexState {
 export struct GpuComputeState {
     /// Compute shader-module handle.
     module: GpuShaderHandle;
-    /// Whether an explicit compute entry point is provided.
-    hasEntry: boolean;
-    /// Compute entry point when `hasEntry` is true.
-    entry: string;
+    /// Compute entry point when provided.
+    entry: string | void;
     /// Compute-stage specialization constants.
     constants: Slice<GpuPipelineConstant>;
 }
@@ -377,10 +369,8 @@ export struct GpuComputeState {
 export struct GpuRenderState {
     /// Primitive-state descriptor.
     primitive: GpuPrimitiveState;
-    /// Whether depth-stencil state is enabled.
-    hasDepthStencil: boolean;
-    /// Depth-stencil-state descriptor.
-    depthStencil: GpuDepthStencilState;
+    /// Depth-stencil-state descriptor when enabled.
+    depthStencil: GpuDepthStencilState | void;
     /// Multisample-state descriptor.
     multisample: GpuMultisampleState;
 }
@@ -393,10 +383,8 @@ export struct GpuPipelineMetadata {
 
 /// Compute pipeline creation options.
 export struct GpuComputePipelineOptions {
-    /// Whether one explicit pipeline layout is provided.
-    hasLayout: boolean;
-    /// Explicit pipeline layout handle when `hasLayout` is true.
-    layout: GpuPipelineLayoutHandle;
+    /// Explicit pipeline layout handle when provided.
+    layout: GpuPipelineLayoutHandle | void;
     /// Compute stage descriptor.
     compute: GpuComputeState;
     /// Pipeline creation metadata.
@@ -407,22 +395,16 @@ export struct GpuComputePipelineOptions {
 
 /// Render pipeline creation options.
 export struct GpuRenderPipelineOptions {
-    /// Whether one explicit pipeline layout is provided.
-    hasLayout: boolean;
-    /// Explicit pipeline layout handle when `hasLayout` is true.
-    layout: GpuPipelineLayoutHandle;
+    /// Explicit pipeline layout handle when provided.
+    layout: GpuPipelineLayoutHandle | void;
     /// Vertex stage descriptor.
     vertex: GpuVertexState;
-    /// Whether a fragment stage is configured.
-    hasFragment: boolean;
-    /// Fragment stage descriptor.
-    fragment: GpuFragmentState;
+    /// Fragment stage descriptor when configured.
+    fragment: GpuFragmentState | void;
     /// Render-state descriptor.
     render: GpuRenderState;
-    /// Whether one multiview mask is configured.
-    hasMultiviewMask: boolean;
-    /// Multiview mask when `hasMultiviewMask` is true.
-    multiviewMask: uint32;
+    /// Multiview mask when configured.
+    multiviewMask: uint32 | void;
     /// Pipeline creation metadata.
     metadata: GpuPipelineMetadata;
     /// Pipeline option flags.

@@ -582,7 +582,7 @@ pub fn destack_fs_readdir(
 /// Read a single directory entry from an open directory handle.
 ///
 /// Read at most one entry from the current directory cursor and advance the host iterator.
-/// Callers can iterate deterministically by repeatedly invoking this operation until `hasEntry` is false.
+/// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -3704,16 +3704,17 @@ fn dirent_next_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: DirentNext,
 ) -> RuntimeResult<DirentNextVm> {
-    let name = path_ref_to_vm(context, value.entry.name)?;
-    let entry = DirentVm {
-        name,
-        kind: value.entry.kind,
+    let entry = if let Some(entry) = value.entry {
+        let name = path_ref_to_vm(context, entry.name)?;
+        Some(DirentVm {
+            name,
+            kind: entry.kind,
+        })
+    } else {
+        None
     };
 
-    Ok(DirentNextVm {
-        has_entry: value.has_entry,
-        entry,
-    })
+    Ok(DirentNextVm { entry })
 }
 
 fn path_ref_vm_to_value(context: &mut vm::ExternalCallContext<'_>, value: OsPathVm) -> vm::Value {
