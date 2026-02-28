@@ -5,7 +5,11 @@
 #![allow(clippy::type_complexity)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::tty::{PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm};
+use crate::platform::tty::{
+    PtyPair, PtyPairVm, TtyMode, TtyModeVm, TtySize, TtySizeVm, TtyTermiosAttributes,
+    TtyTermiosAttributesReplayRecord, TtyTermiosAttributesVm, TtyTermiosFlowAction,
+    TtyTermiosQueue, TtyTermiosSetAction,
+};
 use crate::platform::{NativeSlice, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi};
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -24,7 +28,10 @@ use crate::platform::tty::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::tty::{native as platform_native, vm as platform_vm};
-use crate::platform::{resource as platform_resource, resource, tty as platform_tty};
+use crate::platform::{
+    process as platform_process, process, resource as platform_resource, resource,
+    tty as platform_tty,
+};
 
 /// Read a positional argument value.
 #[allow(dead_code)]
@@ -39,6 +46,18 @@ fn arg_value(
     })?;
 
     Ok(value)
+}
+
+/// Decode a boolean argument.
+#[allow(dead_code)]
+fn decode_bool(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<bool> {
+    value.as_bool().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode an unsigned integer argument with an explicit width.
@@ -59,6 +78,12 @@ fn decode_uint(
     }
 
     Ok(raw)
+}
+
+/// Decode a u8 argument.
+#[allow(dead_code)]
+fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
+    Ok(decode_uint(value, name, expected, 8)? as u8)
 }
 
 /// Decode a u32 argument.
@@ -89,6 +114,77 @@ fn decode_slice<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmSlice<T>> {
     VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode arguments for destack.tty.handle.close.
+#[inline]
+fn decode_destack_tty_handle_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.tty.handle.close.
+#[inline]
+fn encode_destack_tty_handle_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.handle.isTerminalFile.
+#[inline]
+fn decode_destack_tty_handle_is_terminal_file_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::FileHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "FileHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "FileHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::FileHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.tty.handle.isTerminalFile.
+#[inline]
+fn encode_destack_tty_handle_is_terminal_file_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Encode the result for destack.tty.handle.stdioStderr.
+#[inline]
+fn encode_destack_tty_handle_stdio_stderr_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::TtyHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Encode the result for destack.tty.handle.stdioStdin.
+#[inline]
+fn encode_destack_tty_handle_stdio_stdin_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::TtyHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Encode the result for destack.tty.handle.stdioStdout.
+#[inline]
+fn encode_destack_tty_handle_stdio_stdout_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::TtyHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
 /// Decode arguments for destack.tty.io.read.
@@ -212,6 +308,30 @@ fn decode_destack_tty_mode_set_mode_args(
 /// Encode the result for destack.tty.mode.setMode.
 #[inline]
 fn encode_destack_tty_mode_set_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.mode.setRawMode.
+#[inline]
+fn decode_destack_tty_mode_set_raw_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle, bool)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let enabled_value = arg_value(args, 1, "enabled", "boolean")?;
+    let enabled = decode_bool(enabled_value, "enabled", "boolean")?;
+    Ok((handle, enabled))
+}
+
+/// Encode the result for destack.tty.mode.setRawMode.
+#[inline]
+fn encode_destack_tty_mode_set_raw_mode_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -347,6 +467,328 @@ fn encode_destack_tty_size_set_size_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.tty.termios.drain.
+#[inline]
+fn decode_destack_tty_termios_drain_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.tty.termios.drain.
+#[inline]
+fn encode_destack_tty_termios_drain_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.termios.flow.
+#[inline]
+fn decode_destack_tty_termios_flow_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle, TtyTermiosFlowAction)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let action_value = arg_value(args, 1, "action", "TtyTermiosFlowAction")?;
+    let action_raw = decode_uint8(action_value, "action_raw", "TtyTermiosFlowAction")?;
+    let action = match action_raw {
+        1u8 => TtyTermiosFlowAction::SuspendOutput,
+        2u8 => TtyTermiosFlowAction::ResumeOutput,
+        3u8 => TtyTermiosFlowAction::SuspendInput,
+        4u8 => TtyTermiosFlowAction::ResumeInput,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "action",
+                "unknown TtyTermiosFlowAction value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, action))
+}
+
+/// Encode the result for destack.tty.termios.flow.
+#[inline]
+fn encode_destack_tty_termios_flow_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.termios.flush.
+#[inline]
+fn decode_destack_tty_termios_flush_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle, TtyTermiosQueue)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let queue_value = arg_value(args, 1, "queue", "TtyTermiosQueue")?;
+    let queue_raw = decode_uint8(queue_value, "queue_raw", "TtyTermiosQueue")?;
+    let queue = match queue_raw {
+        1u8 => TtyTermiosQueue::Input,
+        2u8 => TtyTermiosQueue::Output,
+        3u8 => TtyTermiosQueue::InputAndOutput,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "queue",
+                "unknown TtyTermiosQueue value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, queue))
+}
+
+/// Encode the result for destack.tty.termios.flush.
+#[inline]
+fn encode_destack_tty_termios_flush_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.termios.getAttributes.
+#[inline]
+fn decode_destack_tty_termios_get_attributes_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.tty.termios.getAttributes.
+#[inline]
+fn encode_destack_tty_termios_get_attributes_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<TtyTermiosAttributesVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.input_flags, 64);
+        let field_1 = vm::Value::uint(value.output_flags, 64);
+        let field_2 = vm::Value::uint(value.control_flags, 64);
+        let field_3 = vm::Value::uint(value.local_flags, 64);
+        let field_4 = value.control_characters.to_value(context);
+        let field_5 = vm::Value::uint(value.input_speed_code, 64);
+        let field_6 = vm::Value::uint(value.output_speed_code, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.tty.termios.getProcessGroup.
+#[inline]
+fn decode_destack_tty_termios_get_process_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.tty.termios.getProcessGroup.
+#[inline]
+fn encode_destack_tty_termios_get_process_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<process::ProcessId>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0 as u64, 32))
+}
+
+/// Decode arguments for destack.tty.termios.sendBreak.
+#[inline]
+fn decode_destack_tty_termios_send_break_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let duration_value = arg_value(args, 1, "duration", "uint32")?;
+    let duration = decode_uint32(duration_value, "duration", "uint32")?;
+    Ok((handle, duration))
+}
+
+/// Encode the result for destack.tty.termios.sendBreak.
+#[inline]
+fn encode_destack_tty_termios_send_break_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.termios.setAttributes.
+#[inline]
+fn decode_destack_tty_termios_set_attributes_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::TtyHandle,
+    TtyTermiosAttributesVm,
+    TtyTermiosSetAction,
+)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let attributes_value = arg_value(args, 1, "attributes", "TtyTermiosAttributes")?;
+    let attributes = {
+        if attributes_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "attributes",
+                "TtyTermiosAttributes",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(attributes_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "attributes",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let attributes_input_flags =
+            decode_uint64(slots[0], "attributes_input_flags", "inputFlags")?;
+        let attributes_output_flags =
+            decode_uint64(slots[1], "attributes_output_flags", "outputFlags")?;
+        let attributes_control_flags =
+            decode_uint64(slots[2], "attributes_control_flags", "controlFlags")?;
+        let attributes_local_flags =
+            decode_uint64(slots[3], "attributes_local_flags", "localFlags")?;
+        let attributes_control_characters = decode_slice::<u8>(
+            context,
+            slots[4],
+            "attributes_control_characters",
+            "controlCharacters",
+        )?;
+        let attributes_input_speed_code =
+            decode_uint64(slots[5], "attributes_input_speed_code", "inputSpeedCode")?;
+        let attributes_output_speed_code =
+            decode_uint64(slots[6], "attributes_output_speed_code", "outputSpeedCode")?;
+        TtyTermiosAttributesVm {
+            input_flags: attributes_input_flags,
+            output_flags: attributes_output_flags,
+            control_flags: attributes_control_flags,
+            local_flags: attributes_local_flags,
+            control_characters: attributes_control_characters,
+            input_speed_code: attributes_input_speed_code,
+            output_speed_code: attributes_output_speed_code,
+        }
+    };
+    let action_value = arg_value(args, 2, "action", "TtyTermiosSetAction")?;
+    let action_raw = decode_uint8(action_value, "action_raw", "TtyTermiosSetAction")?;
+    let action = match action_raw {
+        1u8 => TtyTermiosSetAction::Now,
+        2u8 => TtyTermiosSetAction::Drain,
+        3u8 => TtyTermiosSetAction::Flush,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "action",
+                "unknown TtyTermiosSetAction value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, attributes, action))
+}
+
+/// Encode the result for destack.tty.termios.setAttributes.
+#[inline]
+fn encode_destack_tty_termios_set_attributes_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.tty.termios.setProcessGroup.
+#[inline]
+fn decode_destack_tty_termios_set_process_group_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::TtyHandle, process::ProcessId)> {
+    let handle_value = arg_value(args, 0, "handle", "TtyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TtyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::TtyHandle(handle_inner);
+    let processgroupid_value = arg_value(args, 1, "processgroupid", "ProcessId")?;
+    let processgroupid_inner =
+        decode_uint32(processgroupid_value, "processgroupid_inner", "ProcessId")?;
+    let processgroupid = process::ProcessId(processgroupid_inner);
+    Ok((handle, processgroupid))
+}
+
+/// Encode the result for destack.tty.termios.setProcessGroup.
+#[inline]
+fn encode_destack_tty_termios_set_process_group_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Replay payload for destack.tty.handle.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyHandleCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.handle.isTerminalFile.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyHandleIsTerminalFileReplay {
+    /// Replay result payload.
+    pub result: Result<bool, PlatformError>,
+}
+
+/// Replay payload for destack.tty.handle.stdioStderr.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyHandleStdioStderrReplay {
+    /// Replay result payload.
+    pub result: Result<resource::TtyHandle, PlatformError>,
+}
+
+/// Replay payload for destack.tty.handle.stdioStdin.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyHandleStdioStdinReplay {
+    /// Replay result payload.
+    pub result: Result<resource::TtyHandle, PlatformError>,
+}
+
+/// Replay payload for destack.tty.handle.stdioStdout.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyHandleStdioStdoutReplay {
+    /// Replay result payload.
+    pub result: Result<resource::TtyHandle, PlatformError>,
+}
+
 /// Replay payload for destack.tty.io.read.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyIoReadReplay {
@@ -371,6 +813,13 @@ struct TtyModeGetModeReplay {
 /// Replay payload for destack.tty.mode.setMode.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct TtyModeSetModeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.mode.setRawMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyModeSetRawModeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -402,6 +851,192 @@ struct TtySizeSetSizeReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
+
+/// Replay payload for destack.tty.termios.drain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosDrainReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.flow.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosFlowReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.flush.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosFlushReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.getAttributes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosGetAttributesReplay {
+    /// Replay result payload.
+    pub result: Result<TtyTermiosAttributesReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.getProcessGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosGetProcessGroupReplay {
+    /// Replay result payload.
+    pub result: Result<process::ProcessId, PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.sendBreak.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosSendBreakReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.setAttributes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosSetAttributesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.tty.termios.setProcessGroup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct TtyTermiosSetProcessGroupReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Binding descriptor for destack.tty.handle.close.
+pub const TTY_HANDLE_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.handle.close",
+        "export function close(handle: TtyHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.handle"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.tty.handle.isTerminalFile.
+pub const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.handle.isTerminalFile",
+        "export function isTerminalFile(handle: FileHandle): Result<boolean, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.handle"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.tty.handle.stdioStderr.
+pub const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.handle.stdioStderr",
+        "export function stdioStderr(): Result<TtyHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.handle"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.tty.handle.stdioStdin.
+pub const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.handle.stdioStdin",
+        "export function stdioStdin(): Result<TtyHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.handle"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.tty.handle.stdioStdout.
+pub const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.handle.stdioStdout",
+        "export function stdioStdout(): Result<TtyHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.handle"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.tty.io.read.
 pub const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -505,6 +1140,18 @@ pub const TTY_MODE_SET_MODE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.tty.mode.setRawMode.
+pub const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.mode.setRawMode",
+    "export function setRawMode(handle: TtyHandle, enabled: boolean): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.mode"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.tty.pty.close.
 pub const TTY_PTY_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -512,7 +1159,7 @@ pub const TTY_PTY_CLOSE: BindingDescriptor =
         "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["tty.mode"],
+        &["tty.pty"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
     )
@@ -537,7 +1184,7 @@ pub const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_req
     "export function ptyOpen(rows: uint32, columns: uint32, flags: uint32): Result<PtyPair, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["tty.mode"],
+    &["tty.pty"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -595,22 +1242,170 @@ pub const TTY_SIZE_SET_SIZE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.tty.termios.drain.
+pub const TTY_TERMIOS_DRAIN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.tty.termios.drain",
+        "export function termiosDrain(handle: TtyHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["tty.termios"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+    ]);
+
+/// Binding descriptor for destack.tty.termios.flow.
+pub const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.flow",
+    "export function termiosFlow(handle: TtyHandle, action: TtyTermiosFlowAction): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.flush.
+pub const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.flush",
+    "export function termiosFlush(handle: TtyHandle, queue: TtyTermiosQueue): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.getAttributes.
+pub const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.getAttributes",
+    "export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.getProcessGroup.
+pub const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.getProcessGroup",
+    "export function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.sendBreak.
+pub const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.sendBreak",
+    "export function termiosSendBreak(handle: TtyHandle, duration: uint32): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.setAttributes.
+pub const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.setAttributes",
+    "export function termiosSetAttributes(handle: TtyHandle, attributes: TtyTermiosAttributes, action: TtyTermiosSetAction): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
+/// Binding descriptor for destack.tty.termios.setProcessGroup.
+pub const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.tty.termios.setProcessGroup",
+    "export function termiosSetProcessGroup(handle: TtyHandle, processGroupId: ProcessId): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["tty.termios"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+
 /// Binding descriptors for tty.
 pub const BINDINGS: &[BindingDescriptor] = &[
+    TTY_HANDLE_CLOSE,
+    TTY_HANDLE_IS_TERMINAL_FILE,
+    TTY_HANDLE_STDIO_STDERR,
+    TTY_HANDLE_STDIO_STDIN,
+    TTY_HANDLE_STDIO_STDOUT,
     TTY_IO_READ,
     TTY_IO_WRITE,
     TTY_MODE_GET_MODE,
     TTY_MODE_SET_MODE,
+    TTY_MODE_SET_RAW_MODE,
     TTY_PTY_CLOSE,
     TTY_PTY_OPEN,
     TTY_SIZE_GET_SIZE,
     TTY_SIZE_SET_SIZE,
+    TTY_TERMIOS_DRAIN,
+    TTY_TERMIOS_FLOW,
+    TTY_TERMIOS_FLUSH,
+    TTY_TERMIOS_GET_ATTRIBUTES,
+    TTY_TERMIOS_GET_PROCESS_GROUP,
+    TTY_TERMIOS_SEND_BREAK,
+    TTY_TERMIOS_SET_ATTRIBUTES,
+    TTY_TERMIOS_SET_PROCESS_GROUP,
 ];
 
 /// Native binding set for tty.
 pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "tty",
     bindings: &[
+        NativeBinding::new(
+            TTY_HANDLE_CLOSE,
+            "destack.tty.handle.close",
+            destack_tty_handle_close as *const (),
+        ),
+        NativeBinding::new(
+            TTY_HANDLE_IS_TERMINAL_FILE,
+            "destack.tty.handle.isTerminalFile",
+            destack_tty_handle_is_terminal_file as *const (),
+        ),
+        NativeBinding::new(
+            TTY_HANDLE_STDIO_STDERR,
+            "destack.tty.handle.stdioStderr",
+            destack_tty_handle_stdio_stderr as *const (),
+        ),
+        NativeBinding::new(
+            TTY_HANDLE_STDIO_STDIN,
+            "destack.tty.handle.stdioStdin",
+            destack_tty_handle_stdio_stdin as *const (),
+        ),
+        NativeBinding::new(
+            TTY_HANDLE_STDIO_STDOUT,
+            "destack.tty.handle.stdioStdout",
+            destack_tty_handle_stdio_stdout as *const (),
+        ),
         NativeBinding::new(
             TTY_IO_READ,
             "destack.tty.io.read",
@@ -632,6 +1427,11 @@ pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_tty_mode_set_mode as *const (),
         ),
         NativeBinding::new(
+            TTY_MODE_SET_RAW_MODE,
+            "destack.tty.mode.setRawMode",
+            destack_tty_mode_set_raw_mode as *const (),
+        ),
+        NativeBinding::new(
             TTY_PTY_CLOSE,
             "destack.tty.pty.close",
             destack_tty_pty_close as *const (),
@@ -651,10 +1451,329 @@ pub const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.tty.size.setSize",
             destack_tty_size_set_size as *const (),
         ),
+        NativeBinding::new(
+            TTY_TERMIOS_DRAIN,
+            "destack.tty.termios.drain",
+            destack_tty_termios_drain as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_FLOW,
+            "destack.tty.termios.flow",
+            destack_tty_termios_flow as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_FLUSH,
+            "destack.tty.termios.flush",
+            destack_tty_termios_flush as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_GET_ATTRIBUTES,
+            "destack.tty.termios.getAttributes",
+            destack_tty_termios_get_attributes as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_GET_PROCESS_GROUP,
+            "destack.tty.termios.getProcessGroup",
+            destack_tty_termios_get_process_group as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_SEND_BREAK,
+            "destack.tty.termios.sendBreak",
+            destack_tty_termios_send_break as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_SET_ATTRIBUTES,
+            "destack.tty.termios.setAttributes",
+            destack_tty_termios_set_attributes as *const (),
+        ),
+        NativeBinding::new(
+            TTY_TERMIOS_SET_PROCESS_GROUP,
+            "destack.tty.termios.setProcessGroup",
+            destack_tty_termios_set_process_group as *const (),
+        ),
     ],
 };
 
 /// Native replay implementations for tty bindings.
+#[inline]
+fn destack_tty_handle_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        TTY_HANDLE_CLOSE,
+        context.replay_payload_for(TTY_HANDLE_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_tty_close(context, handle) },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyHandleCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_handle_is_terminal_file_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+    handle: resource::FileHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        TTY_HANDLE_IS_TERMINAL_FILE,
+        context.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_is_terminal_file(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_is_terminal_file(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = TtyHandleIsTerminalFileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleIsTerminalFileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stderr_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        TTY_HANDLE_STDIO_STDERR,
+        context.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_stdio_stderr(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_stdio_stderr(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStderrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStderrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stdin_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        TTY_HANDLE_STDIO_STDIN,
+        context.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_tty_stdio_stdin(context, out) },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_stdio_stdin(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStdinReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStdinReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stdout_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        TTY_HANDLE_STDIO_STDOUT,
+        context.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_stdio_stdout(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_stdio_stdout(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStdoutReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStdoutReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 #[inline]
 fn destack_tty_io_read_replay(
     context: &BindingCallContext,
@@ -891,6 +2010,55 @@ fn destack_tty_mode_set_mode_replay(
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
                     TtyModeSetModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_mode_set_raw_mode_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &enabled);
+
+    context.replay().run_binding_with_policy(
+        TTY_MODE_SET_RAW_MODE,
+        context.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_set_raw_mode(context, handle, enabled)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_set_raw_mode(context, handle, enabled)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyModeSetRawModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyModeSetRawModeReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1156,7 +2324,562 @@ fn destack_tty_size_set_size_replay(
     )
 }
 
+#[inline]
+fn destack_tty_termios_drain_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_DRAIN,
+        context.replay_payload_for(TTY_TERMIOS_DRAIN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_drain(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_drain(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosDrainReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosDrainReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_flow_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    action: TtyTermiosFlowAction,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &action);
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_FLOW,
+        context.replay_payload_for(TTY_TERMIOS_FLOW)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_flow(context, handle, action)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_flow(context, handle, action)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosFlowReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosFlowReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_flush_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    queue: TtyTermiosQueue,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &queue);
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_FLUSH,
+        context.replay_payload_for(TTY_TERMIOS_FLUSH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_flush(context, handle, queue)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_flush(context, handle, queue)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_get_attributes_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut TtyTermiosAttributes,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_GET_ATTRIBUTES,
+        context.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_get_attributes(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_get_attributes(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_input_flags = result_value.input_flags;
+                let result_recorded_output_flags = result_value.output_flags;
+                let result_recorded_control_flags = result_value.control_flags;
+                let result_recorded_local_flags = result_value.local_flags;
+                let result_recorded_control_characters_raw =
+                    unsafe { result_value.control_characters.as_slice()? };
+                let mut result_recorded_control_characters =
+                    Vec::with_capacity(result_recorded_control_characters_raw.len());
+                for result_recorded_control_characters_item_value in
+                    result_recorded_control_characters_raw
+                {
+                    let result_recorded_control_characters_item =
+                        *result_recorded_control_characters_item_value;
+                    let result_recorded_control_characters_item_recorded =
+                        result_recorded_control_characters_item;
+                    result_recorded_control_characters
+                        .push(result_recorded_control_characters_item_recorded);
+                }
+                let result_recorded_input_speed_code = result_value.input_speed_code;
+                let result_recorded_output_speed_code = result_value.output_speed_code;
+                let result_recorded = TtyTermiosAttributesReplayRecord {
+                    input_flags: result_recorded_input_flags,
+                    output_flags: result_recorded_output_flags,
+                    control_flags: result_recorded_control_flags,
+                    local_flags: result_recorded_local_flags,
+                    control_characters: result_recorded_control_characters,
+                    input_speed_code: result_recorded_input_speed_code,
+                    output_speed_code: result_recorded_output_speed_code,
+                };
+                let payload = TtyTermiosGetAttributesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosGetAttributesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_input_flags = value.input_flags;
+                    let value_native_output_flags = value.output_flags;
+                    let value_native_control_flags = value.control_flags;
+                    let value_native_local_flags = value.local_flags;
+                    let mut value_native_control_characters_values =
+                        Vec::with_capacity(value.control_characters.len());
+                    for value_native_control_characters_item in value.control_characters {
+                        let value_native_control_characters_item_native =
+                            value_native_control_characters_item;
+                        value_native_control_characters_values
+                            .push(value_native_control_characters_item_native);
+                    }
+                    let value_native_control_characters =
+                        context.store_slice(value_native_control_characters_values);
+                    let value_native_input_speed_code = value.input_speed_code;
+                    let value_native_output_speed_code = value.output_speed_code;
+                    let value_native = TtyTermiosAttributes {
+                        input_flags: value_native_input_flags,
+                        output_flags: value_native_output_flags,
+                        control_flags: value_native_control_flags,
+                        local_flags: value_native_local_flags,
+                        control_characters: value_native_control_characters,
+                        input_speed_code: value_native_input_speed_code,
+                        output_speed_code: value_native_output_speed_code,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_get_process_group_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut process::ProcessId,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_GET_PROCESS_GROUP,
+        context.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_get_process_group(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_get_process_group(
+                    context, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = TtyTermiosGetProcessGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosGetProcessGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_send_break_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    duration: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &duration);
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_SEND_BREAK,
+        context.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_send_break(context, handle, duration)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_send_break(
+                    context, handle, duration,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSendBreakReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSendBreakReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_set_attributes_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    attributes: TtyTermiosAttributes,
+    action: TtyTermiosSetAction,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &attributes, &action);
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_SET_ATTRIBUTES,
+        context.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_set_attributes(
+                    context, handle, attributes, action,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_set_attributes(
+                    context, handle, attributes, action,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSetAttributesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSetAttributesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_tty_termios_set_process_group_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    processgroupid: process::ProcessId,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &processgroupid);
+
+    context.replay().run_binding_with_policy(
+        TTY_TERMIOS_SET_PROCESS_GROUP,
+        context.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_tty_termios_set_process_group(
+                    context,
+                    handle,
+                    processgroupid,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_tty_termios_set_process_group(
+                    context,
+                    handle,
+                    processgroupid,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSetProcessGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSetProcessGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 /// Native export wrappers for tty bindings.
+#[unsafe(export_name = "destack.tty.handle.close")]
+pub unsafe extern "C" fn destack_tty_handle_close(handle: resource::TtyHandle) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(TTY_HANDLE_CLOSE)?;
+        destack_tty_handle_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.handle.isTerminalFile")]
+pub unsafe extern "C" fn destack_tty_handle_is_terminal_file(
+    out: *mut bool,
+    handle: resource::FileHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(TTY_HANDLE_IS_TERMINAL_FILE)?;
+        destack_tty_handle_is_terminal_file_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.handle.stdioStderr")]
+pub unsafe extern "C" fn destack_tty_handle_stdio_stderr(
+    out: *mut resource::TtyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(TTY_HANDLE_STDIO_STDERR)?;
+        destack_tty_handle_stdio_stderr_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.handle.stdioStdin")]
+pub unsafe extern "C" fn destack_tty_handle_stdio_stdin(
+    out: *mut resource::TtyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(TTY_HANDLE_STDIO_STDIN)?;
+        destack_tty_handle_stdio_stdin_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.handle.stdioStdout")]
+pub unsafe extern "C" fn destack_tty_handle_stdio_stdout(
+    out: *mut resource::TtyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(TTY_HANDLE_STDIO_STDOUT)?;
+        destack_tty_handle_stdio_stdout_replay(context, world, out)
+    })
+}
+
 #[unsafe(export_name = "destack.tty.io.read")]
 pub unsafe extern "C" fn destack_tty_io_read(
     out: *mut u64,
@@ -1220,6 +2943,19 @@ pub unsafe extern "C" fn destack_tty_mode_set_mode(
     })
 }
 
+#[unsafe(export_name = "destack.tty.mode.setRawMode")]
+pub unsafe extern "C" fn destack_tty_mode_set_raw_mode(
+    handle: resource::TtyHandle,
+    enabled: bool,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &enabled);
+
+        let world = context.check_and_resolve_world(TTY_MODE_SET_RAW_MODE)?;
+        destack_tty_mode_set_raw_mode_replay(context, world, handle, enabled)
+    })
+}
+
 #[unsafe(export_name = "destack.tty.pty.close")]
 pub unsafe extern "C" fn destack_tty_pty_close(handle: resource::PtyHandle) -> RuntimeStatus {
     native_call(|context| {
@@ -1277,7 +3013,380 @@ pub unsafe extern "C" fn destack_tty_size_set_size(
     })
 }
 
+#[unsafe(export_name = "destack.tty.termios.drain")]
+pub unsafe extern "C" fn destack_tty_termios_drain(handle: resource::TtyHandle) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_DRAIN)?;
+        destack_tty_termios_drain_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.flow")]
+pub unsafe extern "C" fn destack_tty_termios_flow(
+    handle: resource::TtyHandle,
+    action: TtyTermiosFlowAction,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &action);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_FLOW)?;
+        destack_tty_termios_flow_replay(context, world, handle, action)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.flush")]
+pub unsafe extern "C" fn destack_tty_termios_flush(
+    handle: resource::TtyHandle,
+    queue: TtyTermiosQueue,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &queue);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_FLUSH)?;
+        destack_tty_termios_flush_replay(context, world, handle, queue)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.getAttributes")]
+pub unsafe extern "C" fn destack_tty_termios_get_attributes(
+    out: *mut TtyTermiosAttributes,
+    handle: resource::TtyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_GET_ATTRIBUTES)?;
+        destack_tty_termios_get_attributes_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.getProcessGroup")]
+pub unsafe extern "C" fn destack_tty_termios_get_process_group(
+    out: *mut process::ProcessId,
+    handle: resource::TtyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_GET_PROCESS_GROUP)?;
+        destack_tty_termios_get_process_group_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.sendBreak")]
+pub unsafe extern "C" fn destack_tty_termios_send_break(
+    handle: resource::TtyHandle,
+    duration: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &duration);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_SEND_BREAK)?;
+        destack_tty_termios_send_break_replay(context, world, handle, duration)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.setAttributes")]
+pub unsafe extern "C" fn destack_tty_termios_set_attributes(
+    handle: resource::TtyHandle,
+    attributes: TtyTermiosAttributes,
+    action: TtyTermiosSetAction,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &attributes, &action);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_SET_ATTRIBUTES)?;
+        destack_tty_termios_set_attributes_replay(context, world, handle, attributes, action)
+    })
+}
+
+#[unsafe(export_name = "destack.tty.termios.setProcessGroup")]
+pub unsafe extern "C" fn destack_tty_termios_set_process_group(
+    handle: resource::TtyHandle,
+    processgroupid: process::ProcessId,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &processgroupid);
+
+        let world = context.check_and_resolve_world(TTY_TERMIOS_SET_PROCESS_GROUP)?;
+        destack_tty_termios_set_process_group_replay(context, world, handle, processgroupid)
+    })
+}
+
 /// VM replay implementations for tty bindings.
+#[inline]
+fn destack_tty_handle_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_HANDLE_CLOSE,
+        runtime.replay_payload_for(TTY_HANDLE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyHandleCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_handle_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_handle_is_terminal_file_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::FileHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_HANDLE_IS_TERMINAL_FILE,
+        runtime.replay_payload_for(TTY_HANDLE_IS_TERMINAL_FILE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_is_terminal_file(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_is_terminal_file(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyHandleIsTerminalFileReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleIsTerminalFileReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_handle_is_terminal_file_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stderr_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_HANDLE_STDIO_STDERR,
+        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDERR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stderr(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_stdio_stderr(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TtyHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStderrReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStderrReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_handle_stdio_stderr_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stdin_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_HANDLE_STDIO_STDIN,
+        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDIN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdin(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_stdio_stdin(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TtyHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStdinReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStdinReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_handle_stdio_stdin_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_handle_stdio_stdout_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_HANDLE_STDIO_STDOUT,
+        runtime.replay_payload_for(TTY_HANDLE_STDIO_STDOUT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_stdio_stdout(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_stdio_stdout(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::TtyHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyHandleStdioStdoutReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyHandleStdioStdoutReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_handle_stdio_stdout_result(context, result)?;
+    Ok(result)
+}
+
 #[inline]
 fn destack_tty_io_read_vm_replay(
     runtime: &BindingCallContext,
@@ -1508,6 +3617,59 @@ fn destack_tty_mode_set_mode_vm_replay(
         },
     );
     let result = encode_destack_tty_mode_set_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_mode_set_raw_mode_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    enabled: bool,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_MODE_SET_RAW_MODE,
+        runtime.replay_payload_for(TTY_MODE_SET_RAW_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_set_raw_mode(runtime, context, handle, enabled)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_set_raw_mode(runtime, context, handle, enabled)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyModeSetRawModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyModeSetRawModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_mode_set_raw_mode_result(context, result)?;
     Ok(result)
 }
 
@@ -1752,8 +3914,554 @@ fn destack_tty_size_set_size_vm_replay(
     Ok(result)
 }
 
+#[inline]
+fn destack_tty_termios_drain_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_DRAIN,
+        runtime.replay_payload_for(TTY_TERMIOS_DRAIN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_termios_drain(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_drain(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosDrainReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosDrainReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_drain_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_flow_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    action: TtyTermiosFlowAction,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_FLOW,
+        runtime.replay_payload_for(TTY_TERMIOS_FLOW)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_termios_flow(runtime, context, handle, action)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_flow(runtime, context, handle, action)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosFlowReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosFlowReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_flow_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_flush_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    queue: TtyTermiosQueue,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_FLUSH,
+        runtime.replay_payload_for(TTY_TERMIOS_FLUSH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_termios_flush(runtime, context, handle, queue)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_flush(runtime, context, handle, queue)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_flush_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_get_attributes_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_GET_ATTRIBUTES,
+        runtime.replay_payload_for(TTY_TERMIOS_GET_ATTRIBUTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_termios_get_attributes(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_get_attributes(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: TtyTermiosAttributesVm = value.clone();
+                let result_recorded_input_flags = result_value.input_flags;
+                let result_recorded_output_flags = result_value.output_flags;
+                let result_recorded_control_flags = result_value.control_flags;
+                let result_recorded_local_flags = result_value.local_flags;
+                let result_recorded_control_characters =
+                    result_value.control_characters.read_bytes(context)?;
+                let result_recorded_input_speed_code = result_value.input_speed_code;
+                let result_recorded_output_speed_code = result_value.output_speed_code;
+                let result_recorded = TtyTermiosAttributesReplayRecord {
+                    input_flags: result_recorded_input_flags,
+                    output_flags: result_recorded_output_flags,
+                    control_flags: result_recorded_control_flags,
+                    local_flags: result_recorded_local_flags,
+                    control_characters: result_recorded_control_characters,
+                    input_speed_code: result_recorded_input_speed_code,
+                    output_speed_code: result_recorded_output_speed_code,
+                };
+                let payload = TtyTermiosGetAttributesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosGetAttributesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_input_flags = value.input_flags;
+                    let vm_result_output_flags = value.output_flags;
+                    let vm_result_control_flags = value.control_flags;
+                    let vm_result_local_flags = value.local_flags;
+                    let vm_result_control_characters =
+                        VmSlice::from_bytes(context, value.control_characters.as_slice());
+                    let vm_result_input_speed_code = value.input_speed_code;
+                    let vm_result_output_speed_code = value.output_speed_code;
+                    let vm_result = TtyTermiosAttributesVm {
+                        input_flags: vm_result_input_flags,
+                        output_flags: vm_result_output_flags,
+                        control_flags: vm_result_control_flags,
+                        local_flags: vm_result_local_flags,
+                        control_characters: vm_result_control_characters,
+                        input_speed_code: vm_result_input_speed_code,
+                        output_speed_code: vm_result_output_speed_code,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_get_attributes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_get_process_group_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_GET_PROCESS_GROUP,
+        runtime.replay_payload_for(TTY_TERMIOS_GET_PROCESS_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_termios_get_process_group(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_get_process_group(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: process::ProcessId = value.clone();
+                let result_recorded = result_value;
+                let payload = TtyTermiosGetProcessGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosGetProcessGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_get_process_group_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_send_break_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    duration: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_SEND_BREAK,
+        runtime.replay_payload_for(TTY_TERMIOS_SEND_BREAK)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_tty_termios_send_break(runtime, context, handle, duration)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_tty_termios_send_break(
+                runtime, context, handle, duration,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSendBreakReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSendBreakReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_send_break_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_set_attributes_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    attributes: TtyTermiosAttributesVm,
+    action: TtyTermiosSetAction,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_SET_ATTRIBUTES,
+        runtime.replay_payload_for(TTY_TERMIOS_SET_ATTRIBUTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_termios_set_attributes(
+                runtime, context, handle, attributes, action,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_tty_termios_set_attributes(
+                runtime, context, handle, attributes, action,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSetAttributesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSetAttributesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_set_attributes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_tty_termios_set_process_group_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::TtyHandle,
+    processgroupid: process::ProcessId,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        TTY_TERMIOS_SET_PROCESS_GROUP,
+        runtime.replay_payload_for(TTY_TERMIOS_SET_PROCESS_GROUP)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_tty_termios_set_process_group(
+                runtime,
+                context,
+                handle,
+                processgroupid,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_tty_termios_set_process_group(
+                    runtime,
+                    context,
+                    handle,
+                    processgroupid,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = TtyTermiosSetProcessGroupReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TtyTermiosSetProcessGroupReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_tty_termios_set_process_group_result(context, result)?;
+    Ok(result)
+}
+
 /// Register VM bindings for tty.
 pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(registry, isolate, TTY_HANDLE_CLOSE, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_tty_handle_close_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(TTY_HANDLE_CLOSE)?;
+                destack_tty_handle_close_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_HANDLE_IS_TERMINAL_FILE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_tty_handle_is_terminal_file_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_HANDLE_IS_TERMINAL_FILE)?;
+                    destack_tty_handle_is_terminal_file_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_HANDLE_STDIO_STDERR,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_HANDLE_STDIO_STDERR)?;
+                    destack_tty_handle_stdio_stderr_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_HANDLE_STDIO_STDIN,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_HANDLE_STDIO_STDIN)?;
+                    destack_tty_handle_stdio_stdin_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_HANDLE_STDIO_STDOUT,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_HANDLE_STDIO_STDOUT)?;
+                    destack_tty_handle_stdio_stdout_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(registry, isolate, TTY_IO_READ, move |context, args| {
             with_binding_call_context(|runtime| {
@@ -1817,6 +4525,27 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         );
     }
     {
+        binding!(
+            registry,
+            isolate,
+            TTY_MODE_SET_RAW_MODE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, enabled) =
+                        decode_destack_tty_mode_set_raw_mode_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_MODE_SET_RAW_MODE)?;
+                    destack_tty_mode_set_raw_mode_vm_replay(
+                        runtime, context, world, handle, enabled,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
         binding!(registry, isolate, TTY_PTY_CLOSE, move |context, args| {
             with_binding_call_context(|runtime| {
                 // decode args
@@ -1873,6 +4602,159 @@ pub fn register_tty_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     // execute binding
                     let world = runtime.check_and_resolve_world(TTY_SIZE_SET_SIZE)?;
                     destack_tty_size_set_size_vm_replay(runtime, context, world, handle, size)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_DRAIN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_tty_termios_drain_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_DRAIN)?;
+                    destack_tty_termios_drain_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, TTY_TERMIOS_FLOW, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, action) = decode_destack_tty_termios_flow_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(TTY_TERMIOS_FLOW)?;
+                destack_tty_termios_flow_vm_replay(runtime, context, world, handle, action)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_FLUSH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, queue) = decode_destack_tty_termios_flush_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_FLUSH)?;
+                    destack_tty_termios_flush_vm_replay(runtime, context, world, handle, queue)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_GET_ATTRIBUTES,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_tty_termios_get_attributes_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_GET_ATTRIBUTES)?;
+                    destack_tty_termios_get_attributes_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_GET_PROCESS_GROUP,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_tty_termios_get_process_group_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_GET_PROCESS_GROUP)?;
+                    destack_tty_termios_get_process_group_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_SEND_BREAK,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, duration) =
+                        decode_destack_tty_termios_send_break_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_SEND_BREAK)?;
+                    destack_tty_termios_send_break_vm_replay(
+                        runtime, context, world, handle, duration,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_SET_ATTRIBUTES,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, attributes, action) =
+                        decode_destack_tty_termios_set_attributes_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_SET_ATTRIBUTES)?;
+                    destack_tty_termios_set_attributes_vm_replay(
+                        runtime, context, world, handle, attributes, action,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            TTY_TERMIOS_SET_PROCESS_GROUP,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, processgroupid) =
+                        decode_destack_tty_termios_set_process_group_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(TTY_TERMIOS_SET_PROCESS_GROUP)?;
+                    destack_tty_termios_set_process_group_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        processgroupid,
+                    )
                 })
                 .map_err(Into::into)
             }

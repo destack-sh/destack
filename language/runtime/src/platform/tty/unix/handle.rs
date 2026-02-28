@@ -1,0 +1,261 @@
+use super::core::{UnixDescriptorFinalizer, io_error, io_error_with_errno, set_cloexec};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::resource::{ResourceEntry, ResourceKind};
+use crate::platform::tty::core::{
+    close_tty_resource, ensure_out, invalid_file_handle, not_terminal_error,
+};
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::BindingCallContext;
+
+/// Resolve one file handle into one unix descriptor.
+fn file_descriptor(
+    context: &BindingCallContext,
+    handle: resource::FileHandle,
+    operation: &'static str,
+) -> RuntimeResult<libc::c_int> {
+    let descriptor = context
+        .runtime()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::File {
+                return None;
+            }
+
+            entry.fd()
+        })
+        .flatten()
+        .ok_or_else(|| invalid_file_handle(operation))?;
+
+    Ok(descriptor)
+}
+
+/// Return whether one descriptor targets a terminal.
+fn is_terminal_descriptor(descriptor: libc::c_int, operation: &'static str) -> RuntimeResult<bool> {
+    // query host tty state for one descriptor
+    let status = unsafe { libc::isatty(descriptor) };
+    if status == 1 {
+        return Ok(true);
+    }
+
+    // map not-a-tty into false and preserve other host errors
+    let errno = core_platform::get_errno();
+    if errno == 0 || errno == libc::ENOTTY {
+        return Ok(false);
+    }
+
+    Err(io_error_with_errno(
+        operation,
+        "isatty",
+        errno,
+        "failed to query terminal state",
+    ))
+}
+
+/// Register one duplicated stdio descriptor as a tty handle.
+fn register_stdio_tty(
+    context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+    descriptor: libc::c_int,
+    operation: &'static str,
+    label: &'static str,
+) -> RuntimeResult<()> {
+    // validate the output pointer
+    ensure_out(out, "out")?;
+
+    // reject streams that are not attached to terminals
+    let is_terminal = is_terminal_descriptor(descriptor, operation)?;
+    if !is_terminal {
+        return Err(not_terminal_error(operation));
+    }
+
+    // duplicate one descriptor for runtime ownership
+    let duplicated = unsafe { libc::dup(descriptor) };
+    if duplicated < 0 {
+        return Err(io_error(
+            operation,
+            "dup",
+            "failed to duplicate standard stream descriptor",
+        ));
+    }
+
+    // mark the duplicated descriptor close-on-exec
+    if let Err(error) = set_cloexec(
+        duplicated,
+        operation,
+        "failed to set close-on-exec on duplicated descriptor",
+    ) {
+        unsafe {
+            libc::close(duplicated);
+        }
+        return Err(error);
+    }
+
+    // register one tty entry in the resource table
+    let entry = ResourceEntry::new(ResourceKind::Tty)
+        .with_label(label)
+        .with_fd(duplicated)
+        .with_finalizer(UnixDescriptorFinalizer {
+            descriptor: duplicated,
+        });
+    let resource_id = context.runtime().resources.insert(entry);
+
+    unsafe {
+        out.write(resource::TtyHandle(resource_id));
+    }
+
+    Ok(())
+}
+
+/// Close one terminal handle.
+///
+/// Close one terminal endpoint and release runtime ownership.
+/// Follow-up operations on the closed handle fail with invalid-handle errors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_close(
+    context: &BindingCallContext,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    close_tty_resource(context, handle, "destack.tty.handle.close")
+}
+
+/// Return whether one file handle is attached to a terminal.
+///
+/// Query one file handle and return true when it targets a terminal endpoint.
+/// This can be used before converting process stdio streams into tty workflows.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_is_terminal_file(
+    context: &BindingCallContext,
+    out: *mut bool,
+    handle: resource::FileHandle,
+) -> RuntimeResult<()> {
+    // validate the output pointer
+    ensure_out(out, "out")?;
+
+    // resolve one file descriptor and query host tty state
+    let descriptor = file_descriptor(context, handle, "destack.tty.handle.isTerminalFile")?;
+    let is_terminal = is_terminal_descriptor(descriptor, "destack.tty.handle.isTerminalFile")?;
+
+    unsafe {
+        out.write(is_terminal);
+    }
+
+    Ok(())
+}
+
+/// Open one standard input terminal handle.
+///
+/// Open one terminal handle for the current process standard input stream.
+/// The returned handle can be used with tty read, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stdin(
+    context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    register_stdio_tty(
+        context,
+        out,
+        libc::STDIN_FILENO,
+        "destack.tty.handle.stdioStdin",
+        "tty.stdio.stdin",
+    )
+}
+
+/// Open one standard output terminal handle.
+///
+/// Open one terminal handle for the current process standard output stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stdout(
+    context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    register_stdio_tty(
+        context,
+        out,
+        libc::STDOUT_FILENO,
+        "destack.tty.handle.stdioStdout",
+        "tty.stdio.stdout",
+    )
+}
+
+/// Open one standard error terminal handle.
+///
+/// Open one terminal handle for the current process standard error stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stderr(
+    context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    register_stdio_tty(
+        context,
+        out,
+        libc::STDERR_FILENO,
+        "destack.tty.handle.stdioStderr",
+        "tty.stdio.stderr",
+    )
+}

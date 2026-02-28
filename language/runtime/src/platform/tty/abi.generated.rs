@@ -5,12 +5,121 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
 use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, resource,
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec, resource,
     resource as platform_resource, tty as platform_tty,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI enum for TtyTermiosFlowAction.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TtyTermiosFlowAction {
+    /// SuspendOutput.
+    SuspendOutput = 1,
+    /// ResumeOutput.
+    ResumeOutput = 2,
+    /// SuspendInput.
+    SuspendInput = 3,
+    /// ResumeInput.
+    ResumeInput = 4,
+}
+
+impl VmValueCodec for TtyTermiosFlowAction {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::SuspendOutput,
+            2u8 => Self::ResumeOutput,
+            3u8 => Self::SuspendInput,
+            4u8 => Self::ResumeInput,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosFlowAction value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for TtyTermiosQueue.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TtyTermiosQueue {
+    /// Input.
+    Input = 1,
+    /// Output.
+    Output = 2,
+    /// InputAndOutput.
+    InputAndOutput = 3,
+}
+
+impl VmValueCodec for TtyTermiosQueue {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Input,
+            2u8 => Self::Output,
+            3u8 => Self::InputAndOutput,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosQueue value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for TtyTermiosSetAction.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TtyTermiosSetAction {
+    /// Now.
+    Now = 1,
+    /// Drain.
+    Drain = 2,
+    /// Flush.
+    Flush = 3,
+}
+
+impl VmValueCodec for TtyTermiosSetAction {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Now,
+            2u8 => Self::Drain,
+            3u8 => Self::Flush,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown TtyTermiosSetAction value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
 
 /// ABI struct for PtyPair.
 #[repr(C)]
@@ -195,4 +304,130 @@ impl VmAggregateCodec for TtySize {
         ];
         Ok(context.allocate_aggregate(slots))
     }
+}
+
+/// ABI struct for TtyTermiosAttributes.
+#[repr(C)]
+pub struct TtyTermiosAttributesAbi<A: BindingAbi> {
+    /// The input_flags field.
+    pub input_flags: u64,
+    /// The output_flags field.
+    pub output_flags: u64,
+    /// The control_flags field.
+    pub control_flags: u64,
+    /// The local_flags field.
+    pub local_flags: u64,
+    /// The control_characters field.
+    pub control_characters: A::Slice<u8>,
+    /// The input_speed_code field.
+    pub input_speed_code: u64,
+    /// The output_speed_code field.
+    pub output_speed_code: u64,
+}
+
+pub type TtyTermiosAttributes = TtyTermiosAttributesAbi<NativeAbi>;
+pub type TtyTermiosAttributesVm = TtyTermiosAttributesAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for TtyTermiosAttributesAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("TtyTermiosAttributesAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for TtyTermiosAttributesAbi<NativeAbi> {}
+impl Clone for TtyTermiosAttributesAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for TtyTermiosAttributesAbi<VmAbi> {}
+impl Clone for TtyTermiosAttributesAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "TtyTermiosAttributes",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_input_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_output_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_control_flags =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_local_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_control_characters =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_input_speed_code =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_output_speed_code =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            input_flags: field_input_flags,
+            output_flags: field_output_flags,
+            control_flags: field_control_flags,
+            local_flags: field_local_flags,
+            control_characters: field_control_characters,
+            input_speed_code: field_input_speed_code,
+            output_speed_code: field_output_speed_code,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.control_flags, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.local_flags, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(
+                self.control_characters,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.input_speed_code, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.output_speed_code, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// Replay struct for TtyTermiosAttributes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TtyTermiosAttributesReplayRecord {
+    /// The input_flags field.
+    pub input_flags: u64,
+    /// The output_flags field.
+    pub output_flags: u64,
+    /// The control_flags field.
+    pub control_flags: u64,
+    /// The local_flags field.
+    pub local_flags: u64,
+    /// The control_characters field.
+    pub control_characters: Vec<u8>,
+    /// The input_speed_code field.
+    pub input_speed_code: u64,
+    /// The output_speed_code field.
+    pub output_speed_code: u64,
 }

@@ -2,12 +2,18 @@
 
 use destack_vm as vm;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::resource::ResourceKind;
+use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
+#[path = "harness.rs"]
 mod harness;
+
+#[allow(unused_imports)]
+pub(crate) use harness::*;
 
 /// Test harness context used by tests.
 pub(crate) struct TtyHarnessContext<'call> {
@@ -113,4 +119,137 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Extract one platform error code from one failed result.
+pub(crate) fn error_code<T>(result: RuntimeResult<T>) -> RuntimeResult<PlatformErrorCode> {
+    match result {
+        Ok(_) => Err(
+            RuntimeError::from(PlatformError::invalid_argument("operation should fail")).boxed(),
+        ),
+        Err(error) => {
+            let platform = error.platform_error().ok_or_else(|| {
+                RuntimeError::from(PlatformError::invalid_argument(
+                    "missing platform error payload",
+                ))
+                .boxed()
+            })?;
+            Ok(platform.code)
+        }
+    }
+}
+
+/// Assert one failed result with one code from the allowed set.
+pub(crate) fn assert_platform_error_codes<T>(
+    result: RuntimeResult<T>,
+    expected: &[PlatformErrorCode],
+) -> RuntimeResult<()> {
+    let actual = error_code(result)?;
+    assert!(
+        expected.contains(&actual),
+        "unexpected platform error code {actual:?}, expected one of {expected:?}"
+    );
+    Ok(())
+}
+
+/// Assert one result is ok or fails with one expected platform error code.
+pub(crate) fn assert_ok_or_expected_error<T>(
+    result: RuntimeResult<T>,
+    expected: &[PlatformErrorCode],
+) -> RuntimeResult<Option<T>> {
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(error) => {
+            let Some(code) = error.platform_error().map(|platform| platform.code) else {
+                return Err(error);
+            };
+
+            if expected.contains(&code) {
+                return Ok(None);
+            }
+
+            Err(error)
+        }
+    }
+}
+
+/// Decode one harness value where native and vm payloads are the same ABI type.
+pub(crate) fn decode_harness_value<T>(value: HarnessValue<T, T>) -> T {
+    match value {
+        HarnessValue::Native(value) => value,
+        HarnessValue::Vm(value) => value,
+    }
+}
+
+/// Remove one tty worker entry through the resource table.
+pub(crate) fn close_tty_worker_resource(
+    context: &BindingCallContext,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    if !removed {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "handle",
+            "unknown tty handle",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Resolve one pty handle into one raw unix descriptor.
+#[cfg(unix)]
+pub(crate) fn pty_descriptor(
+    context: &BindingCallContext,
+    handle: resource::PtyHandle,
+) -> RuntimeResult<libc::c_int> {
+    let descriptor = context
+        .runtime()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Pty {
+                return None;
+            }
+
+            entry.fd()
+        })
+        .flatten()
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown pty handle",
+            ))
+            .boxed()
+        })?;
+
+    Ok(descriptor)
+}
+
+/// Resolve one tty handle into one raw unix descriptor.
+#[cfg(unix)]
+pub(crate) fn tty_descriptor(
+    context: &BindingCallContext,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<libc::c_int> {
+    let descriptor = context
+        .runtime()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Tty {
+                return None;
+            }
+
+            entry.fd()
+        })
+        .flatten()
+        .ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "handle",
+                "unknown tty handle",
+            ))
+            .boxed()
+        })?;
+
+    Ok(descriptor)
 }
