@@ -494,12 +494,12 @@ fn attach_parenthesized_tree_head_line_comment(
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
-/// Attach one optional-call head line comment to the first call argument.
-fn attach_optional_call_argument_head_line_comment(
+/// Attach one call argument head line comment to the first call argument.
+fn attach_call_argument_head_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
     following_owner_with_token_fallback: Option<u32>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
@@ -507,15 +507,18 @@ fn attach_optional_call_argument_head_line_comment(
         return None;
     }
 
-    let Some(preceding_owner) = preceding_owner else {
+    let Some(enclosing_owner) = enclosing_owner else {
         return None;
     };
-    if tree.get_node_type(preceding_owner) != NodeType::Expression {
+    if tree.get_node_type(enclosing_owner) != NodeType::Expression {
         return None;
     }
 
-    let preceding_expression_id = LocalNodeId::<Expression>::new(preceding_owner);
-    if !matches!(tree.get(preceding_expression_id), Expression::Maybe { .. }) {
+    let enclosing_expression_id = LocalNodeId::<Expression>::new(enclosing_owner);
+    if !matches!(
+        tree.get(enclosing_expression_id),
+        Expression::Call { .. } | Expression::New { .. }
+    ) {
         return None;
     }
 
@@ -845,12 +848,12 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
-    // optional call head line comment ownership
-    if let Some(attachment) = attach_optional_call_argument_head_line_comment(
+    // call argument head line comment ownership
+    if let Some(attachment) = attach_call_argument_head_line_comment(
         tree,
         parents,
         seam,
-        preceding_owner,
+        enclosing_owner,
         following_owner_with_token_fallback,
         is_same_line_line_comment,
     ) {

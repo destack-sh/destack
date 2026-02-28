@@ -644,6 +644,237 @@ fn try_attach_statement_end_comment_blank_seam(
     None
 }
 
+/// Attach comment-shape blank seam rules before semicolon and statement routing.
+fn try_attach_comment_shape_blank_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    comment_state: &BlankSeamCommentState,
+    owner_state: &BlankSeamOwnerState,
+    semicolon_guard_seam: SemicolonGuardCommentSeam,
+    token_before_is_statement_end: bool,
+    token_before_is_colon: bool,
+    token_after_is_else: bool,
+    token_before_is_comment: bool,
+    token_after_is_comment: bool,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    let seam_has_comment = comment_state.seam_has_comment;
+    let blank_before_first_comment = comment_state.blank_before_first_comment;
+    let blank_before_first_comment_in_after_range =
+        comment_state.blank_before_first_comment_in_after_range;
+
+    let preceding_token_owner = owner_state.preceding_token_owner;
+    let preceding_owner = owner_state.preceding_owner;
+    let preceding_owner_before_semicolon = owner_state.preceding_owner_before_semicolon;
+    let following_owner = owner_state.following_owner;
+    let shared_expression_owner = owner_state.shared_expression_owner;
+    let preceding_match_case_owner = owner_state.preceding_match_case_owner;
+    let token_after_comment_continues_chain_or_index =
+        owner_state.token_after_comment_continues_chain_or_index;
+
+    // preserve blank seams between adjacent comments
+    if seam_has_comment
+        && blank_before_first_comment
+        && token_before_is_comment
+        && token_after_is_comment
+        && let Some(target_node) = following_owner.or(preceding_owner)
+    {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    // statement-end chain seams with comments
+    if (blank_before_first_comment || blank_before_first_comment_in_after_range)
+        && token_before_is_statement_end
+        && token_after_comment_continues_chain_or_index
+        && !semicolon_guard_seam.has_guard_shape()
+        && let Some(target_node) = preceding_token_owner
+            .or(preceding_owner)
+            .or(preceding_owner_before_semicolon)
+    {
+        return Some(block_postfix_attachment(tree, target_node));
+    }
+
+    // switch-label seams with comments before case labels
+    if token_before_is_colon
+        && seam_has_comment
+        && blank_before_first_comment
+        && let Some(target_node) = preceding_match_case_owner
+    {
+        return Some(block_postfix_attachment(tree, target_node));
+    }
+
+    // else seams with comment-owned blank trivia
+    if seam_has_comment && token_after_is_else {
+        if blank_before_first_comment && let Some(target_node) = shared_expression_owner {
+            return Some(block_postfix_attachment(tree, target_node));
+        }
+
+        if blank_before_first_comment && let Some(mut target_node) = following_owner {
+            if tree.get_node_type(target_node) != NodeType::Expression
+                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_node,
+                    NodeType::Expression,
+                )
+            {
+                target_node = expression_target;
+            }
+
+            return Some(block_prefix_attachment(tree, target_node));
+        }
+
+        return Some(blank_infix_attachment());
+    }
+
+    None
+}
+
+/// Attach chain, delimiter, and suppression blank seam rules.
+fn try_attach_chain_delimiter_blank_seam(
+    tree: &NodeTree,
+    comment_state: &BlankSeamCommentState,
+    owner_state: &BlankSeamOwnerState,
+    token_after_span: Option<TokenSpan>,
+    token_before_is_semicolon: bool,
+    token_before_is_comma: bool,
+    token_before_is_else: bool,
+    token_after_is_chain_or_index_boundary: bool,
+    token_after_is_semicolon: bool,
+    token_after_is_close_brace: bool,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    let seam_has_comment = comment_state.seam_has_comment;
+    let blank_before_first_comment = comment_state.blank_before_first_comment;
+    let blank_before_first_comment_in_after_range =
+        comment_state.blank_before_first_comment_in_after_range;
+
+    let preceding_owner = owner_state.preceding_owner;
+    let following_owner = owner_state.following_owner;
+
+    // chain or index seams with comments
+    if seam_has_comment && token_after_is_chain_or_index_boundary {
+        if blank_before_first_comment && let Some(target_node) = preceding_owner {
+            return Some(block_postfix_attachment(tree, target_node));
+        }
+
+        if let Some(token) = token_after_span
+            && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
+        {
+            return Some(block_prefix_attachment(tree, target_node));
+        }
+    }
+
+    // semicolon-own-line comment seams
+    if seam_has_comment
+        && blank_before_first_comment
+        && token_before_is_semicolon
+        && token_after_is_semicolon
+    {
+        return Some(blank_infix_attachment());
+    }
+
+    // comma seams with comments
+    if seam_has_comment
+        && (blank_before_first_comment || blank_before_first_comment_in_after_range)
+        && token_before_is_comma
+        && let Some(target_node) = following_owner
+    {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    // semicolon and close-brace seam suppression
+    if token_after_is_semicolon || token_after_is_close_brace {
+        return Some(blank_infix_attachment());
+    }
+
+    // else-to-body seam suppression
+    if token_before_is_else {
+        return Some(blank_infix_attachment());
+    }
+
+    None
+}
+
+/// Attach decorator-adjacent blank seam rules near `@`.
+fn try_attach_decorator_blank_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_index: &FormatterTriviaOwnerIndex,
+    owner_state: &BlankSeamOwnerState,
+    token_after_span: Option<TokenSpan>,
+    token_before_is_semicolon: bool,
+    token_after_is_at: bool,
+    token_after: Option<usize>,
+) -> Option<(Option<u32>, AnnotationPosition)> {
+    let preceding_owner = owner_state.preceding_owner;
+    let following_owner = owner_state.following_owner;
+
+    if !token_after_is_at {
+        return None;
+    }
+
+    if token_before_is_semicolon
+        && let Some(token_after_index) = token_after
+        && let Some(target_node) = find_owner_at_or_after_token_with_node_type(
+            tree,
+            owner_index,
+            token_after_index,
+            NodeType::Member,
+        )
+        .and_then(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+        })
+        && let Some(preceding_declaration) = preceding_owner
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        && let Some(target_declaration) =
+            promote_owner_to_declaration_ancestor(tree, parents, target_node)
+        && preceding_declaration == target_declaration
+    {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    if token_before_is_semicolon
+        && let Some(target_node) = preceding_owner
+        && tree.get_node_type(target_node) == NodeType::Member
+    {
+        return Some(block_postfix_attachment(tree, target_node));
+    }
+
+    if let Some(token) = token_after_span
+        && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
+        && tree.get_node_type(target_node) == NodeType::Member
+    {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    if let Some(target_node) = following_owner
+        && tree.get_node_type(target_node) == NodeType::Member
+    {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    let declaration_target = token_after
+        .and_then(|token_after_index| {
+            find_owner_at_or_after_token_with_node_type(
+                tree,
+                owner_index,
+                token_after_index,
+                NodeType::Declaration,
+            )
+        })
+        .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        .or_else(|| {
+            following_owner
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+                .or(following_owner)
+        });
+
+    if let Some(target_node) = declaration_target {
+        return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    None
+}
+
 pub(crate) fn blank_trivia_attachment(
     tree: &NodeTree,
     semantic_tokens: &[TokenSpan],
@@ -760,75 +991,28 @@ pub(crate) fn blank_trivia_attachment(
     // seam facts
     let seam_has_comment = comment_state.seam_has_comment;
     let seam_has_line_comment = comment_state.seam_has_line_comment;
-    let blank_before_first_comment = comment_state.blank_before_first_comment;
-    let blank_before_first_comment_in_after_range =
-        comment_state.blank_before_first_comment_in_after_range;
     let token_before_is_comment = token_before_type.is_some_and(token_type_is_comment_trivia);
     let token_after_is_comment = token_after_type.is_some_and(token_type_is_comment_trivia);
 
     let preceding_token_owner = owner_state.preceding_token_owner;
     let preceding_owner = owner_state.preceding_owner;
-    let preceding_owner_before_semicolon = owner_state.preceding_owner_before_semicolon;
     let following_owner = owner_state.following_owner;
-    let shared_expression_owner = owner_state.shared_expression_owner;
-    let preceding_match_case_owner = owner_state.preceding_match_case_owner;
     let following_owner_is_argument = owner_state.following_owner_is_argument;
-    let token_after_comment_continues_chain_or_index =
-        owner_state.token_after_comment_continues_chain_or_index;
 
-    // preserve blank seams between adjacent comments
-    if seam_has_comment
-        && blank_before_first_comment
-        && token_before_is_comment
-        && token_after_is_comment
-        && let Some(target_node) = following_owner.or(preceding_owner)
-    {
-        return block_prefix_attachment(tree, target_node);
-    }
-
-    // statement-end chain seams with comments
-    if (blank_before_first_comment || blank_before_first_comment_in_after_range)
-        && token_before_is_statement_end
-        && token_after_comment_continues_chain_or_index
-        && !semicolon_guard_seam.has_guard_shape()
-        && let Some(target_node) = preceding_token_owner
-            .or(preceding_owner)
-            .or(preceding_owner_before_semicolon)
-    {
-        return block_postfix_attachment(tree, target_node);
-    }
-
-    // switch-label seams with comments before case labels
-    if token_before_is_colon
-        && seam_has_comment
-        && blank_before_first_comment
-        && let Some(target_node) = preceding_match_case_owner
-    {
-        return block_postfix_attachment(tree, target_node);
-    }
-
-    // else seams with comment-owned blank trivia
-    if seam_has_comment && token_after_is_else {
-        if blank_before_first_comment && let Some(target_node) = shared_expression_owner {
-            return block_postfix_attachment(tree, target_node);
-        }
-
-        if blank_before_first_comment && let Some(mut target_node) = following_owner {
-            if tree.get_node_type(target_node) != NodeType::Expression
-                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                    tree,
-                    parents,
-                    target_node,
-                    NodeType::Expression,
-                )
-            {
-                target_node = expression_target;
-            }
-
-            return block_prefix_attachment(tree, target_node);
-        }
-
-        return blank_infix_attachment();
+    // comment-shape seam ownership
+    if let Some(attachment) = try_attach_comment_shape_blank_seam(
+        tree,
+        parents,
+        &comment_state,
+        &owner_state,
+        semicolon_guard_seam,
+        token_before_is_statement_end,
+        token_before_is_colon,
+        token_after_is_else,
+        token_before_is_comment,
+        token_after_is_comment,
+    ) {
+        return attachment;
     }
 
     // semicolon-guard seam ownership
@@ -854,108 +1038,34 @@ pub(crate) fn blank_trivia_attachment(
         return attachment;
     }
 
-    // chain or index seams with comments
-    if seam_has_comment && token_after_is_chain_or_index_boundary {
-        if blank_before_first_comment && let Some(target_node) = preceding_owner {
-            return block_postfix_attachment(tree, target_node);
-        }
-
-        if let Some(token) = token_after_span
-            && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
-        {
-            return block_prefix_attachment(tree, target_node);
-        }
+    // chain, delimiter, and suppression seam ownership
+    if let Some(attachment) = try_attach_chain_delimiter_blank_seam(
+        tree,
+        &comment_state,
+        &owner_state,
+        token_after_span,
+        token_before_is_semicolon,
+        token_before_is_comma,
+        token_before_is_else,
+        token_after_is_chain_or_index_boundary,
+        token_after_is_semicolon,
+        token_after_is_close_brace,
+    ) {
+        return attachment;
     }
 
-    // semicolon-own-line comment seams
-    if seam_has_comment
-        && blank_before_first_comment
-        && token_before_is_semicolon
-        && token_after_is_semicolon
-    {
-        return blank_infix_attachment();
-    }
-
-    // comma seams with comments
-    if seam_has_comment
-        && (blank_before_first_comment || blank_before_first_comment_in_after_range)
-        && token_before_is_comma
-        && let Some(target_node) = following_owner
-    {
-        return block_prefix_attachment(tree, target_node);
-    }
-
-    // semicolon and close-brace seam suppression
-    if token_after_is_semicolon || token_after_is_close_brace {
-        return blank_infix_attachment();
-    }
-
-    // else-to-body seam suppression
-    if token_before_is_else {
-        return blank_infix_attachment();
-    }
-
-    // decorator seams with blank ownership near `@`
-    if token_after_is_at {
-        if token_before_is_semicolon
-            && let Some(token_after_index) = token_after
-            && let Some(target_node) = find_owner_at_or_after_token_with_node_type(
-                tree,
-                owner_index,
-                token_after_index,
-                NodeType::Member,
-            )
-            .and_then(|owner| {
-                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
-            })
-            && let Some(preceding_declaration) = preceding_owner
-                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            && let Some(target_declaration) =
-                promote_owner_to_declaration_ancestor(tree, parents, target_node)
-            && preceding_declaration == target_declaration
-        {
-            return block_prefix_attachment(tree, target_node);
-        }
-
-        if token_before_is_semicolon
-            && let Some(target_node) = preceding_owner
-            && tree.get_node_type(target_node) == NodeType::Member
-        {
-            return block_postfix_attachment(tree, target_node);
-        }
-
-        if let Some(token) = token_after_span
-            && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
-            && tree.get_node_type(target_node) == NodeType::Member
-        {
-            return block_prefix_attachment(tree, target_node);
-        }
-
-        if let Some(target_node) = following_owner
-            && tree.get_node_type(target_node) == NodeType::Member
-        {
-            return block_prefix_attachment(tree, target_node);
-        }
-
-        let declaration_target = token_after
-            .and_then(|token_after_index| {
-                find_owner_at_or_after_token_with_node_type(
-                    tree,
-                    owner_index,
-                    token_after_index,
-                    NodeType::Declaration,
-                )
-            })
-            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            .or_else(|| {
-                following_owner
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-                    .or(following_owner)
-            });
-
-        if let Some(target_node) = declaration_target {
-            return block_prefix_attachment(tree, target_node);
-        }
+    // decorator seam ownership
+    if let Some(attachment) = try_attach_decorator_blank_seam(
+        tree,
+        parents,
+        owner_index,
+        &owner_state,
+        token_after_span,
+        token_before_is_semicolon,
+        token_after_is_at,
+        token_after,
+    ) {
+        return attachment;
     }
 
     // top-level statement spacing gaps with no structural ownership

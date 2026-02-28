@@ -13,14 +13,12 @@ js/if/condition-break/boolean-expression.js
 js/if/condition-break/unary-expression.js
 js/ignore/issue-10661.js
 js/import/comments.js
-js/label/empty_label.js
 js/last-argument-expansion/edge_case.js
 js/line-suffix-boundary/boundary.js
 js/logical-expressions/in-unary-expression.js
 js/multiparser-html/lit-html.js
 js/preserve-line/argument-list.js
 js/preserve-line/member-chain.js
-js/return/comment.js
 js/sequence-expression/parenthesized.js
 js/ternaries/nested.js
 js/unary-expression/comments.js
@@ -47,7 +45,6 @@ typescript/conditional-types/conditional-types.ts
 typescript/decorators/decorators.ts
 typescript/non-null/braces.ts
 typescript/prettier-ignore/mapped-types.ts
-typescript/template-literals/member-expression.ts
 typescript/type-parameters-arguments/class-method.ts
 typescript/union/consistent-with-flow/comment.ts
 typescript/union/consistent-with-flow/single-type.ts
