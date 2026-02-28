@@ -10,11 +10,10 @@ use crate::format::chain::{
 use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     LocalNodeId, ParenthesizedDropMode, TokenType, TypeBinaryOperator,
-    expression_has_leading_prefix_comment, format_expression, format_with, group, hard_line_break,
-    if_group_breaks, indent, should_drop_parenthesized, should_drop_parenthesized_type_expression,
-    soft_line_break_or_space, space, token, transparent_inner_expression,
-    type_binary_is_parenthesized_new_callee, type_binary_is_parenthesized_statement_expression,
-    type_binary_is_statement_expression,
+    expression_has_leading_prefix_comment, format_with, group, hard_line_break, if_group_breaks,
+    indent, should_drop_parenthesized, soft_line_break_or_space, space, token,
+    transparent_inner_expression, type_binary_is_parenthesized_new_callee,
+    type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
 };
 use crate::format::operator::{
     AnnotationPosition, NodeType, expression_is_trivial_inline_without_annotations,
@@ -22,7 +21,7 @@ use crate::format::operator::{
     is_object_like_type_expression, is_type_context,
     type_binary_operand_needs_grouping_parentheses,
 };
-use destack_ast::{Comment, CommentStyle, Declaration};
+use destack_ast::{Comment, CommentStyle, Declaration, TypeLiteral};
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
 
@@ -36,9 +35,89 @@ pub(crate) fn type_binary_operands_are_structurally_complex(
     }
 
     operands.iter().any(|operand| {
-        context.node_has_newline(operand.expression)
-            || !expression_is_trivial_inline_without_annotations(context, operand.expression)
+        if expression_is_bodyless_function_signature_declaration(context, operand.expression) {
+            return false;
+        }
+
+        !expression_is_trivial_inline_without_annotations(context, operand.expression)
     })
+}
+
+/// Return whether one union operand is object-like for hug layout.
+fn expression_is_hug_object_like_union_operand(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    is_object_like_type_expression(context, expression_id)
+        || matches!(
+            context.tree.get(expression_id),
+            Expression::Path { .. } | Expression::TypeLiteral(TypeLiteral::Object)
+        )
+}
+
+/// Return whether one union operand is void-like for hug layout.
+fn expression_is_hug_void_like_union_operand(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    matches!(
+        context.tree.get(expression_id),
+        Expression::TypeLiteral(TypeLiteral::Void | TypeLiteral::Null | TypeLiteral::Undefined)
+    )
+}
+
+/// Return whether one type union should use object-and-void hug layout.
+///
+/// This mirrors Prettier and oxc behavior for unions such as
+/// `Map<...> | undefined` by keeping them in the inline `A | B` form.
+fn should_hug_type_union_operands(
+    context: &DestackFormatContext<'_>,
+    operands: &BinaryOperands,
+) -> bool {
+    if operands.len() <= 1 {
+        return true;
+    }
+
+    if operands
+        .iter()
+        .any(|operand| context.has_non_blank_annotation(operand.expression))
+    {
+        return false;
+    }
+
+    let object_operand_expression_id = operands.iter().find_map(|operand| {
+        expression_is_hug_object_like_union_operand(context, operand.expression)
+            .then_some(transparent_inner_expression(context, operand.expression))
+    });
+    let Some(object_operand_expression_id) = object_operand_expression_id else {
+        return false;
+    };
+
+    operands.iter().all(|operand| {
+        let expression_id = transparent_inner_expression(context, operand.expression);
+        expression_id == object_operand_expression_id
+            || expression_is_hug_void_like_union_operand(context, expression_id)
+    })
+}
+
+/// Return whether one expression is one body-less function signature declaration.
+fn expression_is_bodyless_function_signature_declaration(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+    let Declaration::Function { body, .. } = context.tree.get(*declaration_id) else {
+        return false;
+    };
+
+    body.is_none()
 }
 
 /// Return whether one expression appears inside a type template literal interpolation.
@@ -64,23 +143,6 @@ fn is_in_type_template_literal_interpolation(
     false
 }
 
-/// Return whether one template-literal interpolation union should stay inline.
-///
-/// This mirrors oxfmt template interpolation behavior:
-/// no source newline means keep interpolation content in the flat layout.
-fn should_inline_union_in_type_template_literal(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    union_prefers_multiline_layout: bool,
-) -> bool {
-    if union_prefers_multiline_layout {
-        return false;
-    }
-
-    is_in_type_template_literal_interpolation(context, node_id)
-        && !context.node_has_newline(node_id)
-}
-
 /// Return whether one union should preserve inline layout for terminal line-postfix comments.
 fn should_inline_union_with_terminal_line_postfix_comment(
     context: &DestackFormatContext<'_>,
@@ -92,15 +154,15 @@ fn should_inline_union_with_terminal_line_postfix_comment(
         return false;
     }
 
-    if context.has_prefix_annotation(node_id) {
+    if expression_has_leading_prefix_comment(context, node_id) {
         return false;
     }
 
-    if expression_has_line_postfix_annotation(context, node_id) {
+    if expression_has_line_postfix_comment_annotation(context, node_id) {
         return true;
     }
 
-    if declaration_expression_ancestor_has_line_postfix_annotation(context, node_id) {
+    if declaration_expression_ancestor_has_line_postfix_comment_annotation(context, node_id) {
         return true;
     }
 
@@ -111,19 +173,19 @@ fn should_inline_union_with_terminal_line_postfix_comment(
         return false;
     }
 
-    let has_non_last_annotations = operands
+    let has_non_last_comments = operands
         .iter()
         .take(operands.len().saturating_sub(1))
-        .any(|operand| context.has_annotation(operand.expression));
-    if has_non_last_annotations {
+        .any(|operand| expression_has_postfix_comment_annotation(context, operand.expression));
+    if has_non_last_comments {
         return false;
     }
 
     true
 }
 
-/// Return whether one declaration-expression ancestor has a line-postfix annotation.
-fn declaration_expression_ancestor_has_line_postfix_annotation(
+/// Return whether one declaration-expression ancestor has a line-postfix comment annotation.
+fn declaration_expression_ancestor_has_line_postfix_comment_annotation(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -136,7 +198,7 @@ fn declaration_expression_ancestor_has_line_postfix_annotation(
                 Expression::Declaration(_)
             );
             if parent_is_declaration
-                && expression_has_line_postfix_annotation(context, parent_expression_id)
+                && expression_has_line_postfix_comment_annotation(context, parent_expression_id)
             {
                 return true;
             }
@@ -240,8 +302,8 @@ pub(crate) fn expression_has_line_postfix_slash_comment(
     })
 }
 
-/// Return whether an expression has one line-postfix annotation.
-fn expression_has_line_postfix_annotation(
+/// Return whether an expression has one line-postfix comment annotation.
+fn expression_has_line_postfix_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -250,9 +312,36 @@ fn expression_has_line_postfix_annotation(
     };
 
     annotations.into_iter().any(|annotation_id| {
+        let annotation = context.annotation(annotation_id);
         matches!(
-            context.annotation(annotation_id).position(),
+            annotation,
+            Annotation::Comment { .. } | Annotation::Doc { .. }
+        ) && matches!(
+            annotation.position(),
             AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+        )
+    })
+}
+
+/// Return whether an expression has one postfix comment annotation.
+fn expression_has_postfix_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.annotation(annotation_id);
+        matches!(
+            annotation,
+            Annotation::Comment { .. } | Annotation::Doc { .. }
+        ) && matches!(
+            annotation.position(),
+            AnnotationPosition::BlockPostfix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
         )
     })
 }
@@ -277,34 +366,6 @@ pub(crate) fn expression_has_line_prefix_slash_comment(
 
         let comment = context.tree.get::<Comment>(node);
         comment.style == CommentStyle::Slash
-    })
-}
-
-/// Return whether an expression starts with one `//` prefix comment before a union separator.
-fn expression_has_line_prefix_slash_comment_before_type_separator(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(annotations) = context.annotations(expression_id) else {
-        return false;
-    };
-
-    annotations.into_iter().any(|annotation_id| {
-        let annotation = context.annotation(annotation_id);
-        let Annotation::Comment { node, position } = annotation else {
-            return false;
-        };
-        if position != AnnotationPosition::LinePrefix {
-            return false;
-        }
-
-        let comment = context.tree.get::<Comment>(node);
-        if comment.style != CommentStyle::Slash {
-            return false;
-        }
-
-        context.annotation_previous_non_whitespace_token_type(annotation_id)
-            != Some(TokenType::ElementwiseOr)
     })
 }
 
@@ -435,42 +496,6 @@ fn type_binary_is_static_argument_under_remap_path(
 
         let comment = context.tree.get::<Comment>(node);
         comment.style == CommentStyle::Slash
-    })
-}
-
-/// Return whether annotations are only prefix comments before `|` or `&`.
-fn expression_has_only_type_grouping_prefix_annotations(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
-    if annotation_ids.is_empty() {
-        return false;
-    }
-
-    annotation_ids.into_iter().all(|annotation_id| {
-        let annotation = context.annotation(annotation_id);
-        let Annotation::Comment {
-            position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
-            ..
-        } = annotation
-        else {
-            return false;
-        };
-
-        matches!(
-            context.annotation_next_non_whitespace_token_type(annotation_id),
-            Some(
-                TokenType::LineComment
-                    | TokenType::BlockComment
-                    | TokenType::DocLineComment
-                    | TokenType::DocBlockComment
-                    | TokenType::ElementwiseOr
-                    | TokenType::ElementwiseAnd
-            )
-        )
     })
 }
 
@@ -724,33 +749,6 @@ pub(crate) fn try_format_logical_parenthesized_cases<'ast>(
     Ok(false)
 }
 
-/// Return whether one union expression is the rhs of one `as` or `satisfies` type binary.
-fn union_is_rhs_of_cast_or_satisfies(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::TypeBinary {
-        operator, right, ..
-    } = context.tree.get(parent_expression_id)
-    else {
-        return false;
-    };
-
-    *right == node_id
-        && matches!(
-            operator,
-            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
-        )
-}
-
 /// Return whether one union root ends with an own-line doc prefix annotation.
 fn union_has_trailing_own_line_doc_prefix_annotation(
     context: &DestackFormatContext<'_>,
@@ -774,6 +772,45 @@ fn union_has_trailing_own_line_doc_prefix_annotation(
                 && context.annotation_starts_on_own_line(annotation_id)
                 && !context.annotation_next_token_is_on_same_line(annotation_id)
         })
+}
+
+/// Return whether one expression has an own-line leading prefix non-doc comment annotation.
+fn expression_has_own_line_leading_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotation_ids| {
+            annotation_ids.iter().copied().any(|annotation_id| {
+                matches!(
+                    context.annotation(annotation_id).position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) && context.annotation_starts_on_own_line(annotation_id)
+                    && matches!(
+                        context.annotation(annotation_id),
+                        Annotation::Comment { .. }
+                    )
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one union node has a block-prefix non-doc comment annotation.
+fn union_has_block_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(node_id, |annotation_ids| {
+            annotation_ids.iter().copied().any(|annotation_id| {
+                context.annotation(annotation_id).position() == AnnotationPosition::BlockPrefix
+                    && matches!(
+                        context.annotation(annotation_id),
+                        Annotation::Comment { .. }
+                    )
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Return whether one union expression is wrapped by transparent parenthesized ancestors.
@@ -867,33 +904,6 @@ fn union_is_type_declaration_value(
     false
 }
 
-/// Format one union operand while skipping prefix annotation emission.
-fn format_union_operand_without_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    operand_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let should_wrap_in_parentheses = type_binary_operand_needs_grouping_parentheses(
-        f.context(),
-        BinaryOperator::ElementwiseOr,
-        operand_id,
-    );
-    if should_wrap_in_parentheses {
-        write!(f, [token("(")])?;
-    }
-
-    let operand_expression = f.context().tree.get(operand_id);
-    format_expression(f, operand_id, operand_expression, None)?;
-
-    if should_wrap_in_parentheses {
-        write!(f, [token(")")])?;
-    }
-
-    write!(
-        f,
-        [f.context().any_infix_or_postfix_annotations(operand_id)]
-    )
-}
-
 /// Return whether an intersection expression is directly nested under one type-union owner.
 fn intersection_is_nested_under_type_union(
     context: &DestackFormatContext<'_>,
@@ -933,74 +943,27 @@ pub(crate) fn format_leading_pipe_union<'ast>(
     operands: &BinaryOperands,
     should_force_expand: bool,
 ) -> FormatResult<()> {
-    let root_has_prefix_annotation = f.context().has_prefix_annotation(node_id);
     let root_owns_prefix_annotation = union_owns_prefix_annotations(f.context(), node_id);
+    let union_group_id = f.group_id("type_union");
     let should_indent_union =
         type_union_should_indent(f.context(), node_id, root_owns_prefix_annotation);
-    let root_supports_inline_first_separator = f
-        .context()
-        .visit_annotations(node_id, |annotations| {
-            annotations
-                .iter()
-                .rev()
-                .copied()
-                .find(|annotation_id| {
-                    matches!(
-                        f.context().annotation(*annotation_id).position(),
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    )
-                })
-                .is_some_and(|annotation_id| {
-                    f.context().annotation_starts_on_own_line(annotation_id)
-                        && f.context()
-                            .annotation_next_token_is_on_same_line(annotation_id)
-                        && f.context()
-                            .annotation_next_non_whitespace_token_type(annotation_id)
-                            == Some(TokenType::ElementwiseOr)
-                })
-        })
-        .unwrap_or(false);
-    let root_omits_leading_break_before_first_separator =
-        root_owns_prefix_annotation && root_supports_inline_first_separator;
-    let suppress_first_separator_for_rhs_type_binary =
-        root_has_prefix_annotation && union_is_rhs_of_cast_or_satisfies(f.context(), node_id);
+    let root_has_block_prefix_comment =
+        root_owns_prefix_annotation && union_has_block_prefix_comment(f.context(), node_id);
+    let first_operand_has_own_line_prefix_comment = operands.first().is_some_and(|operand| {
+        expression_has_own_line_leading_prefix_comment(f.context(), operand.expression)
+    });
     let union_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         for (index, operand) in operands.iter().enumerate() {
             let is_first_operand = index == 0;
 
             // first operand: print a leading `|` only in broken groups
             if is_first_operand {
-                let first_operand_has_line_prefix_slash_comment_before_separator =
-                    expression_has_line_prefix_slash_comment_before_type_separator(
-                        f.context(),
-                        operand.expression,
-                    );
-                if first_operand_has_line_prefix_slash_comment_before_separator {
-                    write!(f, [f.context().any_prefix_annotations(operand.expression)])?;
-
-                    if suppress_first_separator_for_rhs_type_binary {
-                        write!(f, [if_group_breaks(&soft_line_break_or_space())])?;
-                    } else if root_omits_leading_break_before_first_separator {
-                        write!(f, [if_group_breaks(&format_args![token("|"), space()])])?;
-                    } else {
-                        write!(
-                            f,
-                            [if_group_breaks(&format_args![
-                                soft_line_break_or_space(),
-                                token("|"),
-                                space()
-                            ])]
-                        )?;
-                    }
-
-                    format_union_operand_without_prefix_annotations(f, operand.expression)?;
-                    continue;
-                }
-
-                if suppress_first_separator_for_rhs_type_binary {
-                    write!(f, [if_group_breaks(&soft_line_break_or_space())])?;
-                } else if root_omits_leading_break_before_first_separator {
-                    write!(f, [if_group_breaks(&format_args![token("|"), space()])])?;
+                if first_operand_has_own_line_prefix_comment || root_has_block_prefix_comment {
+                    write!(
+                        f,
+                        [if_group_breaks(&format_args![token("|"), space()])
+                            .with_group_id(Some(union_group_id))]
+                    )?;
                 } else {
                     write!(
                         f,
@@ -1008,7 +971,8 @@ pub(crate) fn format_leading_pipe_union<'ast>(
                             soft_line_break_or_space(),
                             token("|"),
                             space()
-                        ])]
+                        ])
+                        .with_group_id(Some(union_group_id))]
                     )?;
                 }
 
@@ -1023,7 +987,8 @@ pub(crate) fn format_leading_pipe_union<'ast>(
             // later operands: preserve hard breaks after postfix comments
             else {
                 let previous_expression = operands[index - 1].expression;
-                let previous_has_postfix = f.context().has_postfix_annotation(previous_expression);
+                let previous_has_postfix =
+                    expression_has_postfix_comment_annotation(f.context(), previous_expression);
                 let previous_has_line_postfix_slash_comment =
                     expression_has_line_postfix_slash_comment(f.context(), previous_expression);
                 if previous_has_postfix || previous_has_line_postfix_slash_comment {
@@ -1050,10 +1015,17 @@ pub(crate) fn format_leading_pipe_union<'ast>(
         if should_indent_union {
             write!(
                 f,
-                [group(&indent(&union_body)).should_expand(should_force_expand)]
+                [group(&indent(&union_body))
+                    .with_id(Some(union_group_id))
+                    .should_expand(should_force_expand)]
             )
         } else {
-            write!(f, [group(&union_body).should_expand(should_force_expand)])
+            write!(
+                f,
+                [group(&union_body)
+                    .with_id(Some(union_group_id))
+                    .should_expand(should_force_expand)]
+            )
         }
     });
 
@@ -1978,70 +1950,40 @@ pub(crate) fn format_binary_expression<'ast>(
     // union types use one deterministic layout path: leading-pipe group
     if is_type_union {
         let root_owns_prefix_annotation = union_owns_prefix_annotations(f.context(), node_id);
-        if operands.len() == 1 {
-            if root_owns_prefix_annotation {
-                write!(f, [f.context().any_prefix_annotations(node_id)])?;
-            }
-
-            let mut single_operand = operands[0].expression;
-            loop {
-                let Expression::Parenthesized { expression } = f.context().tree.get(single_operand)
-                else {
-                    break;
-                };
-
-                if !should_drop_parenthesized_type_expression(
-                    f.context(),
-                    single_operand,
-                    *expression,
-                ) {
-                    let should_drop_type_grouping_prefix_wrapper =
-                        !f.context().options.language_type.is_destack()
-                            && expression_has_only_type_grouping_prefix_annotations(
-                                f.context(),
-                                single_operand,
-                            );
-                    if !should_drop_type_grouping_prefix_wrapper {
-                        break;
-                    }
-
-                    write!(f, [f.context().any_prefix_annotations(single_operand)])?;
-                }
-
-                single_operand = *expression;
-            }
-
-            write!(f, [single_operand])?;
-            return Ok(());
-        }
-
         let union_has_breaking_postfix_comments =
             operands.iter().enumerate().any(|(index, operand)| {
                 let is_last_operand = index + 1 == operands.len();
-                let has_postfix_comment = f.context().has_postfix_annotation(operand.expression)
-                    || expression_has_line_postfix_slash_comment(f.context(), operand.expression);
+                let has_postfix_comment =
+                    expression_has_postfix_comment_annotation(f.context(), operand.expression)
+                        || expression_has_line_postfix_slash_comment(
+                            f.context(),
+                            operand.expression,
+                        );
                 has_postfix_comment && !is_last_operand
             });
-        let union_has_breaking_operand_annotations = has_operand_annotations
+        let union_has_breaking_operand_prefix_comments = has_operand_prefix_comments
             && operands.iter().enumerate().skip(1).any(|(index, operand)| {
                 let is_last_operand = index + 1 == operands.len();
-                f.context().has_annotation(operand.expression) && !is_last_operand
+                expression_has_leading_prefix_comment(f.context(), operand.expression)
+                    && !is_last_operand
             });
         let union_has_own_line_doc_prefix_annotation =
             union_has_trailing_own_line_doc_prefix_annotation(f.context(), node_id);
-        let union_prefers_multiline_layout = union_has_breaking_operand_annotations
+        let union_is_template_interpolation_multiline =
+            in_type_template_literal_interpolation && f.context().node_has_newline(node_id);
+        let union_should_hug_layout = should_hug_type_union_operands(f.context(), &operands);
+        let union_prefers_multiline_layout = union_has_breaking_operand_prefix_comments
             || union_has_breaking_postfix_comments
-            || union_has_own_line_doc_prefix_annotation;
-        if should_inline_union_in_type_template_literal(
-            f.context(),
-            node_id,
-            union_prefers_multiline_layout,
-        ) || should_inline_union_with_terminal_line_postfix_comment(
-            f.context(),
-            node_id,
-            &operands,
-            union_prefers_multiline_layout,
-        ) {
+            || union_has_own_line_doc_prefix_annotation
+            || union_is_template_interpolation_multiline;
+        let should_inline_union = union_should_hug_layout
+            || should_inline_union_with_terminal_line_postfix_comment(
+                f.context(),
+                node_id,
+                &operands,
+                union_prefers_multiline_layout,
+            );
+        if should_inline_union {
             if root_owns_prefix_annotation {
                 write!(f, [f.context().any_prefix_annotations(node_id)])?;
             }

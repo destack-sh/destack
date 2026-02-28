@@ -951,8 +951,7 @@ pub(crate) fn call_argument_layout(
         && !force_expand_single_collection_for_type_binary_callee
         && {
             let argument_id = dynamic_arguments[0];
-            !context.node_has_newline(argument_id)
-                && !argument_has_line_comment_annotation(context, argument_id)
+            !argument_has_line_comment_annotation(context, argument_id)
                 && !argument_is_lambda_expression(context, argument_id)
                 && !argument_is_function_expression(context, argument_id)
                 && !argument_is_interpolated_template_literal(context, argument_id)

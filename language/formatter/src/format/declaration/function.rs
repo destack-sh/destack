@@ -7,11 +7,10 @@ use crate::format::declaration::signature::{
     write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
     write_signature_dynamic_parameter_list,
 };
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, CommentStyle, Declaration, DeclarationDescriptor, Expression,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Keyword, LocalNodeId,
-    NodeType, Parameter, Pattern,
+    Argument, Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
+    FunctionMode, FunctionSignature, Keyword, LocalNodeId, NodeType, Parameter, Pattern,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -146,6 +145,39 @@ fn lambda_declaration_is_call_argument_chain(
     }
 }
 
+/// Return whether one lambda declaration is the body of a parent lambda declaration.
+fn lambda_declaration_has_parent_lambda_body(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+) -> bool {
+    let Some((declaration_expression_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+    let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
+
+    let Some((parent_id, parent_type)) = context.parent(declaration_expression_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let parent_declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Function {
+        signature,
+        body: Some(parent_body_id),
+        ..
+    } = context.tree.get(parent_declaration_id)
+    else {
+        return false;
+    };
+
+    signature.kind == FunctionKind::Lambda && parent_body_id.id == declaration_expression_id.id
+}
+
 /// Return whether one lambda body is an empty block containing infix annotations only.
 fn lambda_body_is_empty_annotated_block(
     context: &DestackFormatContext<'_>,
@@ -156,45 +188,6 @@ fn lambda_body_is_empty_annotated_block(
     };
     let block = context.tree.get(*block_id);
     block.expressions.is_empty() && context.has_non_blank_infix_annotation(*block_id)
-}
-
-/// Return whether one expression has a block-style prefix comment annotation.
-fn expression_has_block_style_prefix_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let has_block_style_prefix_comment = |annotations: &[LocalNodeId<Annotation>]| {
-        annotations.iter().any(|annotation_id| {
-            let Annotation::Comment { node, position } = context.annotation(*annotation_id) else {
-                return false;
-            };
-            if !matches!(
-                position,
-                destack_ast::AnnotationPosition::LinePrefix
-                    | destack_ast::AnnotationPosition::BlockPrefix
-            ) {
-                return false;
-            }
-
-            let comment = context.tree.get::<Comment>(node);
-            comment.style == CommentStyle::Star
-        })
-    };
-
-    if context
-        .visit_annotations(expression_id, has_block_style_prefix_comment)
-        .unwrap_or(false)
-    {
-        return true;
-    }
-
-    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
-        return false;
-    };
-
-    context
-        .visit_annotations(*declaration_id, has_block_style_prefix_comment)
-        .unwrap_or(false)
 }
 
 /// Write one lambda arrow token with infix annotation-aware spacing.
@@ -384,6 +377,16 @@ pub(crate) fn format_function_declaration<'ast>(
                         body_transparent_expression,
                         Expression::TreeExpression { .. }
                     );
+            let body_is_lambda_declaration = matches!(
+                body_transparent_expression,
+                Expression::Declaration(body_declaration_id)
+                    if matches!(
+                        f.context().tree.get(*body_declaration_id),
+                        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                    )
+            );
+            let lambda_is_non_head_chain_link =
+                lambda_declaration_has_parent_lambda_body(f.context(), node_id);
             let force_break =
                 crate::format::expression::lambda_expression_should_break(f.context(), node_id);
 
@@ -439,45 +442,28 @@ pub(crate) fn format_function_declaration<'ast>(
             } else {
                 // default expression body formatting
                 let body_break = format_with(|f| write!(f, [body]));
-                let inline_body_expression_id =
-                    crate::format::expression::transparent_inner_expression(f.context(), *body);
-                let body_is_lambda_with_block_prefix = matches!(
-                    f.context().tree.get(inline_body_expression_id),
-                    Expression::Declaration(declaration_id)
-                        if matches!(
-                            f.context().tree.get(*declaration_id),
-                            Declaration::Function { signature, .. }
-                                if signature.kind == FunctionKind::Lambda
-                        )
-                )
-                    && expression_has_block_style_prefix_comment(
-                        f.context(),
-                        inline_body_expression_id,
-                    );
-
-                if body_is_lambda_with_block_prefix {
+                let should_avoid_extra_chain_indent =
+                    body_is_lambda_declaration && lambda_is_non_head_chain_link;
+                if should_avoid_extra_chain_indent {
                     write!(
                         f,
                         [group(&format_args![
-                            format_with(|f| {
-                                write_lambda_arrow_with_infix_annotations(f, node_id)
-                            }),
+                            format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
                             soft_line_break_or_space(),
                             body_break
                         ])
                         .should_expand(force_break)]
                     )?;
-                    return Ok(());
+                } else {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
+                            indent(&format_args![soft_line_break_or_space(), body_break])
+                        ])
+                        .should_expand(force_break)]
+                    )?;
                 }
-
-                write!(
-                    f,
-                    [group(&format_args![
-                        format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                        indent(&format_args![soft_line_break_or_space(), body_break])
-                    ])
-                    .should_expand(force_break)]
-                )?;
             }
         } else if signature_return_type_has_line_postfix_boundary_annotation(
             f.context(),

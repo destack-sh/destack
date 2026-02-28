@@ -199,6 +199,7 @@ fn expression_is_ternary(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
     matches!(
         context.tree.get(expression_id),
         Expression::If {
@@ -329,6 +330,14 @@ fn expression_is_nullish_literal(
     )
 }
 
+/// Return one jsx-chain branch expression id without redundant parenthesized wrappers.
+fn jsx_chain_branch_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    transparent_inner_expression(context, expression_id)
+}
+
 /// Format one branch in a jsx ternary chain.
 fn format_jsx_chain_branch<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -336,21 +345,13 @@ fn format_jsx_chain_branch<'ast>(
     is_alternate: bool,
     ternary_is_in_braced_tree_child_argument: bool,
 ) -> FormatResult<()> {
-    let transparent_expression_id = transparent_inner_expression(f.context(), expression_id);
-    let is_parenthesized = matches!(
-        f.context().tree.get(expression_id),
-        Expression::Parenthesized { .. }
-    ) || matches!(
-        f.context().tree.get(transparent_expression_id),
-        Expression::Parenthesized { .. }
-    );
+    let wrapped_branch_expression_id = jsx_chain_branch_expression(f.context(), expression_id);
 
-    let no_wrap = expression_is_nullish_literal(f.context(), expression_id)
-        || (is_alternate && expression_is_ternary(f.context(), expression_id))
-        || is_parenthesized
+    let no_wrap = expression_is_nullish_literal(f.context(), wrapped_branch_expression_id)
+        || (is_alternate && expression_is_ternary(f.context(), wrapped_branch_expression_id))
         || tree_like_branch_prefers_no_wrap(
             f.context(),
-            expression_id,
+            wrapped_branch_expression_id,
             ternary_is_in_braced_tree_child_argument,
         );
 
@@ -363,7 +364,7 @@ fn format_jsx_chain_branch<'ast>(
         f,
         [
             if_group_breaks(&token("(")),
-            soft_block_indent(&expression_id),
+            soft_block_indent(&wrapped_branch_expression_id),
             if_group_breaks(&token(")"))
         ]
     )?;

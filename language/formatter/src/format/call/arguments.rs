@@ -2681,4 +2681,16 @@ this.props.dao)"#;
             "expected expect(...) head call to keep one argument inline",
         );
     }
+
+    #[test]
+    fn test_format_optional_chain_single_boolean_argument_is_idempotent() {
+        let source = r#"a = Boolean(
+  a_long_long_long_long_condition || a_long_long_long_long_condition || a_long_long_long_long_condition,
+)?.toString();"#;
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::JavaScriptXml,
+            DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        );
+    }
 }

@@ -5,10 +5,7 @@ use crate::format::declaration::declaration::{
     format_super_type_clause_with_expand,
 };
 use crate::format::declaration::signature::format_where_clause_with_break;
-use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
-};
-use crate::format::expression::{expression_has_static_type_arguments, format_expression};
+use crate::format::expression::expression_has_static_type_arguments;
 use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
@@ -135,93 +132,6 @@ fn format_expanded_implements_clause<'ast>(
     )
 }
 
-/// Return whether one expression has prefix closure-cast style annotations.
-fn expression_has_prefix_closure_cast_annotation(
-    f: &DestackFormatter<'_, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    f.context()
-        .visit_annotations(expression_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                matches!(
-                    f.context().annotation(*annotation_id),
-                    Annotation::Doc {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    } | Annotation::Comment {
-                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
-                        ..
-                    }
-                )
-            })
-        })
-        .unwrap_or(false)
-}
-
-/// Return one extends wrapper annotation/render target pair for closure-cast style wrappers.
-fn extends_expression_closure_cast_wrapper_target(
-    f: &DestackFormatter<'_, '_>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<(LocalNodeId<Expression>, LocalNodeId<Expression>)> {
-    if expression_has_prefix_closure_cast_annotation(f, expression_id) {
-        return Some((expression_id, expression_id));
-    }
-
-    match f.context().tree.get(expression_id) {
-        Expression::Call { left, .. } | Expression::New { left, .. } => {
-            if expression_has_prefix_closure_cast_annotation(f, *left) {
-                return Some((*left, expression_id));
-            }
-        }
-        Expression::Parenthesized { expression } => {
-            if expression_has_prefix_closure_cast_annotation(f, *expression) {
-                return Some((*expression, *expression));
-            }
-
-            if let Expression::Call { left, .. } | Expression::New { left, .. } =
-                f.context().tree.get(*expression)
-                && expression_has_prefix_closure_cast_annotation(f, *left)
-            {
-                return Some((*left, *expression));
-            }
-        }
-        _ => {}
-    }
-
-    None
-}
-
-/// Format one extends expression as `/** doc */ (expr)` while preserving postfix material.
-fn format_extends_expression_with_closure_cast_wrapper<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    annotation_expression_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let directive = directive_for_node(f.context(), expression_id);
-    let expression = f.context().tree.get(expression_id);
-
-    write!(
-        f,
-        [f.context().any_prefix_annotations(annotation_expression_id)]
-    )?;
-    write!(f, [token("(")])?;
-    format_expression(f, expression_id, expression, directive)?;
-    if !matches!(
-        directive,
-        Some(FormatterDirective {
-            kind: FormatterDirectiveKind::IgnoreFormat,
-            position: FormatterDirectivePosition::Postfix { .. },
-        })
-    ) {
-        write!(
-            f,
-            [f.context()
-                .any_infix_or_postfix_annotations(annotation_expression_id)]
-        )?;
-    }
-    write!(f, [token(")")])
-}
-
 /// Format shared export and declaration modifiers for declarations.
 fn format_declaration_header_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -240,17 +150,12 @@ fn format_declaration_header_prefix<'ast>(
 /// Format declaration static parameters when present.
 fn format_declaration_static_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
     generics: &Generics,
 ) -> FormatResult<()> {
     if let Some(static_parameters) = generics.static_parameters.as_ref()
         && !static_parameters.is_empty()
     {
         write!(f, [list_like("<", ">", ",", static_parameters)])?;
-        write!(
-            f,
-            [f.context().declaration_generic_head_annotations(node_id)]
-        )?;
     }
 
     Ok(())
@@ -270,6 +175,17 @@ fn format_declaration_where_clauses<'ast>(
     Ok(())
 }
 
+/// Format declaration head seam annotations before heritage clauses.
+fn format_declaration_heritage_head_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [f.context().declaration_generic_head_annotations(node_id)]
+    )
+}
+
 /// Format declaration extends and optional implements clauses.
 fn format_declaration_heritage<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -281,22 +197,6 @@ fn format_declaration_heritage<'ast>(
     if let Some(extends_types) = heritage.extends_types.as_ref()
         && !extends_types.is_empty()
     {
-        // keep closure-cast extends heads explicit: `extends /** doc */ (expr)`
-        let closure_cast_wrapper_target = if include_implements && extends_types.len() == 1 {
-            extends_expression_closure_cast_wrapper_target(f, extends_types[0])
-        } else {
-            None
-        };
-        if let Some((annotation_expression_id, expression_id)) = closure_cast_wrapper_target {
-            write!(f, [space(), Keyword::Extends, space()])?;
-            format_extends_expression_with_closure_cast_wrapper(
-                f,
-                annotation_expression_id,
-                expression_id,
-            )?;
-            return Ok(());
-        }
-
         extends_has_boundary_comments =
             super_type_clause_has_line_postfix_boundary_annotation(f, extends_types);
         let extends_should_stay_inline_with_head = !extends_has_boundary_comments
@@ -455,7 +355,8 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
     let has_generic_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
     let has_body_head_comment = f.context().has_declaration_body_head_annotation(node_id);
 
-    format_declaration_static_parameters(f, node_id, generics)?;
+    format_declaration_static_parameters(f, generics)?;
+    format_declaration_heritage_head_annotations(f, node_id)?;
 
     if is_assignment_rhs_anonymous_class {
         format_anonymous_class_heritage(f, heritage)?;
@@ -567,8 +468,10 @@ pub(crate) fn format_enum_declaration<'ast>(
         write!(f, [space(), name])?;
     }
 
-    format_declaration_static_parameters(f, node_id, generics)?;
-    format_declaration_heritage(f, heritage, true, false)?;
+    format_declaration_static_parameters(f, generics)?;
+    let has_heritage_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
+    format_declaration_heritage_head_annotations(f, node_id)?;
+    format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
     write!(f, [space()])?;
@@ -628,8 +531,10 @@ pub(crate) fn format_interface_declaration<'ast>(
         write!(f, [space(), name])?;
     }
 
-    format_declaration_static_parameters(f, node_id, generics)?;
-    format_declaration_heritage(f, heritage, false, false)?;
+    format_declaration_static_parameters(f, generics)?;
+    let has_heritage_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
+    format_declaration_heritage_head_annotations(f, node_id)?;
+    format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
     write!(f, [space()])?;
