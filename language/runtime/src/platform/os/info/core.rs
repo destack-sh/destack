@@ -53,8 +53,8 @@ pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
 
 #[cfg(unix)]
 /// Convert one signed integer into one checked u64 value.
-pub(super) fn checked_u64_from_i64(
-    value: i64,
+pub(super) fn checked_u64_from_signed(
+    value: i128,
     operation: &'static str,
     field: &'static str,
 ) -> RuntimeResult<u64> {
@@ -65,7 +65,8 @@ pub(super) fn checked_u64_from_i64(
         ));
     }
 
-    Ok(value as u64)
+    u64::try_from(value)
+        .map_err(|_| invalid_data(operation, format!("{field} exceeded u64 range: {value}")))
 }
 
 #[cfg(unix)]
@@ -101,8 +102,9 @@ pub(super) fn clock_gettime_ns(
     }
 
     // convert seconds and nanoseconds fields into one u64 nanosecond value
-    let seconds = checked_u64_from_i64(value.tv_sec, operation, "timespec.tv_sec")?;
-    let nanoseconds = checked_u64_from_i64(value.tv_nsec, operation, "timespec.tv_nsec")?;
+    let seconds = checked_u64_from_signed(i128::from(value.tv_sec), operation, "timespec.tv_sec")?;
+    let nanoseconds =
+        checked_u64_from_signed(i128::from(value.tv_nsec), operation, "timespec.tv_nsec")?;
     let seconds_ns = checked_mul_u64(seconds, 1_000_000_000, operation, "timespec.secondsNs")?;
     let total = seconds_ns
         .checked_add(nanoseconds)
