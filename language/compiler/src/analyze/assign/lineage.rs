@@ -72,27 +72,6 @@ impl Compiler {
             }
         };
         for extension_symbol in extension_symbols {
-            let extension = match self
-                .extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
-            {
-                Ok(extension) => extension,
-                Err(AnalyzeError::Yield { .. }) => return false,
-                Err(error) => {
-                    self.error(error);
-                    return false;
-                }
-            };
-            let Some(extension) = extension else {
-                continue;
-            };
-            let extension_is_visible = match extension.kind {
-                ExtensionKind::Inherent => true,
-                ExtensionKind::Local => extension.symbol.module_id == ctx.module.id,
-                ExtensionKind::Nominal => true,
-            };
-            if !extension_is_visible {
-                continue;
-            }
             let lineage = match self
                 .extension_lineage_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
             {

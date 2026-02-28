@@ -45,16 +45,21 @@ impl Compiler {
             receiver_id,
         )
         .or_else(|| {
-            let receiver_type_id = self
-                .resolve_declared_type_expression(
-                    &mut ctx.type_context_reborrow(),
-                    receiver_id,
-                    true,
-                    true,
-                )
-                .ok()?;
+            let receiver_type_id = self.query_projection_receiver_type_id(ctx, receiver_id)?;
             self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, ctx.types)
         })
+    }
+
+    /// Query one already-known receiver type id for projection receiver selection.
+    fn query_projection_receiver_type_id(
+        &self,
+        ctx: &InferContext<'_>,
+        receiver_id: LocalNodeId<Expression>,
+    ) -> Option<LocalTypeId> {
+        let receiver_node = receiver_id.into_global_any(ctx.module.id);
+        ctx.infer
+            .inferred_type_for_node(receiver_node)
+            .or_else(|| ctx.types.get_declared_or_inferred_type_id(receiver_node))
     }
 
     /// Return true when a symbol can act as a projection receiver in infer.
