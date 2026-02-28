@@ -10,7 +10,7 @@ use super::super::core::system_time_unix_ns;
 use super::super::core::{
     OS_INFO_BOOT_TIME_UNIX_NS_OPERATION, OS_INFO_LOAD_AVERAGE_OPERATION,
     OS_INFO_SYSTEM_SNAPSHOT_OPERATION, OS_INFO_UPTIME_NS_OPERATION, checked_mul_u64,
-    checked_u64_from_i64, clock_gettime_ns, invalid_data,
+    checked_u64_from_signed, clock_gettime_ns, invalid_data,
 };
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -28,7 +28,11 @@ fn read_sysconf_positive(name: libc::c_int, syscall: &'static str) -> RuntimeRes
         return Err(core_platform::io_error(syscall, None));
     }
 
-    checked_u64_from_i64(value, OS_INFO_SYSTEM_SNAPSHOT_OPERATION, syscall)
+    checked_u64_from_signed(
+        i128::from(value),
+        OS_INFO_SYSTEM_SNAPSHOT_OPERATION,
+        syscall,
+    )
 }
 
 /// Read one normalized cpu-count value.
@@ -168,13 +172,13 @@ fn boot_time_unix_ns_value() -> RuntimeResult<u64> {
     }
 
     // convert timeval into unix nanoseconds
-    let seconds = checked_u64_from_i64(
-        i64::from(value.tv_sec),
+    let seconds = checked_u64_from_signed(
+        i128::from(value.tv_sec),
         OS_INFO_BOOT_TIME_UNIX_NS_OPERATION,
         "bootTimeSeconds",
     )?;
-    let micros = checked_u64_from_i64(
-        i64::from(value.tv_usec),
+    let micros = checked_u64_from_signed(
+        i128::from(value.tv_usec),
         OS_INFO_BOOT_TIME_UNIX_NS_OPERATION,
         "bootTimeMicros",
     )?;
