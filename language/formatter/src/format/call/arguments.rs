@@ -607,15 +607,13 @@ fn separator_line_comment_annotation_info(
         following_token.is_some_and(|token| token.token.ty == TokenType::Comma);
     let following_close_brace =
         following_token.is_some_and(|token| token.token.ty == TokenType::CloseBrace);
-    let following_close_delimiter = following_token.is_some_and(|token| {
-        matches!(
-            token.token.ty,
-            TokenType::CloseBrace | TokenType::CloseBracket | TokenType::CloseParenthesis
-        )
-    });
+    let following_close_bracket =
+        following_token.is_some_and(|token| token.token.ty == TokenType::CloseBracket);
+    let following_close_parenthesis =
+        following_token.is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
     let has_virtual_trailing_separator = preceding_comma.is_none()
         && !following_separator
-        && following_close_delimiter
+        && (following_close_parenthesis || following_close_bracket)
         && position == AnnotationPosition::LinePostfixBoundary;
 
     if preceding_comma.is_none() && !following_separator && !has_virtual_trailing_separator {
@@ -2322,6 +2320,44 @@ mod tests {
         assert!(
             separator_source.is_none(),
             "property trailing comment should not be classified as an argument separator comment",
+        );
+    }
+
+    #[test]
+    fn test_call_layout_ignores_nested_collection_dangling_line_comment_for_separator_forcing() {
+        let source = "expect(() => {}).toTriggerReadyStateChanges([
+  // Nothing.
+]);";
+        let (formatter, call_id) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse call with nested collection dangling comment");
+        let context = context_from_formatter(&formatter);
+        let arguments = call_dynamic_arguments(&context, call_id);
+        let argument_id = arguments[0];
+
+        let has_boundary_comments =
+            call_arguments_have_boundary_comments(&context, call_id, &arguments);
+        let layout = call_argument_layout(
+            &context,
+            call_id,
+            &arguments,
+            false,
+            false,
+            false,
+            has_boundary_comments,
+        );
+        let CallArgumentLayout::ListDefault {
+            force_trailing_separator,
+            ..
+        } = layout
+        else {
+            panic!("expected default list layout for nested collection dangling comment");
+        };
+        assert!(
+            !force_trailing_separator,
+            "nested collection dangling comments should not force call trailing separators",
         );
     }
 

@@ -220,32 +220,6 @@ fn chain_is_lambda_call_argument_body(
     is_call_like_argument(context, lambda_expression_id)
 }
 
-/// Return whether statement formatting owns postfix emission for one expression.
-fn statement_context_owns_expression_postfix(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
-        return true;
-    };
-
-    if parent_type == NodeType::Block {
-        return true;
-    }
-
-    if parent_type == NodeType::Expression {
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        if matches!(
-            context.tree.get(parent_expression_id),
-            Expression::Statement(inner_id) if inner_id.id == expression_id.id
-        ) {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Format static arguments for chain operations that may need relational spacing.
 fn format_chain_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -532,10 +506,8 @@ fn format_chain_expression<'ast>(
         } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(*node_id)
     );
     let emit_prefix_annotations = emit_prefix_annotations && node_id != formatted_root_id;
-    let root_postfix_owned_by_statement_context = node_id == formatted_root_id
-        && statement_context_owns_expression_postfix(f.context(), formatted_root_id);
-    let emit_postfix_annotations =
-        emit_postfix_annotations && !root_postfix_owned_by_statement_context;
+    let root_postfix_owned_by_outer_context = node_id == formatted_root_id;
+    let emit_postfix_annotations = emit_postfix_annotations && !root_postfix_owned_by_outer_context;
     if emit_prefix_annotations {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
     }

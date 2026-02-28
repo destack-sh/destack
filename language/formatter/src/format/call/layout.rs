@@ -1,9 +1,10 @@
 use crate::format::analysis::{
     ArgumentSimplicityOptions, argument_has_leading_prefix_annotation_outside_span,
-    argument_has_line_comment_annotation, argument_has_separator_line_comment_annotation,
-    argument_is_collection_literal, argument_is_interpolated_template_literal,
-    argument_is_simple_with_options, call_arguments_are_multiline_span,
-    call_has_leading_block_callback_with_simple_tail, call_has_static_arguments, timing,
+    argument_has_line_comment_annotation, argument_is_collection_literal,
+    argument_is_interpolated_template_literal, argument_is_simple_with_options,
+    call_arguments_are_multiline_span, call_has_leading_block_callback_with_simple_tail,
+    call_has_static_arguments, next_non_whitespace_token_after_annotation,
+    previous_non_whitespace_token_before_annotation, timing,
 };
 use crate::format::call::arguments::{
     argument_is_plain_call_argument,
@@ -11,15 +12,15 @@ use crate::format::call::arguments::{
     single_argument_separator_line_comment_source,
 };
 use crate::format::expression::{
-    Argument, Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeType,
-    ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
+    Annotation, Argument, Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId,
+    NodeType, ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
     argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
     argument_is_template_literal, argument_value_id, is_block_lambda_argument, is_complex_argument,
     is_expression_chain, is_trivial_argument, transparent_inner_expression,
 };
 use crate::format::tree::has_multiline_jsx_argument;
 use crate::{CallArgumentExpansionCache, CallArgumentExpansionsCache, CallArgumentLayoutCache};
-use destack_ast::TypeBinaryOperator;
+use destack_ast::{AnnotationPosition, Comment, CommentStyle, TokenType, TypeBinaryOperator};
 
 /// Return whether all leading arguments before the last are compact and simple.
 pub(crate) fn leading_arguments_are_compact_simple_unannotated(
@@ -841,6 +842,51 @@ pub(crate) fn trailing_collection_argument_has_comment_signal(
     context.has_non_blank_annotation(last_argument_value_id)
 }
 
+/// Return whether one call argument has a separator line comment on a comma seam.
+fn argument_has_call_separator_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context
+        .visit_annotations(argument_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let Annotation::Comment { node, position } = context.annotation(*annotation_id)
+                else {
+                    return false;
+                };
+
+                if !matches!(
+                    position,
+                    AnnotationPosition::LinePrefix
+                        | AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary
+                        | AnnotationPosition::BlockPostfix
+                ) {
+                    return false;
+                }
+
+                let comment = context.tree.get::<Comment>(node);
+                if comment.style != CommentStyle::Slash {
+                    return false;
+                }
+
+                let has_preceding_separator =
+                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                        .is_some_and(|token| token.token.ty == TokenType::Comma);
+                let has_following_separator =
+                    next_non_whitespace_token_after_annotation(context, *annotation_id)
+                        .is_some_and(|token| token.token.ty == TokenType::Comma);
+                let has_virtual_trailing_separator = position
+                    == AnnotationPosition::LinePostfixBoundary
+                    && next_non_whitespace_token_after_annotation(context, *annotation_id)
+                        .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
+
+                has_preceding_separator || has_following_separator || has_virtual_trailing_separator
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Choose call argument layout from early and main rule phases.
 pub(crate) fn call_argument_layout(
     context: &DestackFormatContext<'_>,
@@ -1005,12 +1051,12 @@ pub(crate) fn call_argument_layout(
         let has_trailing_collection_comment_signal =
             trailing_collection_argument_has_comment_signal(context, dynamic_arguments);
         let has_single_separator_line_comment_annotation = dynamic_arguments.len() == 1
-            && argument_has_separator_line_comment_annotation(context, dynamic_arguments[0]);
+            && argument_has_call_separator_line_comment_annotation(context, dynamic_arguments[0]);
         let has_last_separator_line_comment_annotation = dynamic_arguments
             .last()
             .copied()
             .is_some_and(|argument_id| {
-                argument_has_separator_line_comment_annotation(context, argument_id)
+                argument_has_call_separator_line_comment_annotation(context, argument_id)
             });
         let last_separator_line_comment_source_missing = dynamic_arguments
             .last()
@@ -1145,14 +1191,14 @@ pub(crate) fn call_argument_layout(
         trailing_collection_argument_has_comment_signal(context, dynamic_arguments);
     let has_single_separator_line_comment_annotation = is_single_argument
         && single_argument_id.is_some_and(|argument_id| {
-            argument_has_separator_line_comment_annotation(context, argument_id)
+            argument_has_call_separator_line_comment_annotation(context, argument_id)
         });
     let has_last_separator_line_comment_annotation =
         dynamic_arguments
             .last()
             .copied()
             .is_some_and(|argument_id| {
-                argument_has_separator_line_comment_annotation(context, argument_id)
+                argument_has_call_separator_line_comment_annotation(context, argument_id)
             });
     let use_separator_comment_multiline =
         can_format_multiline_call_argument_list_with_separator_line_comment(
