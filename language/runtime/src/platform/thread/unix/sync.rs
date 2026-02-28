@@ -150,17 +150,8 @@ pub(crate) unsafe fn destack_thread_address_wait(
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        // validate word alignment for futex waits
-        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "address must be aligned to 4 bytes",
-            ))
-            .boxed());
-        }
-
         // resolve the target futex pointer and timeout plan
-        let address_ptr = address as *const u32;
+        let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
         let timeout = core_thread::timeout_from_ns(timeoutns);
         let deadline = timeout.and_then(|duration| Instant::now().checked_add(duration));
 
@@ -274,17 +265,8 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        // validate word alignment for futex wakes
-        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "address must be aligned to 4 bytes",
-            ))
-            .boxed());
-        }
-
         // wake all waiters blocked on this futex word
-        let address_ptr = address as *const u32;
+        let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
         let rc = unsafe {
             libc::syscall(
                 libc::SYS_futex,
@@ -349,17 +331,8 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        // validate word alignment for futex wakes
-        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "address must be aligned to 4 bytes",
-            ))
-            .boxed());
-        }
-
         // wake one waiter blocked on this futex word
-        let address_ptr = address as *const u32;
+        let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
         let rc = unsafe {
             libc::syscall(
                 libc::SYS_futex,

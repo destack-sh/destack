@@ -11,10 +11,10 @@ use super::{nanos_from_secs_and_nanos, statfs_u64};
 /// Return nanosecond timestamps for stat fields on freebsd.
 pub(crate) fn stat_times(stat: libc::stat) -> (u64, u64, u64, u64) {
     (
-        nanos_from_secs_and_nanos(stat.st_atime as u64, stat.st_atime_nsec as u64),
-        nanos_from_secs_and_nanos(stat.st_mtime as u64, stat.st_mtime_nsec as u64),
-        nanos_from_secs_and_nanos(stat.st_ctime as u64, stat.st_ctime_nsec as u64),
-        nanos_from_secs_and_nanos(stat.st_birthtime as u64, stat.st_birthtime_nsec as u64),
+        nanos_from_secs_and_nanos(stat.st_atime, stat.st_atime_nsec),
+        nanos_from_secs_and_nanos(stat.st_mtime, stat.st_mtime_nsec),
+        nanos_from_secs_and_nanos(stat.st_ctime, stat.st_ctime_nsec),
+        nanos_from_secs_and_nanos(stat.st_birthtime, stat.st_birthtime_nsec),
     )
 }
 

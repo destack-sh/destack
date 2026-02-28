@@ -281,9 +281,7 @@ pub(crate) fn host_completion_resolve_target_handle(
             return Some(PlatformHandle::from_raw_socket(socket));
         }
 
-        entry
-            .handle()
-            .map(|handle| PlatformHandle(handle as usize as u64))
+        entry.handle().map(|handle| PlatformHandle(handle as u64))
     });
 
     // reject unknown targets first

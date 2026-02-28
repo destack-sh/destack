@@ -587,7 +587,7 @@ fn make_user_event(ident: libc::uintptr_t, flags: u16, fflags: u32) -> libc::kev
 
 /// Convert a resource id into a udata pointer.
 fn token_udata(token: PollerToken) -> *mut libc::c_void {
-    token.0 as usize as *mut libc::c_void
+    token.0 as *mut libc::c_void
 }
 
 /// Convert a udata pointer into a resource id.

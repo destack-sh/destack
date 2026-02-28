@@ -63,28 +63,10 @@ pub(crate) unsafe fn destack_thread_address_wait(
     expected: u32,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    // validate the waited address
-    if address == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must not be zero",
-        ))
-        .boxed());
-    }
-
-    // validate word alignment for wait-on-address
-    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must be aligned to 4 bytes",
-        ))
-        .boxed());
-    }
-
     // wait on the host address until wake, mismatch, or timeout
+    let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
     let timeout = core_thread::timeout_from_ns(timeoutns);
     let timeout_milliseconds = timeout_to_wait_milliseconds(timeout)?;
-    let address_ptr = address as *const u32;
     let rc = unsafe {
         WaitOnAddress(
             address_ptr as *const std::ffi::c_void,
@@ -137,27 +119,10 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     _context: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
-    // validate the waited address
-    if address == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must not be zero",
-        ))
-        .boxed());
-    }
-
-    // validate word alignment for wait-on-address
-    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must be aligned to 4 bytes",
-        ))
-        .boxed());
-    }
-
     // wake all blocked waiters
+    let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
     unsafe {
-        WakeByAddressAll(address as *const std::ffi::c_void);
+        WakeByAddressAll(address_ptr as *const std::ffi::c_void);
     }
 
     Ok(())
@@ -184,27 +149,10 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
     _context: &BindingCallContext,
     address: u64,
 ) -> RuntimeResult<()> {
-    // validate the waited address
-    if address == 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must not be zero",
-        ))
-        .boxed());
-    }
-
-    // validate word alignment for wait-on-address
-    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "address",
-            "address must be aligned to 4 bytes",
-        ))
-        .boxed());
-    }
-
     // wake one blocked waiter
+    let address_ptr = core_thread::checked_u32_word_pointer(address, "address")?;
     unsafe {
-        WakeByAddressSingle(address as *const std::ffi::c_void);
+        WakeByAddressSingle(address_ptr as *const std::ffi::c_void);
     }
 
     Ok(())

@@ -1389,9 +1389,10 @@ pub(super) fn monotonic_timestamp_ns() -> u64 {
     }
 
     // convert one timespec payload to nanoseconds
-    (timestamp.tv_sec as u64)
+    u64::try_from(timestamp.tv_sec)
+        .unwrap_or(0)
         .saturating_mul(1_000_000_000)
-        .saturating_add(timestamp.tv_nsec as u64)
+        .saturating_add(u64::try_from(timestamp.tv_nsec).unwrap_or(0))
 }
 
 /// Allocate the next sequence number for one Unix input stream.

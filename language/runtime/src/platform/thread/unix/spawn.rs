@@ -24,9 +24,10 @@ extern "C" fn thread_start(payload: *mut libc::c_void) -> *mut libc::c_void {
 
     // reclaim the bootstrap payload ownership
     let payload = unsafe { Box::from_raw(payload as *mut ThreadStartPayload) };
+    let exit_code = payload.exit_code;
 
-    // return the u32 code as a pointer payload for pthread_join
-    payload.exit_code as usize as *mut libc::c_void
+    // return the exit code in heap storage for pthread_join to reclaim
+    Box::into_raw(Box::new(exit_code)) as *mut libc::c_void
 }
 
 /// Build one thread detach error from a pthread return code.
@@ -146,7 +147,11 @@ pub(crate) unsafe fn destack_thread_join(
     if rc != 0 {
         return Err(thread_join_error(rc));
     }
-    let exit_code = thread_return as usize as u32;
+    let exit_code = if thread_return.is_null() {
+        0
+    } else {
+        unsafe { *Box::from_raw(thread_return as *mut u32) }
+    };
 
     // write the exit code
     unsafe {
@@ -224,8 +229,15 @@ pub(crate) unsafe fn destack_thread_spawn(
     }
 
     // allocate the bootstrap payload for the thread routine
+    let argument = u32::try_from(argument).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            "argument",
+            "argument exceeds u32 exit-code range",
+        ))
+        .boxed()
+    })?;
     let payload = Box::new(ThreadStartPayload {
-        exit_code: argument as u32,
+        exit_code: argument,
     });
     let payload_ptr = Box::into_raw(payload) as *mut libc::c_void;
 

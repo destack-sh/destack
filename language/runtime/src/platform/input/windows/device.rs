@@ -115,7 +115,7 @@ pub(super) fn open_device(
                 // insert console binding with restore finalizer
                 let entry = ResourceEntry::new(ResourceKind::Input)
                     .with_label(input_core::INPUT_RESOURCE_LABEL)
-                    .with_handle(duplicated as usize as *mut c_void)
+                    .with_handle(duplicated as *mut c_void)
                     .with_payload(input_core::WindowsInputBinding {
                         backend: input_core::WindowsInputBackend::Console,
                         read_mode: input_core::read_mode_from_console_mode(mode),
