@@ -22,7 +22,7 @@ use crate::platform::os::{
     NotificationScheduledDescriptorVm, Permission, PermissionEntryVm, PermissionState, PowerState,
     SystemSnapshotVm,
 };
-use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
+use crate::platform::{NativeStringRef, PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
@@ -31,6 +31,17 @@ use super::credentials::{
     authenticate_credentials, contains_credentials, delete_credentials, normalize_optional_string,
     read_credentials, write_credentials,
 };
+use super::{host as host_os_host, info as host_os_info, power as host_os_power};
+
+/// Invoke one host call that writes through an out pointer.
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    // allocate one uninitialized output slot for the host call
+    let mut out = std::mem::MaybeUninit::<T>::uninit();
+
+    // execute call and assume initialization on success
+    call(out.as_mut_ptr())?;
+    Ok(unsafe { out.assume_init() })
+}
 
 /// Clear clipboard payload.
 ///
@@ -1342,6 +1353,25 @@ fn vm_bytes_to_owned(
     Ok(bytes.to_vec())
 }
 
+/// Decode one native string reference into one vm string handle.
+fn native_string_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeStringRef,
+    field: &str,
+) -> RuntimeResult<vm::StringHandle> {
+    // decode one native string and validate utf-8 payload
+    let value = unsafe { value.as_str() }.map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            "native host string payload was not valid utf-8",
+        ))
+        .boxed()
+    })?;
+
+    // intern one vm string handle for the decoded payload
+    Ok(vm::StringHandle::new(context.intern_string(value)))
+}
+
 /// Close one opened document handle.
 ///
 /// Close one opened document-provider handle and release host resources.
@@ -1562,13 +1592,26 @@ pub(crate) fn destack_os_document_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_host_identity(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<HostIdentityVm> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.host.identity is not available in the VM yet",
-    ))
-    .boxed())
+    // forward to host-native implementation
+    let identity = call_out(|out| unsafe { host_os_host::destack_os_host_identity(runtime, out) })?;
+
+    // decode native host identity strings into vm handles
+    let hostname = native_string_to_vm(context, identity.hostname, "identity.hostname")?;
+    let kernel = native_string_to_vm(context, identity.kernel, "identity.kernel")?;
+    let release = native_string_to_vm(context, identity.release, "identity.release")?;
+    let architecture =
+        native_string_to_vm(context, identity.architecture, "identity.architecture")?;
+
+    // return one vm host-identity payload
+    Ok(HostIdentityVm {
+        hostname,
+        kernel,
+        release,
+        architecture,
+    })
 }
 
 /// Read host boot time.
@@ -1589,13 +1632,10 @@ pub(crate) fn destack_os_host_identity(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_boot_time_unix_ns(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.bootTimeUnixNs is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_os_info::destack_os_boot_time_unix_ns(runtime, out) })
 }
 
 /// Read host load averages.
@@ -1616,13 +1656,10 @@ pub(crate) fn destack_os_boot_time_unix_ns(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_load_average(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<LoadAverageVm> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.loadAverage is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_os_info::destack_os_load_average(runtime, out) })
 }
 
 /// Read host system information.
@@ -1643,13 +1680,10 @@ pub(crate) fn destack_os_load_average(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_system_snapshot(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<SystemSnapshotVm> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.systemSnapshot is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_os_info::destack_os_system_snapshot(runtime, out) })
 }
 
 /// Read host uptime.
@@ -1670,13 +1704,10 @@ pub(crate) fn destack_os_system_snapshot(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_uptime_ns(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.info.uptimeNs is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_os_info::destack_os_uptime_ns(runtime, out) })
 }
 
 /// Close one host intent stream.
@@ -2869,13 +2900,10 @@ pub(crate) fn destack_os_permission_state(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_os_power_state(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<PowerState> {
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.power.state is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_os_power::destack_os_power_state(runtime, out) })
 }
 
 /// Request host suspend.

@@ -12,6 +12,9 @@ use super::credentials::{
     delete_credentials, normalize_optional_string, read_credentials, write_credentials,
 };
 pub(crate) use super::host::*;
+pub(crate) use super::info::*;
+pub(crate) use super::power::*;
+pub(crate) use super::unsupported::*;
 
 /// Request one host credential authentication challenge.
 ///

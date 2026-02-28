@@ -10,8 +10,11 @@ pub use bindings_generated::*;
 
 mod credentials;
 mod host;
+mod info;
 pub mod native;
+mod power;
 pub(crate) mod simulation;
 #[cfg(test)]
 mod tests;
+mod unsupported;
 pub mod vm;
