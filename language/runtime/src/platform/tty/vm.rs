@@ -1,10 +1,199 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::tty::{PtyPairVm, TtyModeVm, TtySizeVm};
-use crate::platform::{PlatformError, VmSlice, resource};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::tty::{
+    PtyPairVm, TtyModeVm, TtySizeVm, TtyTermiosAttributes, TtyTermiosAttributesVm,
+    TtyTermiosFlowAction, TtyTermiosQueue, TtyTermiosSetAction,
+};
+use crate::platform::{NativeSlice, VmSlice, process, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
+
+use super::host as host_tty;
+
+/// Invoke one host call that writes through an out pointer.
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    // allocate one uninitialized output slot for the host call
+    let mut out = std::mem::MaybeUninit::<T>::uninit();
+
+    // execute call and assume initialization on success
+    call(out.as_mut_ptr())?;
+    Ok(unsafe { out.assume_init() })
+}
+
+/// Build one native byte slice from one mutable vec.
+fn native_bytes_from_vec(bytes: &mut Vec<u8>) -> NativeSlice<u8> {
+    NativeSlice {
+        data: bytes.as_mut_ptr(),
+        len: bytes.len() as u32,
+    }
+}
+
+/// Convert one native termios payload into one VM termios payload.
+fn termios_attributes_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    attributes: TtyTermiosAttributes,
+) -> RuntimeResult<TtyTermiosAttributesVm> {
+    // decode native control characters and move them into VM memory
+    let control_characters = unsafe { attributes.control_characters.as_slice()? };
+    let control_characters = VmSlice::from_values(context, control_characters)?;
+
+    // return one projected VM termios payload
+    Ok(TtyTermiosAttributesVm {
+        input_flags: attributes.input_flags,
+        output_flags: attributes.output_flags,
+        control_flags: attributes.control_flags,
+        local_flags: attributes.local_flags,
+        control_characters,
+        input_speed_code: attributes.input_speed_code,
+        output_speed_code: attributes.output_speed_code,
+    })
+}
+
+/// Convert one VM termios payload into one native termios payload.
+fn termios_attributes_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    attributes: TtyTermiosAttributesVm,
+) -> RuntimeResult<TtyTermiosAttributes> {
+    // copy VM control characters into runtime-owned native memory
+    let control_characters = attributes.control_characters.read_bytes(context)?;
+    let control_characters = runtime.store_slice(control_characters);
+
+    // return one projected native termios payload
+    Ok(TtyTermiosAttributes {
+        input_flags: attributes.input_flags,
+        output_flags: attributes.output_flags,
+        control_flags: attributes.control_flags,
+        local_flags: attributes.local_flags,
+        control_characters,
+        input_speed_code: attributes.input_speed_code,
+        output_speed_code: attributes.output_speed_code,
+    })
+}
+
+/// Close one terminal handle.
+///
+/// Close one terminal endpoint and release runtime ownership.
+/// Follow-up operations on the closed handle fail with invalid-handle errors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_close(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_close(runtime, handle) }
+}
+
+/// Return whether one file handle is attached to a terminal.
+///
+/// Query one file handle and return true when it targets a terminal endpoint.
+/// This can be used before converting process stdio streams into tty workflows.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_is_terminal_file(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::FileHandle,
+) -> RuntimeResult<bool> {
+    call_out(|out| unsafe { host_tty::destack_tty_is_terminal_file(runtime, out, handle) })
+}
+
+/// Open one standard error terminal handle.
+///
+/// Open one terminal handle for the current process standard error stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_stdio_stderr(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::TtyHandle> {
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stderr(runtime, out) })
+}
+
+/// Open one standard input terminal handle.
+///
+/// Open one terminal handle for the current process standard input stream.
+/// The returned handle can be used with tty read, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_stdio_stdin(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::TtyHandle> {
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdin(runtime, out) })
+}
+
+/// Open one standard output terminal handle.
+///
+/// Open one terminal handle for the current process standard output stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_stdio_stdout(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::TtyHandle> {
+    call_out(|out| unsafe { host_tty::destack_tty_stdio_stdout(runtime, out) })
+}
 
 /// Read bytes from a terminal.
 ///
@@ -24,16 +213,24 @@ use destack_vm as vm;
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_read(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.io.read is not available in the VM yet",
-    ))
-    .boxed())
+    // copy one vm buffer into mutable host memory for the read call
+    let mut bytes = buffer.read_bytes(context)?;
+
+    // forward to host implementation and capture written count
+    let read = call_out(|out| {
+        let native_buffer = native_bytes_from_vec(&mut bytes);
+        unsafe { host_tty::destack_tty_read(runtime, out, handle, native_buffer) }
+    })?;
+
+    // write host memory back into the vm buffer
+    buffer.write_bytes(context, &bytes)?;
+
+    Ok(read)
 }
 
 /// Write bytes to a terminal.
@@ -54,22 +251,28 @@ pub(crate) fn destack_tty_read(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_write(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.io.write is not available in the VM yet",
-    ))
-    .boxed())
+    // copy one vm buffer into host memory for the write call
+    let mut bytes = buffer.read_bytes(context)?;
+
+    // forward to host implementation
+    let written = call_out(|out| {
+        let native_buffer = native_bytes_from_vec(&mut bytes);
+        unsafe { host_tty::destack_tty_write(runtime, out, handle, native_buffer) }
+    })?;
+
+    Ok(written)
 }
 
 /// Read terminal mode flags.
 ///
 /// Read one terminal mode snapshot for one terminal handle.
-/// Mode mapping is normalized across host terminal APIs.
+/// Mode fields are projected from host terminal APIs.
+/// Field-level behavior is host-specific, especially for non-POSIX backends.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -84,15 +287,11 @@ pub(crate) fn destack_tty_write(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_mode(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtyModeVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.mode.getMode is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_tty::destack_tty_get_mode(runtime, out, handle) })
 }
 
 /// Apply terminal mode flags.
@@ -113,16 +312,38 @@ pub(crate) fn destack_tty_get_mode(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_mode(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     mode: TtyModeVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, mode);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.mode.setMode is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tty::destack_tty_set_mode(runtime, handle, mode) }
+}
+
+/// Enable or disable raw terminal mode.
+///
+/// Apply one host-defined raw-mode profile for one terminal handle.
+/// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses cfmakeraw plus tcsetattr on Unix and SetConsoleMode profile updates on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.mode`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_tty_set_raw_mode(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_set_raw_mode(runtime, handle, enabled) }
 }
 
 /// Close one pseudo-terminal controller.
@@ -138,20 +359,16 @@ pub(crate) fn destack_tty_set_mode(
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `tty.mode`.
+/// Requires `tty.pty`.
 ///
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_close(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::PtyHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.pty.close is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tty::destack_tty_pty_close(runtime, handle) }
 }
 
 /// Open one pseudo-terminal pair.
@@ -167,22 +384,18 @@ pub(crate) fn destack_tty_pty_close(
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `tty.mode`.
+/// Requires `tty.pty`.
 ///
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_pty_open(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     rows: u32,
     columns: u32,
     flags: u32,
 ) -> RuntimeResult<PtyPairVm> {
-    let _ = (rows, columns, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.pty.open is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_tty::destack_tty_pty_open(runtime, out, rows, columns, flags) })
 }
 
 /// Read terminal size.
@@ -203,15 +416,11 @@ pub(crate) fn destack_tty_pty_open(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_get_size(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<TtySizeVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.size.getSize is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { host_tty::destack_tty_get_size(runtime, out, handle) })
 }
 
 /// Apply terminal size.
@@ -232,14 +441,98 @@ pub(crate) fn destack_tty_get_size(
 /// # Replay
 /// External, recordable.
 pub(crate) fn destack_tty_set_size(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::TtyHandle,
     size: TtySizeVm,
 ) -> RuntimeResult<()> {
-    let _ = (handle, size);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.tty.size.setSize is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_tty::destack_tty_set_size(runtime, handle, size) }
+}
+
+/// Wait for pending output to drain on one terminal handle.
+pub(crate) fn destack_tty_termios_drain(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_termios_drain(runtime, handle) }
+}
+
+/// Apply terminal flow-control action.
+pub(crate) fn destack_tty_termios_flow(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    action: TtyTermiosFlowAction,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_termios_flow(runtime, handle, action) }
+}
+
+/// Flush one terminal queue.
+pub(crate) fn destack_tty_termios_flush(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    queue: TtyTermiosQueue,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_termios_flush(runtime, handle, queue) }
+}
+
+/// Read full termios attributes for one terminal handle.
+pub(crate) fn destack_tty_termios_get_attributes(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<TtyTermiosAttributesVm> {
+    // query one native termios payload from host runtime
+    let attributes = call_out(|out| unsafe {
+        host_tty::destack_tty_termios_get_attributes(runtime, out, handle)
+    })?;
+
+    // project one native payload into VM value lanes
+    termios_attributes_to_vm(context, attributes)
+}
+
+/// Read controlling-terminal process-group id.
+pub(crate) fn destack_tty_termios_get_process_group(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<process::ProcessId> {
+    call_out(|out| unsafe { host_tty::destack_tty_termios_get_process_group(runtime, out, handle) })
+}
+
+/// Send one terminal break condition.
+pub(crate) fn destack_tty_termios_send_break(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    duration: u32,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_termios_send_break(runtime, handle, duration) }
+}
+
+/// Apply full termios attributes to one terminal handle.
+pub(crate) fn destack_tty_termios_set_attributes(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    attributes: TtyTermiosAttributesVm,
+    action: TtyTermiosSetAction,
+) -> RuntimeResult<()> {
+    // project VM termios payload into native value lanes
+    let attributes = termios_attributes_from_vm(runtime, context, attributes)?;
+
+    // apply one native termios update through the host backend
+    unsafe { host_tty::destack_tty_termios_set_attributes(runtime, handle, attributes, action) }
+}
+
+/// Set controlling-terminal process-group id.
+pub(crate) fn destack_tty_termios_set_process_group(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::TtyHandle,
+    processgroupid: process::ProcessId,
+) -> RuntimeResult<()> {
+    unsafe { host_tty::destack_tty_termios_set_process_group(runtime, handle, processgroupid) }
 }

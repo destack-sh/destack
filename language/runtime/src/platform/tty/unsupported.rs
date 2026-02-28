@@ -8,8 +8,166 @@ use crate::platform::{NativeSlice, PlatformError};
 use crate::runtime::BindingCallContext;
 use bindings::*;
 
-use crate::platform::resource;
-use crate::platform::tty::{PtyPair, TtyMode, TtySize};
+use crate::platform::tty::{
+    PtyPair, TtyMode, TtySize, TtyTermiosAttributes, TtyTermiosFlowAction, TtyTermiosQueue,
+    TtyTermiosSetAction,
+};
+use crate::platform::{process, resource};
+
+/// Close one terminal handle.
+///
+/// Close one terminal endpoint and release runtime ownership.
+/// Follow-up operations on the closed handle fail with invalid-handle errors.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_close(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.handle.close")).boxed())
+}
+
+/// Return whether one file handle is attached to a terminal.
+///
+/// Query one file handle and return true when it targets a terminal endpoint.
+/// This can be used before converting process stdio streams into tty workflows.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_is_terminal_file(
+    _context: &BindingCallContext,
+    out: *mut bool,
+    handle: resource::FileHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.handle.isTerminalFile",
+    ))
+    .boxed())
+}
+
+/// Open one standard error terminal handle.
+///
+/// Open one terminal handle for the current process standard error stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stderr(
+    _context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.handle.stdioStderr",
+    ))
+    .boxed())
+}
+
+/// Open one standard input terminal handle.
+///
+/// Open one terminal handle for the current process standard input stream.
+/// The returned handle can be used with tty read, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stdin(
+    _context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.handle.stdioStdin",
+    ))
+    .boxed())
+}
+
+/// Open one standard output terminal handle.
+///
+/// Open one terminal handle for the current process standard output stream.
+/// The returned handle can be used with tty write, mode, and size operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
+/// Fails when the standard stream is not attached to a terminal.
+///
+/// # Errors
+/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.handle`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_stdio_stdout(
+    _context: &BindingCallContext,
+    out: *mut resource::TtyHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.handle.stdioStdout",
+    ))
+    .boxed())
+}
 
 /// Read bytes from a terminal.
 ///
@@ -76,7 +234,8 @@ pub(crate) unsafe fn destack_tty_write(
 /// Read terminal mode flags.
 ///
 /// Read one terminal mode snapshot for one terminal handle.
-/// Mode mapping is normalized across host terminal APIs.
+/// Mode fields are projected from host terminal APIs.
+/// Field-level behavior is host-specific, especially for non-POSIX backends.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -130,6 +289,33 @@ pub(crate) unsafe fn destack_tty_set_mode(
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setMode")).boxed())
 }
 
+/// Enable or disable raw terminal mode.
+///
+/// Apply one host-defined raw-mode profile for one terminal handle.
+/// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses cfmakeraw plus tcsetattr on Unix and SetConsoleMode profile updates on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.mode`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_set_raw_mode(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    enabled: bool,
+) -> RuntimeResult<()> {
+    let _ = (handle, enabled);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.mode.setRawMode")).boxed())
+}
+
 /// Close one pseudo-terminal controller.
 ///
 /// Close one pseudo-terminal controller endpoint.
@@ -143,7 +329,7 @@ pub(crate) unsafe fn destack_tty_set_mode(
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `tty.mode`.
+/// Requires `tty.pty`.
 ///
 /// # Replay
 /// External, recordable.
@@ -169,7 +355,7 @@ pub(crate) unsafe fn destack_tty_pty_close(
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `tty.mode`.
+/// Requires `tty.pty`.
 ///
 /// # Replay
 /// External, recordable.
@@ -243,4 +429,113 @@ pub(crate) unsafe fn destack_tty_set_size(
     let _ = (handle, size);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.tty.size.setSize")).boxed())
+}
+
+/// Wait for pending output to drain on one terminal handle.
+pub(crate) unsafe fn destack_tty_termios_drain(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.drain")).boxed())
+}
+
+/// Apply terminal flow-control action.
+pub(crate) unsafe fn destack_tty_termios_flow(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    action: TtyTermiosFlowAction,
+) -> RuntimeResult<()> {
+    let _ = (handle, action);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.flow")).boxed())
+}
+
+/// Flush one terminal queue.
+pub(crate) unsafe fn destack_tty_termios_flush(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    queue: TtyTermiosQueue,
+) -> RuntimeResult<()> {
+    let _ = (handle, queue);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.tty.termios.flush")).boxed())
+}
+
+/// Read full termios attributes for one terminal handle.
+pub(crate) unsafe fn destack_tty_termios_get_attributes(
+    _context: &BindingCallContext,
+    out: *mut TtyTermiosAttributes,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.termios.getAttributes",
+    ))
+    .boxed())
+}
+
+/// Read controlling-terminal process-group id.
+pub(crate) unsafe fn destack_tty_termios_get_process_group(
+    _context: &BindingCallContext,
+    out: *mut process::ProcessId,
+    handle: resource::TtyHandle,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = handle;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.termios.getProcessGroup",
+    ))
+    .boxed())
+}
+
+/// Send one terminal break condition.
+pub(crate) unsafe fn destack_tty_termios_send_break(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    duration: u32,
+) -> RuntimeResult<()> {
+    let _ = (handle, duration);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.termios.sendBreak",
+    ))
+    .boxed())
+}
+
+/// Apply full termios attributes to one terminal handle.
+pub(crate) unsafe fn destack_tty_termios_set_attributes(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    attributes: TtyTermiosAttributes,
+    action: TtyTermiosSetAction,
+) -> RuntimeResult<()> {
+    let _ = (handle, attributes, action);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.termios.setAttributes",
+    ))
+    .boxed())
+}
+
+/// Set controlling-terminal process-group id.
+pub(crate) unsafe fn destack_tty_termios_set_process_group(
+    _context: &BindingCallContext,
+    handle: resource::TtyHandle,
+    processgroupid: process::ProcessId,
+) -> RuntimeResult<()> {
+    let _ = (handle, processgroupid);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.tty.termios.setProcessGroup",
+    ))
+    .boxed())
 }

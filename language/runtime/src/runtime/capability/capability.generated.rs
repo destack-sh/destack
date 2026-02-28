@@ -435,12 +435,18 @@ pub enum PlatformCapability {
     TlsSession,
     /// `tls.trust.write`.
     TlsTrustWrite,
+    /// `tty.handle`.
+    TtyHandle,
     /// `tty.mode`.
     TtyMode,
+    /// `tty.pty`.
+    TtyPty,
     /// `tty.read`.
     TtyRead,
     /// `tty.size`.
     TtySize,
+    /// `tty.termios`.
+    TtyTermios,
     /// `tty.write`.
     TtyWrite,
 }
@@ -663,9 +669,12 @@ impl PlatformCapability {
         Self::TlsResumption,
         Self::TlsSession,
         Self::TlsTrustWrite,
+        Self::TtyHandle,
         Self::TtyMode,
+        Self::TtyPty,
         Self::TtyRead,
         Self::TtySize,
+        Self::TtyTermios,
         Self::TtyWrite,
     ];
 
@@ -887,9 +896,12 @@ impl PlatformCapability {
             Self::TlsResumption => "tls.resumption",
             Self::TlsSession => "tls.session",
             Self::TlsTrustWrite => "tls.trust.write",
+            Self::TtyHandle => "tty.handle",
             Self::TtyMode => "tty.mode",
+            Self::TtyPty => "tty.pty",
             Self::TtyRead => "tty.read",
             Self::TtySize => "tty.size",
+            Self::TtyTermios => "tty.termios",
             Self::TtyWrite => "tty.write",
         }
     }
@@ -1117,9 +1129,12 @@ impl PlatformCapability {
             "tls.resumption" => Some(Self::TlsResumption),
             "tls.session" => Some(Self::TlsSession),
             "tls.trust.write" => Some(Self::TlsTrustWrite),
+            "tty.handle" => Some(Self::TtyHandle),
             "tty.mode" => Some(Self::TtyMode),
+            "tty.pty" => Some(Self::TtyPty),
             "tty.read" => Some(Self::TtyRead),
             "tty.size" => Some(Self::TtySize),
+            "tty.termios" => Some(Self::TtyTermios),
             "tty.write" => Some(Self::TtyWrite),
             _ => None,
         }

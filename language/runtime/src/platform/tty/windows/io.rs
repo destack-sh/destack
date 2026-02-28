@@ -1,0 +1,132 @@
+use windows_sys::Win32::Storage::FileSystem::{ReadFile, WriteFile};
+
+use super::core::{io_error, tty_binding, tty_handle, validate_buffer_length};
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::tty::core::ensure_out;
+use crate::platform::{NativeSlice, resource};
+use crate::runtime::BindingCallContext;
+
+/// Read bytes from a terminal.
+///
+/// Read one byte sequence from one terminal handle into caller memory.
+/// Read mode and canonical processing depend on active terminal mode settings.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) on Unix terminals and ReadConsole or ReadFile on Windows consoles.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.read`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_read(
+    context: &BindingCallContext,
+    out: *mut u64,
+    handle: resource::TtyHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // validate the output pointer
+    ensure_out(out, "out")?;
+
+    // resolve one tty binding and caller buffer
+    let binding = tty_binding(context, handle, "destack.tty.io.read")?;
+    let host_handle = match binding {
+        Some(binding) => binding.read_handle,
+        None => tty_handle(context, handle, "destack.tty.io.read")?,
+    };
+    let buffer = unsafe { buffer.as_mut_slice()? };
+    let length = validate_buffer_length(buffer.len(), "buffer")?;
+
+    // issue one host read
+    let mut bytes_read = 0u32;
+    let status = unsafe {
+        ReadFile(
+            host_handle,
+            buffer.as_mut_ptr(),
+            length,
+            &mut bytes_read,
+            std::ptr::null_mut(),
+        )
+    };
+    if status == 0 {
+        return Err(io_error(
+            "destack.tty.io.read",
+            "ReadFile",
+            "failed to read from tty handle",
+        ));
+    }
+
+    // write read count to the output pointer
+    unsafe {
+        out.write(u64::from(bytes_read));
+    }
+
+    Ok(())
+}
+
+/// Write bytes to a terminal.
+///
+/// Write one byte sequence from caller memory to one terminal handle.
+/// Encoding and newline translation follow host terminal API behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses write(2) on Unix terminals and WriteConsole or WriteFile on Windows consoles.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `tty.write`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_tty_write(
+    context: &BindingCallContext,
+    out: *mut u64,
+    handle: resource::TtyHandle,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    // validate the output pointer
+    ensure_out(out, "out")?;
+
+    // resolve one tty binding and caller buffer
+    let binding = tty_binding(context, handle, "destack.tty.io.write")?;
+    let host_handle = match binding {
+        Some(binding) => binding.write_handle,
+        None => tty_handle(context, handle, "destack.tty.io.write")?,
+    };
+    let buffer = unsafe { buffer.as_slice()? };
+    let length = validate_buffer_length(buffer.len(), "buffer")?;
+
+    // issue one host write
+    let mut bytes_written = 0u32;
+    let status = unsafe {
+        WriteFile(
+            host_handle,
+            buffer.as_ptr(),
+            length,
+            &mut bytes_written,
+            std::ptr::null_mut(),
+        )
+    };
+    if status == 0 {
+        return Err(io_error(
+            "destack.tty.io.write",
+            "WriteFile",
+            "failed to write to tty handle",
+        ));
+    }
+
+    // write write count to the output pointer
+    unsafe {
+        out.write(u64::from(bytes_written));
+    }
+
+    Ok(())
+}
