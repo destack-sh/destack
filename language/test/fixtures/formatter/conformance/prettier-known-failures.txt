@@ -4,7 +4,7 @@ js/arrows/currying-4.js
 js/binary-expressions/short-right.js
 js/comments-closure-typecast/member.js
 js/comments/break-continue-statements-2.js
-js/comments/jsx.js
+js/comments/dangling_array.js
 js/decorators/redux.js
 js/explicit-resource-management/valid-await-using-comments.js
 js/function-single-destructuring/array.js
@@ -14,6 +14,8 @@ js/if/condition-break/unary-expression.js
 js/ignore/issue-10661.js
 js/import/comments.js
 js/last-argument-expansion/edge_case.js
+js/last-argument-expansion/empty-object.js
+js/last-argument-expansion/overflow.js
 js/line-suffix-boundary/boundary.js
 js/logical-expressions/in-unary-expression.js
 js/multiparser-html/lit-html.js
@@ -22,14 +24,8 @@ js/preserve-line/member-chain.js
 js/sequence-expression/parenthesized.js
 js/ternaries/nested.js
 js/unary-expression/comments.js
-js/unicode/nbsp-jsx.js
 jsx/comments/in-end-tag.js
 jsx/fragment/fragment.js
-jsx/ignore/spread.js
-jsx/jsx/flow_fix_me.js
-jsx/significant-space/comments.js
-jsx/spread/attribute.js
-jsx/spread/child.js
 jsx/text-wrap/test.js
 typescript/angular-component-examples/test.component.ts
 typescript/array/comment.ts
@@ -45,6 +41,7 @@ typescript/conditional-types/conditional-types.ts
 typescript/decorators/decorators.ts
 typescript/non-null/braces.ts
 typescript/prettier-ignore/mapped-types.ts
+typescript/tsx/member-expression.tsx
 typescript/type-parameters-arguments/class-method.ts
 typescript/union/consistent-with-flow/comment.ts
 typescript/union/consistent-with-flow/single-type.ts

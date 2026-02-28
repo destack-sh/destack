@@ -169,8 +169,9 @@ pub(crate) fn format_scalar_literal<'ast>(
             if is_tree_text {
                 // jsx text content: normalize whitespace based on parsed tree text payload
                 let has_newline = content.contains(['\n', '\r']);
-                let has_non_whitespace =
-                    content.chars().any(|character| !character.is_whitespace());
+                let has_non_whitespace = content
+                    .chars()
+                    .any(|character| !is_jsx_whitespace_char(character));
                 if !has_non_whitespace {
                     if !has_newline {
                         write!(f, [text(" ")])?;
@@ -491,24 +492,17 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-/// Normalize jsx text by collapsing whitespace to single spaces and preserving edges.
+/// Normalize jsx text by collapsing whitespace to single spaces.
 fn normalize_jsx_text(text: &str) -> String {
-    let mut parts = text.split_whitespace();
-    let Some(first) = parts.next() else {
+    let Some(mut normalized) = collapse_jsx_whitespace_to_single_spaces(text) else {
         return String::new();
     };
 
-    let mut normalized = String::from(first);
-    for part in parts {
-        normalized.push(' ');
-        normalized.push_str(part);
-    }
-
-    let (has_leading_space, has_trailing_space) = jsx_boundary_spaces(text);
-    if has_leading_space {
+    if jsx_has_leading_inline_space(text) {
         normalized.insert(0, ' ');
     }
-    if has_trailing_space {
+
+    if jsx_has_trailing_inline_space(text) {
         normalized.push(' ');
     }
 
@@ -523,61 +517,80 @@ fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
 
     let mut lines = text
         .lines()
-        .filter_map(normalize_jsx_text_line)
+        .filter_map(collapse_jsx_whitespace_to_single_spaces)
         .collect::<Vec<_>>();
     if lines.len() <= 1 {
         return None;
     }
 
-    let (has_leading_space, has_trailing_space) = jsx_boundary_spaces(text);
-    if has_leading_space {
-        lines[0].insert(0, ' ');
+    if let Some(first_line) = lines.first_mut()
+        && jsx_has_leading_inline_space(text)
+    {
+        first_line.insert(0, ' ');
     }
-    if has_trailing_space {
-        lines
-            .last_mut()
-            .expect("multiline jsx text has at least one line")
-            .push(' ');
+
+    if let Some(last_line) = lines.last_mut()
+        && jsx_has_trailing_inline_space(text)
+    {
+        last_line.push(' ');
     }
 
     Some(lines)
 }
 
-/// Normalize one jsx text line by collapsing inner whitespace.
-fn normalize_jsx_text_line(line: &str) -> Option<String> {
-    let mut parts = line.split_whitespace();
-    let first = parts.next()?;
-
-    let mut normalized = String::from(first);
-    for part in parts {
-        normalized.push(' ');
-        normalized.push_str(part);
-    }
-
-    Some(normalized)
-}
-
-/// Check for inline boundary spaces in jsx text.
-fn jsx_boundary_spaces(text: &str) -> (bool, bool) {
+/// Return whether one jsx text node starts with inline boundary whitespace.
+fn jsx_has_leading_inline_space(text: &str) -> bool {
     let leading_end = text
         .char_indices()
-        .find(|(_, c)| !c.is_whitespace())
+        .find(|(_, c)| !is_jsx_whitespace_char(*c))
         .map_or(text.len(), |(index, _)| index);
+
+    let leading_whitespace = &text[..leading_end];
+    !leading_whitespace.is_empty() && !leading_whitespace.contains(['\n', '\r'])
+}
+
+/// Return whether one jsx text node ends with inline boundary whitespace.
+fn jsx_has_trailing_inline_space(text: &str) -> bool {
     let trailing_start = text
         .char_indices()
         .rev()
-        .find(|(_, c)| !c.is_whitespace())
+        .find(|(_, c)| !is_jsx_whitespace_char(*c))
         .map_or(0, |(index, c)| index + c.len_utf8());
 
-    let leading_whitespace = &text[..leading_end];
     let trailing_whitespace = &text[trailing_start..];
+    !trailing_whitespace.is_empty() && !trailing_whitespace.contains(['\n', '\r'])
+}
 
-    let has_leading_space =
-        !leading_whitespace.is_empty() && !leading_whitespace.contains(['\n', '\r']);
-    let has_trailing_space =
-        !trailing_whitespace.is_empty() && !trailing_whitespace.contains(['\n', '\r']);
+/// Return whether one character is JSX whitespace.
+#[inline]
+fn is_jsx_whitespace_char(character: char) -> bool {
+    matches!(character, ' ' | '\n' | '\r' | '\t')
+}
 
-    (has_leading_space, has_trailing_space)
+/// Collapse JSX whitespace runs to single spaces and drop outer whitespace.
+fn collapse_jsx_whitespace_to_single_spaces(text: &str) -> Option<String> {
+    let mut collapsed = String::new();
+    let mut saw_word = false;
+    let mut has_pending_space = false;
+
+    for character in text.chars() {
+        if is_jsx_whitespace_char(character) {
+            if saw_word {
+                has_pending_space = true;
+            }
+            continue;
+        }
+
+        if has_pending_space && !collapsed.is_empty() {
+            collapsed.push(' ');
+        }
+
+        collapsed.push(character);
+        saw_word = true;
+        has_pending_space = false;
+    }
+
+    (!collapsed.is_empty()).then_some(collapsed)
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {

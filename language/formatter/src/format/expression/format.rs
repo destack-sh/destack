@@ -176,6 +176,32 @@ pub(crate) fn format_expression<'ast>(
     })
 }
 
+/// Format one expression while omitting prefix annotation emission.
+pub(crate) fn format_expression_without_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let directive = directive_for_node(f.context(), expression_id);
+    let expression = f.context().tree.get(expression_id);
+
+    format_expression(f, expression_id, expression, directive)?;
+
+    if !matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    ) {
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(expression_id)]
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Format static type arguments without multiline trailing commas.
 pub(crate) fn format_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,

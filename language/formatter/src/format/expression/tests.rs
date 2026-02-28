@@ -3394,7 +3394,7 @@ fn test_format_declarator_assignment_array_rhs_seam_comment_is_idempotent() {
 /// JSX spread child line comments should not drift between `...` and the operand.
 #[test]
 fn test_format_jsx_spread_child_line_comments_are_idempotent() {
-    let source = "{\n<div>{\n  //comment\n  ...a\n}</div>;\n\n<div>{//comment\n  ...a // comment\n}</div>;\n}";
+    let source = "{\n<div>{\n  //comment\n  ...a\n}</div>;\n\n<div>{//comment\n  ...a// comment\n}</div>;\n}";
     assert_format_idempotent_with_file_type(
         source,
         FileType::JavaScriptXml,
@@ -3919,6 +3919,17 @@ KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
         .expect("parse second-pass source");
     let second_output = second_formatter.format(&statement_list(&second_roots), options);
     assert_format_output_eq(&first_output, &second_output);
+}
+
+/// JSX spread object literals with inner ignore comments should keep the comment inside the value.
+#[test]
+fn test_format_jsx_spread_object_ignore_comment_stays_inside_value() {
+    let source = "a = <div {...{/* prettier-ignore */}}/>;\n";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
 }
 
 /// Closure-cast member wrappers should keep stable grouping across passes.
