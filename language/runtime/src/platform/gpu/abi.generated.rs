@@ -1968,10 +1968,8 @@ pub struct GpuAdapterRequest {
     pub power_preference: GpuPowerPreference,
     /// The force_fallback_adapter field.
     pub force_fallback_adapter: bool,
-    /// The has_compatible_surface field.
-    pub has_compatible_surface: bool,
     /// The compatible_surface field.
-    pub compatible_surface: resource::GpuSurfaceHandle,
+    pub compatible_surface: Option<resource::GpuSurfaceHandle>,
     /// The flags field.
     pub flags: u32,
 }
@@ -1993,10 +1991,10 @@ impl VmAggregateCodec for GpuAdapterRequest {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -2006,18 +2004,15 @@ impl VmAggregateCodec for GpuAdapterRequest {
             <GpuPowerPreference as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_force_fallback_adapter =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_has_compatible_surface =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_compatible_surface =
-            <resource::GpuSurfaceHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+            <Option<resource::GpuSurfaceHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
             )?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             backend: field_backend,
             power_preference: field_power_preference,
             force_fallback_adapter: field_force_fallback_adapter,
-            has_compatible_surface: field_has_compatible_surface,
             compatible_surface: field_compatible_surface,
             flags: field_flags,
         })
@@ -2034,8 +2029,7 @@ impl VmAggregateCodec for GpuAdapterRequest {
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.force_fallback_adapter, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_compatible_surface, context)?,
-            <resource::GpuSurfaceHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::GpuSurfaceHandle> as VmAggregateCodec>::encode_with_context(
                 self.compatible_surface,
                 context,
             )?,
@@ -2659,12 +2653,10 @@ impl VmAggregateCodec for GpuBufferOptions {
 /// ABI struct for GpuCapturedError.
 #[repr(C)]
 pub struct GpuCapturedErrorAbi<A: BindingAbi> {
-    /// The has_error field.
-    pub has_error: bool,
     /// The message field.
-    pub message: A::String,
+    pub message: Option<A::String>,
     /// The backend_code field.
-    pub backend_code: i32,
+    pub backend_code: Option<i32>,
 }
 
 pub type GpuCapturedError = GpuCapturedErrorAbi<NativeAbi>;
@@ -2706,19 +2698,18 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
-        let field_has_error = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_message =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_backend_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_code =
+            <Option<i32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
-            has_error: field_has_error,
             message: field_message,
             backend_code: field_backend_code,
         })
@@ -2729,9 +2720,11 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_error, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.message,
+                context,
+            )?,
+            <Option<i32> as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2743,10 +2736,8 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
 pub struct GpuColorTargetState {
     /// The format field.
     pub format: u32,
-    /// The has_blend field.
-    pub has_blend: bool,
     /// The blend field.
-    pub blend: GpuBlendState,
+    pub blend: Option<GpuBlendState>,
     /// The write_mask field.
     pub write_mask: GpuColorWriteMask,
 }
@@ -2768,22 +2759,20 @@ impl VmAggregateCodec for GpuColorTargetState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_has_blend = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_blend =
-            <GpuBlendStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<GpuBlendStateVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_write_mask =
-            <GpuColorWriteMask as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <GpuColorWriteMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             format: field_format,
-            has_blend: field_has_blend,
             blend: field_blend,
             write_mask: field_write_mask,
         })
@@ -2795,8 +2784,9 @@ impl VmAggregateCodec for GpuColorTargetState {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_blend, context)?,
-            <GpuBlendStateVm as VmAggregateCodec>::encode_with_context(self.blend, context)?,
+            <Option<GpuBlendStateVm> as VmAggregateCodec>::encode_with_context(
+                self.blend, context,
+            )?,
             <GpuColorWriteMask as VmAggregateCodec>::encode_with_context(self.write_mask, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -3030,10 +3020,8 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputePassOptions {
-    /// The has_timestamp_writes field.
-    pub has_timestamp_writes: bool,
     /// The timestamp_writes field.
-    pub timestamp_writes: GpuPassTimestampWrites,
+    pub timestamp_writes: Option<GpuPassTimestampWrites>,
     /// The flags field.
     pub flags: u32,
 }
@@ -3055,20 +3043,19 @@ impl VmAggregateCodec for GpuComputePassOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
-        let field_has_timestamp_writes =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_timestamp_writes =
-            <GpuPassTimestampWritesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
-            has_timestamp_writes: field_has_timestamp_writes,
             timestamp_writes: field_timestamp_writes,
             flags: field_flags,
         })
@@ -3079,8 +3066,7 @@ impl VmAggregateCodec for GpuComputePassOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_timestamp_writes, context)?,
-            <GpuPassTimestampWritesVm as VmAggregateCodec>::encode_with_context(
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(
                 self.timestamp_writes,
                 context,
             )?,
@@ -3093,10 +3079,8 @@ impl VmAggregateCodec for GpuComputePassOptions {
 /// ABI struct for GpuComputePipelineOptions.
 #[repr(C)]
 pub struct GpuComputePipelineOptionsAbi<A: BindingAbi> {
-    /// The has_layout field.
-    pub has_layout: bool,
     /// The layout field.
-    pub layout: resource::GpuPipelineLayoutHandle,
+    pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// The compute field.
     pub compute: platform_gpu::GpuComputeStateAbi<A>,
     /// The metadata field.
@@ -3144,25 +3128,23 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
-        let field_has_layout = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_layout =
-            <resource::GpuPipelineLayoutHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
             )?;
         let field_compute =
-            <GpuComputeStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <GpuComputeStateVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_metadata =
-            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
-            has_layout: field_has_layout,
             layout: field_layout,
             compute: field_compute,
             metadata: field_metadata,
@@ -3175,8 +3157,7 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_layout, context)?,
-            <resource::GpuPipelineLayoutHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
             )?,
@@ -3196,10 +3177,8 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
 pub struct GpuComputeStateAbi<A: BindingAbi> {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: A::String,
+    pub entry: Option<A::String>,
     /// The constants field.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
 }
@@ -3243,26 +3222,24 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_module = <resource::GpuShaderHandle as VmAggregateCodec>::decode_with_context(
             context, slots[0],
         )?;
-        let field_has_entry = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_entry =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_constants =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[2],
             )?;
         Ok(Self {
             module: field_module,
-            has_entry: field_has_entry,
             entry: field_entry,
             constants: field_constants,
         })
@@ -3277,8 +3254,9 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
                 self.module,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_entry, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.entry, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.entry, context,
+            )?,
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
@@ -3821,10 +3799,8 @@ impl VmAggregateCodec for GpuFenceOptions {
 pub struct GpuFragmentStateAbi<A: BindingAbi> {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: A::String,
+    pub entry: Option<A::String>,
     /// The constants field.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
     /// The targets field.
@@ -3870,30 +3846,28 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
         let field_module = <resource::GpuShaderHandle as VmAggregateCodec>::decode_with_context(
             context, slots[0],
         )?;
-        let field_has_entry = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_entry =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_constants =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[2],
             )?;
         let field_targets =
             <VmSlice<GpuColorTargetStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+                context, slots[3],
             )?;
         Ok(Self {
             module: field_module,
-            has_entry: field_has_entry,
             entry: field_entry,
             constants: field_constants,
             targets: field_targets,
@@ -3909,8 +3883,9 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
                 self.module,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_entry, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.entry, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.entry, context,
+            )?,
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
@@ -4052,14 +4027,10 @@ impl VmAggregateCodec for GpuMultisampleState {
 pub struct GpuPassTimestampWrites {
     /// The query_set field.
     pub query_set: resource::GpuQuerySetHandle,
-    /// The has_beginning_write field.
-    pub has_beginning_write: bool,
     /// The beginning_write_index field.
-    pub beginning_write_index: u32,
-    /// The has_end_write field.
-    pub has_end_write: bool,
+    pub beginning_write_index: Option<u32>,
     /// The end_write_index field.
-    pub end_write_index: u32,
+    pub end_write_index: Option<u32>,
 }
 
 pub type GpuPassTimestampWritesVm = GpuPassTimestampWrites;
@@ -4079,10 +4050,10 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
@@ -4090,19 +4061,13 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
             <resource::GpuQuerySetHandle as VmAggregateCodec>::decode_with_context(
                 context, slots[0],
             )?;
-        let field_has_beginning_write =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_beginning_write_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_has_end_write =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_end_write_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             query_set: field_query_set,
-            has_beginning_write: field_has_beginning_write,
             beginning_write_index: field_beginning_write_index,
-            has_end_write: field_has_end_write,
             end_write_index: field_end_write_index,
         })
     }
@@ -4116,10 +4081,11 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
                 self.query_set,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_beginning_write, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.beginning_write_index, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_end_write, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.end_write_index, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(
+                self.beginning_write_index,
+                context,
+            )?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.end_write_index, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -4718,10 +4684,8 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
 pub struct GpuRenderPassColorAttachment {
     /// The view field.
     pub view: resource::GpuTextureViewHandle,
-    /// The has_resolve_target field.
-    pub has_resolve_target: bool,
     /// The resolve_target field.
-    pub resolve_target: resource::GpuTextureViewHandle,
+    pub resolve_target: Option<resource::GpuTextureViewHandle>,
     /// The load_op field.
     pub load_op: GpuLoadOp,
     /// The store_op field.
@@ -4753,37 +4717,34 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 9 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
         let field_view = <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_with_context(
             context, slots[0],
         )?;
-        let field_has_resolve_target =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_resolve_target =
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <Option<resource::GpuTextureViewHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
             )?;
         let field_load_op =
-            <GpuLoadOp as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <GpuLoadOp as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_store_op =
-            <GpuStoreOp as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <GpuStoreOp as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_clear_color_r =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_clear_color_g =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_clear_color_b =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_clear_color_a =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             view: field_view,
-            has_resolve_target: field_has_resolve_target,
             resolve_target: field_resolve_target,
             load_op: field_load_op,
             store_op: field_store_op,
@@ -4802,8 +4763,7 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
             <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
                 self.view, context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_resolve_target, context)?,
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::GpuTextureViewHandle> as VmAggregateCodec>::encode_with_context(
                 self.resolve_target,
                 context,
             )?,
@@ -4923,18 +4883,12 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
 pub struct GpuRenderPassOptionsAbi<A: BindingAbi> {
     /// The color_attachments field.
     pub color_attachments: A::Slice<GpuRenderPassColorAttachment>,
-    /// The has_depth_stencil field.
-    pub has_depth_stencil: bool,
     /// The depth_stencil field.
-    pub depth_stencil: GpuRenderPassDepthStencilAttachment,
-    /// The has_timestamp_writes field.
-    pub has_timestamp_writes: bool,
+    pub depth_stencil: Option<GpuRenderPassDepthStencilAttachment>,
     /// The timestamp_writes field.
-    pub timestamp_writes: GpuPassTimestampWrites,
-    /// The has_occlusion_query_set field.
-    pub has_occlusion_query_set: bool,
+    pub timestamp_writes: Option<GpuPassTimestampWrites>,
     /// The occlusion_query_set field.
-    pub occlusion_query_set: resource::GpuQuerySetHandle,
+    pub occlusion_query_set: Option<resource::GpuQuerySetHandle>,
 }
 
 pub type GpuRenderPassOptions = GpuRenderPassOptionsAbi<NativeAbi>;
@@ -4976,10 +4930,10 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
@@ -4987,29 +4941,19 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
             <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::decode_with_context(
                 context, slots[0],
             )?;
-        let field_has_depth_stencil =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_depth_stencil =
-            <GpuRenderPassDepthStencilAttachmentVm as VmAggregateCodec>::decode_with_context(
+        let field_depth_stencil = <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_writes =
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::decode_with_context(
                 context, slots[2],
             )?;
-        let field_has_timestamp_writes =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_timestamp_writes =
-            <GpuPassTimestampWritesVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_has_occlusion_query_set =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_occlusion_query_set =
-            <resource::GpuQuerySetHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
+            <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
             )?;
         Ok(Self {
             color_attachments: field_color_attachments,
-            has_depth_stencil: field_has_depth_stencil,
             depth_stencil: field_depth_stencil,
-            has_timestamp_writes: field_has_timestamp_writes,
             timestamp_writes: field_timestamp_writes,
-            has_occlusion_query_set: field_has_occlusion_query_set,
             occlusion_query_set: field_occlusion_query_set,
         })
     }
@@ -5019,25 +4963,10 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::encode_with_context(
-                self.color_attachments,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_depth_stencil, context)?,
-            <GpuRenderPassDepthStencilAttachmentVm as VmAggregateCodec>::encode_with_context(
-                self.depth_stencil,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_timestamp_writes, context)?,
-            <GpuPassTimestampWritesVm as VmAggregateCodec>::encode_with_context(
-                self.timestamp_writes,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_occlusion_query_set, context)?,
-            <resource::GpuQuerySetHandle as VmAggregateCodec>::encode_with_context(
-                self.occlusion_query_set,
-                context,
-            )?,
+            <VmSlice<GpuRenderPassColorAttachmentVm> as VmAggregateCodec>::encode_with_context(self.color_attachments, context)?,
+            <Option<GpuRenderPassDepthStencilAttachmentVm> as VmAggregateCodec>::encode_with_context(self.depth_stencil, context)?,
+            <Option<GpuPassTimestampWritesVm> as VmAggregateCodec>::encode_with_context(self.timestamp_writes, context)?,
+            <Option<resource::GpuQuerySetHandle> as VmAggregateCodec>::encode_with_context(self.occlusion_query_set, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -5046,22 +4975,16 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
 /// ABI struct for GpuRenderPipelineOptions.
 #[repr(C)]
 pub struct GpuRenderPipelineOptionsAbi<A: BindingAbi> {
-    /// The has_layout field.
-    pub has_layout: bool,
     /// The layout field.
-    pub layout: resource::GpuPipelineLayoutHandle,
+    pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// The vertex field.
     pub vertex: platform_gpu::GpuVertexStateAbi<A>,
-    /// The has_fragment field.
-    pub has_fragment: bool,
     /// The fragment field.
-    pub fragment: platform_gpu::GpuFragmentStateAbi<A>,
+    pub fragment: Option<platform_gpu::GpuFragmentStateAbi<A>>,
     /// The render field.
     pub render: GpuRenderState,
-    /// The has_multiview_mask field.
-    pub has_multiview_mask: bool,
     /// The multiview_mask field.
-    pub multiview_mask: u32,
+    pub multiview_mask: Option<u32>,
     /// The metadata field.
     pub metadata: platform_gpu::GpuPipelineMetadataAbi<A>,
     /// The flags field.
@@ -5107,41 +5030,34 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 10 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
-        let field_has_layout = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_layout =
-            <resource::GpuPipelineLayoutHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
             )?;
         let field_vertex =
-            <GpuVertexStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_has_fragment =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_fragment =
-            <GpuFragmentStateVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <GpuVertexStateVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_fragment = <Option<GpuFragmentStateVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
         let field_render =
-            <GpuRenderStateVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_has_multiview_mask =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <GpuRenderStateVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_multiview_mask =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_metadata =
-            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <GpuPipelineMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
-            has_layout: field_has_layout,
             layout: field_layout,
             vertex: field_vertex,
-            has_fragment: field_has_fragment,
             fragment: field_fragment,
             render: field_render,
-            has_multiview_mask: field_has_multiview_mask,
             multiview_mask: field_multiview_mask,
             metadata: field_metadata,
             flags: field_flags,
@@ -5153,17 +5069,17 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.has_layout, context)?,
-            <resource::GpuPipelineLayoutHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::GpuPipelineLayoutHandle> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
             )?,
             <GpuVertexStateVm as VmAggregateCodec>::encode_with_context(self.vertex, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_fragment, context)?,
-            <GpuFragmentStateVm as VmAggregateCodec>::encode_with_context(self.fragment, context)?,
+            <Option<GpuFragmentStateVm> as VmAggregateCodec>::encode_with_context(
+                self.fragment,
+                context,
+            )?,
             <GpuRenderStateVm as VmAggregateCodec>::encode_with_context(self.render, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_multiview_mask, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.multiview_mask, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.multiview_mask, context)?,
             <GpuPipelineMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
@@ -5180,10 +5096,8 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
 pub struct GpuRenderState {
     /// The primitive field.
     pub primitive: GpuPrimitiveState,
-    /// The has_depth_stencil field.
-    pub has_depth_stencil: bool,
     /// The depth_stencil field.
-    pub depth_stencil: GpuDepthStencilState,
+    pub depth_stencil: Option<GpuDepthStencilState>,
     /// The multisample field.
     pub multisample: GpuMultisampleState,
 }
@@ -5205,24 +5119,23 @@ impl VmAggregateCodec for GpuRenderState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_primitive =
             <GpuPrimitiveStateVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_has_depth_stencil =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_depth_stencil =
-            <GpuDepthStencilStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<GpuDepthStencilStateVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         let field_multisample =
-            <GpuMultisampleStateVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <GpuMultisampleStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             primitive: field_primitive,
-            has_depth_stencil: field_has_depth_stencil,
             depth_stencil: field_depth_stencil,
             multisample: field_multisample,
         })
@@ -5237,8 +5150,7 @@ impl VmAggregateCodec for GpuRenderState {
                 self.primitive,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_depth_stencil, context)?,
-            <GpuDepthStencilStateVm as VmAggregateCodec>::encode_with_context(
+            <Option<GpuDepthStencilStateVm> as VmAggregateCodec>::encode_with_context(
                 self.depth_stencil,
                 context,
             )?,
@@ -5662,12 +5574,10 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
 pub struct GpuSurfaceFrame {
     /// The status field.
     pub status: GpuSurfaceAcquireStatus,
-    /// The has_texture field.
-    pub has_texture: bool,
     /// The texture field.
-    pub texture: resource::GpuTextureHandle,
+    pub texture: Option<resource::GpuTextureHandle>,
     /// The frame_id field.
-    pub frame_id: u64,
+    pub frame_id: Option<u64>,
 }
 
 pub type GpuSurfaceFrameVm = GpuSurfaceFrame;
@@ -5687,23 +5597,23 @@ impl VmAggregateCodec for GpuSurfaceFrame {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_status =
             <GpuSurfaceAcquireStatus as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_has_texture = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_texture = <resource::GpuTextureHandle as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
-        )?;
-        let field_frame_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_texture =
+            <Option<resource::GpuTextureHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_frame_id =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             status: field_status,
-            has_texture: field_has_texture,
             texture: field_texture,
             frame_id: field_frame_id,
         })
@@ -5718,12 +5628,11 @@ impl VmAggregateCodec for GpuSurfaceFrame {
                 self.status,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_texture, context)?,
-            <resource::GpuTextureHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::GpuTextureHandle> as VmAggregateCodec>::encode_with_context(
                 self.texture,
                 context,
             )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.frame_id, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6383,10 +6292,8 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
 pub struct GpuVertexStateAbi<A: BindingAbi> {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: A::String,
+    pub entry: Option<A::String>,
     /// The constants field.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
     /// The buffers field.
@@ -6432,30 +6339,28 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
         let field_module = <resource::GpuShaderHandle as VmAggregateCodec>::decode_with_context(
             context, slots[0],
         )?;
-        let field_has_entry = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_entry =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_constants =
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[2],
             )?;
         let field_buffers =
             <VmSlice<GpuVertexBufferLayoutVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+                context, slots[3],
             )?;
         Ok(Self {
             module: field_module,
-            has_entry: field_has_entry,
             entry: field_entry,
             constants: field_constants,
             buffers: field_buffers,
@@ -6471,8 +6376,9 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
                 self.module,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_entry, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.entry, context)?,
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.entry, context,
+            )?,
             <VmSlice<GpuPipelineConstantVm> as VmAggregateCodec>::encode_with_context(
                 self.constants,
                 context,
@@ -6522,12 +6428,10 @@ pub struct GpuAdapterInfoReplayRecord {
 /// Replay struct for GpuCapturedError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuCapturedErrorReplayRecord {
-    /// The has_error field.
-    pub has_error: bool,
     /// The message field.
-    pub message: String,
+    pub message: Option<String>,
     /// The backend_code field.
-    pub backend_code: i32,
+    pub backend_code: Option<i32>,
 }
 
 /// Replay struct for GpuCompilationInfo.
@@ -6557,10 +6461,8 @@ pub struct GpuCompilationMessageReplayRecord {
 /// Replay struct for GpuComputePipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputePipelineOptionsReplayRecord {
-    /// The has_layout field.
-    pub has_layout: bool,
     /// The layout field.
-    pub layout: resource::GpuPipelineLayoutHandle,
+    pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// The compute field.
     pub compute: GpuComputeStateReplayRecord,
     /// The metadata field.
@@ -6574,10 +6476,8 @@ pub struct GpuComputePipelineOptionsReplayRecord {
 pub struct GpuComputeStateReplayRecord {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: String,
+    pub entry: Option<String>,
     /// The constants field.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
 }
@@ -6632,10 +6532,8 @@ pub struct GpuDeviceStatusReplayRecord {
 pub struct GpuFragmentStateReplayRecord {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: String,
+    pub entry: Option<String>,
     /// The constants field.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
     /// The targets field.
@@ -6687,39 +6585,27 @@ pub struct GpuRenderBundleEncoderOptionsReplayRecord {
 pub struct GpuRenderPassOptionsReplayRecord {
     /// The color_attachments field.
     pub color_attachments: Vec<GpuRenderPassColorAttachment>,
-    /// The has_depth_stencil field.
-    pub has_depth_stencil: bool,
     /// The depth_stencil field.
-    pub depth_stencil: GpuRenderPassDepthStencilAttachment,
-    /// The has_timestamp_writes field.
-    pub has_timestamp_writes: bool,
+    pub depth_stencil: Option<GpuRenderPassDepthStencilAttachment>,
     /// The timestamp_writes field.
-    pub timestamp_writes: GpuPassTimestampWrites,
-    /// The has_occlusion_query_set field.
-    pub has_occlusion_query_set: bool,
+    pub timestamp_writes: Option<GpuPassTimestampWrites>,
     /// The occlusion_query_set field.
-    pub occlusion_query_set: resource::GpuQuerySetHandle,
+    pub occlusion_query_set: Option<resource::GpuQuerySetHandle>,
 }
 
 /// Replay struct for GpuRenderPipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPipelineOptionsReplayRecord {
-    /// The has_layout field.
-    pub has_layout: bool,
     /// The layout field.
-    pub layout: resource::GpuPipelineLayoutHandle,
+    pub layout: Option<resource::GpuPipelineLayoutHandle>,
     /// The vertex field.
     pub vertex: GpuVertexStateReplayRecord,
-    /// The has_fragment field.
-    pub has_fragment: bool,
     /// The fragment field.
-    pub fragment: GpuFragmentStateReplayRecord,
+    pub fragment: Option<GpuFragmentStateReplayRecord>,
     /// The render field.
     pub render: GpuRenderState,
-    /// The has_multiview_mask field.
-    pub has_multiview_mask: bool,
     /// The multiview_mask field.
-    pub multiview_mask: u32,
+    pub multiview_mask: Option<u32>,
     /// The metadata field.
     pub metadata: GpuPipelineMetadataReplayRecord,
     /// The flags field.
@@ -6816,10 +6702,8 @@ pub struct GpuVertexBufferLayoutReplayRecord {
 pub struct GpuVertexStateReplayRecord {
     /// The module field.
     pub module: resource::GpuShaderHandle,
-    /// The has_entry field.
-    pub has_entry: bool,
     /// The entry field.
-    pub entry: String,
+    pub entry: Option<String>,
     /// The constants field.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
     /// The buffers field.

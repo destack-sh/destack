@@ -66,10 +66,8 @@ export enum GpuStoreOp {
 export struct GpuRenderPassColorAttachment {
     /// Render-target texture-view handle.
     view: GpuTextureViewHandle;
-    /// Whether resolve target is provided.
-    hasResolveTarget: boolean;
-    /// Resolve-target texture-view handle.
-    resolveTarget: GpuTextureViewHandle;
+    /// Resolve-target texture-view handle when provided.
+    resolveTarget: GpuTextureViewHandle | void;
     /// Color load operation.
     loadOp: GpuLoadOp;
     /// Color store operation.
@@ -110,40 +108,28 @@ export struct GpuRenderPassDepthStencilAttachment {
 export struct GpuRenderPassOptions {
     /// Render-pass color attachments.
     colorAttachments: Slice<GpuRenderPassColorAttachment>;
-    /// Whether depth-stencil attachment is provided.
-    hasDepthStencil: boolean;
-    /// Render-pass depth-stencil attachment descriptor.
-    depthStencil: GpuRenderPassDepthStencilAttachment;
-    /// Whether pass timestamp writes are enabled.
-    hasTimestampWrites: boolean;
+    /// Render-pass depth-stencil attachment descriptor when provided.
+    depthStencil: GpuRenderPassDepthStencilAttachment | void;
     /// Timestamp-write descriptor when enabled.
-    timestampWrites: GpuPassTimestampWrites;
-    /// Whether one pass-wide occlusion query set is enabled.
-    hasOcclusionQuerySet: boolean;
-    /// Pass-wide occlusion query set.
-    occlusionQuerySet: GpuQuerySetHandle;
+    timestampWrites: GpuPassTimestampWrites | void;
+    /// Pass-wide occlusion query set when enabled.
+    occlusionQuerySet: GpuQuerySetHandle | void;
 }
 
 /// Pass timestamp-write descriptor.
 export struct GpuPassTimestampWrites {
     /// Query set receiving pass timestamps.
     querySet: GpuQuerySetHandle;
-    /// Whether one beginning-of-pass write is enabled.
-    hasBeginningWrite: boolean;
-    /// Beginning-of-pass query index.
-    beginningWriteIndex: uint32;
-    /// Whether one end-of-pass write is enabled.
-    hasEndWrite: boolean;
-    /// End-of-pass query index.
-    endWriteIndex: uint32;
+    /// Beginning-of-pass query index when enabled.
+    beginningWriteIndex: uint32 | void;
+    /// End-of-pass query index when enabled.
+    endWriteIndex: uint32 | void;
 }
 
 /// Compute-pass descriptor.
 export struct GpuComputePassOptions {
-    /// Whether pass timestamp writes are enabled.
-    hasTimestampWrites: boolean;
     /// Timestamp-write descriptor when enabled.
-    timestampWrites: GpuPassTimestampWrites;
+    timestampWrites: GpuPassTimestampWrites | void;
     /// Compute-pass option flags.
     flags: uint32;
 }

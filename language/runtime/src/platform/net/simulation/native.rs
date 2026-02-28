@@ -1119,7 +1119,8 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 
 /// Open a packet capture or inject endpoint.
 ///
-/// Opens a link-layer packet endpoint for packet capture and injection.
+/// Opens one host packet endpoint for packet capture and injection.
+/// Frame shape and metadata are backend specific.
 /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
 ///
 /// # Platform
@@ -1127,6 +1128,7 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 /// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend uses raw IPv4 sockets with `SIO_RCVALL`, payloads are IP packets rather than Ethernet frames.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -1157,6 +1159,7 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend reads raw IPv4 packets from `SOCK_RAW` capture lanes.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -1191,6 +1194,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend sends raw IPv4 packets through `SOCK_RAW`.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors

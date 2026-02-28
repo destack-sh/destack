@@ -76,8 +76,7 @@ fn stream_event_options(
         flags: EVENT_SUBSCRIBE_STREAM,
         delivery_mode: AudioEventDeliveryMode::Auto,
         overflow_policy: AudioEventOverflowPolicy::DropOldest,
-        has_stream: true,
-        stream,
+        stream: Some(stream),
         queue_capacity: 2,
         poll_interval_ns: MIN_EVENT_POLL_INTERVAL_NS,
     }

@@ -79,10 +79,8 @@ export struct AudioEventSubscriptionOptions {
     deliveryMode: AudioEventDeliveryMode;
     /// Queue overflow policy.
     overflowPolicy: AudioEventOverflowPolicy;
-    /// Whether this subscription also tracks one stream.
-    hasStream: boolean;
-    /// Stream to monitor when `hasStream` is true.
-    stream: AudioStreamHandle;
+    /// Stream to monitor when provided.
+    stream: AudioStreamHandle | void;
     /// Requested queue capacity, or zero for backend default.
     queueCapacity: uint32;
     /// Requested backend poll interval in nanoseconds, or zero for backend default.
@@ -109,14 +107,10 @@ export struct AudioEvent {
     statusFlags: AudioStreamStatusFlags;
     /// Xrun count delta when event kind is stream-related.
     xrunCountDelta: uint64;
-    /// Whether one target device identifier is present.
-    hasDeviceId: boolean;
-    /// Target device identifier when `hasDeviceId` is true.
-    deviceId: string;
-    /// Whether one target stream handle is present.
-    hasStream: boolean;
-    /// Target stream handle when `hasStream` is true.
-    stream: AudioStreamHandle;
+    /// Target device identifier when present.
+    deviceId: string | void;
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
 }
 
 /// Audio event bindings.

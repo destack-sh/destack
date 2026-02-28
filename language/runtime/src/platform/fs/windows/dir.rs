@@ -648,7 +648,7 @@ pub(crate) unsafe fn destack_fs_opendir(
 /// Read a single directory entry from an open directory handle.
 ///
 /// Read at most one entry from the current directory cursor and advance the host iterator.
-/// Callers can iterate deterministically by repeatedly invoking this operation until `hasEntry` is false.
+/// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
@@ -695,13 +695,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         let code = core_platform::last_error_code() as u32;
         if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
             unsafe {
-                *out = DirentNext {
-                    has_entry: false,
-                    entry: Dirent {
-                        name: core_fs::path_ref_from_utf16(core_fs::empty_path_utf16()),
-                        kind: DirentKind::Unknown,
-                    },
-                };
+                *out = DirentNext { entry: None };
             }
 
             return Ok(());
@@ -747,11 +741,10 @@ pub(crate) unsafe fn destack_fs_readdir_next(
                 *cursor = current_index.saturating_add(1);
                 unsafe {
                     *out = DirentNext {
-                        has_entry: true,
-                        entry: Dirent {
+                        entry: Some(Dirent {
                             name: core_fs::path_ref_from_utf16(name),
                             kind,
-                        },
+                        }),
                     };
                 }
 
@@ -769,13 +762,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         let code = core_platform::last_error_code() as u32;
         if code == ERROR_NO_MORE_FILES {
             unsafe {
-                *out = DirentNext {
-                    has_entry: false,
-                    entry: Dirent {
-                        name: core_fs::path_ref_from_utf16(core_fs::empty_path_utf16()),
-                        kind: DirentKind::Unknown,
-                    },
-                };
+                *out = DirentNext { entry: None };
             }
 
             return Ok(());

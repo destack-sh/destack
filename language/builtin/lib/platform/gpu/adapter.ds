@@ -57,10 +57,8 @@ export struct GpuAdapterRequest {
     powerPreference: GpuPowerPreference;
     /// Whether only one fallback adapter should be selected.
     forceFallbackAdapter: boolean;
-    /// Whether one compatible surface constraint is provided.
-    hasCompatibleSurface: boolean;
-    /// Surface compatibility constraint when `hasCompatibleSurface` is true.
-    compatibleSurface: GpuSurfaceHandle;
+    /// Surface compatibility constraint when provided.
+    compatibleSurface: GpuSurfaceHandle | void;
     /// Request flags.
     flags: uint32;
 }

@@ -1054,24 +1054,24 @@ fn resolve_host(
     _context: &BindingCallContext,
     query: ResolveQuery,
 ) -> RuntimeResult<NativeStringRef> {
-    if !query.has_host {
+    let Some(host) = query.host else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "query",
             "host is required",
         ))
         .boxed());
-    }
+    };
 
-    Ok(query.host)
+    Ok(host)
 }
 
 /// Resolve a service component from a resolve query.
 fn resolve_port(query: ResolveQuery) -> RuntimeResult<u16> {
-    if !query.has_service {
+    let Some(service) = query.service else {
         return Ok(0);
-    }
+    };
 
-    let service = unsafe { query.service.as_str()? };
+    let service = unsafe { service.as_str()? };
     service.parse::<u16>().map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "query",
@@ -1257,7 +1257,8 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 
 /// Open a packet capture or inject endpoint.
 ///
-/// Opens a link-layer packet endpoint for packet capture and injection.
+/// Opens one host packet endpoint for packet capture and injection.
+/// Frame shape and metadata are backend specific.
 /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
 ///
 /// # Platform
@@ -1265,6 +1266,7 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 /// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend uses raw IPv4 sockets with `SIO_RCVALL`, payloads are IP packets rather than Ethernet frames.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -1293,6 +1295,7 @@ pub(crate) unsafe fn destack_net_packet_open(
 /// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend reads raw IPv4 packets from `SOCK_RAW` capture lanes.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -1322,6 +1325,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
 /// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend sends raw IPv4 packets through `SOCK_RAW`.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors

@@ -46,7 +46,7 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
 
         let peer = unsafe { peer.assume_init() };
         return Ok(Some(UnixPeerCredentials {
-            pid: peer.pid as u32,
+            pid: Some(peer.pid as u32),
             uid: peer.uid,
             gid: peer.gid,
         }));
@@ -78,7 +78,11 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
             ));
         }
 
-        return Ok(Some(UnixPeerCredentials { pid: 0, uid, gid }));
+        return Ok(Some(UnixPeerCredentials {
+            pid: None,
+            uid,
+            gid,
+        }));
     }
 
     #[allow(unreachable_code)]
@@ -86,6 +90,22 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
 }
 
 /// Receive payload and transferred handles.
+///
+/// Receive one ancillary message payload with transferred handles and credentials.
+/// Handle ownership transfer is explicit and host-limited.
+///
+/// # Platform
+/// Unix.
+/// Uses recvmsg with SCM_RIGHTS and peer credential control messages.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.unix`, `ipc.fd.pass`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
     context: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
@@ -177,11 +197,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
     }
 
     // resolve peer credentials when available
-    let credentials = peer_credentials(descriptor)?.unwrap_or(UnixPeerCredentials {
-        pid: 0,
-        uid: 0,
-        gid: 0,
-    });
+    let credentials = peer_credentials(descriptor)?;
 
     // build and write one receive result payload
     unsafe {
@@ -196,6 +212,22 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 }
 
 /// Send payload and transferred handles.
+///
+/// Send one payload and optional transferred handles over a unix-domain socket.
+/// Handle transfer semantics follow host ancillary message ownership rules.
+///
+/// # Platform
+/// Unix.
+/// Uses sendmsg with SCM_RIGHTS and optional credential control messages.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.unix`, `ipc.fd.pass`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
     context: &BindingCallContext,
     out: *mut u64,

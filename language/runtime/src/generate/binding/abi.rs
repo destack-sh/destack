@@ -59,6 +59,9 @@ fn collect_domain_types_for_binding(
         BindingType::Slice(inner) | BindingType::Array(inner) => {
             collect_domain_types_for_binding(inner, domains);
         }
+        BindingType::Optional(inner) => {
+            collect_domain_types_for_binding(inner, domains);
+        }
         _ => {}
     }
 }

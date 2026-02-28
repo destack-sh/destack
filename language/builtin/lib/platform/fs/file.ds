@@ -98,10 +98,8 @@ export struct OpenOptions {
 
     /// Positioned descriptor cursor for splice style operations.
     export struct SpliceCursor {
-        /// Whether the cursor offset is active.
-        hasOffset: boolean;
         /// Cursor offset when active.
-        offset: FileOffset;
+        offset: FileOffset | void;
     }
 
     /// Open a file relative to a directory handle with openat2 semantics.

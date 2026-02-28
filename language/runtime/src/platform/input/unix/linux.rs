@@ -15,10 +15,10 @@ use crate::platform::input::{
     InputGamepadBatteryStatus, InputGamepadButtonState, InputGamepadConnectionType,
     InputGamepadEventPayload, InputGamepadMappingType, InputGamepadState, InputGamepadTouchState,
     InputHapticEffectParameters, InputHapticEffectType, InputKeyEventPayload, InputKeyboardState,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputPointerState,
-    InputScrollEventPayload, InputSensorDescriptor, InputSensorEventPayload, InputSensorKind,
-    InputSensorSample, InputTextEventPayload, InputTouchContactPhase, InputTouchContactState,
-    InputTouchEventPayload, InputTouchState,
+    InputPenState, InputPointerButtonEventPayload, InputPointerMotionEventPayload,
+    InputPointerState, InputScrollEventPayload, InputSensorDescriptor, InputSensorEventPayload,
+    InputSensorKind, InputSensorSample, InputTextEventPayload, InputTouchContactPhase,
+    InputTouchContactState, InputTouchEventPayload, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
@@ -1034,19 +1034,26 @@ pub(super) fn pointer_state_snapshot(
         true
     };
 
+    let pen = if has_pen_data {
+        Some(InputPenState {
+            pressure,
+            tangential_pressure: 0.0,
+            tilt_x,
+            tilt_y,
+            twist: 0.0,
+            in_contact,
+            in_range,
+        })
+    } else {
+        None
+    };
+
     Ok(InputPointerState {
         x,
         y,
         buttons,
         modifiers,
-        has_pen_data,
-        pressure,
-        tangential_pressure: 0.0,
-        tilt_x,
-        tilt_y,
-        twist: 0.0,
-        in_contact,
-        in_range,
+        pen,
     })
 }
 

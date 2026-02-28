@@ -5,7 +5,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SetCursorPos;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
-    InputDeviceKind, InputPointerGrabMode, InputPointerState, InputWindowTarget,
+    InputDeviceKind, InputPenState, InputPointerGrabMode, InputPointerState, InputWindowTarget,
     validation as input_validation,
 };
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -82,23 +82,26 @@ pub(super) fn pointer_state(
         (pointer_x, pointer_y)
     };
 
+    let pen = if has_pen_data {
+        Some(InputPenState {
+            pressure: pen_pressure,
+            tangential_pressure: 0.0,
+            tilt_x: pen_tilt_x,
+            tilt_y: pen_tilt_y,
+            twist: 0.0,
+            in_contact: pen_in_contact,
+            in_range: pen_in_range,
+        })
+    } else {
+        None
+    };
+
     Ok(InputPointerState {
         x,
         y,
         buttons,
         modifiers,
-        has_pen_data,
-        pressure: pen_pressure,
-        tangential_pressure: 0.0,
-        tilt_x: pen_tilt_x,
-        tilt_y: pen_tilt_y,
-        twist: 0.0,
-        in_contact: if has_pen_data {
-            pen_in_contact
-        } else {
-            buttons != 0
-        },
-        in_range: pen_in_range,
+        pen,
     })
 }
 

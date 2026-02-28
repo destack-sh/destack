@@ -2467,21 +2467,26 @@ fn socket_send_message_from_vm(
 ) -> RuntimeResult<SocketSendMessage> {
     let fds = message.fds.read_values(context)?;
     let fds = runtime.store_array(fds);
-    let address = socket_address_raw_from_vm(runtime, context, message.address)?;
+    let address = if let Some(address) = message.address {
+        let address = socket_address_raw_from_vm(runtime, context, address)?;
+        Some(address)
+    } else {
+        None
+    };
     let control = message.control.0.read_bytes(context)?;
     let control = SocketControlBufferAbi::<NativeAbi>(runtime.store_array(control));
+    let credentials = message.credentials.map(|credentials| SocketCredentials {
+        pid: credentials.pid,
+        uid: credentials.uid,
+        gid: credentials.gid,
+    });
+
     Ok(SocketSendMessage {
-        has_address: message.has_address,
         address,
         fds,
         control,
         flags: message.flags,
-        has_credentials: message.has_credentials,
-        credentials: SocketCredentials {
-            pid: message.credentials.pid,
-            uid: message.credentials.uid,
-            gid: message.credentials.gid,
-        },
+        credentials,
     })
 }
 
@@ -2489,27 +2494,32 @@ fn socket_recv_message_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     message: SocketRecvMessage,
 ) -> RuntimeResult<SocketRecvMessageVm> {
-    let address = socket_address_raw_to_vm(context, message.address)?;
+    let address = if let Some(address) = message.address {
+        let address = socket_address_raw_to_vm(context, address)?;
+        Some(address)
+    } else {
+        None
+    };
     let control = unsafe { message.control.0.as_slice()? };
     let control = VmArray::from_bytes(context, control);
     let control = SocketControlBufferAbi::<VmAbi>(control);
     let fds = unsafe { message.fds.as_slice()? };
     let fds = VmArray::from_values(context, fds)?;
+    let credentials = message.credentials.map(|credentials| SocketCredentialsVm {
+        pid: credentials.pid,
+        uid: credentials.uid,
+        gid: credentials.gid,
+    });
+
     Ok(SocketRecvMessageVm {
         bytes: message.bytes,
-        has_address: message.has_address,
         address,
         recv_flags: message.recv_flags,
         payload_truncated: message.payload_truncated,
         control_truncated: message.control_truncated,
         control,
         fds,
-        has_credentials: message.has_credentials,
-        credentials: SocketCredentialsVm {
-            pid: message.credentials.pid,
-            uid: message.credentials.uid,
-            gid: message.credentials.gid,
-        },
+        credentials,
     })
 }
 
@@ -2582,27 +2592,27 @@ fn resolve_host_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     query: ResolveQueryVm,
 ) -> RuntimeResult<NativeStringRef> {
-    if !query.has_host {
+    let Some(host) = query.host else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "query",
             "host is required",
         ))
         .boxed());
-    }
+    };
 
-    host_from_vm(runtime, context, query.host)
+    host_from_vm(runtime, context, host)
 }
 
 fn resolve_port_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     query: ResolveQueryVm,
 ) -> RuntimeResult<u16> {
-    if !query.has_service {
+    let Some(service) = query.service else {
         return Ok(0);
-    }
+    };
 
     let service = context
-        .string_ref(query.service)
+        .string_ref(service)
         .map_err(|error| RuntimeError::from(error).boxed())?;
     let service = service.as_str();
     service.parse::<u16>().map_err(|_| {
@@ -2850,7 +2860,8 @@ pub(super) fn destack_net_list_interfaces(
 
 /// Open a packet capture or inject endpoint.
 ///
-/// Opens a link-layer packet endpoint for packet capture and injection.
+/// Opens one host packet endpoint for packet capture and injection.
+/// Frame shape and metadata are backend specific.
 /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
 ///
 /// # Platform
@@ -2858,6 +2869,7 @@ pub(super) fn destack_net_list_interfaces(
 /// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend uses raw IPv4 sockets with `SIO_RCVALL`, payloads are IP packets rather than Ethernet frames.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -2886,6 +2898,7 @@ pub(super) fn destack_net_packet_open(
 /// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend reads raw IPv4 packets from `SOCK_RAW` capture lanes.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors
@@ -2920,6 +2933,7 @@ pub(super) fn destack_net_packet_receive(
 /// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
 /// Returns `notSupported` on Unix targets without a packet backend.
 /// Uses one configured host packet backend on Windows.
+/// Current Windows backend sends raw IPv4 packets through `SOCK_RAW`.
 /// Returns `notSupported` on Windows when no packet backend is configured.
 ///
 /// # Errors

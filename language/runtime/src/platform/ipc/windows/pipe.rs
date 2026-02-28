@@ -20,6 +20,22 @@ const PIPE_READ_OPERATION: &str = "destack.ipc.pipe.read";
 const PIPE_WRITE_OPERATION: &str = "destack.ipc.pipe.write";
 
 /// Close one pipe endpoint.
+///
+/// Close one endpoint of a pipe pair.
+/// Pending readers and writers observe host close semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses close(2) on Unix and CloseHandle on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.pipe`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_close(
     context: &BindingCallContext,
     handle: resource::PipeHandle,
@@ -36,6 +52,22 @@ pub(crate) unsafe fn destack_ipc_pipe_close(
 }
 
 /// Create one unnamed pipe pair.
+///
+/// Create one local pipe with read and write endpoints.
+/// Endpoint inheritance and blocking mode follow host pipe semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses pipe2 or pipe on Unix and CreatePipe on Windows.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ipc.pipe`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_open(
     context: &BindingCallContext,
     out: *mut PipePair,
@@ -84,6 +116,22 @@ pub(crate) unsafe fn destack_ipc_pipe_open(
 }
 
 /// Read bytes from a pipe endpoint.
+///
+/// Read bytes into caller-provided memory from one pipe endpoint.
+/// Partial reads are preserved exactly as reported by the host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses read(2) on Unix and ReadFile on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ipc.pipe`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_read(
     context: &BindingCallContext,
     out: *mut u64,
@@ -123,6 +171,22 @@ pub(crate) unsafe fn destack_ipc_pipe_read(
 }
 
 /// Write bytes to a pipe endpoint.
+///
+/// Write bytes from caller-provided memory to one pipe endpoint.
+/// Partial writes are preserved exactly as reported by the host.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses write(2) on Unix and WriteFile on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `ipc.pipe`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_pipe_write(
     context: &BindingCallContext,
     out: *mut u64,

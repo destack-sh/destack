@@ -735,16 +735,8 @@ pub(crate) unsafe fn destack_fs_splice(
         let target_fd = splice_descriptor(context, target, "target")?;
 
         // initialize cursor state and transfer buffer
-        let mut source_offset = if sourcecursor.has_offset {
-            Some(sourcecursor.offset.0)
-        } else {
-            None
-        };
-        let mut target_offset = if targetcursor.has_offset {
-            Some(targetcursor.offset.0)
-        } else {
-            None
-        };
+        let mut source_offset = sourcecursor.offset.map(|value| value.0);
+        let mut target_offset = targetcursor.offset.map(|value| value.0);
         let mut remaining = length.0;
         let mut total = 0u64;
         let mut buffer = vec![0u8; 1024 * 1024];
@@ -859,24 +851,24 @@ pub(crate) unsafe fn destack_fs_splice(
         })?;
 
         // convert optional source cursor
-        let mut source_offset = if sourcecursor.has_offset {
-            offset_to_off_t(sourcecursor.offset)?
+        let mut source_offset = if let Some(offset) = sourcecursor.offset {
+            offset_to_off_t(offset)?
         } else {
             0
         };
-        let source_offset_pointer = if sourcecursor.has_offset {
+        let source_offset_pointer = if sourcecursor.offset.is_some() {
             &mut source_offset as *mut libc::off_t
         } else {
             std::ptr::null_mut()
         };
 
         // convert optional target cursor
-        let mut target_offset = if targetcursor.has_offset {
-            offset_to_off_t(targetcursor.offset)?
+        let mut target_offset = if let Some(offset) = targetcursor.offset {
+            offset_to_off_t(offset)?
         } else {
             0
         };
-        let target_offset_pointer = if targetcursor.has_offset {
+        let target_offset_pointer = if targetcursor.offset.is_some() {
             &mut target_offset as *mut libc::off_t
         } else {
             std::ptr::null_mut()

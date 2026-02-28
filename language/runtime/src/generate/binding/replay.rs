@@ -757,6 +757,9 @@ fn collect_replay_type_names(
         BindingType::Slice(inner) | BindingType::Array(inner) => {
             collect_replay_type_names(domain, inner, names);
         }
+        BindingType::Optional(inner) => {
+            collect_replay_type_names(domain, inner, names);
+        }
         BindingType::Newtype { inner, .. } => {
             if binding_type_requires_abi(inner) {
                 collect_replay_type_names(domain, inner, names);

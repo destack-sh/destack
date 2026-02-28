@@ -176,22 +176,14 @@ export struct AudioStreamTiming {
     streamFrames: uint64;
     /// Stream clock in nanoseconds when available.
     streamTimeNs: uint64;
-    /// Whether ADC capture timestamp is available.
-    hasInputAdcTime: boolean;
     /// ADC capture timestamp in nanoseconds when available.
-    inputAdcTimeNs: uint64;
-    /// Whether DAC presentation timestamp is available.
-    hasOutputDacTime: boolean;
+    inputAdcTimeNs: uint64 | void;
     /// DAC presentation timestamp in nanoseconds when available.
-    outputDacTimeNs: uint64;
-    /// Whether callback invocation timestamp is available.
-    hasCallbackTimeNs: boolean;
+    outputDacTimeNs: uint64 | void;
     /// Callback invocation timestamp in nanoseconds when available.
-    callbackTimeNs: uint64;
-    /// Whether host device clock is available.
-    hasDeviceClockNs: boolean;
+    callbackTimeNs: uint64 | void;
     /// Host device clock in nanoseconds when available.
-    deviceClockNs: uint64;
+    deviceClockNs: uint64 | void;
     /// Runtime monotonic clock in nanoseconds.
     monotonicClockNs: uint64;
     /// Estimated drift in parts-per-million.

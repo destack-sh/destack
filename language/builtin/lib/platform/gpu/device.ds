@@ -79,12 +79,10 @@ export enum GpuErrorFilter {
 
 /// Captured device error snapshot.
 export struct GpuCapturedError {
-    /// Whether an error was captured.
-    hasError: boolean;
-    /// Human-readable error message.
-    message: string;
-    /// Backend-specific status code.
-    backendCode: int32;
+    /// Human-readable error message when one error was captured.
+    message: string | void;
+    /// Backend-specific status code when one error was captured.
+    backendCode: int32 | void;
 }
 
 /// GPU device bindings.

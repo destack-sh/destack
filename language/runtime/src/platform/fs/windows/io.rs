@@ -867,16 +867,8 @@ pub(crate) unsafe fn destack_fs_splice(
     let target_endpoint = splice_endpoint(context, target, "target")?;
 
     // run one read/write copy loop up to the requested length
-    let mut source_offset = if sourcecursor.has_offset {
-        Some(sourcecursor.offset.0)
-    } else {
-        None
-    };
-    let mut target_offset = if targetcursor.has_offset {
-        Some(targetcursor.offset.0)
-    } else {
-        None
-    };
+    let mut source_offset = sourcecursor.offset.map(|value| value.0);
+    let mut target_offset = targetcursor.offset.map(|value| value.0);
     let mut remaining = length.0;
     let mut total = 0u64;
     let mut buffer = vec![0u8; 1024 * 1024];

@@ -1079,28 +1079,20 @@ pub struct AudioClockSnapshot {
     pub clock_ns: u64,
     /// The clock_quality field.
     pub clock_quality: AudioClockQuality,
-    /// The has_callback_ns field.
-    pub has_callback_ns: bool,
     /// The callback_ns field.
-    pub callback_ns: u64,
+    pub callback_ns: Option<u64>,
     /// The callback_quality field.
     pub callback_quality: AudioClockQuality,
-    /// The has_input_adc_ns field.
-    pub has_input_adc_ns: bool,
     /// The input_adc_ns field.
-    pub input_adc_ns: u64,
+    pub input_adc_ns: Option<u64>,
     /// The input_adc_quality field.
     pub input_adc_quality: AudioClockQuality,
-    /// The has_output_dac_ns field.
-    pub has_output_dac_ns: bool,
     /// The output_dac_ns field.
-    pub output_dac_ns: u64,
+    pub output_dac_ns: Option<u64>,
     /// The output_dac_quality field.
     pub output_dac_quality: AudioClockQuality,
-    /// The has_device_ns field.
-    pub has_device_ns: bool,
     /// The device_ns field.
-    pub device_ns: u64,
+    pub device_ns: Option<u64>,
     /// The device_quality field.
     pub device_quality: AudioClockQuality,
     /// The monotonic_ns field.
@@ -1124,10 +1116,10 @@ impl VmAggregateCodec for AudioClockSnapshot {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 16 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 16 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -1136,43 +1128,34 @@ impl VmAggregateCodec for AudioClockSnapshot {
         let field_clock_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_clock_quality =
             <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_has_callback_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_callback_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_callback_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_callback_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_has_input_adc_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_input_adc_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_input_adc_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_input_adc_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_has_output_dac_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_output_dac_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_output_dac_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_has_device_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_device_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_device_ns =
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_device_quality =
-            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+            <AudioClockQuality as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_monotonic_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         Ok(Self {
             stream_frames: field_stream_frames,
             clock_ns: field_clock_ns,
             clock_quality: field_clock_quality,
-            has_callback_ns: field_has_callback_ns,
             callback_ns: field_callback_ns,
             callback_quality: field_callback_quality,
-            has_input_adc_ns: field_has_input_adc_ns,
             input_adc_ns: field_input_adc_ns,
             input_adc_quality: field_input_adc_quality,
-            has_output_dac_ns: field_has_output_dac_ns,
             output_dac_ns: field_output_dac_ns,
             output_dac_quality: field_output_dac_quality,
-            has_device_ns: field_has_device_ns,
             device_ns: field_device_ns,
             device_quality: field_device_quality,
             monotonic_ns: field_monotonic_ns,
@@ -1190,26 +1173,22 @@ impl VmAggregateCodec for AudioClockSnapshot {
                 self.clock_quality,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_callback_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.callback_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.callback_ns, context)?,
             <AudioClockQuality as VmAggregateCodec>::encode_with_context(
                 self.callback_quality,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_input_adc_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.input_adc_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.input_adc_ns, context)?,
             <AudioClockQuality as VmAggregateCodec>::encode_with_context(
                 self.input_adc_quality,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_output_dac_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.output_dac_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.output_dac_ns, context)?,
             <AudioClockQuality as VmAggregateCodec>::encode_with_context(
                 self.output_dac_quality,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_device_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.device_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.device_ns, context)?,
             <AudioClockQuality as VmAggregateCodec>::encode_with_context(
                 self.device_quality,
                 context,
@@ -1675,14 +1654,10 @@ pub struct AudioEventAbi<A: BindingAbi> {
     pub status_flags: AudioStreamStatusFlags,
     /// The xrun_count_delta field.
     pub xrun_count_delta: u64,
-    /// The has_device_id field.
-    pub has_device_id: bool,
     /// The device_id field.
-    pub device_id: A::String,
-    /// The has_stream field.
-    pub has_stream: bool,
+    pub device_id: Option<A::String>,
     /// The stream field.
-    pub stream: resource::AudioStreamHandle,
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 pub type AudioEvent = AudioEventAbi<NativeAbi>;
@@ -1724,10 +1699,10 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 13 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -1746,14 +1721,12 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
             <AudioStreamStatusFlags as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_xrun_count_delta =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_has_device_id =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_has_stream = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_stream = <resource::AudioStreamHandle as VmAggregateCodec>::decode_with_context(
-            context, slots[12],
-        )?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[10],
+            )?;
         Ok(Self {
             kind: field_kind,
             timestamp_ns: field_timestamp_ns,
@@ -1764,9 +1737,7 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
             flags: field_flags,
             status_flags: field_status_flags,
             xrun_count_delta: field_xrun_count_delta,
-            has_device_id: field_has_device_id,
             device_id: field_device_id,
-            has_stream: field_has_stream,
             stream: field_stream,
         })
     }
@@ -1788,10 +1759,11 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
                 context,
             )?,
             <u64 as VmAggregateCodec>::encode_with_context(self.xrun_count_delta, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_device_id, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_stream, context)?,
-            <resource::AudioStreamHandle as VmAggregateCodec>::encode_with_context(
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.device_id,
+                context,
+            )?,
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?,
@@ -1814,10 +1786,8 @@ pub struct AudioEventSubscriptionOptions {
     pub delivery_mode: AudioEventDeliveryMode,
     /// The overflow_policy field.
     pub overflow_policy: AudioEventOverflowPolicy,
-    /// The has_stream field.
-    pub has_stream: bool,
     /// The stream field.
-    pub stream: resource::AudioStreamHandle,
+    pub stream: Option<resource::AudioStreamHandle>,
     /// The queue_capacity field.
     pub queue_capacity: u32,
     /// The poll_interval_ns field.
@@ -1841,10 +1811,10 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 9 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
@@ -1861,21 +1831,20 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
             <AudioEventDeliveryMode as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_overflow_policy =
             <AudioEventOverflowPolicy as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_has_stream = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_stream = <resource::AudioStreamHandle as VmAggregateCodec>::decode_with_context(
-            context, slots[6],
-        )?;
+        let field_stream =
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_queue_capacity =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_poll_interval_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
             flags: field_flags,
             delivery_mode: field_delivery_mode,
             overflow_policy: field_overflow_policy,
-            has_stream: field_has_stream,
             stream: field_stream,
             queue_capacity: field_queue_capacity,
             poll_interval_ns: field_poll_interval_ns,
@@ -1903,8 +1872,7 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
                 self.overflow_policy,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_stream, context)?,
-            <resource::AudioStreamHandle as VmAggregateCodec>::encode_with_context(
+            <Option<resource::AudioStreamHandle> as VmAggregateCodec>::encode_with_context(
                 self.stream,
                 context,
             )?,
@@ -2603,22 +2571,14 @@ pub struct AudioStreamTiming {
     pub stream_frames: u64,
     /// The stream_time_ns field.
     pub stream_time_ns: u64,
-    /// The has_input_adc_time field.
-    pub has_input_adc_time: bool,
     /// The input_adc_time_ns field.
-    pub input_adc_time_ns: u64,
-    /// The has_output_dac_time field.
-    pub has_output_dac_time: bool,
+    pub input_adc_time_ns: Option<u64>,
     /// The output_dac_time_ns field.
-    pub output_dac_time_ns: u64,
-    /// The has_callback_time_ns field.
-    pub has_callback_time_ns: bool,
+    pub output_dac_time_ns: Option<u64>,
     /// The callback_time_ns field.
-    pub callback_time_ns: u64,
-    /// The has_device_clock_ns field.
-    pub has_device_clock_ns: bool,
+    pub callback_time_ns: Option<u64>,
     /// The device_clock_ns field.
-    pub device_clock_ns: u64,
+    pub device_clock_ns: Option<u64>,
     /// The monotonic_clock_ns field.
     pub monotonic_clock_ns: u64,
     /// The drift_ppm field.
@@ -2644,10 +2604,10 @@ impl VmAggregateCodec for AudioStreamTiming {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 13 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -2655,37 +2615,25 @@ impl VmAggregateCodec for AudioStreamTiming {
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_stream_time_ns =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_has_input_adc_time =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_input_adc_time_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_has_output_dac_time =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_output_dac_time_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_has_callback_time_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_callback_time_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_has_device_clock_ns =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_device_clock_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_monotonic_clock_ns =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_drift_ppm = <f64 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_drift_ppm = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_callback_cpu_load =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             stream_frames: field_stream_frames,
             stream_time_ns: field_stream_time_ns,
-            has_input_adc_time: field_has_input_adc_time,
             input_adc_time_ns: field_input_adc_time_ns,
-            has_output_dac_time: field_has_output_dac_time,
             output_dac_time_ns: field_output_dac_time_ns,
-            has_callback_time_ns: field_has_callback_time_ns,
             callback_time_ns: field_callback_time_ns,
-            has_device_clock_ns: field_has_device_clock_ns,
             device_clock_ns: field_device_clock_ns,
             monotonic_clock_ns: field_monotonic_clock_ns,
             drift_ppm: field_drift_ppm,
@@ -2700,14 +2648,16 @@ impl VmAggregateCodec for AudioStreamTiming {
         let slots = vec![
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_frames, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.stream_time_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_input_adc_time, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.input_adc_time_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_output_dac_time, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.output_dac_time_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_callback_time_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.callback_time_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_device_clock_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.device_clock_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.input_adc_time_ns,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(
+                self.output_dac_time_ns,
+                context,
+            )?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.callback_time_ns, context)?,
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.device_clock_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.monotonic_clock_ns, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.drift_ppm, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.callback_cpu_load, context)?,
@@ -3013,14 +2963,10 @@ pub struct AudioEventReplayRecord {
     pub status_flags: AudioStreamStatusFlags,
     /// The xrun_count_delta field.
     pub xrun_count_delta: u64,
-    /// The has_device_id field.
-    pub has_device_id: bool,
     /// The device_id field.
-    pub device_id: String,
-    /// The has_stream field.
-    pub has_stream: bool,
+    pub device_id: Option<String>,
     /// The stream field.
-    pub stream: resource::AudioStreamHandle,
+    pub stream: Option<resource::AudioStreamHandle>,
 }
 
 /// Replay struct for AudioStreamDescriptor.

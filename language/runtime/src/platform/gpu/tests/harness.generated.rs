@@ -4233,7 +4233,7 @@ impl<'call> GpuHarnessContext<'call> {
     ///
     /// Acquire one surface texture for rendering the next frame.
     /// Returned status indicates whether presentation can proceed or whether reconfiguration is required.
-    /// When `hasTexture` is false, `texture` and `frameId` are unspecified.
+    /// When no texture is present, `texture` and `frameId` are void.
     ///
     /// # Platform
     /// Unix and Windows.

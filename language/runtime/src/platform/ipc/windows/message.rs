@@ -17,6 +17,22 @@ const MESSAGE_QUEUE_SEND_OPERATION: &str = "destack.ipc.message.queueSend";
 const MESSAGE_QUEUE_UNLINK_OPERATION: &str = "destack.ipc.message.queueUnlink";
 
 /// Close a message queue.
+///
+/// Close one message queue handle while keeping queue lifetime semantics explicit.
+/// Queue destruction remains host-policy and may require explicit unlink operations.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses mq_close on Unix and runtime queue-handle close on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.message`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_close(
     _context: &BindingCallContext,
     handle: resource::MessageQueueHandle,
@@ -27,6 +43,22 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
 }
 
 /// Open or create a message queue.
+///
+/// Open one named message queue with explicit queue limits and open flags.
+/// Name visibility and queue semantics follow host queue namespace rules.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses POSIX mqueue APIs on Unix and runtime emulation over named pipes or completion queues on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.message`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_open(
     _context: &BindingCallContext,
     out: *mut resource::MessageQueueHandle,
@@ -43,6 +75,22 @@ pub(crate) unsafe fn destack_ipc_message_queue_open(
 }
 
 /// Receive one message from a queue.
+///
+/// Dequeue one message into caller memory with timeout control.
+/// Payload truncation behavior follows host message queue semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses mq_timedreceive on Unix and runtime queue receive on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.message`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_receive(
     _context: &BindingCallContext,
     out: *mut MessageQueueReceive,
@@ -57,6 +105,22 @@ pub(crate) unsafe fn destack_ipc_message_queue_receive(
 }
 
 /// Send one message to a queue.
+///
+/// Enqueue one payload with an explicit priority and timeout.
+/// Priority ordering and wakeup semantics follow host queue behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses mq_timedsend on Unix and runtime queue send on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.message`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_send(
     _context: &BindingCallContext,
     handle: resource::MessageQueueHandle,
@@ -70,6 +134,22 @@ pub(crate) unsafe fn destack_ipc_message_queue_send(
 }
 
 /// Remove a named message queue.
+///
+/// Remove one message queue name from the host namespace.
+/// Queue objects with live handles remain valid until final close per host semantics.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses mq_unlink on Unix and runtime namespace removal on Windows.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `ipc.message`.
+///
+/// # Replay
+/// External, recordable.
 pub(crate) unsafe fn destack_ipc_message_queue_unlink(
     _context: &BindingCallContext,
     name: NativeStringRef,

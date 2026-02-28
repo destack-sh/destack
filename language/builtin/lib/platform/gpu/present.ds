@@ -92,12 +92,10 @@ export enum GpuSurfaceAcquireStatus {
 export struct GpuSurfaceFrame {
     /// Acquire status selector.
     status: GpuSurfaceAcquireStatus;
-    /// Whether one presentable texture was acquired.
-    hasTexture: boolean;
-    /// Acquired surface texture handle.
-    texture: GpuTextureHandle;
-    /// Surface frame identifier.
-    frameId: uint64;
+    /// Acquired surface texture handle when presentable.
+    texture: GpuTextureHandle | void;
+    /// Surface frame identifier when one texture was acquired.
+    frameId: uint64 | void;
 }
 
 /// Present options.
@@ -256,7 +254,7 @@ declare namespace gpu {
     ///
     /// Acquire one surface texture for rendering the next frame.
     /// Returned status indicates whether presentation can proceed or whether reconfiguration is required.
-    /// When `hasTexture` is false, `texture` and `frameId` are unspecified.
+    /// When no texture is present, `texture` and `frameId` are void.
     ///
     /// # Platform
     /// Unix and Windows.

@@ -312,24 +312,20 @@ fn test_fs_splice_windows_file_copy_fallback() {
         // splice from source offset zero into target offset zero
         let source_cursor = if context.vm_context.is_some() {
             context.harness_value_vm(SpliceCursorVm {
-                has_offset: true,
-                offset: FileOffset(0),
+                offset: Some(FileOffset(0)),
             })
         } else {
             context.harness_value(SpliceCursor {
-                has_offset: true,
-                offset: FileOffset(0),
+                offset: Some(FileOffset(0)),
             })
         };
         let target_cursor = if context.vm_context.is_some() {
             context.harness_value_vm(SpliceCursorVm {
-                has_offset: true,
-                offset: FileOffset(0),
+                offset: Some(FileOffset(0)),
             })
         } else {
             context.harness_value(SpliceCursor {
-                has_offset: true,
-                offset: FileOffset(0),
+                offset: Some(FileOffset(0)),
             })
         };
         let copied = context.destack_fs_splice(

@@ -141,7 +141,11 @@ impl<'call> IpcHarnessContext<'call> {
     pub(crate) fn unix_receive_value(
         &mut self,
         value: HarnessValue<UnixReceiveAncillary, UnixReceiveAncillaryVm>,
-    ) -> RuntimeResult<(u64, Vec<resource::TransferredHandle>, UnixPeerCredentials)> {
+    ) -> RuntimeResult<(
+        u64,
+        Vec<resource::TransferredHandle>,
+        Option<UnixPeerCredentials>,
+    )> {
         match value {
             HarnessValue::Native(value) => {
                 let handles = unsafe { value.handles.as_slice()? };

@@ -181,7 +181,7 @@ impl VmAggregateCodec for SharedMemoryMapping {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UnixPeerCredentials {
     /// The pid field.
-    pub pid: u32,
+    pub pid: Option<u32>,
     /// The uid field.
     pub uid: u32,
     /// The gid field.
@@ -212,7 +212,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
             ))
             .boxed());
         }
-        let field_pid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pid = <Option<u32> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_uid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_gid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
@@ -227,7 +227,7 @@ impl VmAggregateCodec for UnixPeerCredentials {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+            <Option<u32> as VmAggregateCodec>::encode_with_context(self.pid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
         ];
@@ -243,7 +243,7 @@ pub struct UnixReceiveAncillaryAbi<A: BindingAbi> {
     /// The handles field.
     pub handles: A::Array<resource::TransferredHandle>,
     /// The credentials field.
-    pub credentials: UnixPeerCredentials,
+    pub credentials: Option<UnixPeerCredentials>,
 }
 
 pub type UnixReceiveAncillary = UnixReceiveAncillaryAbi<NativeAbi>;
@@ -298,7 +298,9 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
                 context, slots[1],
             )?;
         let field_credentials =
-            <UnixPeerCredentialsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<UnixPeerCredentialsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
             bytes: field_bytes,
             handles: field_handles,
@@ -316,7 +318,7 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
                 self.handles,
                 context,
             )?,
-            <UnixPeerCredentialsVm as VmAggregateCodec>::encode_with_context(
+            <Option<UnixPeerCredentialsVm> as VmAggregateCodec>::encode_with_context(
                 self.credentials,
                 context,
             )?,
@@ -333,5 +335,5 @@ pub struct UnixReceiveAncillaryReplayRecord {
     /// The handles field.
     pub handles: Vec<resource::TransferredHandle>,
     /// The credentials field.
-    pub credentials: UnixPeerCredentials,
+    pub credentials: Option<UnixPeerCredentials>,
 }
