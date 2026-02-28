@@ -14,11 +14,12 @@ use super::boundary::{
 };
 use super::operator::try_attach_comment_expression_operator;
 use super::ownership::{
-    find_owner_at_or_after_token, find_preferred_owner_starting_at,
-    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
-    promote_owner_to_node_type_ancestor, promote_owner_to_parenthesized_expression_ancestor,
+    find_owner_at_or_after_token, find_owner_in_ancestor_chain, find_owner_in_candidate_ancestry,
+    find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
+    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+    promote_owner_to_parenthesized_expression_ancestor,
 };
 use super::semicolon::attach_semicolon_guard_own_line_comment;
 
@@ -46,8 +47,7 @@ fn promote_owner_to_labelled_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression {
             let expression_id = LocalNodeId::<Expression>::new(node_id);
             if matches!(tree.get(expression_id), Expression::Labelled { .. }) {
@@ -55,14 +55,12 @@ fn promote_owner_to_labelled_expression_ancestor(
             }
         }
 
-        current_id = parents.get_by_id(node_id);
-    }
-
-    None
+        None
+    })
 }
 
 /// Return whether one owner belongs to a `new (...) => ...` declaration signature.
-fn owner_is_new_signature_declaration(
+fn is_new_signature_declaration_owner(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -85,7 +83,7 @@ fn owner_is_new_signature_declaration(
 }
 
 /// Return whether one owner is a ternary if expression.
-fn owner_is_ternary_if_expression(tree: &NodeTree, owner_id: u32) -> bool {
+fn is_ternary_if_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) != NodeType::Expression {
         return false;
     }
@@ -101,7 +99,7 @@ fn owner_is_ternary_if_expression(tree: &NodeTree, owner_id: u32) -> bool {
 }
 
 /// Return whether one owner is a call or new expression.
-fn owner_is_call_or_new_expression(tree: &NodeTree, owner_id: u32) -> bool {
+fn is_call_or_new_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) != NodeType::Expression {
         return false;
     }
@@ -182,6 +180,37 @@ fn optional_call_expression_maybe_owner(tree: &NodeTree, owner_id: u32) -> Optio
     matches!(tree.get(*left), Expression::Maybe { .. }).then_some(left.id)
 }
 
+/// Return whether this owner is one optional-call expression.
+fn is_optional_call_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    let Expression::Call { left, .. } = tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(tree.get(*left), Expression::Maybe { .. })
+}
+
+/// Return one ordered candidate-owner list for one optional-call seam.
+fn optional_call_seam_candidate_owners(
+    preceding_owner: Option<u32>,
+    preceding_token_owner: Option<u32>,
+    following_owner: Option<u32>,
+    following_token_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
+) -> [Option<u32>; 5] {
+    [
+        preceding_owner,
+        preceding_token_owner,
+        following_owner,
+        following_token_owner,
+        enclosing_owner,
+    ]
+}
+
 /// Return one base owner for one maybe-expression owner.
 fn maybe_expression_base_owner(tree: &NodeTree, owner_id: u32) -> Option<u32> {
     if tree.get_node_type(owner_id) != NodeType::Expression {
@@ -196,6 +225,45 @@ fn maybe_expression_base_owner(tree: &NodeTree, owner_id: u32) -> Option<u32> {
     Some(left.id)
 }
 
+/// Return one labelled-statement owner near one label-colon seam.
+fn labelled_statement_owner_for_colon_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+) -> Option<u32> {
+    preceding_owner
+        .and_then(|owner| promote_owner_to_labelled_expression_ancestor(tree, parents, owner))
+        .or_else(|| {
+            following_owner.and_then(|owner| {
+                promote_owner_to_labelled_expression_ancestor(tree, parents, owner)
+            })
+        })
+}
+
+/// Return one optional-call expression owner for one optional-call seam.
+fn optional_call_seam_expression_owner(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    preceding_owner: Option<u32>,
+    preceding_token_owner: Option<u32>,
+    following_owner: Option<u32>,
+    following_token_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
+) -> Option<u32> {
+    find_owner_in_candidate_ancestry(
+        parents,
+        optional_call_seam_candidate_owners(
+            preceding_owner,
+            preceding_token_owner,
+            following_owner,
+            following_token_owner,
+            enclosing_owner,
+        ),
+        |owner_id| is_optional_call_expression_owner(tree, owner_id).then_some(owner_id),
+    )
+}
+
 /// Return one optional-call base owner for one optional-call seam.
 fn optional_call_seam_base_owner(
     tree: &NodeTree,
@@ -206,38 +274,133 @@ fn optional_call_seam_base_owner(
     following_token_owner: Option<u32>,
     enclosing_owner: Option<u32>,
 ) -> Option<u32> {
-    let candidate_owners = [
+    find_owner_in_candidate_ancestry(
+        parents,
+        optional_call_seam_candidate_owners(
+            preceding_owner,
+            preceding_token_owner,
+            following_owner,
+            following_token_owner,
+            enclosing_owner,
+        ),
+        |owner_id| {
+            maybe_expression_base_owner(tree, owner_id)
+                .or_else(|| optional_call_expression_base_owner(tree, owner_id))
+        },
+    )
+}
+
+/// Return one annotation position for one optional-call seam comment.
+fn optional_call_seam_position(
+    comment_is_line: bool,
+    has_leading_newline: bool,
+    has_trailing_newline: bool,
+) -> AnnotationPosition {
+    if comment_is_line {
+        if has_leading_newline {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::LinePostfix
+        }
+    } else if has_leading_newline || has_trailing_newline {
+        AnnotationPosition::LinePostfixBoundary
+    } else {
+        AnnotationPosition::LinePostfix
+    }
+}
+
+/// Resolve optional-call seam comment rules.
+#[allow(clippy::too_many_arguments)]
+fn try_attach_optional_call_expression_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    preceding_token_owner: Option<u32>,
+    following_owner: Option<u32>,
+    following_token_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
+    has_leading_newline: bool,
+    has_trailing_newline: bool,
+    comment_is_line: bool,
+    comment_is_star: bool,
+    is_inline_star_comment: bool,
+    token_after_is_maybe: bool,
+    token_after_is_open_parenthesis: bool,
+) -> Option<CommentAttachment> {
+    // optional-call seam rules
+    if let Some(attachment) = try_attach_optional_call_expression_comment(
+        tree,
+        parents,
+        context,
+        seam,
         preceding_owner,
         preceding_token_owner,
         following_owner,
         following_token_owner,
         enclosing_owner,
-    ];
-    candidate_owners.into_iter().flatten().find_map(|owner_id| {
-        let mut current_owner = Some(owner_id);
-        while let Some(node_id) = current_owner {
-            if let Some(base_owner_id) = maybe_expression_base_owner(tree, node_id) {
-                return Some(base_owner_id);
-            }
+        has_leading_newline,
+        has_trailing_newline,
+        comment_is_line,
+        comment_is_star,
+        is_inline_star_comment,
+        token_after_is_maybe,
+        token_after_is_open_parenthesis,
+    ) {
+        return Some(attachment);
+    }
 
-            if let Some(base_owner_id) = optional_call_expression_base_owner(tree, node_id) {
-                return Some(base_owner_id);
-            }
-
-            current_owner = parents.get_by_id(node_id);
-        }
-
-        None
-    })
+    None
 }
 
-/// Return one annotation position for one optional-call seam comment.
-fn optional_call_seam_position(has_leading_newline: bool) -> AnnotationPosition {
-    if has_leading_newline {
-        AnnotationPosition::BlockPrefix
-    } else {
-        AnnotationPosition::LinePostfix
+/// Resolve ternary seam comment rules.
+#[allow(clippy::too_many_arguments)]
+fn try_attach_ternary_expression_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    preceding_token_owner: Option<u32>,
+    token_before_source_span: Option<destack_source::Span>,
+    ternary_enclosing_owner: Option<u32>,
+    ternary_following_owner: Option<u32>,
+    is_ternary_seam: bool,
+    has_leading_newline: bool,
+    has_trailing_newline: bool,
+    comment_is_line: bool,
+    comment_is_star: bool,
+    is_inline_star_comment: bool,
+    token_before_is_maybe: bool,
+    token_before_is_colon: bool,
+    token_after_is_colon: bool,
+    token_after_is_maybe: bool,
+) -> Option<CommentAttachment> {
+    // ternary seam rules
+    if let Some(attachment) = try_attach_ternary_expression_comment(
+        tree,
+        parents,
+        seam,
+        preceding_owner,
+        preceding_token_owner,
+        token_before_source_span,
+        ternary_enclosing_owner,
+        ternary_following_owner,
+        is_ternary_seam,
+        has_leading_newline,
+        has_trailing_newline,
+        comment_is_line,
+        comment_is_star,
+        is_inline_star_comment,
+        token_before_is_maybe,
+        token_before_is_colon,
+        token_after_is_colon,
+        token_after_is_maybe,
+    ) {
+        return Some(attachment);
     }
+
+    None
 }
 
 /// Return whether one owner belongs to a do-while expression ancestry.
@@ -246,8 +409,7 @@ fn owner_has_do_while_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> bool {
-    let mut current_owner = Some(owner_id);
-    while let Some(node_id) = current_owner {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression
             && matches!(
                 tree.get(LocalNodeId::<Expression>::new(node_id)),
@@ -257,30 +419,24 @@ fn owner_has_do_while_expression_ancestor(
                 }
             )
         {
-            return true;
+            return Some(node_id);
         }
 
-        current_owner = parents.get_by_id(node_id);
-    }
-
-    false
+        None
+    })
+    .is_some()
 }
 
 /// Return whether one owner is an ancestor of another owner.
-fn owner_is_ancestor(parents: &NodeParentIndex, ancestor_owner_id: u32, owner_id: u32) -> bool {
-    let mut current_owner = Some(owner_id);
-    while let Some(node_id) = current_owner {
-        if node_id == ancestor_owner_id {
-            return true;
-        }
-        current_owner = parents.get_by_id(node_id);
-    }
-
-    false
+fn is_owner_ancestor(parents: &NodeParentIndex, ancestor_owner_id: u32, owner_id: u32) -> bool {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
+        (node_id == ancestor_owner_id).then_some(node_id)
+    })
+    .is_some()
 }
 
 /// Return whether one expression owner is one direct lambda body expression.
-fn expression_owner_is_direct_lambda_body(
+fn is_direct_lambda_body_expression_owner(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     expression_owner: u32,
@@ -315,8 +471,7 @@ fn promote_owner_to_tagged_template_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_owner = Some(owner_id);
-    while let Some(node_id) = current_owner {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression
             && matches!(
                 tree.get(LocalNodeId::<Expression>::new(node_id)),
@@ -326,10 +481,8 @@ fn promote_owner_to_tagged_template_expression_ancestor(
             return Some(node_id);
         }
 
-        current_owner = parents.get_by_id(node_id);
-    }
-
-    None
+        None
+    })
 }
 
 /// Promote one owner to the nearest mapped-type expression ancestor.
@@ -338,8 +491,7 @@ fn promote_owner_to_mapped_type_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_owner = Some(owner_id);
-    while let Some(node_id) = current_owner {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression
             && matches!(
                 tree.get(LocalNodeId::<Expression>::new(node_id)),
@@ -349,10 +501,8 @@ fn promote_owner_to_mapped_type_expression_ancestor(
             return Some(node_id);
         }
 
-        current_owner = parents.get_by_id(node_id);
-    }
-
-    None
+        None
+    })
 }
 
 /// Resolve expression and type seam comment rules.
@@ -415,9 +565,9 @@ pub(crate) fn try_attach_comment_expression(
         Some(TokenType::LogicalAnd | TokenType::LogicalOr | TokenType::Coalesce)
     );
     let seam_is_new_signature_declaration = preceding_owner
-        .is_some_and(|owner| owner_is_new_signature_declaration(tree, parents, owner))
+        .is_some_and(|owner| is_new_signature_declaration_owner(tree, parents, owner))
         || following_owner
-            .is_some_and(|owner| owner_is_new_signature_declaration(tree, parents, owner));
+            .is_some_and(|owner| is_new_signature_declaration_owner(tree, parents, owner));
     let shared_owner =
         preceding_owner
             .zip(following_owner)
@@ -427,9 +577,9 @@ pub(crate) fn try_attach_comment_expression(
     let seam_has_shared_expression_owner =
         shared_owner.is_some_and(|owner| tree.get_node_type(owner) == NodeType::Expression);
     let shared_ternary_owner =
-        shared_owner.filter(|owner| owner_is_ternary_if_expression(tree, *owner));
+        shared_owner.filter(|owner| is_ternary_if_expression_owner(tree, *owner));
     let ternary_enclosing_owner = shared_ternary_owner
-        .or(enclosing_owner.filter(|owner| owner_is_ternary_if_expression(tree, *owner)));
+        .or(enclosing_owner.filter(|owner| is_ternary_if_expression_owner(tree, *owner)));
     let is_ternary_seam = ternary_enclosing_owner.is_some();
     let ternary_following_owner = if is_ternary_seam {
         following_token_owner.or(following_owner).map(|owner| {
@@ -442,8 +592,8 @@ pub(crate) fn try_attach_comment_expression(
     } else {
         None
     };
-    let enclosing_owner_is_call_or_new =
-        enclosing_owner.is_some_and(|owner| owner_is_call_or_new_expression(tree, owner));
+    let is_enclosing_owner_call_or_new =
+        enclosing_owner.is_some_and(|owner| is_call_or_new_expression_owner(tree, owner));
     let enclosing_owner_first_dynamic_argument =
         enclosing_owner.and_then(|owner| first_dynamic_argument_owner_for_call_like(tree, owner));
     // decorator seams belong to declaration-specific routing.
@@ -532,15 +682,20 @@ pub(crate) fn try_attach_comment_expression(
         && has_trailing_newline
         && comment_is_line
         && token_before_is_colon
-        && let Some(target_node) = preceding_owner
-            .and_then(|owner| promote_owner_to_labelled_expression_ancestor(tree, parents, owner))
-            .or_else(|| {
-                following_owner.and_then(|owner| {
-                    promote_owner_to_labelled_expression_ancestor(tree, parents, owner)
-                })
-            })
+        && let Some(target_node) =
+            labelled_statement_owner_for_colon_seam(tree, parents, preceding_owner, following_owner)
     {
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    // inline block comments before label colons stay on the labelled statement owner
+    if is_inline_star_comment
+        && token_after_is_colon
+        && let Some(target_node) =
+            labelled_statement_owner_for_colon_seam(tree, parents, preceding_owner, following_owner)
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfix));
     }
 
     // line comments after object member trailing commas inside call arguments stay on the member
@@ -792,33 +947,44 @@ pub(crate) fn try_attach_comment_expression(
         seam_is_optional_call_operator(context, seam)
             || seam_is_optional_call_parenthesis_separator;
 
-    if comment_is_star
-        && seam_is_optional_call_operator_or_parenthesis_separator
-        && let Some(target_node) = optional_call_seam_base_owner(
-            tree,
-            parents,
-            preceding_owner,
-            preceding_token_owner,
-            following_owner,
-            following_token_owner,
-            enclosing_owner,
-        )
+    if (comment_is_star || comment_is_line)
+        && (seam_is_optional_call_operator_or_parenthesis_separator || token_after_is_maybe)
+        && let Some(target_node) = if comment_is_line {
+            optional_call_seam_expression_owner(
+                tree,
+                parents,
+                preceding_owner,
+                preceding_token_owner,
+                following_owner,
+                following_token_owner,
+                enclosing_owner,
+            )
+            .or_else(|| {
+                optional_call_seam_base_owner(
+                    tree,
+                    parents,
+                    preceding_owner,
+                    preceding_token_owner,
+                    following_owner,
+                    following_token_owner,
+                    enclosing_owner,
+                )
+            })
+        } else {
+            optional_call_seam_base_owner(
+                tree,
+                parents,
+                preceding_owner,
+                preceding_token_owner,
+                following_owner,
+                following_token_owner,
+                enclosing_owner,
+            )
+        }
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        let position = optional_call_seam_position(has_leading_newline);
-        return Some((Some(target_node), position));
-    }
-
-    // inline optional-call comments between `?` and `.` stay on the call base segment
-    if comment_is_star
-        && token_before_is_maybe
-        && token_after_is_dot
-        && let Some(target_node) = preceding_owner
-            .or(preceding_token_owner)
-            .and_then(|owner| maybe_expression_base_owner(tree, owner))
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        let position = optional_call_seam_position(has_leading_newline);
+        let position =
+            optional_call_seam_position(comment_is_line, has_leading_newline, has_trailing_newline);
         return Some((Some(target_node), position));
     }
 
@@ -858,7 +1024,7 @@ pub(crate) fn try_attach_comment_expression(
     }
 
     // inline block comments between call callees and `(` stay inside non-empty argument lists
-    if is_inline_star_comment && token_after_is_open_parenthesis && enclosing_owner_is_call_or_new {
+    if is_inline_star_comment && token_after_is_open_parenthesis && is_enclosing_owner_call_or_new {
         if let Some(target_node) = enclosing_owner_first_dynamic_argument {
             let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
             return Some((Some(target_node), AnnotationPosition::LinePrefix));
@@ -1054,7 +1220,7 @@ pub(crate) fn try_attach_comment_expression(
             == NodeType::Declaration
             && tree.get_node_type(following_owner) == NodeType::Declaration
             && preceding_owner != following_owner
-            && owner_is_ancestor(parents, following_owner, preceding_owner);
+            && is_owner_ancestor(parents, following_owner, preceding_owner);
 
         if is_nested_declaration_wrapper_boundary {
             return Some((Some(following_owner), AnnotationPosition::LinePostfix));
@@ -1118,7 +1284,7 @@ pub(crate) fn try_attach_comment_expression(
                 tree.get(LocalNodeId::<Expression>::new(target_node)),
                 Expression::Parenthesized { .. }
             )
-            && !expression_owner_is_direct_lambda_body(tree, parents, target_node)
+            && !is_direct_lambda_body_expression_owner(tree, parents, target_node)
         {
             return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }

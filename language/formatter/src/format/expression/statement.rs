@@ -1314,7 +1314,26 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // labelled statement
         Expression::Labelled { label, body } => {
-            write!(f, [label, token(":"), space(), *body])?;
+            write!(f, [label, token(":")])?;
+
+            let body_expression = f.context().tree.get(*body);
+            let body_is_empty_statement = matches!(
+                body_expression,
+                Expression::Block(block_id) if is_empty_statement_block(f.context(), *block_id)
+            );
+            let body_has_prefix_annotation = f.context().has_prefix_annotation(*body);
+            if !body_is_empty_statement || body_has_prefix_annotation {
+                write!(f, [space()])?;
+            }
+
+            match body_expression {
+                Expression::Block(block_id) => {
+                    format_statement_body_block(f, *block_id)?;
+                }
+                _ => {
+                    write!(f, [*body])?;
+                }
+            }
         }
 
         // import

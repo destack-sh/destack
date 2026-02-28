@@ -841,6 +841,64 @@ fn test_format_optional_call_operator_parenthesis_comment_moves_before_optional_
     );
 }
 
+/// Return statements should keep own-line callee comments before optional calls.
+#[test]
+fn test_format_return_optional_call_callee_line_comment_is_idempotent() {
+    let source = r#"function x() {
+  return func2
+    //comment
+    ?.bar();
+}"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Call arguments should keep same-line head comments after `(`.
+#[test]
+fn test_format_call_argument_head_line_comment_is_idempotent() {
+    let source = r#"call( // comment
+  value
+);"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// New-expression arguments should keep same-line head comments after `(`.
+#[test]
+fn test_format_new_argument_head_line_comment_is_idempotent() {
+    let source = r#"new Factory( // comment
+  value
+);"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Parenthesized return values should keep own-line callee comments before optional calls.
+#[test]
+fn test_format_return_parenthesized_optional_call_callee_line_comment_is_idempotent() {
+    let source = r#"function f() {
+  return (
+    foo
+      // comment
+      ?.bar()
+  );
+}"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
 /// Prettier no-argument optional-call fixture should stay idempotent in JS/TSX mode.
 #[test]
 fn test_format_optional_call_no_argument_fixture_is_idempotent_jsx_mode() {
@@ -2280,6 +2338,34 @@ fn test_format_control_head_own_line_comment_before_empty_statement_is_idempoten
         FileType::JavaScript,
         |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
+    );
+}
+
+/// Condition-tail line comments before empty `if` bodies should stay idempotent.
+#[test]
+fn test_format_if_condition_tail_line_comment_before_empty_body_is_idempotent() {
+    let source = r#"if (Boolean(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference") // comment
+);"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Labels with empty statement bodies and comments should stay idempotent.
+#[test]
+fn test_format_label_empty_statement_comments_are_idempotent() {
+    let source = r#"a: /* comment */;
+a: ;/* comment */
+a /* comment */:;"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
     );
 }
 

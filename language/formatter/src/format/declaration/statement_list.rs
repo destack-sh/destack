@@ -519,7 +519,7 @@ pub(crate) fn format_block_of_statements<'ast>(
                 } else if source_has_blank_line_between {
                     !has_blank_prefix_annotation
                         && !has_non_comment_prefix_annotation
-                        && !previous_has_postfix_annotation
+                        && !previous_has_blank_postfix_annotation
                 } else {
                     false
                 };

@@ -51,6 +51,36 @@ pub(crate) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id:
     }
 }
 
+/// Return one resolved owner in one ancestor chain.
+pub(crate) fn find_owner_in_ancestor_chain(
+    parents: &NodeParentIndex,
+    start_owner: u32,
+    mut resolve_owner: impl FnMut(u32) -> Option<u32>,
+) -> Option<u32> {
+    let mut current_owner = Some(start_owner);
+    while let Some(owner_id) = current_owner {
+        if let Some(resolved_owner) = resolve_owner(owner_id) {
+            return Some(resolved_owner);
+        }
+
+        current_owner = parents.get_by_id(owner_id);
+    }
+
+    None
+}
+
+/// Return one resolved owner across one ordered candidate-owner list.
+pub(crate) fn find_owner_in_candidate_ancestry<const N: usize>(
+    parents: &NodeParentIndex,
+    candidate_owners: [Option<u32>; N],
+    mut resolve_owner: impl FnMut(u32) -> Option<u32>,
+) -> Option<u32> {
+    candidate_owners
+        .into_iter()
+        .flatten()
+        .find_map(|owner_id| find_owner_in_ancestor_chain(parents, owner_id, &mut resolve_owner))
+}
+
 /// Return whether one owner is one block node or block expression wrapper.
 pub(crate) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) == NodeType::Block {
@@ -307,16 +337,9 @@ pub(crate) fn promote_owner_to_declaration_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
-        if tree.get_node_type(node_id) == NodeType::Declaration {
-            return Some(node_id);
-        }
-
-        current_id = parents.get_by_id(node_id);
-    }
-
-    None
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
+        (tree.get_node_type(node_id) == NodeType::Declaration).then_some(node_id)
+    })
 }
 
 /// Promote one owner to the nearest ancestor of one node type.
@@ -326,16 +349,9 @@ pub(crate) fn promote_owner_to_node_type_ancestor(
     owner_id: u32,
     node_type: NodeType,
 ) -> Option<u32> {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
-        if tree.get_node_type(node_id) == node_type {
-            return Some(node_id);
-        }
-
-        current_id = parents.get_by_id(node_id);
-    }
-
-    None
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
+        (tree.get_node_type(node_id) == node_type).then_some(node_id)
+    })
 }
 
 /// Promote one owner to one statement boundary owner.
@@ -426,8 +442,7 @@ pub(crate) fn promote_owner_to_satisfies_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression {
             let expression_id = LocalNodeId::<Expression>::new(node_id);
             if matches!(
@@ -441,10 +456,8 @@ pub(crate) fn promote_owner_to_satisfies_expression_ancestor(
             }
         }
 
-        current_id = parents.get_by_id(node_id);
-    }
-
-    None
+        None
+    })
 }
 
 /// Promote one owner to the nearest parenthesized expression ancestor.
@@ -453,8 +466,7 @@ pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
     parents: &NodeParentIndex,
     owner_id: u32,
 ) -> Option<u32> {
-    let mut current_id = Some(owner_id);
-    while let Some(node_id) = current_id {
+    find_owner_in_ancestor_chain(parents, owner_id, |node_id| {
         if tree.get_node_type(node_id) == NodeType::Expression {
             let expression_id = LocalNodeId::<Expression>::new(node_id);
             if matches!(tree.get(expression_id), Expression::Parenthesized { .. }) {
@@ -462,10 +474,8 @@ pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
             }
         }
 
-        current_id = parents.get_by_id(node_id);
-    }
-
-    None
+        None
+    })
 }
 
 /// Return one lowest common ancestor for two owners.
