@@ -89,6 +89,14 @@ pub(super) fn validate_winsize_dimension(value: u32, field: &str) -> RuntimeResu
     })
 }
 
+/// Convert one host numeric lane into one runtime u64 value.
+pub(super) fn host_numeric_to_u64<T>(value: T) -> u64
+where
+    T: Into<u64>,
+{
+    value.into()
+}
+
 /// Resolve one tty handle into one unix descriptor.
 pub(super) fn tty_descriptor(
     context: &BindingCallContext,

@@ -1,6 +1,6 @@
 use std::mem::MaybeUninit;
 
-use super::core::{io_error, tty_descriptor};
+use super::core::{host_numeric_to_u64, io_error, tty_descriptor};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tty::TtyMode;
@@ -69,10 +69,10 @@ pub(crate) unsafe fn destack_tty_get_mode(
 
     // project host mode into platform fields
     let mode = TtyMode {
-        input_flags: host_mode.c_iflag as u64,
-        output_flags: host_mode.c_oflag as u64,
-        control_flags: host_mode.c_cflag as u64,
-        local_flags: host_mode.c_lflag as u64,
+        input_flags: host_numeric_to_u64(host_mode.c_iflag),
+        output_flags: host_numeric_to_u64(host_mode.c_oflag),
+        control_flags: host_numeric_to_u64(host_mode.c_cflag),
+        local_flags: host_numeric_to_u64(host_mode.c_lflag),
     };
 
     // write mode snapshot to output storage

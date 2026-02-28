@@ -1,6 +1,6 @@
 use std::mem::MaybeUninit;
 
-use super::core::{io_error, tty_descriptor};
+use super::core::{host_numeric_to_u64, io_error, tty_descriptor};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{PlatformErrorCode, process_error_code_from_errno};
@@ -224,13 +224,13 @@ pub(crate) unsafe fn destack_tty_termios_get_attributes(
 
     // project the host termios payload into platform attributes
     let attributes = TtyTermiosAttributes {
-        input_flags: host_attributes.c_iflag as u64,
-        output_flags: host_attributes.c_oflag as u64,
-        control_flags: host_attributes.c_cflag as u64,
-        local_flags: host_attributes.c_lflag as u64,
+        input_flags: host_numeric_to_u64(host_attributes.c_iflag),
+        output_flags: host_numeric_to_u64(host_attributes.c_oflag),
+        control_flags: host_numeric_to_u64(host_attributes.c_cflag),
+        local_flags: host_numeric_to_u64(host_attributes.c_lflag),
         control_characters,
-        input_speed_code: unsafe { libc::cfgetispeed(&host_attributes) } as u64,
-        output_speed_code: unsafe { libc::cfgetospeed(&host_attributes) } as u64,
+        input_speed_code: host_numeric_to_u64(unsafe { libc::cfgetispeed(&host_attributes) }),
+        output_speed_code: host_numeric_to_u64(unsafe { libc::cfgetospeed(&host_attributes) }),
     };
 
     // write projected attributes to output storage
