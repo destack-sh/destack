@@ -23,11 +23,11 @@ impl<'call> FsHarnessContext<'call> {
             Some(context) => {
                 let bytes = path_bytes_vec(path);
                 let bytes = VmArray::from_bytes(context, &bytes);
-                let path = OsPathVm {
-                    encoding: PathEncoding::Bytes,
+                let kind = vm::StringHandle::new(context.intern_string("bytes"));
+                let path = OsPathVm::OsPathBytes(platform_fs::OsPathBytesVm {
+                    kind,
                     bytes: PathBytesAbi(bytes),
-                    utf16: PathUtf16Abi(empty_vm_array()),
-                };
+                });
 
                 self.harness_value_vm(path)
             }
@@ -49,11 +49,11 @@ impl<'call> FsHarnessContext<'call> {
                 let utf16_units = path_utf16_vec(path);
                 let utf16 = VmArray::from_values(context, &utf16_units)
                     .expect("vm utf16 path should encode");
-                let path = OsPathVm {
-                    encoding: PathEncoding::Utf16,
-                    bytes: PathBytesAbi(empty_vm_array()),
+                let kind = vm::StringHandle::new(context.intern_string("utf16"));
+                let path = OsPathVm::OsPathUtf16(platform_fs::OsPathUtf16Vm {
+                    kind,
                     utf16: PathUtf16Abi(utf16),
-                };
+                });
 
                 self.harness_value_vm(path)
             }
@@ -130,8 +130,14 @@ impl<'call> FsHarnessContext<'call> {
         value: HarnessValue<DirentNext, DirentNextVm>,
     ) -> RuntimeResult<Option<FsDirent>> {
         match value {
-            HarnessValue::Native(value) => Ok(value.entry.map(FsDirent::Native)),
-            HarnessValue::Vm(value) => Ok(value.entry.map(FsDirent::Vm)),
+            HarnessValue::Native(DirentNext::DirentNextEnd(_)) => Ok(None),
+            HarnessValue::Native(DirentNext::DirentNextEntry(value)) => {
+                Ok(Some(FsDirent::Native(value.entry)))
+            }
+            HarnessValue::Vm(DirentNextVm::DirentNextEnd(_)) => Ok(None),
+            HarnessValue::Vm(DirentNextVm::DirentNextEntry(value)) => {
+                Ok(Some(FsDirent::Vm(value.entry)))
+            }
         }
     }
 
@@ -210,18 +216,48 @@ impl<'call> FsHarnessContext<'call> {
     }
 
     /// Read one watch-event kind from a unified test payload.
-    pub(crate) fn watch_event_kind(&self, event: FsWatchEvent) -> WatchEventKind {
+    pub(crate) fn watch_event_is_create_modify_metadata_or_rename(
+        &self,
+        event: FsWatchEvent,
+    ) -> bool {
         match event {
-            FsWatchEvent::Native(event) => event.kind,
-            FsWatchEvent::Vm(event) => event.kind,
+            FsWatchEvent::Native(event) => matches!(
+                event,
+                WatchEvent::WatchCreateEvent(_)
+                    | WatchEvent::WatchModifyEvent(_)
+                    | WatchEvent::WatchMetadataEvent(_)
+                    | WatchEvent::WatchRenameEvent(_)
+            ),
+            FsWatchEvent::Vm(event) => matches!(
+                event,
+                WatchEventVm::WatchCreateEvent(_)
+                    | WatchEventVm::WatchModifyEvent(_)
+                    | WatchEventVm::WatchMetadataEvent(_)
+                    | WatchEventVm::WatchRenameEvent(_)
+            ),
         }
     }
 
     /// Convert one watch-event path into a displayable string.
     pub(crate) fn watch_event_path(&mut self, event: FsWatchEvent) -> String {
         match event {
-            FsWatchEvent::Native(event) => path_ref_string_native(event.path),
-            FsWatchEvent::Vm(event) => path_ref_string_vm(
+            FsWatchEvent::Native(WatchEvent::WatchCreateEvent(event)) => {
+                path_ref_string_native(event.path)
+            }
+            FsWatchEvent::Native(WatchEvent::WatchMetadataEvent(event)) => {
+                path_ref_string_native(event.path)
+            }
+            FsWatchEvent::Native(WatchEvent::WatchModifyEvent(event)) => {
+                path_ref_string_native(event.path)
+            }
+            FsWatchEvent::Native(WatchEvent::WatchRemoveEvent(event)) => {
+                path_ref_string_native(event.path)
+            }
+            FsWatchEvent::Native(WatchEvent::WatchRenameEvent(event)) => {
+                path_ref_string_native(event.path)
+            }
+            FsWatchEvent::Native(WatchEvent::WatchOverflowEvent(_)) => String::new(),
+            FsWatchEvent::Vm(WatchEventVm::WatchCreateEvent(event)) => path_ref_string_vm(
                 self.vm_context_mut()
                     .expect("vm context required for vm watch event"),
                 event.path,
@@ -229,14 +265,50 @@ impl<'call> FsHarnessContext<'call> {
             .unwrap_or_else(|error| {
                 panic!("failed to decode vm watch-event path: {}", error.message())
             }),
+            FsWatchEvent::Vm(WatchEventVm::WatchMetadataEvent(event)) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.path,
+            )
+            .unwrap_or_else(|error| {
+                panic!("failed to decode vm watch-event path: {}", error.message())
+            }),
+            FsWatchEvent::Vm(WatchEventVm::WatchModifyEvent(event)) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.path,
+            )
+            .unwrap_or_else(|error| {
+                panic!("failed to decode vm watch-event path: {}", error.message())
+            }),
+            FsWatchEvent::Vm(WatchEventVm::WatchRemoveEvent(event)) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.path,
+            )
+            .unwrap_or_else(|error| {
+                panic!("failed to decode vm watch-event path: {}", error.message())
+            }),
+            FsWatchEvent::Vm(WatchEventVm::WatchRenameEvent(event)) => path_ref_string_vm(
+                self.vm_context_mut()
+                    .expect("vm context required for vm watch event"),
+                event.path,
+            )
+            .unwrap_or_else(|error| {
+                panic!("failed to decode vm watch-event path: {}", error.message())
+            }),
+            FsWatchEvent::Vm(WatchEventVm::WatchOverflowEvent(_)) => String::new(),
         }
     }
 
     /// Convert one watch-event related path into a displayable string.
     pub(crate) fn watch_event_related_path(&mut self, event: FsWatchEvent) -> String {
         match event {
-            FsWatchEvent::Native(event) => path_ref_string_native(event.related_path),
-            FsWatchEvent::Vm(event) => path_ref_string_vm(
+            FsWatchEvent::Native(WatchEvent::WatchRenameEvent(event)) => {
+                path_ref_string_native(event.related_path)
+            }
+            FsWatchEvent::Native(_) => String::new(),
+            FsWatchEvent::Vm(WatchEventVm::WatchRenameEvent(event)) => path_ref_string_vm(
                 self.vm_context_mut()
                     .expect("vm context required for vm watch event"),
                 event.related_path,
@@ -247,6 +319,7 @@ impl<'call> FsHarnessContext<'call> {
                     error.message()
                 )
             }),
+            FsWatchEvent::Vm(_) => String::new(),
         }
     }
 

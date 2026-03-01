@@ -13,12 +13,11 @@ use std::ffi::{CStr, CString};
 
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
-    SyscallFilterFlags, UserId,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus, Signal, SignalEvent,
+    SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
 
@@ -119,22 +118,22 @@ fn resolve_spawn_cwd(options: ProcessSpawnOptions) -> RuntimeResult<Option<CStri
 fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<ResolvedFdAction>> {
     let mut resolved_actions = Vec::with_capacity(actions.len());
     for action in actions {
-        match action.op {
-            ProcessFdActionKind::Close => {
-                if action.source < 0 {
+        match action {
+            ProcessFdAction::ProcessFdActionClose(action_close) => {
+                if action_close.descriptor < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "actions.source",
+                        "actions.descriptor",
                         "descriptor must be non-negative",
                     ))
                     .boxed());
                 }
 
                 resolved_actions.push(ResolvedFdAction::Close {
-                    descriptor: action.source,
+                    descriptor: action_close.descriptor,
                 });
             }
-            ProcessFdActionKind::Dup2 => {
-                if action.source < 0 || action.target < 0 {
+            ProcessFdAction::ProcessFdActionDup2(action_dup2) => {
+                if action_dup2.source < 0 || action_dup2.target < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "actions",
                         "dup2 action descriptors must be non-negative",
@@ -143,12 +142,12 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
                 }
 
                 resolved_actions.push(ResolvedFdAction::Dup2 {
-                    source: action.source,
-                    target: action.target,
+                    source: action_dup2.source,
+                    target: action_dup2.target,
                 });
             }
-            ProcessFdActionKind::Open => {
-                if action.target < 0 {
+            ProcessFdAction::ProcessFdActionOpen(action_open) => {
+                if action_open.target < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "actions.target",
                         "descriptor must be non-negative",
@@ -156,7 +155,7 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
                     .boxed());
                 }
 
-                let path = core_fs::os_path_to_utf8_string(action.path, "actions.path")?;
+                let path = core_fs::os_path_to_utf8_string(action_open.path, "actions.path")?;
                 let path = CString::new(path).map_err(|_| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
                         "actions.path",
@@ -165,17 +164,17 @@ fn resolve_fd_actions(actions: &[ProcessFdAction]) -> RuntimeResult<Vec<Resolved
                     .boxed()
                 })?;
 
-                let flags = i32::try_from(action.flags.0).map_err(|_| {
+                let flags = i32::try_from(action_open.flags.0).map_err(|_| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
                         "actions.flags",
                         "flags are out of range",
                     ))
                     .boxed()
                 })?;
-                let mode = action.mode.0 as libc::mode_t;
+                let mode = action_open.mode.0 as libc::mode_t;
 
                 resolved_actions.push(ResolvedFdAction::Open {
-                    target: action.target,
+                    target: action_open.target,
                     path,
                     flags,
                     mode,
@@ -206,12 +205,12 @@ fn resolve_spawn_stdio(
         ResolvedStdioDescriptor::Inherit,
     ];
     for (index, descriptor) in stdio.iter().enumerate() {
-        let value = match descriptor.kind {
-            ProcessStdioKind::Inherit => ResolvedStdioDescriptor::Inherit,
-            ProcessStdioKind::Null => ResolvedStdioDescriptor::Null,
-            ProcessStdioKind::Pipe => ResolvedStdioDescriptor::Pipe,
-            ProcessStdioKind::File => {
-                let file_descriptor = resolve_file_fd(context, descriptor.file)?;
+        let value = match descriptor {
+            ProcessStdio::ProcessStdioInherit(_) => ResolvedStdioDescriptor::Inherit,
+            ProcessStdio::ProcessStdioNull(_) => ResolvedStdioDescriptor::Null,
+            ProcessStdio::ProcessStdioPipe(_) => ResolvedStdioDescriptor::Pipe,
+            ProcessStdio::ProcessStdioFile(descriptor_file) => {
+                let file_descriptor = resolve_file_fd(context, descriptor_file.file)?;
                 if file_descriptor < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "stdio.file",
@@ -222,8 +221,8 @@ fn resolve_spawn_stdio(
 
                 ResolvedStdioDescriptor::Descriptor(file_descriptor)
             }
-            ProcessStdioKind::Descriptor => {
-                if descriptor.descriptor < 0 {
+            ProcessStdio::ProcessStdioDescriptor(descriptor_fd) => {
+                if descriptor_fd.descriptor < 0 {
                     return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                         "stdio.descriptor",
                         "descriptor must be non-negative",
@@ -231,7 +230,7 @@ fn resolve_spawn_stdio(
                     .boxed());
                 }
 
-                ResolvedStdioDescriptor::Descriptor(descriptor.descriptor)
+                ResolvedStdioDescriptor::Descriptor(descriptor_fd.descriptor)
             }
         };
         resolved[index] = value;

@@ -12,7 +12,7 @@ use crate::platform::ipc::{
     UnixReceiveAncillaryReplayRecord, UnixReceiveAncillaryVm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
+    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
@@ -106,6 +106,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -1106,7 +1107,7 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
     "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.fd.pass", "ipc.unix"],
+    &["ipc.unix", "ipc.fd.pass"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1118,7 +1119,7 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     "export function unixSend(socket: SocketHandle, payload: Slice<uint8>, handles: Slice<TransferredHandle>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.fd.pass", "ipc.unix"],
+    &["ipc.unix", "ipc.fd.pass"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )

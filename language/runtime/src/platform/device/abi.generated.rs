@@ -378,44 +378,6 @@ impl VmValueCodec for CameraTorchMode {
     }
 }
 
-/// ABI enum for SerialEventKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SerialEventKind {
-    /// ReadReady.
-    ReadReady = 1,
-    /// WriteReady.
-    WriteReady = 2,
-    /// SignalsChanged.
-    SignalsChanged = 3,
-    /// Error.
-    Error = 4,
-}
-
-impl VmValueCodec for SerialEventKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::ReadReady,
-            2u8 => Self::WriteReady,
-            3u8 => Self::SignalsChanged,
-            4u8 => Self::Error,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown SerialEventKind value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
 /// ABI enum for SerialFlowControl.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -518,26 +480,86 @@ impl VmValueCodec for SerialStopBits {
     }
 }
 
-/// ABI enum for UsbHotplugEventKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum UsbHotplugEventKind {
-    /// Attached.
-    Attached = 1,
-    /// Detached.
-    Detached = 2,
+/// ABI tagged union for SerialEvent.
+pub enum SerialEventAbi<A: BindingAbi> {
+    /// SerialErrorEvent variant.
+    SerialErrorEvent(platform_device::SerialErrorEventAbi<A>),
+    /// SerialReadReadyEvent variant.
+    SerialReadReadyEvent(platform_device::SerialReadReadyEventAbi<A>),
+    /// SerialSignalsChangedEvent variant.
+    SerialSignalsChangedEvent(platform_device::SerialSignalsChangedEventAbi<A>),
+    /// SerialWriteReadyEvent variant.
+    SerialWriteReadyEvent(platform_device::SerialWriteReadyEventAbi<A>),
 }
 
-impl VmValueCodec for UsbHotplugEventKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Attached,
-            2u8 => Self::Detached,
+pub type SerialEvent = SerialEventAbi<NativeAbi>;
+pub type SerialEventVm = SerialEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("SerialEventAbi").finish()
+    }
+}
+
+impl Copy for SerialEventAbi<NativeAbi> {}
+impl Clone for SerialEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialEventAbi<VmAbi> {}
+impl Clone for SerialEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            410067109u32 => Self::SerialErrorEvent(
+                <SerialErrorEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            1237782817u32 => Self::SerialReadReadyEvent(
+                <SerialReadReadyEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3387895374u32 => Self::SerialSignalsChangedEvent(
+                <SerialSignalsChangedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2674919946u32 => Self::SerialWriteReadyEvent(
+                <SerialWriteReadyEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown UsbHotplugEventKind value",
+                    "unknown SerialEvent tag",
                 ))
                 .boxed());
             }
@@ -545,8 +567,150 @@ impl VmValueCodec for UsbHotplugEventKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::SerialErrorEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(410067109u32, context)?;
+                let payload_value =
+                    <SerialErrorEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::SerialReadReadyEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1237782817u32, context)?;
+                let payload_value =
+                    <SerialReadReadyEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::SerialSignalsChangedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3387895374u32, context)?;
+                let payload_value =
+                    <SerialSignalsChangedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::SerialWriteReadyEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2674919946u32, context)?;
+                let payload_value =
+                    <SerialWriteReadyEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI tagged union for UsbHotplugEvent.
+pub enum UsbHotplugEventAbi<A: BindingAbi> {
+    /// UsbHotplugAttachedEvent variant.
+    UsbHotplugAttachedEvent(platform_device::UsbHotplugAttachedEventAbi<A>),
+    /// UsbHotplugDetachedEvent variant.
+    UsbHotplugDetachedEvent(platform_device::UsbHotplugDetachedEventAbi<A>),
+}
+
+pub type UsbHotplugEvent = UsbHotplugEventAbi<NativeAbi>;
+pub type UsbHotplugEventVm = UsbHotplugEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("UsbHotplugEventAbi").finish()
+    }
+}
+
+impl Copy for UsbHotplugEventAbi<NativeAbi> {}
+impl Clone for UsbHotplugEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbHotplugEventAbi<VmAbi> {}
+impl Clone for UsbHotplugEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1449914010u32 => Self::UsbHotplugAttachedEvent(
+                <UsbHotplugAttachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            755050223u32 => Self::UsbHotplugDetachedEvent(
+                <UsbHotplugDetachedEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown UsbHotplugEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::UsbHotplugAttachedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1449914010u32, context)?;
+                let payload_value =
+                    <UsbHotplugAttachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UsbHotplugDetachedEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(755050223u32, context)?;
+                let payload_value =
+                    <UsbHotplugDetachedEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -2053,6 +2217,92 @@ impl VmAggregateCodec for CameraStreamConfig {
     }
 }
 
+/// ABI struct for SerialErrorEvent.
+#[repr(C)]
+pub struct SerialErrorEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialErrorPayload,
+}
+
+pub type SerialErrorEvent = SerialErrorEventAbi<NativeAbi>;
+pub type SerialErrorEventVm = SerialErrorEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialErrorEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialErrorEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialErrorEventAbi<NativeAbi> {}
+impl Clone for SerialErrorEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialErrorEventAbi<VmAbi> {}
+impl Clone for SerialErrorEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialErrorEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <SerialErrorPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialErrorPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SerialErrorPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2107,23 +2357,19 @@ impl VmAggregateCodec for SerialErrorPayload {
     }
 }
 
-/// ABI struct for SerialEvent.
+/// ABI struct for SerialEventMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SerialEvent {
-    /// The kind field.
-    pub kind: SerialEventKind,
+pub struct SerialEventMetadata {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
     pub sequence: u64,
-    /// The payload field.
-    pub payload: SerialEventPayload,
 }
 
-pub type SerialEventVm = SerialEvent;
+pub type SerialEventMetadataVm = SerialEventMetadata;
 
-impl VmAggregateCodec for SerialEvent {
+impl VmAggregateCodec for SerialEventMetadata {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2131,31 +2377,25 @@ impl VmAggregateCodec for SerialEvent {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "SerialEvent",
+                "SerialEventMetadata",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <SerialEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_payload =
-            <SerialEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
-            kind: field_kind,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
-            payload: field_payload,
         })
     }
 
@@ -2164,91 +2404,8 @@ impl VmAggregateCodec for SerialEvent {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <SerialEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <SerialEventPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
-        ];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// ABI struct for SerialEventPayload.
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SerialEventPayload {
-    /// The read_ready field.
-    pub read_ready: SerialReadReadyPayload,
-    /// The write_ready field.
-    pub write_ready: SerialWriteReadyPayload,
-    /// The signals_changed field.
-    pub signals_changed: SerialSignalsChangedPayload,
-    /// The error field.
-    pub error: SerialErrorPayload,
-}
-
-pub type SerialEventPayloadVm = SerialEventPayload;
-
-impl VmAggregateCodec for SerialEventPayload {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SerialEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let field_read_ready =
-            <SerialReadReadyPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_write_ready =
-            <SerialWriteReadyPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_signals_changed =
-            <SerialSignalsChangedPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
-        let field_error =
-            <SerialErrorPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        Ok(Self {
-            read_ready: field_read_ready,
-            write_ready: field_write_ready,
-            signals_changed: field_signals_changed,
-            error: field_error,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SerialReadReadyPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.read_ready,
-                context,
-            )?,
-            <SerialWriteReadyPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.write_ready,
-                context,
-            )?,
-            <SerialSignalsChangedPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.signals_changed,
-                context,
-            )?,
-            <SerialErrorPayloadVm as VmAggregateCodec>::encode_with_context(self.error, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2441,6 +2598,95 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
     }
 }
 
+/// ABI struct for SerialReadReadyEvent.
+#[repr(C)]
+pub struct SerialReadReadyEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialReadReadyPayload,
+}
+
+pub type SerialReadReadyEvent = SerialReadReadyEventAbi<NativeAbi>;
+pub type SerialReadReadyEventVm = SerialReadReadyEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialReadReadyEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialReadReadyEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialReadReadyEventAbi<NativeAbi> {}
+impl Clone for SerialReadReadyEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialReadReadyEventAbi<VmAbi> {}
+impl Clone for SerialReadReadyEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialReadReadyEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <SerialReadReadyPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialReadReadyPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SerialReadReadyPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2492,6 +2738,97 @@ impl VmAggregateCodec for SerialReadReadyPayload {
     }
 }
 
+/// ABI struct for SerialSignalsChangedEvent.
+#[repr(C)]
+pub struct SerialSignalsChangedEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialSignalsChangedPayload,
+}
+
+pub type SerialSignalsChangedEvent = SerialSignalsChangedEventAbi<NativeAbi>;
+pub type SerialSignalsChangedEventVm = SerialSignalsChangedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialSignalsChangedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialSignalsChangedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialSignalsChangedEventAbi<NativeAbi> {}
+impl Clone for SerialSignalsChangedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialSignalsChangedEventAbi<VmAbi> {}
+impl Clone for SerialSignalsChangedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialSignalsChangedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <SerialSignalsChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialSignalsChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SerialSignalsChangedPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2538,6 +2875,96 @@ impl VmAggregateCodec for SerialSignalsChangedPayload {
             self.signal_bits,
             context,
         )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for SerialWriteReadyEvent.
+#[repr(C)]
+pub struct SerialWriteReadyEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialWriteReadyPayload,
+}
+
+pub type SerialWriteReadyEvent = SerialWriteReadyEventAbi<NativeAbi>;
+pub type SerialWriteReadyEventVm = SerialWriteReadyEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for SerialWriteReadyEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SerialWriteReadyEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for SerialWriteReadyEventAbi<NativeAbi> {}
+impl Clone for SerialWriteReadyEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for SerialWriteReadyEventAbi<VmAbi> {}
+impl Clone for SerialWriteReadyEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for SerialWriteReadyEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "SerialWriteReadyEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <SerialEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <SerialWriteReadyPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <SerialEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <SerialWriteReadyPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -2939,11 +3366,171 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
     }
 }
 
-/// ABI struct for UsbHotplugEvent.
+/// ABI struct for UsbHotplugAttachedEvent.
 #[repr(C)]
-pub struct UsbHotplugEventAbi<A: BindingAbi> {
+pub struct UsbHotplugAttachedEventAbi<A: BindingAbi> {
     /// The kind field.
-    pub kind: UsbHotplugEventKind,
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_device::UsbHotplugEventMetadataAbi<A>,
+}
+
+pub type UsbHotplugAttachedEvent = UsbHotplugAttachedEventAbi<NativeAbi>;
+pub type UsbHotplugAttachedEventVm = UsbHotplugAttachedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugAttachedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbHotplugAttachedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbHotplugAttachedEventAbi<NativeAbi> {}
+impl Clone for UsbHotplugAttachedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbHotplugAttachedEventAbi<VmAbi> {}
+impl Clone for UsbHotplugAttachedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugAttachedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for UsbHotplugDetachedEvent.
+#[repr(C)]
+pub struct UsbHotplugDetachedEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_device::UsbHotplugEventMetadataAbi<A>,
+}
+
+pub type UsbHotplugDetachedEvent = UsbHotplugDetachedEventAbi<NativeAbi>;
+pub type UsbHotplugDetachedEventVm = UsbHotplugDetachedEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugDetachedEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UsbHotplugDetachedEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UsbHotplugDetachedEventAbi<NativeAbi> {}
+impl Clone for UsbHotplugDetachedEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UsbHotplugDetachedEventAbi<VmAbi> {}
+impl Clone for UsbHotplugDetachedEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UsbHotplugDetachedEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata = <UsbHotplugEventMetadataVm as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <UsbHotplugEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for UsbHotplugEventMetadata.
+#[repr(C)]
+pub struct UsbHotplugEventMetadataAbi<A: BindingAbi> {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
@@ -2952,31 +3539,31 @@ pub struct UsbHotplugEventAbi<A: BindingAbi> {
     pub device: platform_device::UsbDeviceDescriptorAbi<A>,
 }
 
-pub type UsbHotplugEvent = UsbHotplugEventAbi<NativeAbi>;
-pub type UsbHotplugEventVm = UsbHotplugEventAbi<VmAbi>;
+pub type UsbHotplugEventMetadata = UsbHotplugEventMetadataAbi<NativeAbi>;
+pub type UsbHotplugEventMetadataVm = UsbHotplugEventMetadataAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for UsbHotplugEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for UsbHotplugEventMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("UsbHotplugEventAbi")
+            .debug_struct("UsbHotplugEventMetadataAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for UsbHotplugEventAbi<NativeAbi> {}
-impl Clone for UsbHotplugEventAbi<NativeAbi> {
+impl Copy for UsbHotplugEventMetadataAbi<NativeAbi> {}
+impl Clone for UsbHotplugEventMetadataAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for UsbHotplugEventAbi<VmAbi> {}
-impl Clone for UsbHotplugEventAbi<VmAbi> {
+impl Copy for UsbHotplugEventMetadataAbi<VmAbi> {}
+impl Clone for UsbHotplugEventMetadataAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
+impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2984,28 +3571,25 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "UsbHotplugEvent",
+                "UsbHotplugEventMetadata",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <UsbHotplugEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device =
-            <UsbDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <UsbDeviceDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
-            kind: field_kind,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device: field_device,
@@ -3017,7 +3601,6 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <UsbHotplugEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <UsbDeviceDescriptorVm as VmAggregateCodec>::encode_with_context(self.device, context)?,
@@ -3480,6 +4063,17 @@ pub struct CameraFrameReplayRecord {
     pub bytes: Vec<u8>,
 }
 
+/// Replay struct for SerialErrorEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialErrorEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialErrorPayload,
+}
+
 /// Replay struct for SerialPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialPortDescriptorReplayRecord {
@@ -3495,6 +4089,39 @@ pub struct SerialPortDescriptorReplayRecord {
     pub usb_product_id: u16,
     /// The usb_backed field.
     pub usb_backed: bool,
+}
+
+/// Replay struct for SerialReadReadyEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialReadReadyEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialReadReadyPayload,
+}
+
+/// Replay struct for SerialSignalsChangedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialSignalsChangedEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialSignalsChangedPayload,
+}
+
+/// Replay struct for SerialWriteReadyEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerialWriteReadyEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: SerialEventMetadata,
+    /// The payload field.
+    pub payload: SerialWriteReadyPayload,
 }
 
 /// Replay struct for UsbConfigurationDescriptor.
@@ -3533,11 +4160,27 @@ pub struct UsbDeviceDescriptorReplayRecord {
     pub serial_number: String,
 }
 
-/// Replay struct for UsbHotplugEvent.
+/// Replay struct for UsbHotplugAttachedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct UsbHotplugEventReplayRecord {
+pub struct UsbHotplugAttachedEventReplayRecord {
     /// The kind field.
-    pub kind: UsbHotplugEventKind,
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: UsbHotplugEventMetadataReplayRecord,
+}
+
+/// Replay struct for UsbHotplugDetachedEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbHotplugDetachedEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: UsbHotplugEventMetadataReplayRecord,
+}
+
+/// Replay struct for UsbHotplugEventMetadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UsbHotplugEventMetadataReplayRecord {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
@@ -3585,4 +4228,26 @@ pub struct UsbStringDescriptorReplayRecord {
     pub product: String,
     /// The serial_number field.
     pub serial_number: String,
+}
+
+/// Replay enum for SerialEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SerialEventReplayRecord {
+    /// SerialErrorEvent variant.
+    SerialErrorEvent(SerialErrorEventReplayRecord),
+    /// SerialReadReadyEvent variant.
+    SerialReadReadyEvent(SerialReadReadyEventReplayRecord),
+    /// SerialSignalsChangedEvent variant.
+    SerialSignalsChangedEvent(SerialSignalsChangedEventReplayRecord),
+    /// SerialWriteReadyEvent variant.
+    SerialWriteReadyEvent(SerialWriteReadyEventReplayRecord),
+}
+
+/// Replay enum for UsbHotplugEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UsbHotplugEventReplayRecord {
+    /// UsbHotplugAttachedEvent variant.
+    UsbHotplugAttachedEvent(UsbHotplugAttachedEventReplayRecord),
+    /// UsbHotplugDetachedEvent variant.
+    UsbHotplugDetachedEvent(UsbHotplugDetachedEventReplayRecord),
 }

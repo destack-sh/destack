@@ -5,13 +5,16 @@ use crate::platform::fs::{core as core_fs, host as host_fs};
 
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
-    AccessMode, AllocFlags, AtFlags, CopyFlags, DirectoryHandle, Dirent, DirentNext, DirentNextVm,
-    DirentVm, FdFlags, FileAdvice, FileHandle, FileLockFlags, FileMode, FileOffset, FileSize,
-    MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags, NodeDevice, OpenFlags, OpenOptions,
-    OpenOptionsVm, OsPath, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm, PathEncoding, PathUtf16,
-    PathUtf16Abi, PathUtf16Vm, ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursor, SpliceFlags,
-    Stat, StatFs, StatusFlags, Statx, StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatch,
-    WatchBatchVm, WatchEvent, WatchOptions, WatchOptionsVm, XattrFlags,
+    AccessMode, AllocFlags, AtFlags, CopyFlags, DirectoryHandle, Dirent, DirentNext,
+    DirentNextEndVm, DirentNextEntryVm, DirentNextVm, DirentVm, FdFlags, FileAdvice, FileHandle,
+    FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
+    NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OsPath, OsPathBytesVm, OsPathUtf16Vm,
+    OsPathVm, PathBytes, PathBytesAbi, PathBytesVm, PathUtf16, PathUtf16Abi, PathUtf16Vm,
+    ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursor, SpliceFlags, Stat, StatFs, StatusFlags,
+    Statx, StatxFlags, StatxMask, SymlinkType, SyncFlags, WatchBatch, WatchBatchVm,
+    WatchCreateEventVm, WatchEvent, WatchEventMetadataVm, WatchEventVm, WatchMetadataEventVm,
+    WatchModifyEventVm, WatchOptions, WatchOptionsVm, WatchOverflowEventVm, WatchRemoveEventVm,
+    WatchRenameEventVm, XattrFlags,
 };
 use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle, WatchHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
@@ -2504,12 +2507,12 @@ pub fn destack_fs_getxattr_bytes(
     let name = buffer_from_vm(runtime, context, name)?;
 
     // dispatch by path encoding
-    let values = call_out(|out| match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_getxattr_bytes(runtime, out, path.bytes, name)
+    let values = call_out(|out| match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_getxattr_bytes(runtime, out, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_getxattr_utf16(runtime, out, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_getxattr_utf16(runtime, out, path_utf16.utf16, name)
         },
     })?;
 
@@ -2574,12 +2577,12 @@ pub fn destack_fs_lgetxattr_bytes(
     let name = buffer_from_vm(runtime, context, name)?;
 
     // dispatch by path encoding
-    let values = call_out(|out| match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lgetxattr_bytes(runtime, out, path.bytes, name)
+    let values = call_out(|out| match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lgetxattr_bytes(runtime, out, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lgetxattr_utf16(runtime, out, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lgetxattr_utf16(runtime, out, path_utf16.utf16, name)
         },
     })?;
 
@@ -2711,12 +2714,12 @@ pub fn destack_fs_setxattr_bytes(
     let value = buffer_from_vm(runtime, context, value)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_setxattr_bytes(runtime, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_setxattr_bytes(runtime, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_setxattr_utf16(runtime, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_setxattr_utf16(runtime, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -2783,12 +2786,12 @@ pub fn destack_fs_lsetxattr_bytes(
     let value = buffer_from_vm(runtime, context, value)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lsetxattr_bytes(runtime, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lsetxattr_bytes(runtime, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lsetxattr_utf16(runtime, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lsetxattr_utf16(runtime, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -2909,12 +2912,12 @@ pub fn destack_fs_listxattr_bytes(
     let path = path_ref_from_vm(runtime, context, path)?;
 
     // query host names and encode them as vm byte arrays
-    let names = call_out(|out| match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_listxattr_bytes(runtime, out, path.bytes)
+    let names = call_out(|out| match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_listxattr_bytes(runtime, out, path_bytes.bytes)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_listxattr_utf16(runtime, out, path.utf16)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_listxattr_utf16(runtime, out, path_utf16.utf16)
         },
     })?;
 
@@ -2974,12 +2977,12 @@ pub fn destack_fs_llistxattr_bytes(
     let path = path_ref_from_vm(runtime, context, path)?;
 
     // query host names and encode them as vm byte arrays
-    let names = call_out(|out| match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_llistxattr_bytes(runtime, out, path.bytes)
+    let names = call_out(|out| match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_llistxattr_bytes(runtime, out, path_bytes.bytes)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_llistxattr_utf16(runtime, out, path.utf16)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_llistxattr_utf16(runtime, out, path_utf16.utf16)
         },
     })?;
 
@@ -3097,12 +3100,12 @@ pub fn destack_fs_removexattr_bytes(
     let name = buffer_from_vm(runtime, context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_removexattr_bytes(runtime, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_removexattr_bytes(runtime, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_removexattr_utf16(runtime, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_removexattr_utf16(runtime, path_utf16.utf16, name)
         },
     }
 }
@@ -3163,12 +3166,12 @@ pub fn destack_fs_lremovexattr_bytes(
     let name = buffer_from_vm(runtime, context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lremovexattr_bytes(runtime, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lremovexattr_bytes(runtime, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lremovexattr_utf16(runtime, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lremovexattr_utf16(runtime, path_utf16.utf16, name)
         },
     }
 }
@@ -3418,13 +3421,13 @@ fn path_ref_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPath> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = path_bytes_from_vm(runtime, context, path.bytes)?;
+    match path {
+        OsPathVm::OsPathBytes(path_bytes) => {
+            let bytes = path_bytes_from_vm(runtime, context, path_bytes.bytes)?;
             Ok(core_fs::path_ref_from_bytes(bytes))
         }
-        PathEncoding::Utf16 => {
-            let utf16 = path_utf16_from_vm(runtime, context, path.utf16)?;
+        OsPathVm::OsPathUtf16(path_utf16) => {
+            let utf16 = path_utf16_from_vm(runtime, context, path_utf16.utf16)?;
             Ok(core_fs::path_ref_from_utf16(utf16))
         }
     }
@@ -3452,32 +3455,21 @@ fn path_ref_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPath,
 ) -> RuntimeResult<OsPathVm> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = path_bytes_to_vm(context, path.bytes)?;
-            Ok(OsPathVm {
-                encoding: PathEncoding::Bytes,
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
+            let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
+            Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
+                kind: vm::StringHandle::new(context.intern_string("bytes")),
                 bytes,
-                utf16: PathUtf16Abi::<VmAbi>(empty_vm_array()),
-            })
+            }))
         }
-        PathEncoding::Utf16 => {
-            let utf16 = path_utf16_to_vm(context, path.utf16)?;
-            Ok(OsPathVm {
-                encoding: PathEncoding::Utf16,
-                bytes: PathBytesAbi::<VmAbi>(empty_vm_array()),
+        OsPath::OsPathUtf16(path_utf16) => {
+            let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
+            Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
+                kind: vm::StringHandle::new(context.intern_string("utf16")),
                 utf16,
-            })
+            }))
         }
-    }
-}
-
-fn empty_vm_array<T>() -> VmArray<T> {
-    VmArray {
-        data: vm::RawPointer::NULL,
-        len: 0,
-        capacity: 0,
-        _marker: std::marker::PhantomData,
     }
 }
 
@@ -3490,6 +3482,14 @@ fn string_ref_from_vm(
         .string_ref(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
     Ok(runtime.store_string(string_ref.as_str()))
+}
+
+fn string_ref_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeStringRef,
+) -> RuntimeResult<vm::StringHandle> {
+    let value = unsafe { value.as_str()? };
+    Ok(vm::StringHandle::new(context.intern_string(value)))
 }
 
 fn array_u8_to_vm(
@@ -3635,17 +3635,11 @@ fn watch_batch_to_vm(
     let events = unsafe { batch.events.as_slice()? };
     let mut values = Vec::with_capacity(events.len());
     for event in events {
-        let value = watch_event_to_vm_value(context, *event)?;
+        let value = watch_event_to_vm(context, *event)?;
         values.push(value);
     }
 
-    let data = context.allocate_raw_values(values);
-    let events = VmArray {
-        data,
-        len: events.len() as u32,
-        capacity: events.len() as u32,
-        _marker: std::marker::PhantomData,
-    };
+    let events = VmArray::from_values(context, &values)?;
 
     Ok(WatchBatchVm {
         events,
@@ -3653,22 +3647,78 @@ fn watch_batch_to_vm(
     })
 }
 
-fn watch_event_to_vm_value(
+fn watch_event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     event: WatchEvent,
-) -> RuntimeResult<vm::Value> {
-    let path = path_ref_to_vm(context, event.path)?;
-    let path_value = path_ref_vm_to_value(context, path);
-
-    let related_path = path_ref_to_vm(context, event.related_path)?;
-    let related_path_value = path_ref_vm_to_value(context, related_path);
-
-    Ok(context.allocate_aggregate(vec![
-        vm::Value::uint(event.kind as u8 as u64, 8),
-        path_value,
-        related_path_value,
-        vm::Value::uint(event.cookie, 64),
-    ]))
+) -> RuntimeResult<WatchEventVm> {
+    match event {
+        WatchEvent::WatchCreateEvent(event_create) => {
+            let kind = string_ref_to_vm(context, event_create.kind)?;
+            let path = path_ref_to_vm(context, event_create.path)?;
+            Ok(WatchEventVm::WatchCreateEvent(WatchCreateEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_create.metadata.cookie,
+                },
+                path,
+            }))
+        }
+        WatchEvent::WatchMetadataEvent(event_metadata) => {
+            let kind = string_ref_to_vm(context, event_metadata.kind)?;
+            let path = path_ref_to_vm(context, event_metadata.path)?;
+            Ok(WatchEventVm::WatchMetadataEvent(WatchMetadataEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_metadata.metadata.cookie,
+                },
+                path,
+            }))
+        }
+        WatchEvent::WatchModifyEvent(event_modify) => {
+            let kind = string_ref_to_vm(context, event_modify.kind)?;
+            let path = path_ref_to_vm(context, event_modify.path)?;
+            Ok(WatchEventVm::WatchModifyEvent(WatchModifyEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_modify.metadata.cookie,
+                },
+                path,
+            }))
+        }
+        WatchEvent::WatchOverflowEvent(event_overflow) => {
+            let kind = string_ref_to_vm(context, event_overflow.kind)?;
+            Ok(WatchEventVm::WatchOverflowEvent(WatchOverflowEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_overflow.metadata.cookie,
+                },
+            }))
+        }
+        WatchEvent::WatchRemoveEvent(event_remove) => {
+            let kind = string_ref_to_vm(context, event_remove.kind)?;
+            let path = path_ref_to_vm(context, event_remove.path)?;
+            Ok(WatchEventVm::WatchRemoveEvent(WatchRemoveEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_remove.metadata.cookie,
+                },
+                path,
+            }))
+        }
+        WatchEvent::WatchRenameEvent(event_rename) => {
+            let kind = string_ref_to_vm(context, event_rename.kind)?;
+            let path = path_ref_to_vm(context, event_rename.path)?;
+            let related_path = path_ref_to_vm(context, event_rename.related_path)?;
+            Ok(WatchEventVm::WatchRenameEvent(WatchRenameEventVm {
+                kind,
+                metadata: WatchEventMetadataVm {
+                    cookie: event_rename.metadata.cookie,
+                },
+                path,
+                related_path,
+            }))
+        }
+    }
 }
 
 fn dirent_array_to_vm(
@@ -3679,50 +3729,35 @@ fn dirent_array_to_vm(
     let mut values = Vec::with_capacity(entries.len());
     for entry in entries {
         let name = path_ref_to_vm(context, entry.name)?;
-        let name_value = path_ref_vm_to_value(context, name);
-        let value = DirentVm {
+        values.push(DirentVm {
             name,
             kind: entry.kind,
-        };
-        let encoded = context.allocate_aggregate(vec![
-            name_value,
-            vm::Value::uint(value.kind as u8 as u64, 8),
-        ]);
-        values.push(encoded);
+        });
     }
 
-    let data = context.allocate_raw_values(values);
-    Ok(VmArray {
-        data,
-        len: entries.len() as u32,
-        capacity: entries.len() as u32,
-        _marker: std::marker::PhantomData,
-    })
+    VmArray::from_values(context, &values)
 }
 
 fn dirent_next_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: DirentNext,
 ) -> RuntimeResult<DirentNextVm> {
-    let entry = if let Some(entry) = value.entry {
-        let name = path_ref_to_vm(context, entry.name)?;
-        Some(DirentVm {
-            name,
-            kind: entry.kind,
-        })
-    } else {
-        None
-    };
-
-    Ok(DirentNextVm { entry })
-}
-
-fn path_ref_vm_to_value(context: &mut vm::ExternalCallContext<'_>, value: OsPathVm) -> vm::Value {
-    let bytes_value = value.bytes.0.to_value(context);
-    let utf16_value = value.utf16.0.to_value(context);
-    context.allocate_aggregate(vec![
-        vm::Value::uint(value.encoding as u8 as u64, 8),
-        bytes_value,
-        utf16_value,
-    ])
+    match value {
+        DirentNext::DirentNextEnd(end_value) => {
+            let kind = string_ref_to_vm(context, end_value.kind)?;
+            Ok(DirentNextVm::DirentNextEnd(DirentNextEndVm { kind }))
+        }
+        DirentNext::DirentNextEntry(entry_value) => {
+            let kind = string_ref_to_vm(context, entry_value.kind)?;
+            let name = path_ref_to_vm(context, entry_value.entry.name)?;
+            let entry = DirentVm {
+                name,
+                kind: entry_value.entry.kind,
+            };
+            Ok(DirentNextVm::DirentNextEntry(DirentNextEntryVm {
+                kind,
+                entry,
+            }))
+        }
+    }
 }

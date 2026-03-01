@@ -3,8 +3,8 @@ use super::with_harness_context_with_runtime_options;
 use super::{assert_platform_error_code, assert_platform_error_codes, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{
-    PacketCaptureOptions, PacketCaptureOptionsVm, PacketFanoutMode, PacketFanoutOptions,
-    PacketRingOptions, PacketTimestampMode, SocketFamily,
+    PacketBackend, PacketBackendSelectionPolicy, PacketCaptureOptions, PacketCaptureOptionsVm,
+    PacketFanoutMode, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, SocketFamily,
 };
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use crate::platform::net::{RouteEntry, RouteEntryVm, RouteKind};
@@ -57,6 +57,8 @@ fn test_net_route_list_rejects_unspecified_family_when_backend_is_available() {
 fn test_net_packet_open_requires_interface_for_promiscuous_mode() {
     with_harness_context(|mut context| {
         let options = PacketCaptureOptions {
+            backend: PacketBackend::Auto,
+            backend_policy: PacketBackendSelectionPolicy::AllowFallback,
             interface_index: 0,
             snap_length: 4096,
             timeout_ms: 0,
@@ -91,6 +93,8 @@ fn test_net_packet_open_windows_reports_not_supported_when_backend_disabled() {
         |_| {},
         |mut context| {
             let options = PacketCaptureOptions {
+                backend: PacketBackend::Auto,
+                backend_policy: PacketBackendSelectionPolicy::AllowFallback,
                 interface_index: 0,
                 snap_length: 4096,
                 timeout_ms: 0,
@@ -121,6 +125,8 @@ fn test_net_packet_open_windows_enabled_runs_backend_validation() {
         },
         |mut context| {
             let options = PacketCaptureOptions {
+                backend: PacketBackend::Auto,
+                backend_policy: PacketBackendSelectionPolicy::AllowFallback,
                 interface_index: 0,
                 snap_length: 4096,
                 timeout_ms: 0,

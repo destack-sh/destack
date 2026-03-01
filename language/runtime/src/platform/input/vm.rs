@@ -4,14 +4,18 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::input::{
     InputCompositionEvent, InputCompositionEventPayloadVm, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceDescriptor,
-    InputDeviceDescriptorVm, InputEvent, InputEventKind, InputEventPayloadVm, InputEventVm,
-    InputGamepadState, InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType,
-    InputHapticsResult, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
-    InputMonitorEventVm, InputPointerGrabMode, InputPointerStateVm, InputRawHidReport,
-    InputRawHidReportVm, InputReadMode, InputSensorConfigVm, InputSensorDescriptorVm,
-    InputSensorEffectiveConfigVm, InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm,
-    InputTextInputAreaVm, InputTextInputType, InputTouchState, InputTouchStateVm,
-    InputWindowTargetVm, host as host_input,
+    InputDeviceDescriptorVm, InputDeviceEventVm, InputEvent, InputEventMetadata,
+    InputEventMetadataVm, InputEventVm, InputGamepadEventVm, InputGamepadState,
+    InputGamepadStateVm, InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult,
+    InputKeyEventVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorChangeEventVm,
+    InputMonitorConnectEventVm, InputMonitorDisconnectEventVm, InputMonitorEvent,
+    InputMonitorEventMetadata, InputMonitorEventMetadataVm, InputMonitorEventVm,
+    InputPointerButtonEventVm, InputPointerGrabMode, InputPointerMotionEventVm,
+    InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode, InputScrollEventVm,
+    InputSensorConfigVm, InputSensorDescriptorVm, InputSensorEffectiveConfigVm, InputSensorEventVm,
+    InputSensorKind, InputSensorSampleVm, InputTextEventPayloadVm, InputTextEventVm,
+    InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
+    InputTouchStateVm, InputWindowTargetVm, host as host_input,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource,
@@ -84,52 +88,111 @@ fn event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: InputEvent,
 ) -> RuntimeResult<InputEventVm> {
-    // decode borrowed native device id string
-    let device_id = unsafe { value.device_id.as_str()? };
-
-    // build one shared empty string for inactive text payloads
-    let empty_string = vm::StringHandle::new(context.intern_string(""));
-
-    // decode text payload only for text events
-    let text_string = if value.kind == InputEventKind::Text {
-        let text = unsafe { value.payload.text.text.as_str()? };
-        vm::StringHandle::new(context.intern_string(text))
-    } else {
-        empty_string
-    };
-
-    // decode composition payload only for composition events
-    let composition_string = if value.kind == InputEventKind::Composition {
-        let composition_text = unsafe { value.payload.composition.text.as_str()? };
-        vm::StringHandle::new(context.intern_string(composition_text))
-    } else {
-        empty_string
-    };
-
-    // build one vm event record
-    Ok(InputEventVm {
-        kind: value.kind,
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: vm::StringHandle::new(context.intern_string(device_id)),
-        payload: InputEventPayloadVm {
-            key: value.payload.key,
-            pointer_motion: value.payload.pointer_motion,
-            pointer_button: value.payload.pointer_button,
-            scroll: value.payload.scroll,
-            touch: value.payload.touch,
-            gamepad: value.payload.gamepad,
-            text: InputTextEventPayloadVm { text: text_string },
-            device: value.payload.device,
-            sensor: value.payload.sensor,
-            composition: InputCompositionEventPayloadVm {
-                action: value.payload.composition.action,
-                text: composition_string,
-                selection_start: value.payload.composition.selection_start,
-                selection_end: value.payload.composition.selection_end,
-            },
-        },
-    })
+    match value {
+        InputEvent::InputCompositionEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            let text = native_string_to_vm(context, value.payload.text)?;
+            Ok(InputEventVm::InputCompositionEvent(
+                InputCompositionEventVm {
+                    kind,
+                    metadata,
+                    payload: InputCompositionEventPayloadVm {
+                        action: value.payload.action,
+                        text,
+                        selection_start: value.payload.selection_start,
+                        selection_end: value.payload.selection_end,
+                    },
+                },
+            ))
+        }
+        InputEvent::InputDeviceEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputDeviceEvent(InputDeviceEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+        InputEvent::InputGamepadEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputGamepadEvent(InputGamepadEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+        InputEvent::InputKeyEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputKeyEvent(InputKeyEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+        InputEvent::InputPointerButtonEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputPointerButtonEvent(
+                InputPointerButtonEventVm {
+                    kind,
+                    metadata,
+                    payload: value.payload,
+                },
+            ))
+        }
+        InputEvent::InputPointerMotionEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputPointerMotionEvent(
+                InputPointerMotionEventVm {
+                    kind,
+                    metadata,
+                    payload: value.payload,
+                },
+            ))
+        }
+        InputEvent::InputScrollEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputScrollEvent(InputScrollEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+        InputEvent::InputSensorEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputSensorEvent(InputSensorEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+        InputEvent::InputTextEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            let text = native_string_to_vm(context, value.payload.text)?;
+            Ok(InputEventVm::InputTextEvent(InputTextEventVm {
+                kind,
+                metadata,
+                payload: InputTextEventPayloadVm { text },
+            }))
+        }
+        InputEvent::InputTouchEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputEventVm::InputTouchEvent(InputTouchEventVm {
+                kind,
+                metadata,
+                payload: value.payload,
+            }))
+        }
+    }
 }
 
 /// Convert one native input monitor event payload into its VM shape.
@@ -137,12 +200,61 @@ fn monitor_event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: InputMonitorEvent,
 ) -> RuntimeResult<InputMonitorEventVm> {
-    let device_id = unsafe { value.device_id.as_str()? };
-    Ok(InputMonitorEventVm {
-        kind: value.kind,
+    match value {
+        InputMonitorEvent::InputMonitorChangeEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputMonitorEventVm::InputMonitorChangeEvent(
+                InputMonitorChangeEventVm { kind, metadata },
+            ))
+        }
+        InputMonitorEvent::InputMonitorConnectEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputMonitorEventVm::InputMonitorConnectEvent(
+                InputMonitorConnectEventVm { kind, metadata },
+            ))
+        }
+        InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
+            let kind = native_string_to_vm(context, value.kind)?;
+            let metadata = monitor_event_metadata_to_vm(context, value.metadata)?;
+            Ok(InputMonitorEventVm::InputMonitorDisconnectEvent(
+                InputMonitorDisconnectEventVm { kind, metadata },
+            ))
+        }
+    }
+}
+
+/// Convert one native runtime string into one VM string handle.
+fn native_string_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeStringRef,
+) -> RuntimeResult<vm::StringHandle> {
+    let value = unsafe { value.as_str()? };
+    Ok(vm::StringHandle::new(context.intern_string(value)))
+}
+
+/// Convert one native event metadata payload into its VM shape.
+fn event_metadata_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: InputEventMetadata,
+) -> RuntimeResult<InputEventMetadataVm> {
+    Ok(InputEventMetadataVm {
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        device_id: vm::StringHandle::new(context.intern_string(device_id)),
+        device_id: native_string_to_vm(context, value.device_id)?,
+    })
+}
+
+/// Convert one native monitor event metadata payload into its VM shape.
+fn monitor_event_metadata_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: InputMonitorEventMetadata,
+) -> RuntimeResult<InputMonitorEventMetadataVm> {
+    Ok(InputMonitorEventMetadataVm {
+        timestamp_ns: value.timestamp_ns,
+        sequence: value.sequence,
+        device_id: native_string_to_vm(context, value.device_id)?,
         device_kind: value.device_kind,
         connected: value.connected,
     })
@@ -312,19 +424,16 @@ fn composition_event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: InputCompositionEvent,
 ) -> RuntimeResult<InputCompositionEventVm> {
-    // decode borrowed native strings
-    let device_id = unsafe { value.device_id.as_str()? };
-    let text = unsafe { value.text.as_str()? };
-
     // build one VM composition event
     Ok(InputCompositionEventVm {
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        device_id: vm::StringHandle::new(context.intern_string(device_id)),
-        action: value.action,
-        text: vm::StringHandle::new(context.intern_string(text)),
-        selection_start: value.selection_start,
-        selection_end: value.selection_end,
+        kind: native_string_to_vm(context, value.kind)?,
+        metadata: event_metadata_to_vm(context, value.metadata)?,
+        payload: InputCompositionEventPayloadVm {
+            action: value.payload.action,
+            text: native_string_to_vm(context, value.payload.text)?,
+            selection_start: value.payload.selection_start,
+            selection_end: value.payload.selection_end,
+        },
     })
 }
 

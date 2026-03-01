@@ -31,7 +31,7 @@ pub(super) fn destack_error_take_platform_error(
         RuntimeErrorId::from_raw(error_id),
     );
     let mut store = VmStringStore::new(context);
-    let platform_error = platform_error_vm(&mut store, &error);
+    let platform_error = platform_error_vm(&mut store, &error)?;
 
     Ok(platform_error)
 }

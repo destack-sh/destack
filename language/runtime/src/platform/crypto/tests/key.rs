@@ -11,6 +11,7 @@ use super::{
     KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP,
     KEY_USAGE_VERIFY, KEY_USAGE_WRAP, with_harness_context,
 };
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
@@ -75,22 +76,22 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
         // open store and generate one rsa keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let pair_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 2048,
-            public_exponent: 65537,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(
-                KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
-            ),
-            label: context.call_context.store_string("rsa"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let pair_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+            platform_crypto::CryptoKeyGenerationRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(
+                    KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
+                ),
+                label: context.call_context.store_string("rsa"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair = context
             .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)?;
         let pair = context.same_from_value(pair);
@@ -180,40 +181,38 @@ fn test_key_wrap_unwrap_roundtrip() {
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
 
-        let wrapping_pair_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 2048,
-            public_exponent: 65537,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
-            label: context.call_context.store_string("wrapping"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let wrapping_pair_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+            platform_crypto::CryptoKeyGenerationRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
+                label: context.call_context.store_string("wrapping"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let wrapping_pair = context.destack_crypto_key_generate_pair(
             store,
             context.request_value(wrapping_pair_request)?,
         )?;
         let wrapping_pair = context.same_from_value(wrapping_pair);
 
-        let key_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("session"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let key_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("session"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key_to_wrap = context
             .destack_crypto_key_generate_secret(store, context.request_value(key_request)?)?;
 
@@ -236,19 +235,19 @@ fn test_key_wrap_unwrap_roundtrip() {
         let wrapped = context.bytes_from_slice_value(wrapped)?;
 
         // unwrap into one new key handle and compare raw bytes
-        let import_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Raw,
-            bytes: context.call_context.store_slice(Vec::<u8>::new()),
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            digest: CryptoDigestAlgorithm::Unknown,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("unwrapped"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
+            platform_crypto::CryptoKeyImportRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                format: CryptoKeyFormat::Raw,
+                bytes: context.call_context.store_slice(Vec::<u8>::new()),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("unwrapped"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         let unwrap_parameters = CryptoKeyWrapParameters {
             algorithm: CryptoKeyWrapAlgorithm::RsaOaep,
             digest: CryptoDigestAlgorithm::Sha256,
@@ -303,39 +302,35 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
             }
 
             // generate one wrapping key and one target key
-            let wrapping_key_request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
-                label: context.call_context.store_string("aes-wrap"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
-            };
+            let wrapping_key_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
+                    label: context.call_context.store_string("aes-wrap"),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: false,
+                },
+            );
             let wrapping_key = context.destack_crypto_key_generate_secret(
                 store,
                 context.request_value(wrapping_key_request)?,
             )?;
 
-            let key_request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-                label: context.call_context.store_string("aes-session"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
-            };
+            let key_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                    label: context.call_context.store_string("aes-session"),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: false,
+                },
+            );
             let key_to_wrap = context
                 .destack_crypto_key_generate_secret(store, context.request_value(key_request)?)?;
 
@@ -359,19 +354,19 @@ fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
             let wrapped = context.bytes_from_slice_value(wrapped)?;
 
             // unwrap and verify exact key-byte equality
-            let import_request = CryptoKeyImportRequest {
-                format: CryptoKeyFormat::Raw,
-                bytes: context.call_context.store_slice(Vec::<u8>::new()),
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                digest: CryptoDigestAlgorithm::Unknown,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-                label: context.call_context.store_string("aes-unwrapped"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-                persistent: false,
-            };
+            let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
+                platform_crypto::CryptoKeyImportRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    format: CryptoKeyFormat::Raw,
+                    bytes: context.call_context.store_slice(Vec::<u8>::new()),
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                    label: context.call_context.store_string("aes-unwrapped"),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                    persistent: false,
+                },
+            );
             let unwrap_parameters = CryptoKeyWrapParameters {
                 algorithm: wrap_algorithm,
                 digest: CryptoDigestAlgorithm::Unknown,
@@ -410,20 +405,17 @@ fn test_key_sign_verify_ed25519() {
         // open store and generate one ed25519 keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ed25519,
-            named_curve: CryptoNamedCurve::Ed25519,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-            label: context.call_context.store_string("ed25519"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
+            platform_crypto::CryptoKeyGenerationRequestEd25519 {
+                algorithm: context.call_context.store_string("ed25519"),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("ed25519"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -478,20 +470,17 @@ fn test_key_sign_verify_ed448_when_supported() {
 
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ed448,
-            named_curve: CryptoNamedCurve::Ed448,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-            label: context.call_context.store_string("ed448"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
+            platform_crypto::CryptoKeyGenerationRequestEd448 {
+                algorithm: context.call_context.store_string("ed448"),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("ed448"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -540,20 +529,20 @@ fn test_key_usage_mask_enforces_permissions() {
         // open store and generate one sign-only rsa keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 2048,
-            public_exponent: 65537,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
-            label: context.call_context.store_string("sign-only"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+            platform_crypto::CryptoKeyGenerationRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+                label: context.call_context.store_string("sign-only"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -628,20 +617,18 @@ fn test_key_import_export_sec1_roundtrip() {
         // open store and generate one ec keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P256,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("ec"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+            platform_crypto::CryptoKeyGenerationRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                named_curve: CryptoNamedCurve::P256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("ec"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -660,19 +647,20 @@ fn test_key_import_export_sec1_roundtrip() {
         let original_public_key_der = ec_public_key_der_from_sec1_pem(&sec1);
 
         // import and re-export sec1 and verify pem envelope
-        let import_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Sec1Pem,
-            bytes: context.call_context.store_slice(sec1),
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P256,
-            digest: CryptoDigestAlgorithm::Sha256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("ec-import"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestEc(
+            platform_crypto::CryptoKeyImportRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                format: CryptoKeyFormat::Sec1Pem,
+                bytes: context.call_context.store_slice(sec1),
+                named_curve: CryptoNamedCurve::P256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("ec-import"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         let imported =
             context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
         let exported = context.destack_crypto_key_export_private(
@@ -702,20 +690,20 @@ fn test_key_export_sec1_rejects_non_ec_private_key() {
         // open store and generate one rsa keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 2048,
-            public_exponent: 65537,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("rsa"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+            platform_crypto::CryptoKeyGenerationRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("rsa"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -753,20 +741,18 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
         // open store and generate one ec keypair
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P256,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("ec"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+            platform_crypto::CryptoKeyGenerationRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                named_curve: CryptoNamedCurve::P256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("ec"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
@@ -780,19 +766,20 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
         let sec1 = context.bytes_from_slice_value(sec1)?;
 
         // reject import when requested algorithm is mismatched
-        let mismatch_algorithm_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Sec1Pem,
-            bytes: context.call_context.store_slice(sec1.clone()),
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            digest: CryptoDigestAlgorithm::Sha256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("mismatch-algorithm"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let mismatch_algorithm_request = CryptoKeyImportRequest::CryptoKeyImportRequestRsa(
+            platform_crypto::CryptoKeyImportRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                format: CryptoKeyFormat::Sec1Pem,
+                bytes: context.call_context.store_slice(sec1.clone()),
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("mismatch-algorithm"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         // algorithm mismatch should fail import validation
         let result = context
             .destack_crypto_key_import(store, context.request_value(mismatch_algorithm_request)?);
@@ -808,19 +795,20 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
         );
 
         // reject import when requested named curve is mismatched
-        let mismatch_curve_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Sec1Pem,
-            bytes: context.call_context.store_slice(sec1),
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P384,
-            digest: CryptoDigestAlgorithm::Sha256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("mismatch-curve"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let mismatch_curve_request = CryptoKeyImportRequest::CryptoKeyImportRequestEc(
+            platform_crypto::CryptoKeyImportRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                format: CryptoKeyFormat::Sec1Pem,
+                bytes: context.call_context.store_slice(sec1),
+                named_curve: CryptoNamedCurve::P384,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("mismatch-curve"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         // named curve mismatch should fail import validation
         let result = context
             .destack_crypto_key_import(store, context.request_value(mismatch_curve_request)?);
@@ -862,19 +850,19 @@ fn test_key_import_jwk_oct_roundtrip() {
         .expect("oct jwk serialization should succeed");
 
         // import JWK and export raw bytes
-        let import_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Jwk,
-            bytes: context.call_context.store_slice(jwk_bytes),
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            digest: CryptoDigestAlgorithm::Unknown,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("oct-jwk"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
+            platform_crypto::CryptoKeyImportRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                format: CryptoKeyFormat::Jwk,
+                bytes: context.call_context.store_slice(jwk_bytes),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("oct-jwk"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         let imported =
             context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
         let exported = context.destack_crypto_key_export_secret(imported, CryptoKeyFormat::Raw)?;
@@ -899,19 +887,20 @@ fn test_key_import_jwk_rsa_private_sign_verify() {
         let jwk_bytes = rsa_private_jwk_json(&rsa);
 
         // import private JWK
-        let import_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Jwk,
-            bytes: context.call_context.store_slice(jwk_bytes),
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            digest: CryptoDigestAlgorithm::Sha256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-            label: context.call_context.store_string("rsa-jwk"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: false,
-        };
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestRsa(
+            platform_crypto::CryptoKeyImportRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                format: CryptoKeyFormat::Jwk,
+                bytes: context.call_context.store_slice(jwk_bytes),
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("rsa-jwk"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            },
+        );
         let imported =
             context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
 
@@ -961,20 +950,18 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         let store = context.destack_crypto_store_open(options)?;
 
         // reject hardware-backed secret key generation
-        let hardware_backed_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("hardware"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: true,
-            persistent: false,
-        };
+        let hardware_backed_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("hardware"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: true,
+                persistent: false,
+            },
+        );
         // hardware-backed keys are unsupported on ephemeral stores
         let result = context.destack_crypto_key_generate_secret(
             store,
@@ -989,20 +976,18 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
         // reject persistent secret key generation
-        let persistent_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("persistent"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: true,
-        };
+        let persistent_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("persistent"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: true,
+            },
+        );
         // persistent keys are unsupported on ephemeral stores
         let result = context
             .destack_crypto_key_generate_secret(store, context.request_value(persistent_request)?);
@@ -1015,19 +1000,19 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
         // reject persistent key import
-        let import_request = CryptoKeyImportRequest {
-            format: CryptoKeyFormat::Raw,
-            bytes: context.call_context.store_slice(vec![1u8; 32]),
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            digest: CryptoDigestAlgorithm::Unknown,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("persistent-import"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-            persistent: true,
-        };
+        let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestAes(
+            platform_crypto::CryptoKeyImportRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                format: CryptoKeyFormat::Raw,
+                bytes: context.call_context.store_slice(vec![1u8; 32]),
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("persistent-import"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: true,
+            },
+        );
         // persistent imports are unsupported on ephemeral stores
         let result =
             context.destack_crypto_key_import(store, context.request_value(import_request)?);
@@ -1065,20 +1050,18 @@ fn test_key_generate_follows_host_lane_write_support() {
 
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(0),
-                label: context.call_context.store_string("host-write"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(0),
+                    label: context.call_context.store_string("host-write"),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: false,
+                },
+            );
             let result =
                 context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
 
@@ -1130,20 +1113,18 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
             // create one non-persistent key in this host lane
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(0),
-                label: context.call_context.store_string(&label_prefix),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(0),
+                    label: context.call_context.store_string(&label_prefix),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: false,
+                },
+            );
             let _key = context
                 .destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
             context.destack_crypto_store_close(store)?;
@@ -1197,20 +1178,18 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             // open lane and create one persistent key
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(0),
-                label: context.call_context.store_string(&label_prefix),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(0),
+                    label: context.call_context.store_string(&label_prefix),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let _key = context
                 .destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
             context.destack_crypto_store_close(store)?;
@@ -1288,24 +1267,24 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             // create one persistent non-extractable rsa pair
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let pair_request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Rsa,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 2048,
-                public_exponent: 65537,
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(
-                    KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
-                ),
-                label: context
-                    .call_context
-                    .store_string(&format!("{label_prefix}-create")),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let pair_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+                platform_crypto::CryptoKeyGenerationRequestRsa {
+                    algorithm: context.call_context.store_string("rsa"),
+                    modulus_bits: 2048,
+                    public_exponent: 65537,
+                    digest: CryptoDigestAlgorithm::Sha256,
+                    usage_mask: CryptoKeyUsageMask(
+                        KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
+                    ),
+                    label: context
+                        .call_context
+                        .store_string(&format!("{label_prefix}-create")),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let pair = match context
                 .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)
             {
@@ -1436,26 +1415,26 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
         // prepare one reusable rsa source keypair for host-lane imports
         let source_store_options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let source_store = context.destack_crypto_store_open(source_store_options)?;
-        let source_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 2048,
-            public_exponent: 65537,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(
-                KEY_USAGE_SIGN
-                    | KEY_USAGE_VERIFY
-                    | KEY_USAGE_ENCRYPT
-                    | KEY_USAGE_DECRYPT
-                    | KEY_USAGE_EXPORT,
-            ),
-            label: context.call_context.store_string("import-source-rsa"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let source_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+            platform_crypto::CryptoKeyGenerationRequestRsa {
+                algorithm: context.call_context.store_string("rsa"),
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(
+                    KEY_USAGE_SIGN
+                        | KEY_USAGE_VERIFY
+                        | KEY_USAGE_ENCRYPT
+                        | KEY_USAGE_DECRYPT
+                        | KEY_USAGE_EXPORT,
+                ),
+                label: context.call_context.store_string("import-source-rsa"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let source_pair = context.destack_crypto_key_generate_pair(
             source_store,
             context.request_value(source_request)?,
@@ -1493,27 +1472,28 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             // import one persistent non-extractable rsa private key
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let import_request = CryptoKeyImportRequest {
-                format: CryptoKeyFormat::Pkcs8Der,
-                bytes: context.call_context.store_slice(source_private_key.clone()),
-                algorithm: CryptoKeyAlgorithm::Rsa,
-                named_curve: CryptoNamedCurve::Unknown,
-                digest: CryptoDigestAlgorithm::Sha256,
-                usage_mask: CryptoKeyUsageMask(
-                    KEY_USAGE_SIGN
-                        | KEY_USAGE_VERIFY
-                        | KEY_USAGE_ENCRYPT
-                        | KEY_USAGE_DECRYPT
-                        | KEY_USAGE_EXPORT,
-                ),
-                label: context
-                    .call_context
-                    .store_string(&format!("{label_prefix}-import")),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
-                persistent: true,
-            };
+            let import_request = CryptoKeyImportRequest::CryptoKeyImportRequestRsa(
+                platform_crypto::CryptoKeyImportRequestRsa {
+                    algorithm: context.call_context.store_string("rsa"),
+                    format: CryptoKeyFormat::Pkcs8Der,
+                    bytes: context.call_context.store_slice(source_private_key.clone()),
+                    digest: CryptoDigestAlgorithm::Sha256,
+                    usage_mask: CryptoKeyUsageMask(
+                        KEY_USAGE_SIGN
+                            | KEY_USAGE_VERIFY
+                            | KEY_USAGE_ENCRYPT
+                            | KEY_USAGE_DECRYPT
+                            | KEY_USAGE_EXPORT,
+                    ),
+                    label: context
+                        .call_context
+                        .store_string(&format!("{label_prefix}-import")),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                    persistent: true,
+                },
+            );
             let imported_key = match context
                 .destack_crypto_key_import(store, context.request_value(import_request)?)
             {
@@ -1659,22 +1639,20 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             // create one persistent non-extractable ec pair
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let pair_request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Ec,
-                named_curve: CryptoNamedCurve::P256,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-                label: context
-                    .call_context
-                    .store_string(&format!("{label_prefix}-create")),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let pair_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                platform_crypto::CryptoKeyGenerationRequestEc {
+                    algorithm: context.call_context.store_string("ec"),
+                    named_curve: CryptoNamedCurve::P256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                    label: context
+                        .call_context
+                        .store_string(&format!("{label_prefix}-create")),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let pair = match context
                 .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)
             {
@@ -1789,22 +1767,20 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
             // open lane and reject persistent key generation
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(0),
-                label: context
-                    .call_context
-                    .store_string("host-persistent-unsupported"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(0),
+                    label: context
+                        .call_context
+                        .store_string("host-persistent-unsupported"),
+                    extractable: true,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let result =
                 context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
             let Err(error) = result else {
@@ -1843,20 +1819,18 @@ fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
             // open one host lane and attempt one hardware-backed secret generation
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(0x0000_0004 | 0x0000_0008),
-                label: context.call_context.store_string("host-hardware-secret"),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: true,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(0x0000_0004 | 0x0000_0008),
+                    label: context.call_context.store_string("host-hardware-secret"),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: true,
+                    persistent: true,
+                },
+            );
             let result =
                 context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
             match result {
@@ -1907,20 +1881,18 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
         let store = context.destack_crypto_store_open(options)?;
 
         // reject hardware-backed generation on provider stores
-        let hardware_backed_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("provider-hardware"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: true,
-            persistent: false,
-        };
+        let hardware_backed_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("provider-hardware"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: true,
+                persistent: false,
+            },
+        );
         let result = context.destack_crypto_key_generate_secret(
             store,
             context.request_value(hardware_backed_request)?,
@@ -1934,20 +1906,18 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
         assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
         // reject persistent generation on provider stores
-        let persistent_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("provider-persistent"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: true,
-        };
+        let persistent_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("provider-persistent"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: true,
+            },
+        );
         let result = context
             .destack_crypto_key_generate_secret(store, context.request_value(persistent_request)?);
         let Err(error) = result else {

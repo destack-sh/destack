@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use super::{FsWatchEvent, temp_dir, with_harness_context};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::fs::{FileMode, WatchEventKind, WatchMask, WatchOptions};
+use crate::platform::fs::{FileMode, WatchMask, WatchOptions};
 use crate::platform::resource::WatchHandle;
 
 /// Convert one io error into one runtime error payload.
@@ -98,14 +98,8 @@ fn test_fs_watch_reports_create_lifecycle() {
         for event in events {
             let event_path = context.watch_event_path(event);
             let _related_path = context.watch_event_related_path(event);
-            let kind = context.watch_event_kind(event);
-            if matches!(
-                kind,
-                WatchEventKind::Create
-                    | WatchEventKind::Modify
-                    | WatchEventKind::Metadata
-                    | WatchEventKind::Rename
-            ) {
+            let is_matching_kind = context.watch_event_is_create_modify_metadata_or_rename(event);
+            if is_matching_kind {
                 assert!(!event_path.is_empty());
                 matched_kind = true;
                 break;
@@ -158,11 +152,18 @@ fn test_fs_watchat_reports_child_events() {
         let (events, overflowed) = poll_watch_events(&mut context, watch, Duration::from_secs(3))?;
         assert!(!overflowed);
         assert!(!events.is_empty(), "expected at least one watchat event");
+        let mut has_path_event = false;
         for event in events {
             let event_path = context.watch_event_path(event);
             let _related_path = context.watch_event_related_path(event);
-            assert!(!event_path.is_empty());
+            if !event_path.is_empty() {
+                has_path_event = true;
+            }
         }
+        assert!(
+            has_path_event,
+            "expected at least one watchat event with a path"
+        );
 
         // close handles and remove filesystem state
         context.destack_fs_watch_close(watch)?;

@@ -1,5 +1,16 @@
 use super::*;
-use crate::platform::audio::host;
+use crate::platform::audio::{
+    AudioBackendDisconnectedEvent, AudioBackendDisconnectedPayload, AudioBackendResetEvent,
+    AudioBackendResetPayload, AudioDefaultCaptureChangedEvent, AudioDefaultCaptureChangedPayload,
+    AudioDefaultLoopbackChangedEvent, AudioDefaultLoopbackChangedPayload,
+    AudioDefaultPlaybackChangedEvent, AudioDefaultPlaybackChangedPayload, AudioDeviceAddedEvent,
+    AudioDeviceAddedPayload, AudioDeviceFormatChangedEvent, AudioDeviceFormatChangedPayload,
+    AudioDeviceRemovedEvent, AudioDeviceRemovedPayload, AudioDeviceReroutedEvent,
+    AudioDeviceReroutedPayload, AudioEventMetadata, AudioInterruptionBeganEvent,
+    AudioInterruptionBeganPayload, AudioInterruptionEndedEvent, AudioInterruptionEndedPayload,
+    AudioStreamDeviceChangedEvent, AudioStreamDeviceChangedPayload, AudioStreamStateChangedEvent,
+    AudioStreamStateChangedPayload, AudioStreamXRunEvent, AudioStreamXRunPayload, host,
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Mask for all recognized subscription flags.
@@ -1096,22 +1107,135 @@ fn event_subscription_enabled(
 
 /// Convert one stored event record into an ABI event payload.
 pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -> AudioEvent {
-    AudioEvent {
-        kind: event.kind,
+    let metadata = AudioEventMetadata {
         timestamp_ns: event.timestamp_ns,
         sequence: event.sequence,
         dropped_count: event.dropped_count,
         source: event.source,
         backend: event.backend,
         flags: event.flags,
-        status_flags: event.status_flags,
-        xrun_count_delta: event.xrun_count_delta,
-        device_id: if event.device_id.is_empty() {
-            None
-        } else {
-            Some(context.store_string(&event.device_id))
-        },
-        stream: event.stream,
+    };
+    let device_id = if event.device_id.is_empty() {
+        None
+    } else {
+        Some(context.store_string(&event.device_id))
+    };
+
+    match event.kind {
+        AudioEventKind::BackendDisconnected => {
+            AudioEvent::AudioBackendDisconnectedEvent(AudioBackendDisconnectedEvent {
+                kind: context.store_string("backendDisconnected"),
+                metadata,
+                payload: AudioBackendDisconnectedPayload {
+                    stream: event.stream,
+                },
+            })
+        }
+        AudioEventKind::BackendReset => {
+            AudioEvent::AudioBackendResetEvent(AudioBackendResetEvent {
+                kind: context.store_string("backendReset"),
+                metadata,
+                payload: AudioBackendResetPayload {
+                    stream: event.stream,
+                },
+            })
+        }
+        AudioEventKind::DefaultCaptureChanged => {
+            AudioEvent::AudioDefaultCaptureChangedEvent(AudioDefaultCaptureChangedEvent {
+                kind: context.store_string("defaultCaptureChanged"),
+                metadata,
+                payload: AudioDefaultCaptureChangedPayload { device_id },
+            })
+        }
+        AudioEventKind::DefaultLoopbackChanged => {
+            AudioEvent::AudioDefaultLoopbackChangedEvent(AudioDefaultLoopbackChangedEvent {
+                kind: context.store_string("defaultLoopbackChanged"),
+                metadata,
+                payload: AudioDefaultLoopbackChangedPayload { device_id },
+            })
+        }
+        AudioEventKind::DefaultPlaybackChanged => {
+            AudioEvent::AudioDefaultPlaybackChangedEvent(AudioDefaultPlaybackChangedEvent {
+                kind: context.store_string("defaultPlaybackChanged"),
+                metadata,
+                payload: AudioDefaultPlaybackChangedPayload { device_id },
+            })
+        }
+        AudioEventKind::DeviceAdded => AudioEvent::AudioDeviceAddedEvent(AudioDeviceAddedEvent {
+            kind: context.store_string("deviceAdded"),
+            metadata,
+            payload: AudioDeviceAddedPayload { device_id },
+        }),
+        AudioEventKind::DeviceFormatChanged => {
+            AudioEvent::AudioDeviceFormatChangedEvent(AudioDeviceFormatChangedEvent {
+                kind: context.store_string("deviceFormatChanged"),
+                metadata,
+                payload: AudioDeviceFormatChangedPayload { device_id },
+            })
+        }
+        AudioEventKind::DeviceRemoved => {
+            AudioEvent::AudioDeviceRemovedEvent(AudioDeviceRemovedEvent {
+                kind: context.store_string("deviceRemoved"),
+                metadata,
+                payload: AudioDeviceRemovedPayload { device_id },
+            })
+        }
+        AudioEventKind::DeviceRerouted => {
+            AudioEvent::AudioDeviceReroutedEvent(AudioDeviceReroutedEvent {
+                kind: context.store_string("deviceRerouted"),
+                metadata,
+                payload: AudioDeviceReroutedPayload { device_id },
+            })
+        }
+        AudioEventKind::InterruptionBegan => {
+            AudioEvent::AudioInterruptionBeganEvent(AudioInterruptionBeganEvent {
+                kind: context.store_string("interruptionBegan"),
+                metadata,
+                payload: AudioInterruptionBeganPayload {
+                    stream: event.stream,
+                },
+            })
+        }
+        AudioEventKind::InterruptionEnded => {
+            AudioEvent::AudioInterruptionEndedEvent(AudioInterruptionEndedEvent {
+                kind: context.store_string("interruptionEnded"),
+                metadata,
+                payload: AudioInterruptionEndedPayload {
+                    stream: event.stream,
+                },
+            })
+        }
+        AudioEventKind::StreamDeviceChanged => {
+            AudioEvent::AudioStreamDeviceChangedEvent(AudioStreamDeviceChangedEvent {
+                kind: context.store_string("streamDeviceChanged"),
+                metadata,
+                payload: AudioStreamDeviceChangedPayload {
+                    stream: event.stream,
+                    status_flags: event.status_flags,
+                    device_id,
+                },
+            })
+        }
+        AudioEventKind::StreamStateChanged => {
+            AudioEvent::AudioStreamStateChangedEvent(AudioStreamStateChangedEvent {
+                kind: context.store_string("streamStateChanged"),
+                metadata,
+                payload: AudioStreamStateChangedPayload {
+                    stream: event.stream,
+                    status_flags: event.status_flags,
+                },
+            })
+        }
+        AudioEventKind::StreamXRun => AudioEvent::AudioStreamXRunEvent(AudioStreamXRunEvent {
+            kind: context.store_string("streamXRun"),
+            metadata,
+            payload: AudioStreamXRunPayload {
+                stream: event.stream,
+                status_flags: event.status_flags,
+                xrun_count_delta: event.xrun_count_delta,
+                device_id,
+            },
+        }),
     }
 }
 

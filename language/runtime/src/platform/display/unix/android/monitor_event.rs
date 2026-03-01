@@ -1,5 +1,7 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::DisplayEvent;
+use crate::platform::display::{
+    DisplayEvent, DisplayMonitorEventOpenOptions, unsupported as display_unsupported,
+};
 use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
@@ -7,14 +9,15 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
     context: &BindingCallContext,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_monitor_event_close(context, handle) }
+    unsafe { display_unsupported::destack_display_monitor_event_close(context, handle) }
 }
 
 pub(crate) unsafe fn destack_display_monitor_event_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
+    options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_monitor_event_open(context, out) }
+    unsafe { display_unsupported::destack_display_monitor_event_open(context, out, options) }
 }
 
 pub(crate) unsafe fn destack_display_monitor_event_read(
@@ -24,9 +27,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     unsafe {
-        crate::platform::display::unsupported::destack_display_monitor_event_read(
-            context, out, handle, timeoutns,
-        )
+        display_unsupported::destack_display_monitor_event_read(context, out, handle, timeoutns)
     }
 }
 
@@ -38,7 +39,7 @@ pub(crate) unsafe fn destack_display_monitor_event_read_batch(
     timeoutns: u64,
 ) -> RuntimeResult<()> {
     unsafe {
-        crate::platform::display::unsupported::destack_display_monitor_event_read_batch(
+        display_unsupported::destack_display_monitor_event_read_batch(
             context, out, handle, maxevents, timeoutns,
         )
     }
@@ -49,7 +50,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read(
     out: *mut DisplayEvent,
     handle: resource::DisplayEventHandle,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_monitor_event_try_read(context, out, handle) }
+    unsafe { display_unsupported::destack_display_monitor_event_try_read(context, out, handle) }
 }
 
 pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
@@ -59,7 +60,7 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
     maxevents: u32,
 ) -> RuntimeResult<()> {
     unsafe {
-        crate::platform::display::unsupported::destack_display_monitor_event_try_read_batch(
+        display_unsupported::destack_display_monitor_event_try_read_batch(
             context, out, handle, maxevents,
         )
     }

@@ -16,15 +16,15 @@ use crate::platform::abi::VmAbi;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
-    GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionKind,
-    ProcessFdActionVm, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioKind, ProcessStdioVm,
-    ProcessUserIds, Signal, UserId,
+    GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionVm, ProcessGroupIds,
+    ProcessId, ProcessLimit, ProcessLimitResource, ProcessSpawnOptions, ProcessSpawnOptionsVm,
+    ProcessStdio, ProcessStdioVm, ProcessUserIds, ProcessWaitStatus, ProcessWaitStatusVm, Signal,
+    UserId,
 };
 use crate::platform::resource::{self, ResourceId};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, VmArray, VmSlice,
-    VmValueCodec, fs,
+    fs,
 };
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
@@ -80,6 +80,91 @@ pub(crate) struct ProcessFdActionSpec {
     pub mode: fs::FileMode,
 }
 
+/// Stdio kind selector used by process test helpers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProcessStdioKind {
+    /// Use an inherited stdio stream.
+    Inherit,
+    /// Route stdio to the null device.
+    Null,
+    /// Route stdio through an existing file descriptor.
+    Descriptor,
+    /// Route stdio through a runtime file handle.
+    File,
+    /// Route stdio through a runtime pipe handle.
+    Pipe,
+}
+
+/// Fd action selector used by process test helpers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProcessFdActionKind {
+    /// Close one descriptor in the child.
+    Close,
+    /// Duplicate one descriptor in the child.
+    Dup2,
+    /// Open one path as a descriptor in the child.
+    Open,
+}
+
+/// Wait status selector used by process test helpers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProcessWaitKind {
+    /// Child continued after stop.
+    Continued,
+    /// Child exited normally.
+    Exited,
+    /// Child is still running.
+    Running,
+    /// Child exited due to signal.
+    Signaled,
+    /// Child stopped by signal.
+    Stopped,
+}
+
+/// Construct all process helper variants that are not exercised by current spawn lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_process_helper_variants_constructible() {
+    // construct file and pipe stdio helpers
+    let file_stdio = ProcessStdioSpec {
+        kind: ProcessStdioKind::File,
+        descriptor: 0,
+    };
+    let pipe_stdio = ProcessStdioSpec {
+        kind: ProcessStdioKind::Pipe,
+        descriptor: 0,
+    };
+
+    // construct close fd-action helper
+    let close_action = ProcessFdActionSpec {
+        op: ProcessFdActionKind::Close,
+        source: 3,
+        target: -1,
+        path: String::new(),
+        flags: fs::OpenFlags(0),
+        mode: fs::FileMode(0),
+    };
+
+    assert!(matches!(file_stdio.kind, ProcessStdioKind::File));
+    assert!(matches!(pipe_stdio.kind, ProcessStdioKind::Pipe));
+    assert!(matches!(close_action.op, ProcessFdActionKind::Close));
+}
+
+/// Decoded wait-status payload used by process test helpers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ProcessWaitStatusRecord {
+    /// Process identifier associated with this wait status.
+    pub pid: ProcessId,
+    /// Wait result kind.
+    pub kind: ProcessWaitKind,
+    /// Exit status when `kind` is exited.
+    pub exit_code: Option<i32>,
+    /// Signal value when `kind` is signaled or stopped.
+    pub signal: Option<Signal>,
+    /// Core-dump flag for signaled exits.
+    pub core_dumped: bool,
+}
+
 /// Monotonic suffix used to avoid cross-test collisions.
 static NEXT_ENV_SUFFIX: AtomicU64 = AtomicU64::new(1);
 /// Global lock that serializes process-state mutations across tests.
@@ -118,8 +203,8 @@ fn vm_string(
 
 /// Decode a native `OsPath` value into UTF-8.
 fn native_path_to_utf8(path: fs::OsPath) -> RuntimeResult<String> {
-    match path.encoding {
-        fs::PathEncoding::Bytes => {
+    match path {
+        fs::OsPath::OsPathBytes(path) => {
             let bytes = unsafe { path.bytes.0.as_slice()? };
             String::from_utf8(bytes.to_vec()).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
@@ -129,7 +214,7 @@ fn native_path_to_utf8(path: fs::OsPath) -> RuntimeResult<String> {
                 .boxed()
             })
         }
-        fs::PathEncoding::Utf16 => {
+        fs::OsPath::OsPathUtf16(path) => {
             let utf16 = unsafe { path.utf16.0.as_slice()? };
             String::from_utf16(utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
@@ -147,8 +232,8 @@ fn vm_path_to_utf8(
     context: &mut vm::ExternalCallContext<'_>,
     path: fs::OsPathVm,
 ) -> RuntimeResult<String> {
-    match path.encoding {
-        fs::PathEncoding::Bytes => {
+    match path {
+        fs::OsPathVm::OsPathBytes(path) => {
             let bytes = path.bytes.0.read_bytes(context)?;
             String::from_utf8(bytes).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
@@ -158,7 +243,7 @@ fn vm_path_to_utf8(
                 .boxed()
             })
         }
-        fs::PathEncoding::Utf16 => {
+        fs::OsPathVm::OsPathUtf16(path) => {
             let utf16 = path.utf16.0.read_values(context)?;
             String::from_utf16(&utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
@@ -184,59 +269,24 @@ fn vm_path_from_utf8(
     #[cfg(unix)]
     {
         let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
-        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray {
-            data: vm::RawPointer::NULL,
-            len: 0,
-            capacity: 0,
-            _marker: std::marker::PhantomData,
-        });
-        Ok(fs::OsPathVm {
-            encoding: fs::PathEncoding::Bytes,
-            bytes,
-            utf16,
-        })
+        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
 
     #[cfg(windows)]
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
-        let bytes = fs::PathBytesAbi::<VmAbi>(VmArray {
-            data: vm::RawPointer::NULL,
-            len: 0,
-            capacity: 0,
-            _marker: std::marker::PhantomData,
-        });
         let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray::from_values(context, &utf16_values)?);
-        return Ok(fs::OsPathVm {
-            encoding: fs::PathEncoding::Utf16,
-            bytes,
-            utf16,
-        });
+        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        return Ok(fs::OsPathVm::OsPathUtf16(fs::OsPathUtf16Vm { kind, utf16 }));
     }
 
     #[cfg(not(any(unix, windows)))]
     {
         let bytes = fs::PathBytesAbi::<VmAbi>(VmArray::from_bytes(context, value.as_bytes()));
-        let utf16 = fs::PathUtf16Abi::<VmAbi>(VmArray {
-            data: vm::RawPointer::NULL,
-            len: 0,
-            capacity: 0,
-            _marker: std::marker::PhantomData,
-        });
-        Ok(fs::OsPathVm {
-            encoding: fs::PathEncoding::Bytes,
-            bytes,
-            utf16,
-        })
+        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        Ok(fs::OsPathVm::OsPathBytes(fs::OsPathBytesVm { kind, bytes }))
     }
-}
-
-/// Encode one VM `OsPath` value as an aggregate VM value.
-fn vm_path_to_value(context: &mut vm::ExternalCallContext<'_>, path: fs::OsPathVm) -> vm::Value {
-    let field_0 = vm::Value::uint(path.encoding as u8 as u64, 8);
-    let field_1 = path.bytes.0.to_value(context);
-    let field_2 = path.utf16.0.to_value(context);
-    context.allocate_aggregate(vec![field_0, field_1, field_2])
 }
 
 /// Build one VM string slice from owned string values.
@@ -255,33 +305,51 @@ fn vm_string_slice(
 fn vm_process_stdio_slice(
     context: &mut vm::ExternalCallContext<'_>,
     values: &[ProcessStdioSpec],
-) -> VmSlice<ProcessStdioVm> {
+) -> RuntimeResult<VmSlice<ProcessStdioVm>> {
     if values.is_empty() {
-        return VmSlice {
+        return Ok(VmSlice {
             data: vm::RawPointer::NULL,
             len: 0,
             _marker: std::marker::PhantomData,
-        };
+        });
     }
 
     let mut encoded = Vec::with_capacity(values.len());
     for value in values {
-        let file = resource::FileHandle(ResourceId(0));
-        let pipe = resource::PipeHandle(ResourceId(0));
-        let aggregate = context.allocate_aggregate(vec![
-            value.kind.encode(),
-            file.encode(),
-            pipe.encode(),
-            value.descriptor.encode(),
-        ]);
-        encoded.push(aggregate);
+        let encoded_value = match value.kind {
+            ProcessStdioKind::Descriptor => ProcessStdioVm::ProcessStdioDescriptor(
+                crate::platform::process::ProcessStdioDescriptorVm {
+                    kind: vm::StringHandle::new(context.intern_string("descriptor")),
+                    descriptor: value.descriptor,
+                },
+            ),
+            ProcessStdioKind::File => {
+                ProcessStdioVm::ProcessStdioFile(crate::platform::process::ProcessStdioFileVm {
+                    kind: vm::StringHandle::new(context.intern_string("file")),
+                    file: resource::FileHandle(ResourceId(0)),
+                })
+            }
+            ProcessStdioKind::Inherit => ProcessStdioVm::ProcessStdioInherit(
+                crate::platform::process::ProcessStdioInheritVm {
+                    kind: vm::StringHandle::new(context.intern_string("inherit")),
+                },
+            ),
+            ProcessStdioKind::Null => {
+                ProcessStdioVm::ProcessStdioNull(crate::platform::process::ProcessStdioNullVm {
+                    kind: vm::StringHandle::new(context.intern_string("null")),
+                })
+            }
+            ProcessStdioKind::Pipe => {
+                ProcessStdioVm::ProcessStdioPipe(crate::platform::process::ProcessStdioPipeVm {
+                    kind: vm::StringHandle::new(context.intern_string("pipe")),
+                    pipe: resource::PipeHandle(ResourceId(0)),
+                })
+            }
+        };
+        encoded.push(encoded_value);
     }
 
-    VmSlice {
-        data: context.allocate_raw_values(encoded),
-        len: values.len() as u32,
-        _marker: std::marker::PhantomData,
-    }
+    VmSlice::from_values(context, &encoded)
 }
 
 /// Build one VM fd-action slice from test specs.
@@ -299,24 +367,37 @@ fn vm_process_fd_action_slice(
 
     let mut encoded = Vec::with_capacity(values.len());
     for value in values {
-        let path = vm_path_from_utf8(context, &value.path)?;
-        let path_value = vm_path_to_value(context, path);
-        let aggregate = context.allocate_aggregate(vec![
-            value.op.encode(),
-            value.source.encode(),
-            value.target.encode(),
-            path_value,
-            value.flags.encode(),
-            value.mode.encode(),
-        ]);
-        encoded.push(aggregate);
+        let encoded_value = match value.op {
+            ProcessFdActionKind::Close => ProcessFdActionVm::ProcessFdActionClose(
+                crate::platform::process::ProcessFdActionCloseVm {
+                    kind: vm::StringHandle::new(context.intern_string("close")),
+                    descriptor: value.source,
+                },
+            ),
+            ProcessFdActionKind::Dup2 => ProcessFdActionVm::ProcessFdActionDup2(
+                crate::platform::process::ProcessFdActionDup2Vm {
+                    kind: vm::StringHandle::new(context.intern_string("dup2")),
+                    source: value.source,
+                    target: value.target,
+                },
+            ),
+            ProcessFdActionKind::Open => {
+                let path = vm_path_from_utf8(context, &value.path)?;
+                ProcessFdActionVm::ProcessFdActionOpen(
+                    crate::platform::process::ProcessFdActionOpenVm {
+                        kind: vm::StringHandle::new(context.intern_string("open")),
+                        target: value.target,
+                        path,
+                        flags: value.flags,
+                        mode: value.mode,
+                    },
+                )
+            }
+        };
+        encoded.push(encoded_value);
     }
 
-    Ok(VmSlice {
-        data: context.allocate_raw_values(encoded),
-        len: values.len() as u32,
-        _marker: std::marker::PhantomData,
-    })
+    VmSlice::from_values(context, &encoded)
 }
 
 /// Assert one result failed with one exact platform error code.

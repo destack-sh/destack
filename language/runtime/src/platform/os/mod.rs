@@ -9,7 +9,8 @@ pub use abi_generated::*;
 pub use bindings_generated::*;
 
 mod credentials;
-mod host;
+#[path = "host/mod.rs"]
+mod host_impl;
 mod info;
 pub mod native;
 mod power;

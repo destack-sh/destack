@@ -39,8 +39,8 @@ use crate::platform::gpu::{
     GpuTextureViewOptions, GpuTextureViewOptionsVm, GpuVertexBufferLayoutVm, GpuVertexStateVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -203,6 +203,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -8272,7 +8273,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor:
     "export function queueWriteBuffer(queue: GpuQueueHandle, buffer: GpuBufferHandle, bufferOffset: uint64, data: Slice<uint8>, dataOffset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.memory", "gpu.queue"],
+    &["gpu.queue", "gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -8284,7 +8285,7 @@ pub const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor
     "export function queueWriteTexture(queue: GpuQueueHandle, destination: GpuTextureCopy, data: Slice<uint8>, layout: GpuBufferCopyLayout, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.memory", "gpu.queue"],
+    &["gpu.queue", "gpu.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )

@@ -14,7 +14,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{
-    OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
+    OsPath, OsPathBytes, OsPathBytesVm, OsPathUtf16, OsPathUtf16Vm, OsPathVm, PathBytesAbi,
+    PathUtf16Abi,
 };
 #[cfg(windows)]
 use crate::platform::net::vm as platform_vm;
@@ -32,7 +33,7 @@ use platform_net::{
     ReverseLookupName, SocketAddress, SocketAddressVm, SocketCredentials, SocketCredentialsVm,
     SocketFamily, SocketMessageFlags, SocketProtocol, SocketRecvBatchRequest, SocketRecvMessage,
     SocketSendBatchEntry, SocketSendMessage, SocketSendMessageVm, SocketType, UdpReceive,
-    UdpReceiveVm, UdsAddress, UdsAddressKind,
+    UdpReceiveVm, UdsAddress, UdsPathAddress,
 };
 
 /// Network harness context used by tests.
@@ -964,27 +965,18 @@ fn socket_address_vm_from_value(
     let slots = context
         .aggregate_slots(value)
         .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 2 && slots.len() != 3 {
+    if slots.len() != 3 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "address",
-            "expected SocketAddress aggregate with 2 or 3 fields",
+            "expected SocketAddress aggregate with 3 fields",
         ))
         .boxed());
     }
 
-    // decode family and bytes with backward compatible shape support
+    // decode family, length, and bytes
     let family = <u16 as VmValueCodec>::decode(slots[0])?;
-    let (length, bytes) = if slots.len() == 3 {
-        let length = <u32 as VmValueCodec>::decode(slots[1])?;
-        let bytes = VmArray::<u8>::from_value(context, slots[2], "address.bytes", "VmArray<u8>")?;
-
-        (length, bytes)
-    } else {
-        let bytes = VmArray::<u8>::from_value(context, slots[1], "address.bytes", "VmArray<u8>")?;
-        let length = bytes.len;
-
-        (length, bytes)
-    };
+    let length = <u32 as VmValueCodec>::decode(slots[1])?;
+    let bytes = VmArray::<u8>::from_value(context, slots[2], "address.bytes", "VmArray<u8>")?;
 
     Ok(SocketAddressVm {
         family,
@@ -999,11 +991,13 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
         use std::os::unix::ffi::OsStrExt;
         let bytes = path.as_os_str().as_bytes();
         let array = VmArray::from_bytes(context, bytes);
-        OsPathVm {
-            encoding: PathEncoding::Bytes,
+        let kind = vm::StringHandle::new(context.intern_string("bytes"));
+        let path = OsPathBytesVm {
+            kind,
             bytes: PathBytesAbi(array),
-            utf16: PathUtf16Abi(empty_vm_array()),
-        }
+        };
+
+        OsPathVm::OsPathBytes(path)
     }
 
     #[cfg(windows)]
@@ -1011,11 +1005,13 @@ fn path_ref_vm(context: &mut vm::ExternalCallContext<'_>, path: &std::path::Path
         use std::os::windows::ffi::OsStrExt;
         let units: Vec<u16> = path.as_os_str().encode_wide().collect();
         let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
-        OsPathVm {
-            encoding: PathEncoding::Utf16,
-            bytes: PathBytesAbi(empty_vm_array()),
+        let kind = vm::StringHandle::new(context.intern_string("utf16"));
+        let path = OsPathUtf16Vm {
+            kind,
             utf16: PathUtf16Abi(array),
-        }
+        };
+
+        OsPathVm::OsPathUtf16(path)
     }
 }
 
@@ -1031,35 +1027,21 @@ fn path_ref_vm_utf16(
     let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
     let units: Vec<u16> = text.encode_utf16().collect();
     let array = VmArray::from_values(context, &units).expect("vm utf16 path should encode");
-
-    OsPathVm {
-        encoding: PathEncoding::Utf16,
-        bytes: PathBytesAbi(empty_vm_array()),
+    let kind = vm::StringHandle::new(context.intern_string("utf16"));
+    let path = OsPathUtf16Vm {
+        kind,
         utf16: PathUtf16Abi(array),
-    }
-}
+    };
 
-/// Build an empty VM array.
-fn empty_vm_array<T>() -> VmArray<T> {
-    VmArray {
-        data: vm::RawPointer::NULL,
-        len: 0,
-        capacity: 0,
-        _marker: std::marker::PhantomData,
-    }
+    OsPathVm::OsPathUtf16(path)
 }
 
 /// Build a unix domain socket path address for native calls.
 fn uds_path_address_native(path: OsPath) -> UdsAddress {
-    UdsAddress {
-        kind: UdsAddressKind::Path,
+    UdsAddress::UdsPathAddress(UdsPathAddress {
+        kind: "path".into(),
         path,
-        abstract_name: NativeArray {
-            data: std::ptr::null_mut(),
-            len: 0,
-            capacity: 0,
-        },
-    }
+    })
 }
 
 /// Build a unix domain socket path address for VM calls.
@@ -1067,9 +1049,8 @@ fn uds_path_address_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> platform_net::UdsAddressVm {
-    platform_net::UdsAddressVm {
-        kind: UdsAddressKind::Path,
+    platform_net::UdsAddressVm::UdsPathAddress(platform_net::UdsPathAddressVm {
+        kind: vm::StringHandle::new(context.intern_string("path")),
         path,
-        abstract_name: VmArray::from_bytes(context, &[]),
-    }
+    })
 }

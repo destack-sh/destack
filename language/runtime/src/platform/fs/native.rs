@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::fs::{OsPath, PathEncoding, XattrFlags};
+use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, NativeSlice};
 use crate::runtime::BindingCallContext;
@@ -32,12 +32,12 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_getxattr_bytes(context, out, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_getxattr_bytes(context, out, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_getxattr_utf16(context, out, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_getxattr_utf16(context, out, path_utf16.utf16, name)
         },
     }
 }
@@ -66,12 +66,12 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lgetxattr_bytes(context, out, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lgetxattr_bytes(context, out, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lgetxattr_utf16(context, out, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lgetxattr_utf16(context, out, path_utf16.utf16, name)
         },
     }
 }
@@ -101,12 +101,12 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_setxattr_bytes(context, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_setxattr_bytes(context, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_setxattr_utf16(context, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_setxattr_utf16(context, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -136,12 +136,12 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     flags: XattrFlags,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lsetxattr_bytes(context, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lsetxattr_bytes(context, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lsetxattr_utf16(context, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lsetxattr_utf16(context, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -169,12 +169,12 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
     path: OsPath,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_listxattr_bytes(context, out, path.bytes)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_listxattr_bytes(context, out, path_bytes.bytes)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_listxattr_utf16(context, out, path.utf16)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_listxattr_utf16(context, out, path_utf16.utf16)
         },
     }
 }
@@ -202,12 +202,12 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
     path: OsPath,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_llistxattr_bytes(context, out, path.bytes)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_llistxattr_bytes(context, out, path_bytes.bytes)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_llistxattr_utf16(context, out, path.utf16)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_llistxattr_utf16(context, out, path_utf16.utf16)
         },
     }
 }
@@ -235,12 +235,12 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_removexattr_bytes(context, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_removexattr_bytes(context, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_removexattr_utf16(context, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_removexattr_utf16(context, path_utf16.utf16, name)
         },
     }
 }
@@ -268,12 +268,12 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
     name: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            host_fs::destack_fs_lremovexattr_bytes(context, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            host_fs::destack_fs_lremovexattr_bytes(context, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            host_fs::destack_fs_lremovexattr_utf16(context, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            host_fs::destack_fs_lremovexattr_utf16(context, path_utf16.utf16, name)
         },
     }
 }

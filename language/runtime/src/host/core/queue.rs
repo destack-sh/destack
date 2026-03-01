@@ -225,11 +225,9 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent};
-    use crate::platform::ResourceId;
-    use crate::runtime::poller::{
-        PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
-        PollerToken,
+    use crate::host::{
+        HostEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent, HostWindowEvent,
+        HostWindowFocusEvent,
     };
 
     use super::HostEventQueue;
@@ -245,14 +243,14 @@ mod tests {
         })
     }
 
-    fn poller_event(token: u64) -> HostEvent {
-        HostEvent::Poller(PollerEvent {
-            resource_id: ResourceId(7),
-            source: PollerEventSource::Io,
-            mask: PollerEventMask::READABLE,
-            flags: PollerEventFlags::NONE,
-            token: PollerToken(token),
-            payload: PollerEventPayload::Io { data: 0 },
+    fn window_event(window_id: u64) -> HostEvent {
+        HostEvent::Window(HostWindowEvent::WindowAvailable { window_id })
+    }
+
+    fn window_focus_event(window_id: u64, is_focused: bool) -> HostEvent {
+        HostEvent::WindowFocus(HostWindowFocusEvent {
+            window_id,
+            is_focused,
         })
     }
 
@@ -303,12 +301,12 @@ mod tests {
         let queue = HostEventQueue::new();
         queue.configure(Some(1));
 
-        queue.enqueue(poller_event(11));
-        queue.enqueue(poller_event(12));
+        queue.enqueue(window_event(11));
+        queue.enqueue(window_event(12));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0], poller_event(12));
+        assert_eq!(events[0], window_event(12));
     }
 
     #[test]
@@ -316,8 +314,8 @@ mod tests {
         let queue = HostEventQueue::new();
         queue.configure(Some(1));
 
-        queue.enqueue(poller_event(11));
-        queue.enqueue(poller_event(12));
+        queue.enqueue(window_event(11));
+        queue.enqueue(window_focus_event(11, true));
 
         let dropped_first = queue.take_dropped_event_count();
         let dropped_second = queue.take_dropped_event_count();
@@ -377,15 +375,18 @@ mod tests {
     }
 
     #[test]
-    fn test_drops_poller_event_when_only_lossless_events_are_queued() {
+    fn test_coalescing_event_overflows_lossless_capacity_without_drops() {
         let queue = HostEventQueue::new();
         queue.configure(Some(1));
 
         queue.enqueue(permission_event("camera", false));
-        queue.enqueue(poller_event(12));
+        queue.enqueue(window_event(55));
 
         let events = queue.poll_events(Some(0)).unwrap();
-        assert_eq!(events, vec![permission_event("camera", false)]);
-        assert_eq!(queue.take_dropped_event_count(), 1);
+        assert_eq!(
+            events,
+            vec![permission_event("camera", false), window_event(55),]
+        );
+        assert_eq!(queue.take_dropped_event_count(), 0);
     }
 }

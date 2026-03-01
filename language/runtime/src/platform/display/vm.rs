@@ -2,9 +2,11 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayDescriptor, DisplayDescriptorVm, DisplayEvent, DisplayEventPayloadVm, DisplayEventVm,
-    DisplayMode, DisplayModeVm, WindowDescriptor, WindowDescriptorVm, WindowOptions,
-    WindowOptionsVm, host as host_display,
+    DisplayBackendDescriptor, DisplayBackendDescriptorVm, DisplayDescriptor, DisplayDescriptorVm,
+    DisplayEvent, DisplayEventVm, DisplayMode, DisplayModeVm, DisplayMonitorEventOpenOptionsVm,
+    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowDescriptor, WindowDescriptorVm,
+    WindowEvent, WindowEventOpenOptionsVm, WindowEventVm, WindowOptions, WindowOptionsVm,
+    host as host_display,
 };
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -61,44 +63,116 @@ fn display_descriptor_to_vm(
     })
 }
 
+/// Convert one native display backend descriptor into its VM representation.
+fn display_backend_descriptor_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: DisplayBackendDescriptor,
+) -> RuntimeResult<DisplayBackendDescriptorVm> {
+    let name = unsafe { value.name.as_str()? };
+
+    Ok(DisplayBackendDescriptorVm {
+        backend: value.backend,
+        name: vm::StringHandle::new(context.intern_string(name)),
+        available: value.available,
+        priority: value.priority,
+        capability_flags: value.capability_flags,
+    })
+}
+
 /// Convert one native display event into its VM representation.
 fn display_event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: DisplayEvent,
 ) -> RuntimeResult<DisplayEventVm> {
-    let display_id = if let Some(display_id) = value.display_id {
-        let display_id = unsafe { display_id.as_str()? };
-        Some(vm::StringHandle::new(context.intern_string(display_id)))
-    } else {
-        None
-    };
-    let removed_id = unsafe { value.payload.removed.id.as_str()? };
-    let primary_id = if let Some(primary_id) = value.payload.primary.id {
-        let primary_id = unsafe { primary_id.as_str()? };
-        Some(vm::StringHandle::new(context.intern_string(primary_id)))
+    match value {
+        DisplayEvent::DisplayAddedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            let metadata = display_event_metadata_to_vm(context, event.metadata)?;
+            let descriptor = display_descriptor_to_vm(context, event.payload.descriptor)?;
+            Ok(DisplayEventVm::DisplayAddedEvent(
+                crate::platform::display::DisplayAddedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata,
+                    payload: crate::platform::display::DisplayAddedPayloadVm { descriptor },
+                },
+            ))
+        }
+        DisplayEvent::DisplayDescriptorChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            let metadata = display_event_metadata_to_vm(context, event.metadata)?;
+            let descriptor = display_descriptor_to_vm(context, event.payload.descriptor)?;
+            Ok(DisplayEventVm::DisplayDescriptorChangedEvent(
+                crate::platform::display::DisplayDescriptorChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata,
+                    payload: crate::platform::display::DisplayDescriptorChangedPayloadVm {
+                        descriptor,
+                        changed_mask: event.payload.changed_mask,
+                    },
+                },
+            ))
+        }
+        DisplayEvent::DisplayModeChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            let metadata = display_event_metadata_to_vm(context, event.metadata)?;
+            Ok(DisplayEventVm::DisplayModeChangedEvent(
+                crate::platform::display::DisplayModeChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        DisplayEvent::DisplayPrimaryChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            let metadata = display_event_metadata_to_vm(context, event.metadata)?;
+            let payload_id = if let Some(value) = event.payload.id {
+                let value = unsafe { value.as_str()? };
+                Some(vm::StringHandle::new(context.intern_string(value)))
+            } else {
+                None
+            };
+            Ok(DisplayEventVm::DisplayPrimaryChangedEvent(
+                crate::platform::display::DisplayPrimaryChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata,
+                    payload: crate::platform::display::DisplayPrimaryPayloadVm { id: payload_id },
+                },
+            ))
+        }
+        DisplayEvent::DisplayRemovedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            let metadata = display_event_metadata_to_vm(context, event.metadata)?;
+            let payload_id = unsafe { event.payload.id.as_str()? };
+            Ok(DisplayEventVm::DisplayRemovedEvent(
+                crate::platform::display::DisplayRemovedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata,
+                    payload: crate::platform::display::DisplayRemovedPayloadVm {
+                        id: vm::StringHandle::new(context.intern_string(payload_id)),
+                    },
+                },
+            ))
+        }
+    }
+}
+
+/// Convert one native display event metadata payload into its VM representation.
+fn display_event_metadata_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: crate::platform::display::DisplayEventMetadata,
+) -> RuntimeResult<crate::platform::display::DisplayEventMetadataVm> {
+    let display_id = if let Some(value) = value.display_id {
+        let value = unsafe { value.as_str()? };
+        Some(vm::StringHandle::new(context.intern_string(value)))
     } else {
         None
     };
 
-    Ok(DisplayEventVm {
+    Ok(crate::platform::display::DisplayEventMetadataVm {
         display_id,
-        kind: value.kind,
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
-        payload: DisplayEventPayloadVm {
-            added: crate::platform::display::DisplayAddedPayloadVm {
-                descriptor: display_descriptor_to_vm(context, value.payload.added.descriptor)?,
-            },
-            removed: crate::platform::display::DisplayRemovedPayloadVm {
-                id: vm::StringHandle::new(context.intern_string(removed_id)),
-            },
-            primary: crate::platform::display::DisplayPrimaryPayloadVm { id: primary_id },
-            descriptor: crate::platform::display::DisplayDescriptorChangedPayloadVm {
-                descriptor: display_descriptor_to_vm(context, value.payload.descriptor.descriptor)?,
-                changed_mask: value.payload.descriptor.changed_mask,
-            },
-            mode: value.payload.mode,
-        },
     })
 }
 
@@ -137,6 +211,31 @@ fn descriptor_slice_to_vm(
     VmSlice::from_values(context, &vm_values)
 }
 
+/// Convert one native backend descriptor slice into one VM slice.
+fn backend_descriptor_slice_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeSlice<DisplayBackendDescriptor>,
+) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
+    let value = unsafe { value.as_slice()? };
+    let mut vm_values = Vec::with_capacity(value.len());
+
+    for descriptor in value {
+        vm_values.push(display_backend_descriptor_to_vm(context, *descriptor)?);
+    }
+
+    VmSlice::from_values(context, &vm_values)
+}
+
+/// List display backends that are available for the active target.
+pub(crate) fn destack_display_backend_list(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
+    let values =
+        call_out(|out| unsafe { host_display::destack_display_backend_list(runtime, out) })?;
+    backend_descriptor_slice_to_vm(context, values)
+}
+
 /// Convert one native display-mode slice into one VM slice.
 fn mode_slice_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
@@ -167,7 +266,148 @@ fn window_event_array_to_vm(
     value: NativeArray<crate::platform::display::WindowEvent>,
 ) -> RuntimeResult<VmArray<crate::platform::display::WindowEventVm>> {
     let value = unsafe { value.as_slice()? };
-    VmArray::from_values(context, value)
+    let mut vm_values = Vec::with_capacity(value.len());
+
+    for event in value {
+        vm_values.push(window_event_to_vm(context, *event)?);
+    }
+
+    VmArray::from_values(context, &vm_values)
+}
+
+/// Convert one native window event into its VM representation.
+fn window_event_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: WindowEvent,
+) -> RuntimeResult<WindowEventVm> {
+    match value {
+        WindowEvent::WindowCloseRequestedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowCloseRequestedEvent(
+                crate::platform::display::WindowCloseRequestedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                },
+            ))
+        }
+        WindowEvent::WindowCreatedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowCreatedEvent(
+                crate::platform::display::WindowCreatedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                },
+            ))
+        }
+        WindowEvent::WindowDestroyedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowDestroyedEvent(
+                crate::platform::display::WindowDestroyedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                },
+            ))
+        }
+        WindowEvent::WindowDisplayChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowDisplayChangedEvent(
+                crate::platform::display::WindowDisplayChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowFocusChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowFocusChangedEvent(
+                crate::platform::display::WindowFocusChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowModeChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowModeChangedEvent(
+                crate::platform::display::WindowModeChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowOcclusionChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowOcclusionChangedEvent(
+                crate::platform::display::WindowOcclusionChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowPositionChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowPositionChangedEvent(
+                crate::platform::display::WindowPositionChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowRefreshRequestedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowRefreshRequestedEvent(
+                crate::platform::display::WindowRefreshRequestedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                },
+            ))
+        }
+        WindowEvent::WindowScaleFactorChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowScaleFactorChangedEvent(
+                crate::platform::display::WindowScaleFactorChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowSizeChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowSizeChangedEvent(
+                crate::platform::display::WindowSizeChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowThemeChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowThemeChangedEvent(
+                crate::platform::display::WindowThemeChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        WindowEvent::WindowVisibilityChangedEvent(event) => {
+            let kind = unsafe { event.kind.as_str()? };
+            Ok(WindowEventVm::WindowVisibilityChangedEvent(
+                crate::platform::display::WindowVisibilityChangedEventVm {
+                    kind: vm::StringHandle::new(context.intern_string(kind)),
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+    }
 }
 
 /// Convert one VM window options payload into one native payload.
@@ -182,6 +422,8 @@ fn window_options_from_vm(
     let title = runtime.store_string(title.as_str());
 
     Ok(WindowOptions {
+        backend: options.backend,
+        backend_policy: options.backend_policy,
         title,
         size_logical: options.size_logical,
         position: options.position,
@@ -266,8 +508,11 @@ pub(crate) fn destack_display_monitor_event_close(
 pub(crate) fn destack_display_monitor_event_open(
     runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayEventHandle> {
-    call_out(|out| unsafe { host_display::destack_display_monitor_event_open(runtime, out) })
+    call_out(|out| unsafe {
+        host_display::destack_display_monitor_event_open(runtime, out, options)
+    })
 }
 
 /// Wait for one monitor event.
@@ -332,9 +577,11 @@ pub(crate) fn destack_display_monitor_event_try_read_batch(
 pub(crate) fn destack_display_monitor_list(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
+    request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
-    let descriptors =
-        call_out(|out| unsafe { host_display::destack_display_monitor_list(runtime, out) })?;
+    let descriptors = call_out(|out| unsafe {
+        host_display::destack_display_monitor_list(runtime, out, request)
+    })?;
     descriptor_slice_to_vm(context, descriptors)
 }
 
@@ -355,17 +602,19 @@ pub(crate) fn destack_display_monitor_open(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
+    options: DisplayMonitorOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayHandle> {
     let id = string_from_vm(runtime, context, id)?;
-    call_out(|out| unsafe { host_display::destack_display_monitor_open(runtime, out, id) })
+    call_out(|out| unsafe { host_display::destack_display_monitor_open(runtime, out, id, options) })
 }
 
 /// Read one primary display handle when available.
 pub(crate) fn destack_display_monitor_primary(
     runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<Option<resource::DisplayHandle>> {
-    call_out(|out| unsafe { host_display::destack_display_monitor_primary(runtime, out) })
+    call_out(|out| unsafe { host_display::destack_display_monitor_primary(runtime, out, request) })
 }
 
 /// Apply one display mode.
@@ -413,20 +662,25 @@ pub(crate) fn destack_display_window_event_close(
 pub(crate) fn destack_display_window_event_open(
     runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    options: WindowEventOpenOptionsVm,
 ) -> RuntimeResult<resource::WindowEventHandle> {
-    call_out(|out| unsafe { host_display::destack_display_window_event_open(runtime, out) })
+    call_out(|out| unsafe {
+        host_display::destack_display_window_event_open(runtime, out, options)
+    })
 }
 
 /// Wait for one window event.
 pub(crate) fn destack_display_window_event_read(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
     timeoutns: u64,
-) -> RuntimeResult<crate::platform::display::WindowEventVm> {
-    call_out(|out| unsafe {
+) -> RuntimeResult<WindowEventVm> {
+    let event = call_out(|out| unsafe {
         host_display::destack_display_window_event_read(runtime, out, handle, timeoutns)
-    })
+    })?;
+
+    window_event_to_vm(context, event)
 }
 
 /// Wait for one batch of window events.
@@ -436,7 +690,7 @@ pub(crate) fn destack_display_window_event_read_batch(
     handle: resource::WindowEventHandle,
     maxevents: u32,
     timeoutns: u64,
-) -> RuntimeResult<VmArray<crate::platform::display::WindowEventVm>> {
+) -> RuntimeResult<VmArray<WindowEventVm>> {
     let events = call_out(|out| unsafe {
         host_display::destack_display_window_event_read_batch(
             runtime, out, handle, maxevents, timeoutns,
@@ -449,12 +703,14 @@ pub(crate) fn destack_display_window_event_read_batch(
 /// Poll one window event without blocking.
 pub(crate) fn destack_display_window_event_try_read(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
-) -> RuntimeResult<crate::platform::display::WindowEventVm> {
-    call_out(|out| unsafe {
+) -> RuntimeResult<WindowEventVm> {
+    let event = call_out(|out| unsafe {
         host_display::destack_display_window_event_try_read(runtime, out, handle)
-    })
+    })?;
+
+    window_event_to_vm(context, event)
 }
 
 /// Poll one batch of window events without blocking.
@@ -463,7 +719,7 @@ pub(crate) fn destack_display_window_event_try_read_batch(
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::WindowEventHandle,
     maxevents: u32,
-) -> RuntimeResult<VmArray<crate::platform::display::WindowEventVm>> {
+) -> RuntimeResult<VmArray<WindowEventVm>> {
     let events = call_out(|out| unsafe {
         host_display::destack_display_window_event_try_read_batch(runtime, out, handle, maxevents)
     })?;

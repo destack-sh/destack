@@ -134,21 +134,22 @@ pub(crate) unsafe fn destack_fs_mkdtemp(
     }
     #[cfg(unix)]
     {
-        match template.encoding {
-            PathEncoding::Bytes => {
+        match template {
+            OsPath::OsPathBytes(path_bytes) => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template.bytes) }?;
+                unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, path_bytes.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
-            PathEncoding::Utf16 => {
-                let bytes = core_fs::with_utf16_as_bytes(template.utf16, "template", |template| {
-                    let mut inner = core_fs::empty_path_bytes();
-                    unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template) }?;
-                    Ok(inner)
-                })?;
+            OsPath::OsPathUtf16(path_utf16) => {
+                let bytes =
+                    core_fs::with_utf16_as_bytes(path_utf16.utf16, "template", |template| {
+                        let mut inner = core_fs::empty_path_bytes();
+                        unsafe { destack_fs_mkdtemp_bytes(context, &mut inner, template) }?;
+                        Ok(inner)
+                    })?;
                 let utf16 = core_fs::path_utf16_from_bytes(context, bytes, "template")?;
                 unsafe {
                     *out = core_fs::path_ref_from_utf16(utf16);

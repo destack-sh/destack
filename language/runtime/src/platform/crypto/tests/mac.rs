@@ -1,8 +1,8 @@
 use super::{KEY_USAGE_SIGN, KEY_USAGE_VERIFY, with_harness_context};
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyResidency,
-    CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
-    CryptoStoreProvider,
+    CryptoDigestAlgorithm, CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoMacAlgorithm, CryptoMacParameters, CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -14,20 +14,19 @@ fn test_mac_compute_and_verify() {
         // open store and generate one hmac key with sign and verify usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Hmac,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-            label: context.call_context.store_string("hmac"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+            platform_crypto::CryptoKeyGenerationRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                size_bits: 256,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("hmac"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -89,20 +88,19 @@ fn test_mac_streaming_matches_one_shot() {
         // open store and generate one hmac key with sign usage
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Hmac,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
-            label: context.call_context.store_string("hmac-stream"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+            platform_crypto::CryptoKeyGenerationRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                size_bits: 256,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+                label: context.call_context.store_string("hmac-stream"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
         let parameters = CryptoMacParameters {
@@ -149,20 +147,19 @@ fn test_mac_reset_clears_stream_state() {
         // open store and generate one hmac key with sign usage
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Hmac,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
-            label: context.call_context.store_string("hmac-reset"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+            platform_crypto::CryptoKeyGenerationRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                size_bits: 256,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+                label: context.call_context.store_string("hmac-reset"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
         let parameters = CryptoMacParameters {
@@ -210,20 +207,19 @@ fn test_mac_verify_rejects_missing_verify_usage() {
         // open store and generate one hmac key without verify usage
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Hmac,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
-            label: context.call_context.store_string("hmac-sign-only"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+            platform_crypto::CryptoKeyGenerationRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                size_bits: 256,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+                label: context.call_context.store_string("hmac-sign-only"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -287,20 +283,19 @@ fn test_mac_streaming_host_secret_follows_lane_support() {
             // open one host lane and request one hardware-backed hmac key
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Hmac,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-                label: context.call_context.store_string("host-stream-mac"),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: true,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+                platform_crypto::CryptoKeyGenerationRequestHmac {
+                    algorithm: context.call_context.store_string("hmac"),
+                    size_bits: 256,
+                    digest: CryptoDigestAlgorithm::Sha256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                    label: context.call_context.store_string("host-stream-mac"),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: true,
+                    persistent: true,
+                },
+            );
             let key_result =
                 context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
 

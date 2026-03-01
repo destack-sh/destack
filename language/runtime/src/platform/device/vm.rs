@@ -1,20 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::device::{
-    BluetoothAdapterDescriptorVm, BluetoothDeviceDescriptorVm,
-    BluetoothGattCharacteristicDescriptorVm, BluetoothGattDescriptorDescriptorVm,
-    BluetoothGattServiceDescriptorVm, BluetoothGattValueEventVm, BluetoothScanFilterVm,
-    CameraColorSpace, CameraControl, CameraControlRangeVm, CameraDeviceDescriptorVm,
-    CameraExposureMode, CameraFrameVm, CameraPixelFormat, CameraPlaneLayoutVm,
-    CameraStabilizationMode, CameraStreamCapabilityVm, CameraStreamConfigVm, CameraTorchMode,
-    SerialErrorPayloadVm, SerialEventKind, SerialEventPayloadVm, SerialEventVm, SerialFlowControl,
-    SerialParity, SerialPortConfigVm, SerialPortDescriptorVm, SerialReadReadyPayloadVm,
-    SerialSignalsChangedPayloadVm, SerialStopBits, SerialWriteReadyPayloadVm,
-    UsbConfigurationDescriptorVm, UsbControlSetupVm, UsbDeviceDescriptorVm,
-    UsbEndpointDescriptorVm, UsbHotplugEventVm, UsbInterfaceDescriptorVm,
-    UsbIsochronousTransferResultVm, UsbStringDescriptorVm,
-};
+use crate::platform::device::*;
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;

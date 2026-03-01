@@ -1,11 +1,11 @@
 #[cfg(target_os = "android")]
-use super::android::monitor as backend_monitor;
+use super::android as backend_monitor;
 #[cfg(target_os = "ios")]
-use super::ios::monitor as backend_monitor;
+use super::ios as backend_monitor;
 #[cfg(target_os = "linux")]
-use super::linux_x11::monitor as backend_monitor;
+use super::linux_x11 as backend_monitor;
 #[cfg(target_os = "macos")]
-use super::macos::monitor as backend_monitor;
+use super::macos as backend_monitor;
 #[cfg(all(
     unix,
     not(any(
@@ -15,9 +15,11 @@ use super::macos::monitor as backend_monitor;
         target_os = "macos"
     ))
 ))]
-use super::other::monitor as backend_monitor;
+use super::other as backend_monitor;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::{DisplayDescriptor, DisplayMode};
+use crate::platform::display::{
+    DisplayDescriptor, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
+};
 use crate::platform::{NativeSlice, NativeStringRef, resource};
 use crate::runtime::BindingCallContext;
 
@@ -72,8 +74,9 @@ pub(crate) unsafe fn destack_display_monitor_desktop_mode(
 pub(crate) unsafe fn destack_display_monitor_list(
     context: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    unsafe { backend_monitor::destack_display_monitor_list(context, out) }
+    unsafe { backend_monitor::destack_display_monitor_list(context, out, request) }
 }
 
 /// Read available display modes.
@@ -90,16 +93,18 @@ pub(crate) unsafe fn destack_display_monitor_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
+    options: DisplayMonitorOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { backend_monitor::destack_display_monitor_open(context, out, id) }
+    unsafe { backend_monitor::destack_display_monitor_open(context, out, id, options) }
 }
 
 /// Read the current primary display handle.
 pub(crate) unsafe fn destack_display_monitor_primary(
     context: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    unsafe { backend_monitor::destack_display_monitor_primary(context, out) }
+    unsafe { backend_monitor::destack_display_monitor_primary(context, out, request) }
 }
 
 /// Apply one display mode.

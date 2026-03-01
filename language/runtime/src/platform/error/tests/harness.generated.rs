@@ -7,14 +7,28 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::error::{
-    PlatformError, PlatformErrorCode, PlatformErrorContext, PlatformErrorContextKind,
-    PlatformErrorContextVm, PlatformErrorVm, PlatformPathEncoding, PlatformPathPayload,
-    PlatformPathPayloadVm, PlatformSystemSource, PlatformSystemSourceKind, PlatformSystemSourceVm,
-    native as error_native, vm as error_vm,
+    PlatformError, PlatformErrorCode, PlatformErrorContext, PlatformErrorContextAudio,
+    PlatformErrorContextAudioVm, PlatformErrorContextDevice, PlatformErrorContextDeviceVm,
+    PlatformErrorContextDisplay, PlatformErrorContextDisplayVm, PlatformErrorContextFfi,
+    PlatformErrorContextFfiVm, PlatformErrorContextGeneric, PlatformErrorContextGenericVm,
+    PlatformErrorContextGpu, PlatformErrorContextGpuVm, PlatformErrorContextIo,
+    PlatformErrorContextIoDriver, PlatformErrorContextIoDriverVm, PlatformErrorContextIoVm,
+    PlatformErrorContextIpc, PlatformErrorContextIpcVm, PlatformErrorContextNet,
+    PlatformErrorContextNetVm, PlatformErrorContextProcess, PlatformErrorContextProcessVm,
+    PlatformErrorContextResource, PlatformErrorContextResourceVm, PlatformErrorContextSecurity,
+    PlatformErrorContextSecurityVm, PlatformErrorContextThread, PlatformErrorContextThreadVm,
+    PlatformErrorContextTimer, PlatformErrorContextTimerVm, PlatformErrorContextVm,
+    PlatformErrorVm, PlatformPathPayload, PlatformPathPayloadBytes, PlatformPathPayloadBytesVm,
+    PlatformPathPayloadUtf16, PlatformPathPayloadUtf16Vm, PlatformPathPayloadVm,
+    PlatformSystemSource, PlatformSystemSourceEai, PlatformSystemSourceEaiVm,
+    PlatformSystemSourceErrno, PlatformSystemSourceErrnoVm, PlatformSystemSourceHResult,
+    PlatformSystemSourceHResultVm, PlatformSystemSourceOther, PlatformSystemSourceOtherVm,
+    PlatformSystemSourceSignal, PlatformSystemSourceSignalVm, PlatformSystemSourceVm,
+    PlatformSystemSourceWinsock, PlatformSystemSourceWinsockVm, native as error_native,
+    vm as error_vm,
 };
 use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    error as platform_error,
+    NativeStringRef, PlatformError as HarnessPlatformError, VmArray, error as platform_error,
 };
 use destack_vm as vm;
 

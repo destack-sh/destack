@@ -220,17 +220,41 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<ProcessStdio>, VmSlice<ProcessStdioVm>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let values = vm_process_stdio_slice(context, values);
+                let values = vm_process_stdio_slice(context, values)?;
                 Ok(self.harness_value_vm(values))
             }
             None => {
                 let native_values = values
                     .iter()
-                    .map(|value| ProcessStdio {
-                        kind: value.kind,
-                        file: resource::FileHandle(ResourceId(0)),
-                        pipe: resource::PipeHandle(ResourceId(0)),
-                        descriptor: value.descriptor,
+                    .map(|value| match value.kind {
+                        ProcessStdioKind::Descriptor => ProcessStdio::ProcessStdioDescriptor(
+                            crate::platform::process::ProcessStdioDescriptor {
+                                kind: self.call_context.store_string("descriptor"),
+                                descriptor: value.descriptor,
+                            },
+                        ),
+                        ProcessStdioKind::File => ProcessStdio::ProcessStdioFile(
+                            crate::platform::process::ProcessStdioFile {
+                                kind: self.call_context.store_string("file"),
+                                file: resource::FileHandle(ResourceId(0)),
+                            },
+                        ),
+                        ProcessStdioKind::Inherit => ProcessStdio::ProcessStdioInherit(
+                            crate::platform::process::ProcessStdioInherit {
+                                kind: self.call_context.store_string("inherit"),
+                            },
+                        ),
+                        ProcessStdioKind::Null => ProcessStdio::ProcessStdioNull(
+                            crate::platform::process::ProcessStdioNull {
+                                kind: self.call_context.store_string("null"),
+                            },
+                        ),
+                        ProcessStdioKind::Pipe => ProcessStdio::ProcessStdioPipe(
+                            crate::platform::process::ProcessStdioPipe {
+                                kind: self.call_context.store_string("pipe"),
+                                pipe: resource::PipeHandle(ResourceId(0)),
+                            },
+                        ),
                     })
                     .collect::<Vec<_>>();
                 let values = self.call_context.store_slice(native_values);
@@ -252,13 +276,29 @@ impl<'call> ProcessHarnessContext<'call> {
             None => {
                 let native_values = values
                     .iter()
-                    .map(|value| ProcessFdAction {
-                        op: value.op,
-                        source: value.source,
-                        target: value.target,
-                        path: native_path_from_utf8(self.call_context, &value.path),
-                        flags: value.flags,
-                        mode: value.mode,
+                    .map(|value| match value.op {
+                        ProcessFdActionKind::Close => ProcessFdAction::ProcessFdActionClose(
+                            crate::platform::process::ProcessFdActionClose {
+                                kind: self.call_context.store_string("close"),
+                                descriptor: value.source,
+                            },
+                        ),
+                        ProcessFdActionKind::Dup2 => ProcessFdAction::ProcessFdActionDup2(
+                            crate::platform::process::ProcessFdActionDup2 {
+                                kind: self.call_context.store_string("dup2"),
+                                source: value.source,
+                                target: value.target,
+                            },
+                        ),
+                        ProcessFdActionKind::Open => ProcessFdAction::ProcessFdActionOpen(
+                            crate::platform::process::ProcessFdActionOpen {
+                                kind: self.call_context.store_string("open"),
+                                target: value.target,
+                                path: native_path_from_utf8(self.call_context, &value.path),
+                                flags: value.flags,
+                                mode: value.mode,
+                            },
+                        ),
                     })
                     .collect::<Vec<_>>();
                 let values = self.call_context.store_slice(native_values);
@@ -427,6 +467,17 @@ impl<'call> ProcessHarnessContext<'call> {
             }
         }
     }
+
+    /// Decode one wait-status payload into one normalized record.
+    pub(crate) fn wait_status_from_value(
+        &self,
+        value: HarnessValue<ProcessWaitStatus, ProcessWaitStatusVm>,
+    ) -> ProcessWaitStatusRecord {
+        match value {
+            HarnessValue::Native(value) => wait_status_record_from_native(value),
+            HarnessValue::Vm(value) => wait_status_record_from_vm(value),
+        }
+    }
 }
 
 impl<T> HarnessValue<T, T> {
@@ -439,7 +490,7 @@ impl<T> HarnessValue<T, T> {
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for HarnessValue<T, T> {
+impl<Native: std::fmt::Debug, Vm: std::fmt::Debug> std::fmt::Debug for HarnessValue<Native, Vm> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             HarnessValue::Native(value) => value.fmt(formatter),
@@ -454,6 +505,88 @@ impl<T: PartialEq> PartialEq<T> for HarnessValue<T, T> {
             HarnessValue::Native(value) => value.eq(other),
             HarnessValue::Vm(value) => value.eq(other),
         }
+    }
+}
+
+/// Decode one native wait status into one normalized record.
+fn wait_status_record_from_native(value: ProcessWaitStatus) -> ProcessWaitStatusRecord {
+    match value {
+        ProcessWaitStatus::ProcessWaitContinuedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Continued,
+            exit_code: None,
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatus::ProcessWaitExitedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Exited,
+            exit_code: Some(value.exit_code),
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatus::ProcessWaitRunningStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Running,
+            exit_code: None,
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatus::ProcessWaitSignaledStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Signaled,
+            exit_code: None,
+            signal: Some(value.signal),
+            core_dumped: value.core_dumped,
+        },
+        ProcessWaitStatus::ProcessWaitStoppedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Stopped,
+            exit_code: None,
+            signal: Some(value.signal),
+            core_dumped: false,
+        },
+    }
+}
+
+/// Decode one VM wait status into one normalized record.
+fn wait_status_record_from_vm(value: ProcessWaitStatusVm) -> ProcessWaitStatusRecord {
+    match value {
+        ProcessWaitStatusVm::ProcessWaitContinuedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Continued,
+            exit_code: None,
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatusVm::ProcessWaitExitedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Exited,
+            exit_code: Some(value.exit_code),
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatusVm::ProcessWaitRunningStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Running,
+            exit_code: None,
+            signal: None,
+            core_dumped: false,
+        },
+        ProcessWaitStatusVm::ProcessWaitSignaledStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Signaled,
+            exit_code: None,
+            signal: Some(value.signal),
+            core_dumped: value.core_dumped,
+        },
+        ProcessWaitStatusVm::ProcessWaitStoppedStatus(value) => ProcessWaitStatusRecord {
+            pid: value.pid,
+            kind: ProcessWaitKind::Stopped,
+            exit_code: None,
+            signal: Some(value.signal),
+            core_dumped: false,
+        },
     }
 }
 

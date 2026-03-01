@@ -510,11 +510,10 @@ impl<'call> NetHarnessContext<'call> {
 
                     let bytes = path.as_os_str().as_bytes().to_vec();
                     let bytes = self.call_context.store_array(bytes);
-                    OsPath {
-                        encoding: PathEncoding::Bytes,
+                    OsPath::OsPathBytes(OsPathBytes {
+                        kind: "bytes".into(),
                         bytes: PathBytesAbi(bytes),
-                        utf16: core_fs::empty_path_utf16(),
-                    }
+                    })
                 };
 
                 #[cfg(windows)]
@@ -523,11 +522,10 @@ impl<'call> NetHarnessContext<'call> {
 
                     let units = path.as_os_str().encode_wide().collect::<Vec<_>>();
                     let units = self.call_context.store_array(units);
-                    OsPath {
-                        encoding: PathEncoding::Utf16,
-                        bytes: core_fs::empty_path_bytes(),
+                    OsPath::OsPathUtf16(OsPathUtf16 {
+                        kind: "utf16".into(),
                         utf16: PathUtf16Abi(units),
-                    }
+                    })
                 };
 
                 self.harness_value(uds_path_address_native(path))
@@ -553,11 +551,10 @@ impl<'call> NetHarnessContext<'call> {
                 let text = std::str::from_utf8(bytes).expect("test path should be valid utf8");
                 let units = text.encode_utf16().collect::<Vec<_>>();
                 let units = self.call_context.store_array(units);
-                let path = OsPath {
-                    encoding: PathEncoding::Utf16,
-                    bytes: core_fs::empty_path_bytes(),
+                let path = OsPath::OsPathUtf16(OsPathUtf16 {
+                    kind: "utf16".into(),
                     utf16: PathUtf16Abi(units),
-                };
+                });
                 self.harness_value(uds_path_address_native(path))
             }
         }

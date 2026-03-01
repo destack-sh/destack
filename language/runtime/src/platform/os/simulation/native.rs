@@ -8,25 +8,7 @@ use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 use bindings::*;
 
-use crate::platform::os::{
-    BackgroundEvent, BackgroundEventKind, BackgroundEventOpenOptions, BackgroundStatus,
-    BackgroundTaskDescriptor, BackgroundTaskOptions, BackgroundTaskResult, BackgroundTriggerKind,
-    CalendarAccess, CalendarAvailability, CalendarDescriptor, CalendarEvent, CalendarEventDraft,
-    CalendarEventQuery, ClipboardBinaryFormat, Contact, ContactAddress, ContactDraft, ContactEmail,
-    ContactName, ContactOrganization, ContactPage, ContactPhone, ContactQuery,
-    CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationOptions,
-    CredentialAuthenticationPolicy, CredentialAuthenticationResult, CredentialQuery,
-    CredentialRecord, CredentialWriteOptions, DocumentAccess, DocumentDescriptor,
-    DocumentPickOptions, HostIdentity, IntentEvent, IntentKind, IntentOpenOptions, IntentPayload,
-    LifecycleEvent, LifecycleEventKind, LifecycleEventPayload, LifecycleLowMemoryPayload,
-    LifecycleLowPowerPayload, LifecycleState, LoadAverage, LocationAccuracy, LocationSample,
-    LocationWatchOptions, MediaAssetDescriptor, MediaAssetKind, MediaPage, MediaQuery, MountEntry,
-    NetworkCellularGeneration, NetworkConnectionType, NetworkEvent, NetworkState,
-    NotificationCategory, NotificationEvent, NotificationEventKind, NotificationEventOpenOptions,
-    NotificationPermissionState, NotificationPriority, NotificationRequest,
-    NotificationScheduledDescriptor, Permission, PermissionEntry, PermissionState, PowerState,
-    SystemSnapshot,
-};
+use crate::platform::os::*;
 use crate::platform::{fs, resource};
 
 /// Clear clipboard payload.

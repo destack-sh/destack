@@ -706,38 +706,6 @@ impl VmValueCodec for MmapAdvice {
     }
 }
 
-/// ABI enum for PathEncoding.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PathEncoding {
-    /// Bytes.
-    Bytes = 1,
-    /// Utf16.
-    Utf16 = 2,
-}
-
-impl VmValueCodec for PathEncoding {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Bytes,
-            2u8 => Self::Utf16,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
 /// ABI enum for SeekWhence.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -808,38 +776,70 @@ impl VmValueCodec for SymlinkType {
     }
 }
 
-/// ABI enum for WatchEventKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum WatchEventKind {
-    /// Create.
-    Create = 1,
-    /// Remove.
-    Remove = 2,
-    /// Modify.
-    Modify = 3,
-    /// Rename.
-    Rename = 4,
-    /// Metadata.
-    Metadata = 5,
-    /// Overflow.
-    Overflow = 6,
+/// ABI tagged union for DirentNext.
+pub enum DirentNextAbi<A: BindingAbi> {
+    /// DirentNextEnd variant.
+    DirentNextEnd(platform_fs::DirentNextEndAbi<A>),
+    /// DirentNextEntry variant.
+    DirentNextEntry(platform_fs::DirentNextEntryAbi<A>),
 }
 
-impl VmValueCodec for WatchEventKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Create,
-            2u8 => Self::Remove,
-            3u8 => Self::Modify,
-            4u8 => Self::Rename,
-            5u8 => Self::Metadata,
-            6u8 => Self::Overflow,
+pub type DirentNext = DirentNextAbi<NativeAbi>;
+pub type DirentNextVm = DirentNextAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DirentNextAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("DirentNextAbi").finish()
+    }
+}
+
+impl Copy for DirentNextAbi<NativeAbi> {}
+impl Clone for DirentNextAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DirentNextAbi<VmAbi> {}
+impl Clone for DirentNextAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DirentNextAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DirentNext",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            2090254866u32 => Self::DirentNextEnd(
+                <DirentNextEndVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2677729269u32 => Self::DirentNextEntry(
+                <DirentNextEntryVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown WatchEventKind value",
+                    "unknown DirentNext tag",
                 ))
                 .boxed());
             }
@@ -847,8 +847,268 @@ impl VmValueCodec for WatchEventKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::DirentNextEnd(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2090254866u32, context)?;
+                let payload_value =
+                    <DirentNextEndVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::DirentNextEntry(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2677729269u32, context)?;
+                let payload_value =
+                    <DirentNextEntryVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI tagged union for OsPath.
+pub enum OsPathAbi<A: BindingAbi> {
+    /// OsPathBytes variant.
+    OsPathBytes(platform_fs::OsPathBytesAbi<A>),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(platform_fs::OsPathUtf16Abi<A>),
+}
+
+pub type OsPath = OsPathAbi<NativeAbi>;
+pub type OsPathVm = OsPathAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("OsPathAbi").finish()
+    }
+}
+
+impl Copy for OsPathAbi<NativeAbi> {}
+impl Clone for OsPathAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for OsPathAbi<VmAbi> {}
+impl Clone for OsPathAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for OsPathAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "OsPath",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1243901586u32 => Self::OsPathBytes(
+                <OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2271740357u32 => Self::OsPathUtf16(
+                <OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown OsPath tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::OsPathBytes(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
+                let payload_value =
+                    <OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::OsPathUtf16(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
+                let payload_value =
+                    <OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI tagged union for WatchEvent.
+pub enum WatchEventAbi<A: BindingAbi> {
+    /// WatchCreateEvent variant.
+    WatchCreateEvent(platform_fs::WatchCreateEventAbi<A>),
+    /// WatchMetadataEvent variant.
+    WatchMetadataEvent(platform_fs::WatchMetadataEventAbi<A>),
+    /// WatchModifyEvent variant.
+    WatchModifyEvent(platform_fs::WatchModifyEventAbi<A>),
+    /// WatchOverflowEvent variant.
+    WatchOverflowEvent(platform_fs::WatchOverflowEventAbi<A>),
+    /// WatchRemoveEvent variant.
+    WatchRemoveEvent(platform_fs::WatchRemoveEventAbi<A>),
+    /// WatchRenameEvent variant.
+    WatchRenameEvent(platform_fs::WatchRenameEventAbi<A>),
+}
+
+pub type WatchEvent = WatchEventAbi<NativeAbi>;
+pub type WatchEventVm = WatchEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("WatchEventAbi").finish()
+    }
+}
+
+impl Copy for WatchEventAbi<NativeAbi> {}
+impl Clone for WatchEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchEventAbi<VmAbi> {}
+impl Clone for WatchEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1939101351u32 => Self::WatchCreateEvent(
+                <WatchCreateEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            1600181316u32 => Self::WatchMetadataEvent(
+                <WatchMetadataEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            1599471013u32 => Self::WatchModifyEvent(
+                <WatchModifyEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            3953550088u32 => Self::WatchOverflowEvent(
+                <WatchOverflowEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2363373759u32 => Self::WatchRemoveEvent(
+                <WatchRemoveEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            3136928519u32 => Self::WatchRenameEvent(
+                <WatchRenameEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WatchEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::WatchCreateEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1939101351u32, context)?;
+                let payload_value =
+                    <WatchCreateEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::WatchMetadataEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1600181316u32, context)?;
+                let payload_value =
+                    <WatchMetadataEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::WatchModifyEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1599471013u32, context)?;
+                let payload_value =
+                    <WatchModifyEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::WatchOverflowEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3953550088u32, context)?;
+                let payload_value =
+                    <WatchOverflowEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::WatchRemoveEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2363373759u32, context)?;
+                let payload_value =
+                    <WatchRemoveEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::WatchRenameEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3136928519u32, context)?;
+                let payload_value =
+                    <WatchRenameEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -924,38 +1184,38 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
     }
 }
 
-/// ABI struct for DirentNext.
+/// ABI struct for DirentNextEnd.
 #[repr(C)]
-pub struct DirentNextAbi<A: BindingAbi> {
-    /// The entry field.
-    pub entry: Option<platform_fs::DirentAbi<A>>,
+pub struct DirentNextEndAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
 }
 
-pub type DirentNext = DirentNextAbi<NativeAbi>;
-pub type DirentNextVm = DirentNextAbi<VmAbi>;
+pub type DirentNextEnd = DirentNextEndAbi<NativeAbi>;
+pub type DirentNextEndVm = DirentNextEndAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for DirentNextAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for DirentNextEndAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("DirentNextAbi")
+            .debug_struct("DirentNextEndAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for DirentNextAbi<NativeAbi> {}
-impl Clone for DirentNextAbi<NativeAbi> {
+impl Copy for DirentNextEndAbi<NativeAbi> {}
+impl Clone for DirentNextEndAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for DirentNextAbi<VmAbi> {}
-impl Clone for DirentNextAbi<VmAbi> {
+impl Copy for DirentNextEndAbi<VmAbi> {}
+impl Clone for DirentNextEndAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for DirentNextAbi<VmAbi> {
+impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -963,7 +1223,7 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "DirentNext",
+                "DirentNextEnd",
             ))
             .boxed());
         }
@@ -977,18 +1237,94 @@ impl VmAggregateCodec for DirentNextAbi<VmAbi> {
             ))
             .boxed());
         }
-        let field_entry =
-            <Option<DirentVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        Ok(Self { entry: field_entry })
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
     }
 
     fn encode_with_context(
         self,
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<Option<DirentVm> as VmAggregateCodec>::encode_with_context(
-            self.entry, context,
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
         )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DirentNextEntry.
+#[repr(C)]
+pub struct DirentNextEntryAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The entry field.
+    pub entry: platform_fs::DirentAbi<A>,
+}
+
+pub type DirentNextEntry = DirentNextEntryAbi<NativeAbi>;
+pub type DirentNextEntryVm = DirentNextEntryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DirentNextEntryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DirentNextEntryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DirentNextEntryAbi<NativeAbi> {}
+impl Clone for DirentNextEntryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DirentNextEntryAbi<VmAbi> {}
+impl Clone for DirentNextEntryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DirentNextEntry",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_entry = <DirentVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            entry: field_entry,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <DirentVm as VmAggregateCodec>::encode_with_context(self.entry, context)?,
+        ];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -1053,69 +1389,144 @@ impl VmAggregateCodec for OpenOptions {
     }
 }
 
-/// ABI struct for OsPath.
+/// ABI struct for OsPathBytes.
 #[repr(C)]
-pub struct OsPathAbi<A: BindingAbi> {
-    /// The encoding field.
-    pub encoding: PathEncoding,
+pub struct OsPathBytesAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
     /// The bytes field.
     pub bytes: platform_fs::PathBytesAbi<A>,
-    /// The utf16 field.
-    pub utf16: platform_fs::PathUtf16Abi<A>,
 }
 
-pub type OsPath = OsPathAbi<NativeAbi>;
-pub type OsPathVm = OsPathAbi<VmAbi>;
+pub type OsPathBytes = OsPathBytesAbi<NativeAbi>;
+pub type OsPathBytesVm = OsPathBytesAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for OsPathAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for OsPathBytesAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("OsPathAbi").finish_non_exhaustive()
+        formatter
+            .debug_struct("OsPathBytesAbi")
+            .finish_non_exhaustive()
     }
 }
 
-impl Copy for OsPathAbi<NativeAbi> {}
-impl Clone for OsPathAbi<NativeAbi> {
+impl Copy for OsPathBytesAbi<NativeAbi> {}
+impl Clone for OsPathBytesAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for OsPathAbi<VmAbi> {}
-impl Clone for OsPathAbi<VmAbi> {
+impl Copy for OsPathBytesAbi<VmAbi> {}
+impl Clone for OsPathBytesAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for OsPathAbi<VmAbi> {
+impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value", "OsPath",
+                "value",
+                "OsPathBytes",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
-        let field_encoding =
-            <PathEncoding as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_bytes =
             <PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_utf16 =
-            <PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
-            encoding: field_encoding,
+            kind: field_kind,
             bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for OsPathUtf16.
+#[repr(C)]
+pub struct OsPathUtf16Abi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The utf16 field.
+    pub utf16: platform_fs::PathUtf16Abi<A>,
+}
+
+pub type OsPathUtf16 = OsPathUtf16Abi<NativeAbi>;
+pub type OsPathUtf16Vm = OsPathUtf16Abi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for OsPathUtf16Abi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OsPathUtf16Abi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for OsPathUtf16Abi<NativeAbi> {}
+impl Clone for OsPathUtf16Abi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for OsPathUtf16Abi<VmAbi> {}
+impl Clone for OsPathUtf16Abi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "OsPathUtf16",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
             utf16: field_utf16,
         })
     }
@@ -1125,8 +1536,7 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <PathEncoding as VmAggregateCodec>::encode_with_context(self.encoding, context)?,
-            <PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -1600,44 +2010,42 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
     }
 }
 
-/// ABI struct for WatchEvent.
+/// ABI struct for WatchCreateEvent.
 #[repr(C)]
-pub struct WatchEventAbi<A: BindingAbi> {
+pub struct WatchCreateEventAbi<A: BindingAbi> {
     /// The kind field.
-    pub kind: WatchEventKind,
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
     /// The path field.
     pub path: platform_fs::OsPathAbi<A>,
-    /// The related_path field.
-    pub related_path: platform_fs::OsPathAbi<A>,
-    /// The cookie field.
-    pub cookie: u64,
 }
 
-pub type WatchEvent = WatchEventAbi<NativeAbi>;
-pub type WatchEventVm = WatchEventAbi<VmAbi>;
+pub type WatchCreateEvent = WatchCreateEventAbi<NativeAbi>;
+pub type WatchCreateEventVm = WatchCreateEventAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for WatchEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for WatchCreateEventAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("WatchEventAbi")
+            .debug_struct("WatchCreateEventAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for WatchEventAbi<NativeAbi> {}
-impl Clone for WatchEventAbi<NativeAbi> {
+impl Copy for WatchCreateEventAbi<NativeAbi> {}
+impl Clone for WatchCreateEventAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for WatchEventAbi<VmAbi> {}
-impl Clone for WatchEventAbi<VmAbi> {
+impl Copy for WatchCreateEventAbi<VmAbi> {}
+impl Clone for WatchCreateEventAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for WatchEventAbi<VmAbi> {
+impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -1645,31 +2053,29 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "WatchEvent",
+                "WatchCreateEvent",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_kind =
-            <WatchEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_related_path =
-            <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_cookie = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
+            metadata: field_metadata,
             path: field_path,
-            related_path: field_related_path,
-            cookie: field_cookie,
         })
     }
 
@@ -1678,10 +2084,232 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <WatchEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
             <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <OsPathVm as VmAggregateCodec>::encode_with_context(self.related_path, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.cookie, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WatchEventMetadata.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WatchEventMetadata {
+    /// The cookie field.
+    pub cookie: u64,
+}
+
+pub type WatchEventMetadataVm = WatchEventMetadata;
+
+impl VmAggregateCodec for WatchEventMetadata {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchEventMetadata",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_cookie = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            cookie: field_cookie,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<u64 as VmAggregateCodec>::encode_with_context(
+            self.cookie,
+            context,
+        )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WatchMetadataEvent.
+#[repr(C)]
+pub struct WatchMetadataEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: platform_fs::OsPathAbi<A>,
+}
+
+pub type WatchMetadataEvent = WatchMetadataEventAbi<NativeAbi>;
+pub type WatchMetadataEventVm = WatchMetadataEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchMetadataEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WatchMetadataEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for WatchMetadataEventAbi<NativeAbi> {}
+impl Clone for WatchMetadataEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchMetadataEventAbi<VmAbi> {}
+impl Clone for WatchMetadataEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchMetadataEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            path: field_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WatchModifyEvent.
+#[repr(C)]
+pub struct WatchModifyEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: platform_fs::OsPathAbi<A>,
+}
+
+pub type WatchModifyEvent = WatchModifyEventAbi<NativeAbi>;
+pub type WatchModifyEventVm = WatchModifyEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchModifyEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WatchModifyEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for WatchModifyEventAbi<NativeAbi> {}
+impl Clone for WatchModifyEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchModifyEventAbi<VmAbi> {}
+impl Clone for WatchModifyEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchModifyEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            path: field_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1747,6 +2375,262 @@ impl VmAggregateCodec for WatchOptions {
     }
 }
 
+/// ABI struct for WatchOverflowEvent.
+#[repr(C)]
+pub struct WatchOverflowEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+}
+
+pub type WatchOverflowEvent = WatchOverflowEventAbi<NativeAbi>;
+pub type WatchOverflowEventVm = WatchOverflowEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchOverflowEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WatchOverflowEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for WatchOverflowEventAbi<NativeAbi> {}
+impl Clone for WatchOverflowEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchOverflowEventAbi<VmAbi> {}
+impl Clone for WatchOverflowEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchOverflowEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WatchRemoveEvent.
+#[repr(C)]
+pub struct WatchRemoveEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: platform_fs::OsPathAbi<A>,
+}
+
+pub type WatchRemoveEvent = WatchRemoveEventAbi<NativeAbi>;
+pub type WatchRemoveEventVm = WatchRemoveEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchRemoveEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WatchRemoveEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for WatchRemoveEventAbi<NativeAbi> {}
+impl Clone for WatchRemoveEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchRemoveEventAbi<VmAbi> {}
+impl Clone for WatchRemoveEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchRemoveEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            path: field_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WatchRenameEvent.
+#[repr(C)]
+pub struct WatchRenameEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: platform_fs::OsPathAbi<A>,
+    /// The related_path field.
+    pub related_path: platform_fs::OsPathAbi<A>,
+}
+
+pub type WatchRenameEvent = WatchRenameEventAbi<NativeAbi>;
+pub type WatchRenameEventVm = WatchRenameEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for WatchRenameEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("WatchRenameEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for WatchRenameEventAbi<NativeAbi> {}
+impl Clone for WatchRenameEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for WatchRenameEventAbi<VmAbi> {}
+impl Clone for WatchRenameEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WatchRenameEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <WatchEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_related_path =
+            <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            path: field_path,
+            related_path: field_related_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <WatchEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <OsPathVm as VmAggregateCodec>::encode_with_context(self.related_path, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// Replay struct for Dirent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentReplayRecord {
@@ -1756,20 +2640,36 @@ pub struct DirentReplayRecord {
     pub kind: DirentKind,
 }
 
-/// Replay struct for DirentNext.
+/// Replay struct for DirentNextEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DirentNextReplayRecord {
-    /// The entry field.
-    pub entry: Option<DirentReplayRecord>,
+pub struct DirentNextEndReplayRecord {
+    /// The kind field.
+    pub kind: String,
 }
 
-/// Replay struct for OsPath.
+/// Replay struct for DirentNextEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OsPathReplayRecord {
-    /// The encoding field.
-    pub encoding: PathEncoding,
+pub struct DirentNextEntryReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The entry field.
+    pub entry: DirentReplayRecord,
+}
+
+/// Replay struct for OsPathBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathBytesReplayRecord {
+    /// The kind field.
+    pub kind: String,
     /// The bytes field.
     pub bytes: Vec<u8>,
+}
+
+/// Replay struct for OsPathUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OsPathUtf16ReplayRecord {
+    /// The kind field.
+    pub kind: String,
     /// The utf16 field.
     pub utf16: Vec<u16>,
 }
@@ -1783,15 +2683,103 @@ pub struct WatchBatchReplayRecord {
     pub overflowed: bool,
 }
 
-/// Replay struct for WatchEvent.
+/// Replay struct for WatchCreateEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct WatchEventReplayRecord {
+pub struct WatchCreateEventReplayRecord {
     /// The kind field.
-    pub kind: WatchEventKind,
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: OsPathReplayRecord,
+}
+
+/// Replay struct for WatchMetadataEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WatchMetadataEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: OsPathReplayRecord,
+}
+
+/// Replay struct for WatchModifyEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WatchModifyEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: OsPathReplayRecord,
+}
+
+/// Replay struct for WatchOverflowEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WatchOverflowEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+}
+
+/// Replay struct for WatchRemoveEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WatchRemoveEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
+    /// The path field.
+    pub path: OsPathReplayRecord,
+}
+
+/// Replay struct for WatchRenameEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WatchRenameEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: WatchEventMetadata,
     /// The path field.
     pub path: OsPathReplayRecord,
     /// The related_path field.
     pub related_path: OsPathReplayRecord,
-    /// The cookie field.
-    pub cookie: u64,
+}
+
+/// Replay enum for DirentNext.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DirentNextReplayRecord {
+    /// DirentNextEnd variant.
+    DirentNextEnd(DirentNextEndReplayRecord),
+    /// DirentNextEntry variant.
+    DirentNextEntry(DirentNextEntryReplayRecord),
+}
+
+/// Replay enum for OsPath.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum OsPathReplayRecord {
+    /// OsPathBytes variant.
+    OsPathBytes(OsPathBytesReplayRecord),
+    /// OsPathUtf16 variant.
+    OsPathUtf16(OsPathUtf16ReplayRecord),
+}
+
+/// Replay enum for WatchEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum WatchEventReplayRecord {
+    /// WatchCreateEvent variant.
+    WatchCreateEvent(WatchCreateEventReplayRecord),
+    /// WatchMetadataEvent variant.
+    WatchMetadataEvent(WatchMetadataEventReplayRecord),
+    /// WatchModifyEvent variant.
+    WatchModifyEvent(WatchModifyEventReplayRecord),
+    /// WatchOverflowEvent variant.
+    WatchOverflowEvent(WatchOverflowEventReplayRecord),
+    /// WatchRemoveEvent variant.
+    WatchRemoveEvent(WatchRemoveEventReplayRecord),
+    /// WatchRenameEvent variant.
+    WatchRenameEvent(WatchRenameEventReplayRecord),
 }

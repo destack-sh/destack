@@ -15,8 +15,9 @@ use parking_lot::Mutex;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{
-    OsPath, PathBytes, PathBytesAbi, PathEncoding, PathUtf16, PathUtf16Abi, WatchBatch, WatchEvent,
-    WatchEventKind, WatchMask, WatchOptions,
+    OsPath, OsPathBytes, OsPathUtf16, PathBytes, PathBytesAbi, PathUtf16, PathUtf16Abi, WatchBatch,
+    WatchCreateEvent, WatchEvent, WatchEventMetadata, WatchMask, WatchMetadataEvent,
+    WatchModifyEvent, WatchOptions, WatchOverflowEvent, WatchRemoveEvent, WatchRenameEvent,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
 use crate::platform::{NativeArray, PlatformError, ResourceId};
@@ -63,6 +64,7 @@ pub(crate) fn empty_path_bytes() -> PathBytes {
 }
 
 /// Build an empty UTF-16 path payload.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn empty_path_utf16() -> PathUtf16 {
     PathUtf16Abi::<NativeAbi>(NativeArray {
         data: std::ptr::null_mut(),
@@ -73,27 +75,25 @@ pub(crate) fn empty_path_utf16() -> PathUtf16 {
 
 /// Build an `OsPath` from raw byte data.
 pub(crate) fn path_ref_from_bytes(bytes: PathBytes) -> OsPath {
-    OsPath {
-        encoding: PathEncoding::Bytes,
+    OsPath::OsPathBytes(OsPathBytes {
+        kind: "bytes".into(),
         bytes,
-        utf16: empty_path_utf16(),
-    }
+    })
 }
 
 /// Build an `OsPath` from UTF-16 data.
 pub(crate) fn path_ref_from_utf16(utf16: PathUtf16) -> OsPath {
-    OsPath {
-        encoding: PathEncoding::Utf16,
-        bytes: empty_path_bytes(),
+    OsPath::OsPathUtf16(OsPathUtf16 {
+        kind: "utf16".into(),
         utf16,
-    }
+    })
 }
 
 /// Decode an `OsPath` into a UTF-8 string.
 pub(crate) fn os_path_to_utf8_string(path: OsPath, label: &str) -> RuntimeResult<String> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = unsafe { path.bytes.0.as_slice()? };
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
+            let bytes = unsafe { path_bytes.bytes.0.as_slice()? };
             String::from_utf8(bytes.to_vec()).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     label,
@@ -102,8 +102,8 @@ pub(crate) fn os_path_to_utf8_string(path: OsPath, label: &str) -> RuntimeResult
                 .boxed()
             })
         }
-        PathEncoding::Utf16 => {
-            let utf16 = unsafe { path.utf16.0.as_slice()? };
+        OsPath::OsPathUtf16(path_utf16) => {
+            let utf16 = unsafe { path_utf16.utf16.0.as_slice()? };
             String::from_utf16(utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     label,
@@ -248,16 +248,16 @@ pub(crate) fn with_path_ref<T>(
     #[cfg(not(unix))]
     let _ = label;
 
-    match path.encoding {
-        PathEncoding::Bytes => on_bytes(path.bytes),
-        PathEncoding::Utf16 => {
+    match path {
+        OsPath::OsPathBytes(path_bytes) => on_bytes(path_bytes.bytes),
+        OsPath::OsPathUtf16(path_utf16) => {
             #[cfg(unix)]
             {
-                with_utf16_as_bytes(path.utf16, label, on_bytes)
+                with_utf16_as_bytes(path_utf16.utf16, label, on_bytes)
             }
             #[cfg(not(unix))]
             {
-                _on_utf16(path.utf16)
+                _on_utf16(path_utf16.utf16)
             }
         }
     }
@@ -271,16 +271,18 @@ pub(crate) fn with_path_ref_pair<T>(
     on_bytes: impl FnOnce(PathBytes, PathBytes) -> RuntimeResult<T>,
     _on_utf16: impl FnOnce(PathUtf16, PathUtf16) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
-    match (left.encoding, right.encoding) {
-        (PathEncoding::Bytes, PathEncoding::Bytes) => on_bytes(left.bytes, right.bytes),
-        (PathEncoding::Utf16, PathEncoding::Utf16) => {
+    match (left, right) {
+        (OsPath::OsPathBytes(left_bytes), OsPath::OsPathBytes(right_bytes)) => {
+            on_bytes(left_bytes.bytes, right_bytes.bytes)
+        }
+        (OsPath::OsPathUtf16(left_utf16), OsPath::OsPathUtf16(right_utf16)) => {
             #[cfg(unix)]
             {
-                with_utf16_pair_as_bytes(left.utf16, right.utf16, label, on_bytes)
+                with_utf16_pair_as_bytes(left_utf16.utf16, right_utf16.utf16, label, on_bytes)
             }
             #[cfg(not(unix))]
             {
-                _on_utf16(left.utf16, right.utf16)
+                _on_utf16(left_utf16.utf16, right_utf16.utf16)
             }
         }
         _ => path_ref_mismatch(label),
@@ -363,13 +365,31 @@ const WATCH_MASK_OVERFLOW: u32 = 1 << 5;
 #[derive(Debug, Clone)]
 struct WatchQueuedEvent {
     /// Event kind for this record.
-    kind: WatchEventKind,
+    kind: WatchQueuedKind,
     /// Primary path payload when present.
     path: Option<PathBuf>,
     /// Related path payload when present.
     related_path: Option<PathBuf>,
     /// Backend cookie value when present.
     cookie: u64,
+}
+
+/// One internal watch event kind.
+#[cfg(any(unix, windows))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WatchQueuedKind {
+    /// Create.
+    Create,
+    /// Remove.
+    Remove,
+    /// Modify.
+    Modify,
+    /// Rename.
+    Rename,
+    /// Metadata.
+    Metadata,
+    /// Overflow.
+    Overflow,
 }
 
 /// Mutable watch-resource payload stored in the resource table.
@@ -406,18 +426,18 @@ fn watch_resource(
 
 /// Return true when one watch-kind passes one mask.
 #[cfg(any(unix, windows))]
-fn watch_mask_allows(mask: WatchMask, kind: WatchEventKind) -> bool {
+fn watch_mask_allows(mask: WatchMask, kind: WatchQueuedKind) -> bool {
     if mask.0 == 0 {
         return true;
     }
 
     let bit = match kind {
-        WatchEventKind::Create => WATCH_MASK_CREATE,
-        WatchEventKind::Remove => WATCH_MASK_REMOVE,
-        WatchEventKind::Modify => WATCH_MASK_MODIFY,
-        WatchEventKind::Rename => WATCH_MASK_RENAME,
-        WatchEventKind::Metadata => WATCH_MASK_METADATA,
-        WatchEventKind::Overflow => WATCH_MASK_OVERFLOW,
+        WatchQueuedKind::Create => WATCH_MASK_CREATE,
+        WatchQueuedKind::Remove => WATCH_MASK_REMOVE,
+        WatchQueuedKind::Modify => WATCH_MASK_MODIFY,
+        WatchQueuedKind::Rename => WATCH_MASK_RENAME,
+        WatchQueuedKind::Metadata => WATCH_MASK_METADATA,
+        WatchQueuedKind::Overflow => WATCH_MASK_OVERFLOW,
     };
     mask.0 & bit != 0
 }
@@ -426,7 +446,7 @@ fn watch_mask_allows(mask: WatchMask, kind: WatchEventKind) -> bool {
 #[cfg(any(unix, windows))]
 fn push_watch_record(
     resource: &mut WatchResource,
-    kind: WatchEventKind,
+    kind: WatchQueuedKind,
     path: Option<PathBuf>,
     related_path: Option<PathBuf>,
     cookie: u64,
@@ -447,7 +467,7 @@ fn push_watch_record(
 #[cfg(any(unix, windows))]
 fn push_overflow_record(resource: &mut WatchResource, cookie: u64) {
     resource.overflowed = true;
-    push_watch_record(resource, WatchEventKind::Overflow, None, None, cookie);
+    push_watch_record(resource, WatchQueuedKind::Overflow, None, None, cookie);
 }
 
 /// Map one notify event into queued watch records.
@@ -461,22 +481,22 @@ fn push_notify_event(resource: &mut WatchResource, event: Event) {
     match event.kind {
         EventKind::Create(_) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Create, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Create, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Create, Some(path), None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Create, Some(path), None, cookie);
             }
         }
         EventKind::Remove(_) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Remove, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Remove, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Remove, Some(path), None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Remove, Some(path), None, cookie);
             }
         }
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
@@ -485,7 +505,7 @@ fn push_notify_event(resource: &mut WatchResource, event: Event) {
                 let target = event.paths[1].clone();
                 push_watch_record(
                     resource,
-                    WatchEventKind::Rename,
+                    WatchQueuedKind::Rename,
                     Some(source),
                     Some(target),
                     cookie,
@@ -494,57 +514,75 @@ fn push_notify_event(resource: &mut WatchResource, event: Event) {
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Rename, Some(path), None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Rename, Some(path), None, cookie);
             }
         }
         EventKind::Modify(ModifyKind::Name(_)) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Rename, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Rename, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Rename, Some(path), None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Rename, Some(path), None, cookie);
             }
         }
         EventKind::Modify(ModifyKind::Metadata(_)) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Metadata, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Metadata, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Metadata, Some(path), None, cookie);
+                push_watch_record(
+                    resource,
+                    WatchQueuedKind::Metadata,
+                    Some(path),
+                    None,
+                    cookie,
+                );
             }
         }
         EventKind::Modify(_) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Modify, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Modify, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Modify, Some(path), None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Modify, Some(path), None, cookie);
             }
         }
         EventKind::Access(_) => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Metadata, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Metadata, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Metadata, Some(path), None, cookie);
+                push_watch_record(
+                    resource,
+                    WatchQueuedKind::Metadata,
+                    Some(path),
+                    None,
+                    cookie,
+                );
             }
         }
         EventKind::Any | EventKind::Other => {
             if event.paths.is_empty() {
-                push_watch_record(resource, WatchEventKind::Metadata, None, None, cookie);
+                push_watch_record(resource, WatchQueuedKind::Metadata, None, None, cookie);
                 return;
             }
 
             for path in event.paths {
-                push_watch_record(resource, WatchEventKind::Metadata, Some(path), None, cookie);
+                push_watch_record(
+                    resource,
+                    WatchQueuedKind::Metadata,
+                    Some(path),
+                    None,
+                    cookie,
+                );
             }
         }
     }
@@ -574,22 +612,81 @@ fn drain_watch_backend_events(resource: &mut WatchResource) {
 /// Build one native watch event from one queued record.
 #[cfg(any(unix, windows))]
 fn watch_event_from_queued(context: &BindingCallContext, record: WatchQueuedEvent) -> WatchEvent {
-    let path = if let Some(path) = record.path.as_deref() {
-        os_path_from_path(context, path)
-    } else {
-        empty_os_path()
-    };
-    let related_path = if let Some(related_path) = record.related_path.as_deref() {
-        os_path_from_path(context, related_path)
-    } else {
-        empty_os_path()
+    let metadata = WatchEventMetadata {
+        cookie: record.cookie,
     };
 
-    WatchEvent {
-        kind: record.kind,
-        path,
-        related_path,
-        cookie: record.cookie,
+    match record.kind {
+        WatchQueuedKind::Create => {
+            let path = if let Some(path) = record.path.as_deref() {
+                os_path_from_path(context, path)
+            } else {
+                empty_os_path()
+            };
+            WatchEvent::WatchCreateEvent(WatchCreateEvent {
+                kind: "create".into(),
+                metadata,
+                path,
+            })
+        }
+        WatchQueuedKind::Remove => {
+            let path = if let Some(path) = record.path.as_deref() {
+                os_path_from_path(context, path)
+            } else {
+                empty_os_path()
+            };
+            WatchEvent::WatchRemoveEvent(WatchRemoveEvent {
+                kind: "remove".into(),
+                metadata,
+                path,
+            })
+        }
+        WatchQueuedKind::Modify => {
+            let path = if let Some(path) = record.path.as_deref() {
+                os_path_from_path(context, path)
+            } else {
+                empty_os_path()
+            };
+            WatchEvent::WatchModifyEvent(WatchModifyEvent {
+                kind: "modify".into(),
+                metadata,
+                path,
+            })
+        }
+        WatchQueuedKind::Rename => {
+            let path = if let Some(path) = record.path.as_deref() {
+                os_path_from_path(context, path)
+            } else {
+                empty_os_path()
+            };
+            let related_path = if let Some(related_path) = record.related_path.as_deref() {
+                os_path_from_path(context, related_path)
+            } else {
+                empty_os_path()
+            };
+            WatchEvent::WatchRenameEvent(WatchRenameEvent {
+                kind: "rename".into(),
+                metadata,
+                path,
+                related_path,
+            })
+        }
+        WatchQueuedKind::Metadata => {
+            let path = if let Some(path) = record.path.as_deref() {
+                os_path_from_path(context, path)
+            } else {
+                empty_os_path()
+            };
+            WatchEvent::WatchMetadataEvent(WatchMetadataEvent {
+                kind: "metadata".into(),
+                metadata,
+                path,
+            })
+        }
+        WatchQueuedKind::Overflow => WatchEvent::WatchOverflowEvent(WatchOverflowEvent {
+            kind: "overflow".into(),
+            metadata,
+        }),
     }
 }
 

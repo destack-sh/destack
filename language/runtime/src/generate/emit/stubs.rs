@@ -1,4 +1,5 @@
 use super::*;
+use crate::emit::to_pascal_case;
 
 /// Render a handwritten harness module scaffold.
 pub(crate) fn render_domain_test_harness_stub() -> String {
@@ -243,22 +244,6 @@ fn render_standardized_test_harness_generated(
     output.push_str("    }\n");
     output.push_str("}\n");
     output
-}
-
-/// Convert one snake-case domain name into one PascalCase identifier.
-fn to_pascal_case(domain: &str) -> String {
-    let mut out = String::new();
-
-    for part in domain.split('_') {
-        let mut characters = part.chars();
-        let Some(first) = characters.next() else {
-            continue;
-        };
-        out.push(first.to_ascii_uppercase());
-        out.extend(characters);
-    }
-
-    out
 }
 
 /// Render one generated unified harness method.

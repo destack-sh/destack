@@ -2,6 +2,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_SIGN, with_harness_context};
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm,
     CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyResidency,
@@ -17,20 +18,17 @@ fn test_agreement_derive_shared_secret_and_key() {
         // open store and generate two x25519 keypairs
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::X25519,
-            named_curve: CryptoNamedCurve::X25519,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-            label: context.call_context.store_string("x25519"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+            platform_crypto::CryptoKeyGenerationRequestX25519 {
+                algorithm: context.call_context.store_string("x25519"),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                label: context.call_context.store_string("x25519"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let alice =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let alice = context.same_from_value(alice);
@@ -83,20 +81,17 @@ fn test_agreement_enforces_key_usage_mask() {
         // open store and generate x25519 keys without derive usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::X25519,
-            named_curve: CryptoNamedCurve::X25519,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
-            label: context.call_context.store_string("x25519-sign-only"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+            platform_crypto::CryptoKeyGenerationRequestX25519 {
+                algorithm: context.call_context.store_string("x25519"),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+                label: context.call_context.store_string("x25519-sign-only"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let alice =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let alice = context.same_from_value(alice);
@@ -154,38 +149,33 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
 
-        let x25519_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::X25519,
-            named_curve: CryptoNamedCurve::X25519,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-            label: context.call_context.store_string("x25519"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let x25519_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+            platform_crypto::CryptoKeyGenerationRequestX25519 {
+                algorithm: context.call_context.store_string("x25519"),
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                label: context.call_context.store_string("x25519"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let x25519_pair = context
             .destack_crypto_key_generate_pair(store, context.request_value(x25519_request)?)?;
         let x25519_pair = context.same_from_value(x25519_pair);
 
-        let ec_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P256,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-            label: context.call_context.store_string("ec"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let ec_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+            platform_crypto::CryptoKeyGenerationRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                named_curve: CryptoNamedCurve::P256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                label: context.call_context.store_string("ec"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let ec_pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(ec_request)?)?;
         let ec_pair = context.same_from_value(ec_pair);
@@ -258,22 +248,20 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             // generate two persistent non-extractable ec keypairs
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Ec,
-                named_curve: CryptoNamedCurve::P256,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-                label: context
-                    .call_context
-                    .store_string(&format!("{label_prefix}-alice")),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                platform_crypto::CryptoKeyGenerationRequestEc {
+                    algorithm: context.call_context.store_string("ec"),
+                    named_curve: CryptoNamedCurve::P256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                    label: context
+                        .call_context
+                        .store_string(&format!("{label_prefix}-alice")),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let alice = match context
                 .destack_crypto_key_generate_pair(store, context.request_value(request)?)
             {
@@ -290,22 +278,20 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             };
             let alice = context.same_from_value(alice);
 
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Ec,
-                named_curve: CryptoNamedCurve::P256,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-                label: context
-                    .call_context
-                    .store_string(&format!("{label_prefix}-bob")),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                platform_crypto::CryptoKeyGenerationRequestEc {
+                    algorithm: context.call_context.store_string("ec"),
+                    named_curve: CryptoNamedCurve::P256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                    label: context
+                        .call_context
+                        .store_string(&format!("{label_prefix}-bob")),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: false,
+                    persistent: true,
+                },
+            );
             let bob = match context
                 .destack_crypto_key_generate_pair(store, context.request_value(request)?)
             {

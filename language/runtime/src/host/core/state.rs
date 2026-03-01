@@ -105,7 +105,6 @@ impl HostState {
     /// Apply one host event to mutable service state.
     pub(crate) fn apply_event(&self, event: &HostEvent) {
         match event {
-            HostEvent::Poller(_) => {}
             HostEvent::Lifecycle(event) => {
                 let lifecycle_state = encode_lifecycle_state(event.state);
                 self.lifecycle_state

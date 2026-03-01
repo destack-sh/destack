@@ -9,13 +9,13 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Platform, ProfileId, Program};
 
-use super::format::{
-    binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
-};
 use crate::model::{
     BindingCatalog, BindingEntry, BindingReturn, CatalogBindingBlocking, CatalogBindingReplayKind,
     CatalogBindingScope, CatalogEffectClass, CatalogRandomEventKind, CatalogReplayPayload,
     CatalogReplayPolicy, CatalogTimeEventKind,
+};
+use crate::types::{
+    binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -221,7 +221,6 @@ pub(crate) fn collect_platform_bindings(
                 declaration_id,
                 signature,
                 module.id,
-                &tree,
                 &types,
                 &program.modules,
                 strings,
@@ -746,8 +745,9 @@ fn parse_capabilities_list(
         }
     };
 
-    // parse and normalize capability names
+    // parse capability names and reject duplicates
     let mut parsed = Vec::with_capacity(elements.len());
+    let mut seen = BTreeSet::new();
     for argument_id in elements {
         let argument = tree.get::<Argument>(*argument_id);
         let capability_id = argument.value();
@@ -755,12 +755,13 @@ fn parse_capabilities_list(
             panic!("@binding capabilities must contain only string literals");
         });
         validate_capability_name(&capability);
+        if !seen.insert(capability.clone()) {
+            panic!("@binding capabilities cannot contain duplicate names: {capability}");
+        }
         parsed.push(capability);
     }
 
-    // ensure deterministic ordering and remove duplicates
-    let unique = parsed.into_iter().collect::<BTreeSet<_>>();
-    unique.into_iter().collect()
+    parsed
 }
 
 /// Parse host platforms from a decorator value.

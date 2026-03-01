@@ -2,6 +2,7 @@ use super::{
     KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_EXPORT, KEY_USAGE_SIGN,
     KEY_USAGE_VERIFY, with_harness_context,
 };
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoArgon2idRequest, CryptoDigestAlgorithm,
     CryptoHkdfRequest, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
@@ -161,20 +162,19 @@ fn test_probe_mac_algorithms_are_callable() {
         // open one ephemeral store and generate one hmac key
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Hmac,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-            label: context.call_context.store_string("probe-mac"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+            platform_crypto::CryptoKeyGenerationRequestHmac {
+                algorithm: context.call_context.store_string("hmac"),
+                size_bits: 256,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("probe-mac"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -235,19 +235,52 @@ fn test_probe_agreement_algorithms_are_callable() {
                     unreachable!("probe should not report unknown")
                 }
             };
-            let request = CryptoKeyGenerationRequest {
-                algorithm: key_algorithm,
-                named_curve,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
-                label: context.call_context.store_string("probe-agreement"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
+            let request = match key_algorithm {
+                CryptoKeyAlgorithm::Ec => CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                    platform_crypto::CryptoKeyGenerationRequestEc {
+                        algorithm: context.call_context.store_string("ec"),
+                        named_curve,
+                        usage_mask: CryptoKeyUsageMask(
+                            KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS,
+                        ),
+                        label: context.call_context.store_string("probe-agreement"),
+                        extractable: true,
+                        residency: CryptoKeyResidency::Unknown,
+                        hardware_backed: false,
+                        persistent: false,
+                    },
+                ),
+                CryptoKeyAlgorithm::X25519 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+                        platform_crypto::CryptoKeyGenerationRequestX25519 {
+                            algorithm: context.call_context.store_string("x25519"),
+                            usage_mask: CryptoKeyUsageMask(
+                                KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS,
+                            ),
+                            label: context.call_context.store_string("probe-agreement"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::X448 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(
+                        platform_crypto::CryptoKeyGenerationRequestX448 {
+                            algorithm: context.call_context.store_string("x448"),
+                            usage_mask: CryptoKeyUsageMask(
+                                KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS,
+                            ),
+                            label: context.call_context.store_string("probe-agreement"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                _ => unreachable!("agreement probe should only use ec or x curves"),
             };
             let alice =
                 context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
@@ -310,19 +343,72 @@ fn test_probe_named_curves_are_generatable() {
                 CryptoNamedCurve::Ed448 => CryptoKeyAlgorithm::Ed448,
                 CryptoNamedCurve::Unknown => unreachable!("probe should not report unknown"),
             };
-            let request = CryptoKeyGenerationRequest {
-                algorithm,
-                named_curve: curve,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(0),
-                label: context.call_context.store_string("probe-curve"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
+            let request = match algorithm {
+                CryptoKeyAlgorithm::Ec => CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                    platform_crypto::CryptoKeyGenerationRequestEc {
+                        algorithm: context.call_context.store_string("ec"),
+                        named_curve: curve,
+                        usage_mask: CryptoKeyUsageMask(0),
+                        label: context.call_context.store_string("probe-curve"),
+                        extractable: true,
+                        residency: CryptoKeyResidency::Unknown,
+                        hardware_backed: false,
+                        persistent: false,
+                    },
+                ),
+                CryptoKeyAlgorithm::Ed25519 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
+                        platform_crypto::CryptoKeyGenerationRequestEd25519 {
+                            algorithm: context.call_context.store_string("ed25519"),
+                            usage_mask: CryptoKeyUsageMask(0),
+                            label: context.call_context.store_string("probe-curve"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::Ed448 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
+                        platform_crypto::CryptoKeyGenerationRequestEd448 {
+                            algorithm: context.call_context.store_string("ed448"),
+                            usage_mask: CryptoKeyUsageMask(0),
+                            label: context.call_context.store_string("probe-curve"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::X25519 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+                        platform_crypto::CryptoKeyGenerationRequestX25519 {
+                            algorithm: context.call_context.store_string("x25519"),
+                            usage_mask: CryptoKeyUsageMask(0),
+                            label: context.call_context.store_string("probe-curve"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::X448 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(
+                        platform_crypto::CryptoKeyGenerationRequestX448 {
+                            algorithm: context.call_context.store_string("x448"),
+                            usage_mask: CryptoKeyUsageMask(0),
+                            label: context.call_context.store_string("probe-curve"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                _ => unreachable!("named curve probe should map to curve-capable algorithms"),
             };
             let _pair =
                 context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
@@ -351,19 +437,53 @@ fn test_probe_key_algorithms_are_generatable() {
                 CryptoKeyAlgorithm::Aes
                 | CryptoKeyAlgorithm::ChaCha20
                 | CryptoKeyAlgorithm::Hmac => {
-                    let request = CryptoKeyGenerationRequest {
-                        algorithm,
-                        named_curve: CryptoNamedCurve::Unknown,
-                        modulus_bits: 0,
-                        public_exponent: 0,
-                        digest: CryptoDigestAlgorithm::Sha256,
-                        size_bits: 256,
-                        usage_mask: CryptoKeyUsageMask(0),
-                        label: context.call_context.store_string("probe-secret"),
-                        extractable: true,
-                        residency: CryptoKeyResidency::Unknown,
-                        hardware_backed: false,
-                        persistent: false,
+                    let request = match algorithm {
+                        CryptoKeyAlgorithm::Aes => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                                platform_crypto::CryptoKeyGenerationRequestAes {
+                                    algorithm: context.call_context.store_string("aes"),
+                                    size_bits: 256,
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-secret"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::ChaCha20 => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestChaCha20(
+                                platform_crypto::CryptoKeyGenerationRequestChaCha20 {
+                                    algorithm: context.call_context.store_string("chacha20"),
+                                    size_bits: 256,
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-secret"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::Hmac => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+                                platform_crypto::CryptoKeyGenerationRequestHmac {
+                                    algorithm: context.call_context.store_string("hmac"),
+                                    size_bits: 256,
+                                    digest: CryptoDigestAlgorithm::Sha256,
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-secret"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        _ => unreachable!(
+                            "secret key probe branch should only use secret algorithms"
+                        ),
                     };
                     let _key = context.destack_crypto_key_generate_secret(
                         store,
@@ -394,19 +514,90 @@ fn test_probe_key_algorithms_are_generatable() {
                     } else {
                         0
                     };
-                    let request = CryptoKeyGenerationRequest {
-                        algorithm,
-                        named_curve,
-                        modulus_bits,
-                        public_exponent,
-                        digest: CryptoDigestAlgorithm::Sha256,
-                        size_bits: 0,
-                        usage_mask: CryptoKeyUsageMask(0),
-                        label: context.call_context.store_string("probe-pair"),
-                        extractable: true,
-                        residency: CryptoKeyResidency::Unknown,
-                        hardware_backed: false,
-                        persistent: false,
+                    let request = match algorithm {
+                        CryptoKeyAlgorithm::Rsa => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+                                platform_crypto::CryptoKeyGenerationRequestRsa {
+                                    algorithm: context.call_context.store_string("rsa"),
+                                    modulus_bits,
+                                    public_exponent,
+                                    digest: CryptoDigestAlgorithm::Sha256,
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::Ec => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                                platform_crypto::CryptoKeyGenerationRequestEc {
+                                    algorithm: context.call_context.store_string("ec"),
+                                    named_curve,
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::Ed25519 => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
+                                platform_crypto::CryptoKeyGenerationRequestEd25519 {
+                                    algorithm: context.call_context.store_string("ed25519"),
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::Ed448 => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
+                                platform_crypto::CryptoKeyGenerationRequestEd448 {
+                                    algorithm: context.call_context.store_string("ed448"),
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::X25519 => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+                                platform_crypto::CryptoKeyGenerationRequestX25519 {
+                                    algorithm: context.call_context.store_string("x25519"),
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        CryptoKeyAlgorithm::X448 => {
+                            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(
+                                platform_crypto::CryptoKeyGenerationRequestX448 {
+                                    algorithm: context.call_context.store_string("x448"),
+                                    usage_mask: CryptoKeyUsageMask(0),
+                                    label: context.call_context.store_string("probe-pair"),
+                                    extractable: true,
+                                    residency: CryptoKeyResidency::Unknown,
+                                    hardware_backed: false,
+                                    persistent: false,
+                                },
+                            )
+                        }
+                        _ => unreachable!("pair probe branch should only use pair algorithms"),
                     };
                     let _pair = context
                         .destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
@@ -449,27 +640,62 @@ fn test_probe_signature_algorithms_are_callable() {
                     unreachable!("probe should not report unknown")
                 }
             };
-            let request = CryptoKeyGenerationRequest {
-                algorithm: key_algorithm,
-                named_curve,
-                modulus_bits: if key_algorithm == CryptoKeyAlgorithm::Rsa {
-                    2048
-                } else {
-                    0
-                },
-                public_exponent: if key_algorithm == CryptoKeyAlgorithm::Rsa {
-                    65537
-                } else {
-                    0
-                },
-                digest: CryptoDigestAlgorithm::Sha256,
-                size_bits: 0,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
-                label: context.call_context.store_string("probe-signature"),
-                extractable: true,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: false,
-                persistent: false,
+            let request = match key_algorithm {
+                CryptoKeyAlgorithm::Rsa => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+                        platform_crypto::CryptoKeyGenerationRequestRsa {
+                            algorithm: context.call_context.store_string("rsa"),
+                            modulus_bits: 2048,
+                            public_exponent: 65537,
+                            digest: CryptoDigestAlgorithm::Sha256,
+                            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                            label: context.call_context.store_string("probe-signature"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::Ec => CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                    platform_crypto::CryptoKeyGenerationRequestEc {
+                        algorithm: context.call_context.store_string("ec"),
+                        named_curve,
+                        usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                        label: context.call_context.store_string("probe-signature"),
+                        extractable: true,
+                        residency: CryptoKeyResidency::Unknown,
+                        hardware_backed: false,
+                        persistent: false,
+                    },
+                ),
+                CryptoKeyAlgorithm::Ed25519 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
+                        platform_crypto::CryptoKeyGenerationRequestEd25519 {
+                            algorithm: context.call_context.store_string("ed25519"),
+                            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                            label: context.call_context.store_string("probe-signature"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                CryptoKeyAlgorithm::Ed448 => {
+                    CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
+                        platform_crypto::CryptoKeyGenerationRequestEd448 {
+                            algorithm: context.call_context.store_string("ed448"),
+                            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                            label: context.call_context.store_string("probe-signature"),
+                            extractable: true,
+                            residency: CryptoKeyResidency::Unknown,
+                            hardware_backed: false,
+                            persistent: false,
+                        },
+                    )
+                }
+                _ => unreachable!("signature probe should only use signature-capable algorithms"),
             };
             let pair =
                 context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
@@ -531,38 +757,34 @@ fn test_probe_key_formats_are_exportable() {
         let key_formats = context.values_from_slice(key_formats)?;
 
         // create representative ec and aes keys for format coverage
-        let ec_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: CryptoNamedCurve::P256,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Sha256,
-            size_bits: 0,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("probe-ec"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let ec_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+            platform_crypto::CryptoKeyGenerationRequestEc {
+                algorithm: context.call_context.store_string("ec"),
+                named_curve: CryptoNamedCurve::P256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("probe-ec"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let ec_pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(ec_request)?)?;
         let ec_pair = context.same_from_value(ec_pair);
 
-        let aes_request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
-            label: context.call_context.store_string("probe-aes"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let aes_request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("probe-aes"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let aes_key = context
             .destack_crypto_key_generate_secret(store, context.request_value(aes_request)?)?;
 

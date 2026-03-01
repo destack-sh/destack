@@ -3,8 +3,9 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputEvent, InputEventAction, InputEventKind, InputReadMode,
-    InputTextInputArea, InputTextInputType, InputWindowTarget, validation as input_validation,
+    InputCompositionEvent, InputCompositionEventPayload, InputEvent, InputEventAction,
+    InputEventMetadata, InputReadMode, InputTextInputArea, InputTextInputType, InputWindowTarget,
+    validation as input_validation,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
@@ -122,36 +123,44 @@ fn composition_event_from_input_event(
     context: &BindingCallContext,
     event: InputEvent,
 ) -> RuntimeResult<Option<InputCompositionEvent>> {
-    // map native composition events directly
-    if event.kind == InputEventKind::Composition {
-        let text = unsafe { event.payload.composition.text.as_str()? };
-        return Ok(Some(InputCompositionEvent {
-            timestamp_ns: event.timestamp_ns,
-            sequence: event.sequence,
-            device_id: event.device_id,
-            action: event.payload.composition.action,
-            text: context.store_string(text),
-            selection_start: event.payload.composition.selection_start,
-            selection_end: event.payload.composition.selection_end,
-        }));
-    }
+    match event {
+        // map native composition events directly
+        InputEvent::InputCompositionEvent(composition) => {
+            let text = unsafe { composition.payload.text.as_str()? };
+            Ok(Some(InputCompositionEvent {
+                kind: context.store_string("composition"),
+                metadata: composition.metadata,
+                payload: InputCompositionEventPayload {
+                    action: composition.payload.action,
+                    text: context.store_string(text),
+                    selection_start: composition.payload.selection_start,
+                    selection_end: composition.payload.selection_end,
+                },
+            }))
+        }
 
-    // map plain text events into commit composition updates
-    if event.kind == InputEventKind::Text {
-        let text = unsafe { event.payload.text.text.as_str()? };
-        let selection_end = text.chars().count() as i32;
-        return Ok(Some(InputCompositionEvent {
-            timestamp_ns: event.timestamp_ns,
-            sequence: event.sequence,
-            device_id: event.device_id,
-            action: InputEventAction::Commit,
-            text: context.store_string(text),
-            selection_start: 0,
-            selection_end,
-        }));
-    }
+        // map plain text events into commit composition updates
+        InputEvent::InputTextEvent(text) => {
+            let text_value = unsafe { text.payload.text.as_str()? };
+            let selection_end = text_value.chars().count() as i32;
+            Ok(Some(InputCompositionEvent {
+                kind: context.store_string("composition"),
+                metadata: InputEventMetadata {
+                    timestamp_ns: text.metadata.timestamp_ns,
+                    sequence: text.metadata.sequence,
+                    device_id: text.metadata.device_id,
+                },
+                payload: InputCompositionEventPayload {
+                    action: InputEventAction::Commit,
+                    text: context.store_string(text_value),
+                    selection_start: 0,
+                    selection_end,
+                },
+            }))
+        }
 
-    Ok(None)
+        _ => Ok(None),
+    }
 }
 
 /// Read one composition event for one opened unix text binding.

@@ -1,27 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::os::{
-    BackgroundEventKind, BackgroundEventOpenOptionsVm, BackgroundEventVm, BackgroundStatus,
-    BackgroundTaskDescriptorVm, BackgroundTaskOptionsVm, BackgroundTaskResult,
-    BackgroundTriggerKind, CalendarAccess, CalendarAvailability, CalendarDescriptorVm,
-    CalendarEventDraftVm, CalendarEventQueryVm, CalendarEventVm, ClipboardBinaryFormat,
-    ContactAddressVm, ContactDraftVm, ContactEmailVm, ContactNameVm, ContactOrganizationVm,
-    ContactPageVm, ContactPhoneVm, ContactQueryVm, ContactVm, CredentialAccessibility,
-    CredentialAuthenticationMechanism, CredentialAuthenticationOptionsVm,
-    CredentialAuthenticationPolicy, CredentialAuthenticationResultVm, CredentialQueryVm,
-    CredentialRecordVm, CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptorVm,
-    DocumentPickOptionsVm, HostIdentityVm, IntentEventVm, IntentKind, IntentOpenOptionsVm,
-    IntentPayloadVm, LifecycleEventKind, LifecycleEventPayloadVm, LifecycleEventVm,
-    LifecycleLowMemoryPayloadVm, LifecycleLowPowerPayloadVm, LifecycleState, LoadAverageVm,
-    LocationAccuracy, LocationSampleVm, LocationWatchOptionsVm, MediaAssetDescriptorVm,
-    MediaAssetKind, MediaPageVm, MediaQueryVm, MountEntryVm, NetworkCellularGeneration,
-    NetworkConnectionType, NetworkEventVm, NetworkStateVm, NotificationCategoryVm,
-    NotificationEventKind, NotificationEventOpenOptionsVm, NotificationEventVm,
-    NotificationPermissionState, NotificationPriority, NotificationRequestVm,
-    NotificationScheduledDescriptorVm, Permission, PermissionEntryVm, PermissionState, PowerState,
-    SystemSnapshotVm,
-};
+use crate::platform::os::*;
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;

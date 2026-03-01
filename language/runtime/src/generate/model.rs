@@ -181,6 +181,15 @@ pub(crate) enum BindingEnumValue {
     String(String),
 }
 
+/// Tagged union variant metadata for binding types.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BindingTaggedUnionVariant {
+    /// Variant name.
+    pub name: String,
+    /// Variant payload type.
+    pub binding_type: BindingType,
+}
+
 /// Supported binding types for generated decoders.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum BindingType {
@@ -232,5 +241,14 @@ pub(crate) enum BindingType {
         backing: EnumBackingType,
         /// Declared enum variants.
         variants: Vec<BindingEnumVariant>,
+    },
+    /// Tagged union type with named payload variants.
+    TaggedUnion {
+        /// Union type name.
+        name: String,
+        /// Owning platform domain.
+        domain: String,
+        /// Declared tagged union variants.
+        variants: Vec<BindingTaggedUnionVariant>,
     },
 }

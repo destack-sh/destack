@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::binding::write_domain_bindings;
+use crate::write::write_domain_bindings;
 
 /// Prefix used by the intrinsic platform-capability declaration.
 const PLATFORM_CAPABILITY_TYPE_PREFIX: &str = "export type PlatformCapability =";

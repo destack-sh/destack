@@ -413,6 +413,26 @@ impl VmValueCodec for DirectoryHandle {
     }
 }
 
+/// ABI newtype for DisplayEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DisplayEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DisplayEventHandleVm = DisplayEventHandle;
+
+impl VmValueCodec for DisplayEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for DisplayHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

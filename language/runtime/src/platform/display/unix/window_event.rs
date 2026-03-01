@@ -1,11 +1,11 @@
 #[cfg(target_os = "android")]
-use super::android::window_event as backend_window_event;
+use super::android as backend_window_event;
 #[cfg(target_os = "ios")]
-use super::ios::window_event as backend_window_event;
+use super::ios as backend_window_event;
 #[cfg(target_os = "linux")]
-use super::linux_x11::window_event as backend_window_event;
+use super::linux_x11 as backend_window_event;
 #[cfg(target_os = "macos")]
-use super::macos::window_event as backend_window_event;
+use super::macos as backend_window_event;
 #[cfg(all(
     unix,
     not(any(
@@ -15,9 +15,9 @@ use super::macos::window_event as backend_window_event;
         target_os = "macos"
     ))
 ))]
-use super::other::window_event as backend_window_event;
+use super::other as backend_window_event;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::WindowEvent;
+use crate::platform::display::{WindowEvent, WindowEventOpenOptions};
 use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
@@ -33,8 +33,9 @@ pub(crate) unsafe fn destack_display_window_event_close(
 pub(crate) unsafe fn destack_display_window_event_open(
     context: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
+    options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { backend_window_event::destack_display_window_event_open(context, out) }
+    unsafe { backend_window_event::destack_display_window_event_open(context, out, options) }
 }
 
 /// Wait for one window event.
@@ -44,7 +45,9 @@ pub(crate) unsafe fn destack_display_window_event_read(
     handle: resource::WindowEventHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { backend_window_event::destack_display_window_event_read(context, out, handle, timeoutns) }
+    unsafe {
+        backend_window_event::destack_display_window_event_read(context, out, handle, timeoutns)
+    }
 }
 
 /// Wait for one batch of window events.

@@ -248,62 +248,6 @@ impl VmValueCodec for InputEventAction {
     }
 }
 
-/// ABI enum for InputEventKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum InputEventKind {
-    /// Key.
-    Key = 1,
-    /// PointerMotion.
-    PointerMotion = 2,
-    /// PointerButton.
-    PointerButton = 3,
-    /// Scroll.
-    Scroll = 4,
-    /// Touch.
-    Touch = 5,
-    /// Gamepad.
-    Gamepad = 6,
-    /// Text.
-    Text = 7,
-    /// Device.
-    Device = 8,
-    /// Sensor.
-    Sensor = 9,
-    /// Composition.
-    Composition = 10,
-}
-
-impl VmValueCodec for InputEventKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Key,
-            2u8 => Self::PointerMotion,
-            3u8 => Self::PointerButton,
-            4u8 => Self::Scroll,
-            5u8 => Self::Touch,
-            6u8 => Self::Gamepad,
-            7u8 => Self::Text,
-            8u8 => Self::Device,
-            9u8 => Self::Sensor,
-            10u8 => Self::Composition,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown InputEventKind value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
 /// ABI enum for InputGamepadBatteryState.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -470,41 +414,6 @@ impl VmValueCodec for InputHapticsResult {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown InputHapticsResult value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
-/// ABI enum for InputMonitorEventKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum InputMonitorEventKind {
-    /// Connect.
-    Connect = 1,
-    /// Disconnect.
-    Disconnect = 2,
-    /// Change.
-    Change = 3,
-}
-
-impl VmValueCodec for InputMonitorEventKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Connect,
-            2u8 => Self::Disconnect,
-            3u8 => Self::Change,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown InputMonitorEventKind value",
                 ))
                 .boxed());
             }
@@ -722,6 +631,328 @@ impl VmValueCodec for InputTouchContactPhase {
     }
 }
 
+/// ABI tagged union for InputEvent.
+pub enum InputEventAbi<A: BindingAbi> {
+    /// InputCompositionEvent variant.
+    InputCompositionEvent(platform_input::InputCompositionEventAbi<A>),
+    /// InputDeviceEvent variant.
+    InputDeviceEvent(platform_input::InputDeviceEventAbi<A>),
+    /// InputGamepadEvent variant.
+    InputGamepadEvent(platform_input::InputGamepadEventAbi<A>),
+    /// InputKeyEvent variant.
+    InputKeyEvent(platform_input::InputKeyEventAbi<A>),
+    /// InputPointerButtonEvent variant.
+    InputPointerButtonEvent(platform_input::InputPointerButtonEventAbi<A>),
+    /// InputPointerMotionEvent variant.
+    InputPointerMotionEvent(platform_input::InputPointerMotionEventAbi<A>),
+    /// InputScrollEvent variant.
+    InputScrollEvent(platform_input::InputScrollEventAbi<A>),
+    /// InputSensorEvent variant.
+    InputSensorEvent(platform_input::InputSensorEventAbi<A>),
+    /// InputTextEvent variant.
+    InputTextEvent(platform_input::InputTextEventAbi<A>),
+    /// InputTouchEvent variant.
+    InputTouchEvent(platform_input::InputTouchEventAbi<A>),
+}
+
+pub type InputEvent = InputEventAbi<NativeAbi>;
+pub type InputEventVm = InputEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("InputEventAbi").finish()
+    }
+}
+
+impl Copy for InputEventAbi<NativeAbi> {}
+impl Clone for InputEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputEventAbi<VmAbi> {}
+impl Clone for InputEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1953975626u32 => Self::InputCompositionEvent(
+                <InputCompositionEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1711088174u32 => Self::InputDeviceEvent(
+                <InputDeviceEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            4057440654u32 => Self::InputGamepadEvent(
+                <InputGamepadEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2680346764u32 => Self::InputKeyEvent(
+                <InputKeyEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            4073494792u32 => Self::InputPointerButtonEvent(
+                <InputPointerButtonEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2712240874u32 => Self::InputPointerMotionEvent(
+                <InputPointerMotionEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            4279710721u32 => Self::InputScrollEvent(
+                <InputScrollEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            1143015131u32 => Self::InputSensorEvent(
+                <InputSensorEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2362503160u32 => Self::InputTextEvent(
+                <InputTextEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            1845998728u32 => Self::InputTouchEvent(
+                <InputTouchEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::InputCompositionEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1953975626u32, context)?;
+                let payload_value =
+                    <InputCompositionEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputDeviceEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1711088174u32, context)?;
+                let payload_value =
+                    <InputDeviceEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputGamepadEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4057440654u32, context)?;
+                let payload_value =
+                    <InputGamepadEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputKeyEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2680346764u32, context)?;
+                let payload_value =
+                    <InputKeyEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputPointerButtonEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4073494792u32, context)?;
+                let payload_value =
+                    <InputPointerButtonEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputPointerMotionEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2712240874u32, context)?;
+                let payload_value =
+                    <InputPointerMotionEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputScrollEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(4279710721u32, context)?;
+                let payload_value =
+                    <InputScrollEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputSensorEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1143015131u32, context)?;
+                let payload_value =
+                    <InputSensorEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputTextEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2362503160u32, context)?;
+                let payload_value =
+                    <InputTextEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputTouchEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1845998728u32, context)?;
+                let payload_value =
+                    <InputTouchEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI tagged union for InputMonitorEvent.
+pub enum InputMonitorEventAbi<A: BindingAbi> {
+    /// InputMonitorChangeEvent variant.
+    InputMonitorChangeEvent(platform_input::InputMonitorChangeEventAbi<A>),
+    /// InputMonitorConnectEvent variant.
+    InputMonitorConnectEvent(platform_input::InputMonitorConnectEventAbi<A>),
+    /// InputMonitorDisconnectEvent variant.
+    InputMonitorDisconnectEvent(platform_input::InputMonitorDisconnectEventAbi<A>),
+}
+
+pub type InputMonitorEvent = InputMonitorEventAbi<NativeAbi>;
+pub type InputMonitorEventVm = InputMonitorEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputMonitorEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("InputMonitorEventAbi").finish()
+    }
+}
+
+impl Copy for InputMonitorEventAbi<NativeAbi> {}
+impl Clone for InputMonitorEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputMonitorEventAbi<VmAbi> {}
+impl Clone for InputMonitorEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputMonitorEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            3150676780u32 => Self::InputMonitorChangeEvent(
+                <InputMonitorChangeEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1147506405u32 => Self::InputMonitorConnectEvent(
+                <InputMonitorConnectEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1352806727u32 => Self::InputMonitorDisconnectEvent(
+                <InputMonitorDisconnectEventVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown InputMonitorEvent tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::InputMonitorChangeEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3150676780u32, context)?;
+                let payload_value =
+                    <InputMonitorChangeEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputMonitorConnectEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1147506405u32, context)?;
+                let payload_value =
+                    <InputMonitorConnectEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::InputMonitorDisconnectEvent(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1352806727u32, context)?;
+                let payload_value =
+                    <InputMonitorDisconnectEventVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputAxisMetadata.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -853,20 +1084,12 @@ impl VmAggregateCodec for InputButtonMetadata {
 /// ABI struct for InputCompositionEvent.
 #[repr(C)]
 pub struct InputCompositionEventAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
-    pub timestamp_ns: u64,
-    /// The sequence field.
-    pub sequence: u64,
-    /// The device_id field.
-    pub device_id: A::String,
-    /// The action field.
-    pub action: InputEventAction,
-    /// The text field.
-    pub text: A::String,
-    /// The selection_start field.
-    pub selection_start: i32,
-    /// The selection_end field.
-    pub selection_end: i32,
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: platform_input::InputCompositionEventPayloadAbi<A>,
 }
 
 pub type InputCompositionEvent = InputCompositionEventAbi<NativeAbi>;
@@ -908,33 +1131,25 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_selection_start =
-            <i32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_selection_end =
-            <i32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputCompositionEventPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
         Ok(Self {
-            timestamp_ns: field_timestamp_ns,
-            sequence: field_sequence,
-            device_id: field_device_id,
-            action: field_action,
-            text: field_text,
-            selection_start: field_selection_start,
-            selection_end: field_selection_end,
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
         })
     }
 
@@ -943,13 +1158,15 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.selection_start, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.selection_end, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputCompositionEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1439,6 +1656,96 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
     }
 }
 
+/// ABI struct for InputDeviceEvent.
+#[repr(C)]
+pub struct InputDeviceEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputDeviceEventPayload,
+}
+
+pub type InputDeviceEvent = InputDeviceEventAbi<NativeAbi>;
+pub type InputDeviceEventVm = InputDeviceEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputDeviceEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputDeviceEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputDeviceEventAbi<NativeAbi> {}
+impl Clone for InputDeviceEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputDeviceEventAbi<VmAbi> {}
+impl Clone for InputDeviceEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputDeviceEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <InputDeviceEventPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputDeviceEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputDeviceEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -1500,46 +1807,42 @@ impl VmAggregateCodec for InputDeviceEventPayload {
     }
 }
 
-/// ABI struct for InputEvent.
+/// ABI struct for InputEventMetadata.
 #[repr(C)]
-pub struct InputEventAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: InputEventKind,
+pub struct InputEventMetadataAbi<A: BindingAbi> {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
     pub sequence: u64,
     /// The device_id field.
     pub device_id: A::String,
-    /// The payload field.
-    pub payload: platform_input::InputEventPayloadAbi<A>,
 }
 
-pub type InputEvent = InputEventAbi<NativeAbi>;
-pub type InputEventVm = InputEventAbi<VmAbi>;
+pub type InputEventMetadata = InputEventMetadataAbi<NativeAbi>;
+pub type InputEventMetadataVm = InputEventMetadataAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for InputEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for InputEventMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("InputEventAbi")
+            .debug_struct("InputEventMetadataAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for InputEventAbi<NativeAbi> {}
-impl Clone for InputEventAbi<NativeAbi> {
+impl Copy for InputEventMetadataAbi<NativeAbi> {}
+impl Clone for InputEventMetadataAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for InputEventAbi<VmAbi> {}
-impl Clone for InputEventAbi<VmAbi> {
+impl Copy for InputEventMetadataAbi<VmAbi> {}
+impl Clone for InputEventMetadataAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for InputEventAbi<VmAbi> {
+impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -1547,34 +1850,28 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "InputEvent",
+                "InputEventMetadata",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <InputEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_payload =
-            <InputEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
-            kind: field_kind,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device_id: field_device_id,
-            payload: field_payload,
         })
     }
 
@@ -1583,169 +1880,9 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <InputEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <InputEventPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
-        ];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// ABI struct for InputEventPayload.
-#[repr(C)]
-pub struct InputEventPayloadAbi<A: BindingAbi> {
-    /// The key field.
-    pub key: InputKeyEventPayload,
-    /// The pointer_motion field.
-    pub pointer_motion: InputPointerMotionEventPayload,
-    /// The pointer_button field.
-    pub pointer_button: InputPointerButtonEventPayload,
-    /// The scroll field.
-    pub scroll: InputScrollEventPayload,
-    /// The touch field.
-    pub touch: InputTouchEventPayload,
-    /// The gamepad field.
-    pub gamepad: InputGamepadEventPayload,
-    /// The text field.
-    pub text: platform_input::InputTextEventPayloadAbi<A>,
-    /// The device field.
-    pub device: InputDeviceEventPayload,
-    /// The sensor field.
-    pub sensor: InputSensorEventPayload,
-    /// The composition field.
-    pub composition: platform_input::InputCompositionEventPayloadAbi<A>,
-}
-
-pub type InputEventPayload = InputEventPayloadAbi<NativeAbi>;
-pub type InputEventPayloadVm = InputEventPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for InputEventPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("InputEventPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for InputEventPayloadAbi<NativeAbi> {}
-impl Clone for InputEventPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for InputEventPayloadAbi<VmAbi> {}
-impl Clone for InputEventPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for InputEventPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 10 fields",
-            ))
-            .boxed());
-        }
-        let field_key =
-            <InputKeyEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pointer_motion =
-            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
-        let field_pointer_button =
-            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
-            )?;
-        let field_scroll = <InputScrollEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[3],
-        )?;
-        let field_touch =
-            <InputTouchEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_gamepad = <InputGamepadEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[5],
-        )?;
-        let field_text =
-            <InputTextEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_device = <InputDeviceEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[7],
-        )?;
-        let field_sensor = <InputSensorEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[8],
-        )?;
-        let field_composition =
-            <InputCompositionEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[9],
-            )?;
-        Ok(Self {
-            key: field_key,
-            pointer_motion: field_pointer_motion,
-            pointer_button: field_pointer_button,
-            scroll: field_scroll,
-            touch: field_touch,
-            gamepad: field_gamepad,
-            text: field_text,
-            device: field_device,
-            sensor: field_sensor,
-            composition: field_composition,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputKeyEventPayloadVm as VmAggregateCodec>::encode_with_context(self.key, context)?,
-            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.pointer_motion,
-                context,
-            )?,
-            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.pointer_button,
-                context,
-            )?,
-            <InputScrollEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.scroll,
-                context,
-            )?,
-            <InputTouchEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.touch, context,
-            )?,
-            <InputGamepadEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.gamepad,
-                context,
-            )?,
-            <InputTextEventPayloadVm as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <InputDeviceEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.device,
-                context,
-            )?,
-            <InputSensorEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.sensor,
-                context,
-            )?,
-            <InputCompositionEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.composition,
-                context,
-            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -1862,6 +1999,96 @@ impl VmAggregateCodec for InputGamepadButtonState {
             <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputGamepadEvent.
+#[repr(C)]
+pub struct InputGamepadEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputGamepadEventPayload,
+}
+
+pub type InputGamepadEvent = InputGamepadEventAbi<NativeAbi>;
+pub type InputGamepadEventVm = InputGamepadEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputGamepadEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputGamepadEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputGamepadEventAbi<NativeAbi> {}
+impl Clone for InputGamepadEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputGamepadEventAbi<VmAbi> {}
+impl Clone for InputGamepadEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputGamepadEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <InputGamepadEventPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputGamepadEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2225,6 +2452,95 @@ impl VmAggregateCodec for InputHapticEffectParameters {
     }
 }
 
+/// ABI struct for InputKeyEvent.
+#[repr(C)]
+pub struct InputKeyEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputKeyEventPayload,
+}
+
+pub type InputKeyEvent = InputKeyEventAbi<NativeAbi>;
+pub type InputKeyEventVm = InputKeyEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputKeyEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputKeyEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputKeyEventAbi<NativeAbi> {}
+impl Clone for InputKeyEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputKeyEventAbi<VmAbi> {}
+impl Clone for InputKeyEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputKeyEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputKeyEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputKeyEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputKeyEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2403,11 +2719,255 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
     }
 }
 
-/// ABI struct for InputMonitorEvent.
+/// ABI struct for InputMonitorChangeEvent.
 #[repr(C)]
-pub struct InputMonitorEventAbi<A: BindingAbi> {
+pub struct InputMonitorChangeEventAbi<A: BindingAbi> {
     /// The kind field.
-    pub kind: InputMonitorEventKind,
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
+}
+
+pub type InputMonitorChangeEvent = InputMonitorChangeEventAbi<NativeAbi>;
+pub type InputMonitorChangeEventVm = InputMonitorChangeEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputMonitorChangeEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputMonitorChangeEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputMonitorChangeEventAbi<NativeAbi> {}
+impl Clone for InputMonitorChangeEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputMonitorChangeEventAbi<VmAbi> {}
+impl Clone for InputMonitorChangeEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputMonitorChangeEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputMonitorConnectEvent.
+#[repr(C)]
+pub struct InputMonitorConnectEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
+}
+
+pub type InputMonitorConnectEvent = InputMonitorConnectEventAbi<NativeAbi>;
+pub type InputMonitorConnectEventVm = InputMonitorConnectEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputMonitorConnectEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputMonitorConnectEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputMonitorConnectEventAbi<NativeAbi> {}
+impl Clone for InputMonitorConnectEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputMonitorConnectEventAbi<VmAbi> {}
+impl Clone for InputMonitorConnectEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputMonitorConnectEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputMonitorDisconnectEvent.
+#[repr(C)]
+pub struct InputMonitorDisconnectEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
+}
+
+pub type InputMonitorDisconnectEvent = InputMonitorDisconnectEventAbi<NativeAbi>;
+pub type InputMonitorDisconnectEventVm = InputMonitorDisconnectEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputMonitorDisconnectEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputMonitorDisconnectEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputMonitorDisconnectEventAbi<NativeAbi> {}
+impl Clone for InputMonitorDisconnectEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputMonitorDisconnectEventAbi<VmAbi> {}
+impl Clone for InputMonitorDisconnectEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputMonitorDisconnectEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputMonitorEventMetadata.
+#[repr(C)]
+pub struct InputMonitorEventMetadataAbi<A: BindingAbi> {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
@@ -2420,31 +2980,31 @@ pub struct InputMonitorEventAbi<A: BindingAbi> {
     pub connected: bool,
 }
 
-pub type InputMonitorEvent = InputMonitorEventAbi<NativeAbi>;
-pub type InputMonitorEventVm = InputMonitorEventAbi<VmAbi>;
+pub type InputMonitorEventMetadata = InputMonitorEventMetadataAbi<NativeAbi>;
+pub type InputMonitorEventMetadataVm = InputMonitorEventMetadataAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for InputMonitorEventAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for InputMonitorEventMetadataAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("InputMonitorEventAbi")
+            .debug_struct("InputMonitorEventMetadataAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for InputMonitorEventAbi<NativeAbi> {}
-impl Clone for InputMonitorEventAbi<NativeAbi> {
+impl Copy for InputMonitorEventMetadataAbi<NativeAbi> {}
+impl Clone for InputMonitorEventMetadataAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for InputMonitorEventAbi<VmAbi> {}
-impl Clone for InputMonitorEventAbi<VmAbi> {
+impl Copy for InputMonitorEventMetadataAbi<VmAbi> {}
+impl Clone for InputMonitorEventMetadataAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
+impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2452,31 +3012,28 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "InputMonitorEvent",
+                "InputMonitorEventMetadata",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <InputMonitorEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_device_kind =
-            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
-            kind: field_kind,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
             device_id: field_device_id,
@@ -2490,7 +3047,6 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <InputMonitorEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
@@ -2581,6 +3137,97 @@ impl VmAggregateCodec for InputPenState {
     }
 }
 
+/// ABI struct for InputPointerButtonEvent.
+#[repr(C)]
+pub struct InputPointerButtonEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputPointerButtonEventPayload,
+}
+
+pub type InputPointerButtonEvent = InputPointerButtonEventAbi<NativeAbi>;
+pub type InputPointerButtonEventVm = InputPointerButtonEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputPointerButtonEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputPointerButtonEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputPointerButtonEventAbi<NativeAbi> {}
+impl Clone for InputPointerButtonEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputPointerButtonEventAbi<VmAbi> {}
+impl Clone for InputPointerButtonEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputPointerButtonEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputPointerButtonEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2652,6 +3299,97 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
             <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.modifiers, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputPointerMotionEvent.
+#[repr(C)]
+pub struct InputPointerMotionEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputPointerMotionEventPayload,
+}
+
+pub type InputPointerMotionEvent = InputPointerMotionEventAbi<NativeAbi>;
+pub type InputPointerMotionEventVm = InputPointerMotionEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputPointerMotionEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputPointerMotionEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputPointerMotionEventAbi<NativeAbi> {}
+impl Clone for InputPointerMotionEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputPointerMotionEventAbi<VmAbi> {}
+impl Clone for InputPointerMotionEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputPointerMotionEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -2871,6 +3609,96 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
             <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
             <u8 as VmAggregateCodec>::encode_with_context(self.report_id, context)?,
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputScrollEvent.
+#[repr(C)]
+pub struct InputScrollEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputScrollEventPayload,
+}
+
+pub type InputScrollEvent = InputScrollEventAbi<NativeAbi>;
+pub type InputScrollEventVm = InputScrollEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputScrollEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputScrollEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputScrollEventAbi<NativeAbi> {}
+impl Clone for InputScrollEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputScrollEventAbi<VmAbi> {}
+impl Clone for InputScrollEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputScrollEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <InputScrollEventPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputScrollEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3150,6 +3978,96 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
     }
 }
 
+/// ABI struct for InputSensorEvent.
+#[repr(C)]
+pub struct InputSensorEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputSensorEventPayload,
+}
+
+pub type InputSensorEvent = InputSensorEventAbi<NativeAbi>;
+pub type InputSensorEventVm = InputSensorEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputSensorEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputSensorEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputSensorEventAbi<NativeAbi> {}
+impl Clone for InputSensorEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputSensorEventAbi<VmAbi> {}
+impl Clone for InputSensorEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputSensorEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload = <InputSensorEventPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[2],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputSensorEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputSensorEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3301,6 +4219,95 @@ impl VmAggregateCodec for InputSensorSample {
             <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for InputTextEvent.
+#[repr(C)]
+pub struct InputTextEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: platform_input::InputTextEventPayloadAbi<A>,
+}
+
+pub type InputTextEvent = InputTextEventAbi<NativeAbi>;
+pub type InputTextEventVm = InputTextEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputTextEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputTextEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputTextEventAbi<NativeAbi> {}
+impl Clone for InputTextEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputTextEventAbi<VmAbi> {}
+impl Clone for InputTextEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTextEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputTextEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputTextEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3534,6 +4541,95 @@ impl VmAggregateCodec for InputTouchContactState {
     }
 }
 
+/// ABI struct for InputTouchEvent.
+#[repr(C)]
+pub struct InputTouchEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The metadata field.
+    pub metadata: platform_input::InputEventMetadataAbi<A>,
+    /// The payload field.
+    pub payload: InputTouchEventPayload,
+}
+
+pub type InputTouchEvent = InputTouchEventAbi<NativeAbi>;
+pub type InputTouchEventVm = InputTouchEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for InputTouchEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("InputTouchEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for InputTouchEventAbi<NativeAbi> {}
+impl Clone for InputTouchEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for InputTouchEventAbi<VmAbi> {}
+impl Clone for InputTouchEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "InputTouchEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_payload =
+            <InputTouchEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            metadata: field_metadata,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+                self.metadata,
+                context,
+            )?,
+            <InputTouchEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for InputTouchEventPayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -3752,20 +4848,12 @@ impl VmAggregateCodec for InputWindowTarget {
 /// Replay struct for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputCompositionEventReplayRecord {
-    /// The timestamp_ns field.
-    pub timestamp_ns: u64,
-    /// The sequence field.
-    pub sequence: u64,
-    /// The device_id field.
-    pub device_id: String,
-    /// The action field.
-    pub action: InputEventAction,
-    /// The text field.
-    pub text: String,
-    /// The selection_start field.
-    pub selection_start: i32,
-    /// The selection_end field.
-    pub selection_end: i32,
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputCompositionEventPayloadReplayRecord,
 }
 
 /// Replay struct for InputCompositionEventPayload.
@@ -3871,44 +4959,37 @@ pub struct InputDeviceDescriptorReplayRecord {
     pub is_system: bool,
 }
 
-/// Replay struct for InputEvent.
+/// Replay struct for InputDeviceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputEventReplayRecord {
+pub struct InputDeviceEventReplayRecord {
     /// The kind field.
-    pub kind: InputEventKind,
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputDeviceEventPayload,
+}
+
+/// Replay struct for InputEventMetadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputEventMetadataReplayRecord {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
     pub sequence: u64,
     /// The device_id field.
     pub device_id: String,
-    /// The payload field.
-    pub payload: InputEventPayloadReplayRecord,
 }
 
-/// Replay struct for InputEventPayload.
+/// Replay struct for InputGamepadEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputEventPayloadReplayRecord {
-    /// The key field.
-    pub key: InputKeyEventPayload,
-    /// The pointer_motion field.
-    pub pointer_motion: InputPointerMotionEventPayload,
-    /// The pointer_button field.
-    pub pointer_button: InputPointerButtonEventPayload,
-    /// The scroll field.
-    pub scroll: InputScrollEventPayload,
-    /// The touch field.
-    pub touch: InputTouchEventPayload,
-    /// The gamepad field.
-    pub gamepad: InputGamepadEventPayload,
-    /// The text field.
-    pub text: InputTextEventPayloadReplayRecord,
-    /// The device field.
-    pub device: InputDeviceEventPayload,
-    /// The sensor field.
-    pub sensor: InputSensorEventPayload,
-    /// The composition field.
-    pub composition: InputCompositionEventPayloadReplayRecord,
+pub struct InputGamepadEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputGamepadEventPayload,
 }
 
 /// Replay struct for InputGamepadState.
@@ -3938,6 +5019,17 @@ pub struct InputGamepadStateReplayRecord {
     pub touches: Vec<InputGamepadTouchState>,
 }
 
+/// Replay struct for InputKeyEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputKeyEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputKeyEventPayload,
+}
+
 /// Replay struct for InputKeyboardState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputKeyboardStateReplayRecord {
@@ -3955,11 +5047,36 @@ pub struct InputKeyboardStateReplayRecord {
     pub pressed_scan_codes: Vec<u32>,
 }
 
-/// Replay struct for InputMonitorEvent.
+/// Replay struct for InputMonitorChangeEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputMonitorEventReplayRecord {
+pub struct InputMonitorChangeEventReplayRecord {
     /// The kind field.
-    pub kind: InputMonitorEventKind,
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputMonitorEventMetadataReplayRecord,
+}
+
+/// Replay struct for InputMonitorConnectEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputMonitorConnectEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputMonitorEventMetadataReplayRecord,
+}
+
+/// Replay struct for InputMonitorDisconnectEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputMonitorDisconnectEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputMonitorEventMetadataReplayRecord,
+}
+
+/// Replay struct for InputMonitorEventMetadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputMonitorEventMetadataReplayRecord {
     /// The timestamp_ns field.
     pub timestamp_ns: u64,
     /// The sequence field.
@@ -3970,6 +5087,28 @@ pub struct InputMonitorEventReplayRecord {
     pub device_kind: InputDeviceKind,
     /// The connected field.
     pub connected: bool,
+}
+
+/// Replay struct for InputPointerButtonEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerButtonEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputPointerButtonEventPayload,
+}
+
+/// Replay struct for InputPointerMotionEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputPointerMotionEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputPointerMotionEventPayload,
 }
 
 /// Replay struct for InputRawHidReport.
@@ -3985,11 +5124,55 @@ pub struct InputRawHidReportReplayRecord {
     pub data: Vec<u8>,
 }
 
+/// Replay struct for InputScrollEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputScrollEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputScrollEventPayload,
+}
+
+/// Replay struct for InputSensorEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputSensorEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputSensorEventPayload,
+}
+
+/// Replay struct for InputTextEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputTextEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputTextEventPayloadReplayRecord,
+}
+
 /// Replay struct for InputTextEventPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputTextEventPayloadReplayRecord {
     /// The text field.
     pub text: String,
+}
+
+/// Replay struct for InputTouchEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputTouchEventReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The metadata field.
+    pub metadata: InputEventMetadataReplayRecord,
+    /// The payload field.
+    pub payload: InputTouchEventPayload,
 }
 
 /// Replay struct for InputTouchState.
@@ -4003,4 +5186,40 @@ pub struct InputTouchStateReplayRecord {
     pub device_id: String,
     /// The contacts field.
     pub contacts: Vec<InputTouchContactState>,
+}
+
+/// Replay enum for InputEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum InputEventReplayRecord {
+    /// InputCompositionEvent variant.
+    InputCompositionEvent(InputCompositionEventReplayRecord),
+    /// InputDeviceEvent variant.
+    InputDeviceEvent(InputDeviceEventReplayRecord),
+    /// InputGamepadEvent variant.
+    InputGamepadEvent(InputGamepadEventReplayRecord),
+    /// InputKeyEvent variant.
+    InputKeyEvent(InputKeyEventReplayRecord),
+    /// InputPointerButtonEvent variant.
+    InputPointerButtonEvent(InputPointerButtonEventReplayRecord),
+    /// InputPointerMotionEvent variant.
+    InputPointerMotionEvent(InputPointerMotionEventReplayRecord),
+    /// InputScrollEvent variant.
+    InputScrollEvent(InputScrollEventReplayRecord),
+    /// InputSensorEvent variant.
+    InputSensorEvent(InputSensorEventReplayRecord),
+    /// InputTextEvent variant.
+    InputTextEvent(InputTextEventReplayRecord),
+    /// InputTouchEvent variant.
+    InputTouchEvent(InputTouchEventReplayRecord),
+}
+
+/// Replay enum for InputMonitorEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum InputMonitorEventReplayRecord {
+    /// InputMonitorChangeEvent variant.
+    InputMonitorChangeEvent(InputMonitorChangeEventReplayRecord),
+    /// InputMonitorConnectEvent variant.
+    InputMonitorConnectEvent(InputMonitorConnectEventReplayRecord),
+    /// InputMonitorDisconnectEvent variant.
+    InputMonitorDisconnectEvent(InputMonitorDisconnectEventReplayRecord),
 }

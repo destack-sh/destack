@@ -18,13 +18,16 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyFormat,
+    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyDescriptorAes,
+    CryptoKeyDescriptorChaCha20, CryptoKeyDescriptorEc, CryptoKeyDescriptorEd448,
+    CryptoKeyDescriptorEd25519, CryptoKeyDescriptorHmac, CryptoKeyDescriptorRsa,
+    CryptoKeyDescriptorX448, CryptoKeyDescriptorX25519, CryptoKeyFormat,
     CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyKind, CryptoKeyPair,
     CryptoKeyResidency, CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters,
     CryptoNamedCurve, CryptoPrivateKeyExportRequest, CryptoSignatureAlgorithm,
     CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
-use crate::platform::{PlatformError, resource};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
@@ -55,6 +58,58 @@ struct SoftwareKeyPair {
     public_exponent: u32,
     /// Effective key size in bits.
     size_bits: u32,
+}
+
+/// Normalized key-generation request payload used by core key logic.
+#[derive(Clone, Copy)]
+struct NormalizedKeyGenerationRequest {
+    /// Effective key algorithm.
+    algorithm: CryptoKeyAlgorithm,
+    /// Effective named curve selector.
+    named_curve: CryptoNamedCurve,
+    /// Effective RSA modulus size in bits.
+    modulus_bits: u32,
+    /// Effective RSA public exponent.
+    public_exponent: u32,
+    /// Effective digest algorithm.
+    digest: CryptoDigestAlgorithm,
+    /// Effective key size in bits for secret-key lanes.
+    size_bits: u32,
+    /// Effective usage mask.
+    usage_mask: CryptoKeyUsageMask,
+    /// User-provided key label.
+    label: NativeStringRef,
+    /// Whether the resulting key material is exportable.
+    extractable: bool,
+    /// Whether host hardware-backed storage is required.
+    hardware_backed: bool,
+    /// Whether key material should persist.
+    persistent: bool,
+}
+
+/// Normalized key-import request payload used by core key logic.
+#[derive(Clone, Copy)]
+struct NormalizedKeyImportRequest {
+    /// Effective key encoding format.
+    format: CryptoKeyFormat,
+    /// Encoded key bytes.
+    bytes: NativeSlice<u8>,
+    /// Effective key algorithm.
+    algorithm: CryptoKeyAlgorithm,
+    /// Effective named curve selector.
+    named_curve: CryptoNamedCurve,
+    /// Effective digest algorithm.
+    digest: CryptoDigestAlgorithm,
+    /// Effective usage mask.
+    usage_mask: CryptoKeyUsageMask,
+    /// User-provided key label.
+    label: NativeStringRef,
+    /// Whether the resulting key material is exportable.
+    extractable: bool,
+    /// Optional passphrase bytes for encrypted key formats.
+    passphrase: NativeSlice<u8>,
+    /// Whether key material should persist.
+    persistent: bool,
 }
 
 /// Parsed JSON Web Key payload.
@@ -219,9 +274,274 @@ fn jwk_public_exponent_u32(public_exponent: &BigNum) -> u32 {
     exponent
 }
 
+/// Normalize one key-generation union request into one common payload shape.
+fn normalize_key_generation_request(
+    request: CryptoKeyGenerationRequest,
+) -> NormalizedKeyGenerationRequest {
+    match request {
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: request.size_bits,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestChaCha20(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::ChaCha20,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: request.size_bits,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Ec,
+                named_curve: request.named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Ed25519,
+                named_curve: CryptoNamedCurve::Ed25519,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Ed448,
+                named_curve: CryptoNamedCurve::Ed448,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Hmac,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: request.digest,
+                size_bits: request.size_bits,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: request.modulus_bits,
+                public_exponent: request.public_exponent,
+                digest: request.digest,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::X25519,
+                named_curve: CryptoNamedCurve::X25519,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(request) => {
+            NormalizedKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::X448,
+                named_curve: CryptoNamedCurve::X448,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                hardware_backed: request.hardware_backed,
+                persistent: request.persistent,
+            }
+        }
+    }
+}
+
+/// Normalize one key-import union request into one common payload shape.
+fn normalize_key_import_request(request: CryptoKeyImportRequest) -> NormalizedKeyImportRequest {
+    match request {
+        CryptoKeyImportRequest::CryptoKeyImportRequestAes(request) => NormalizedKeyImportRequest {
+            format: request.format,
+            bytes: request.bytes,
+            algorithm: CryptoKeyAlgorithm::Aes,
+            named_curve: CryptoNamedCurve::Unknown,
+            digest: CryptoDigestAlgorithm::Unknown,
+            usage_mask: request.usage_mask,
+            label: request.label,
+            extractable: request.extractable,
+            passphrase: request.passphrase,
+            persistent: request.persistent,
+        },
+        CryptoKeyImportRequest::CryptoKeyImportRequestChaCha20(request) => {
+            NormalizedKeyImportRequest {
+                format: request.format,
+                bytes: request.bytes,
+                algorithm: CryptoKeyAlgorithm::ChaCha20,
+                named_curve: CryptoNamedCurve::Unknown,
+                digest: CryptoDigestAlgorithm::Unknown,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                passphrase: request.passphrase,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyImportRequest::CryptoKeyImportRequestEc(request) => NormalizedKeyImportRequest {
+            format: request.format,
+            bytes: request.bytes,
+            algorithm: CryptoKeyAlgorithm::Ec,
+            named_curve: request.named_curve,
+            digest: CryptoDigestAlgorithm::Unknown,
+            usage_mask: request.usage_mask,
+            label: request.label,
+            extractable: request.extractable,
+            passphrase: request.passphrase,
+            persistent: request.persistent,
+        },
+        CryptoKeyImportRequest::CryptoKeyImportRequestEd25519(request) => {
+            NormalizedKeyImportRequest {
+                format: request.format,
+                bytes: request.bytes,
+                algorithm: CryptoKeyAlgorithm::Ed25519,
+                named_curve: CryptoNamedCurve::Ed25519,
+                digest: CryptoDigestAlgorithm::Unknown,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                passphrase: request.passphrase,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyImportRequest::CryptoKeyImportRequestEd448(request) => {
+            NormalizedKeyImportRequest {
+                format: request.format,
+                bytes: request.bytes,
+                algorithm: CryptoKeyAlgorithm::Ed448,
+                named_curve: CryptoNamedCurve::Ed448,
+                digest: CryptoDigestAlgorithm::Unknown,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                passphrase: request.passphrase,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyImportRequest::CryptoKeyImportRequestHmac(request) => NormalizedKeyImportRequest {
+            format: request.format,
+            bytes: request.bytes,
+            algorithm: CryptoKeyAlgorithm::Hmac,
+            named_curve: CryptoNamedCurve::Unknown,
+            digest: request.digest,
+            usage_mask: request.usage_mask,
+            label: request.label,
+            extractable: request.extractable,
+            passphrase: request.passphrase,
+            persistent: request.persistent,
+        },
+        CryptoKeyImportRequest::CryptoKeyImportRequestRsa(request) => NormalizedKeyImportRequest {
+            format: request.format,
+            bytes: request.bytes,
+            algorithm: CryptoKeyAlgorithm::Rsa,
+            named_curve: CryptoNamedCurve::Unknown,
+            digest: request.digest,
+            usage_mask: request.usage_mask,
+            label: request.label,
+            extractable: request.extractable,
+            passphrase: request.passphrase,
+            persistent: request.persistent,
+        },
+        CryptoKeyImportRequest::CryptoKeyImportRequestX25519(request) => {
+            NormalizedKeyImportRequest {
+                format: request.format,
+                bytes: request.bytes,
+                algorithm: CryptoKeyAlgorithm::X25519,
+                named_curve: CryptoNamedCurve::X25519,
+                digest: CryptoDigestAlgorithm::Unknown,
+                usage_mask: request.usage_mask,
+                label: request.label,
+                extractable: request.extractable,
+                passphrase: request.passphrase,
+                persistent: request.persistent,
+            }
+        }
+        CryptoKeyImportRequest::CryptoKeyImportRequestX448(request) => NormalizedKeyImportRequest {
+            format: request.format,
+            bytes: request.bytes,
+            algorithm: CryptoKeyAlgorithm::X448,
+            named_curve: CryptoNamedCurve::X448,
+            digest: CryptoDigestAlgorithm::Unknown,
+            usage_mask: request.usage_mask,
+            label: request.label,
+            extractable: request.extractable,
+            passphrase: request.passphrase,
+            persistent: request.persistent,
+        },
+    }
+}
+
 /// Parse one JWK payload into one key resource.
 fn import_jwk_key_resource(
-    request: &CryptoKeyImportRequest,
+    request: &NormalizedKeyImportRequest,
     bytes: &[u8],
     label: String,
     persistent_id: String,
@@ -613,6 +933,8 @@ pub(crate) fn key_generate_secret(
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
+    let request = normalize_key_generation_request(request);
+
     // enforce store policy against requested key properties
     let store_resource =
         resolve_store_resource(context, store, "destack.crypto.key.generateSecret")?;
@@ -783,6 +1105,8 @@ pub(crate) fn key_generate_pair(
     store: resource::CryptoStoreHandle,
     request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<CryptoKeyPair> {
+    let request = normalize_key_generation_request(request);
+
     // enforce store policy against requested key properties
     let store_resource = resolve_store_resource(context, store, "destack.crypto.key.generatePair")?;
     let store_provenance = {
@@ -992,7 +1316,7 @@ pub(crate) fn key_generate_pair(
 
 /// Generate one software-backed asymmetric key pair.
 fn generate_software_key_pair(
-    request: CryptoKeyGenerationRequest,
+    request: NormalizedKeyGenerationRequest,
     operation: &'static str,
 ) -> RuntimeResult<SoftwareKeyPair> {
     match request.algorithm {
@@ -1220,6 +1544,8 @@ pub(crate) fn key_import(
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
+    let request = normalize_key_import_request(request);
+
     // decode import payload and hand off to parser
     let bytes = decode_native_bytes(request.bytes, "request.bytes")?;
 
@@ -1230,7 +1556,7 @@ pub(crate) fn key_import(
 fn key_import_with_bytes(
     context: &BindingCallContext,
     store: resource::CryptoStoreHandle,
-    request: CryptoKeyImportRequest,
+    request: NormalizedKeyImportRequest,
     bytes: Vec<u8>,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
     // decode stable operation context
@@ -2284,6 +2610,7 @@ pub(crate) fn key_unwrap(
 
     // keep decrypted bytes zeroized on error paths
     let mut clear = Zeroizing::new(clear);
+    let request = normalize_key_import_request(request);
 
     // import decrypted key bytes into the target store
     key_import_with_bytes(context, store, request, std::mem::take(&mut *clear))
@@ -2640,21 +2967,149 @@ pub(super) fn key_descriptor_from_resource(
         CryptoKeyResidency::SoftwareNonExportable
     };
 
-    CryptoKeyDescriptor {
-        kind: key.kind,
-        algorithm: key.algorithm,
-        named_curve: key.named_curve,
-        modulus_bits: key.modulus_bits,
-        public_exponent: key.public_exponent,
-        digest: key.digest,
-        size_bits: key.size_bits,
-        usage_mask: key.usage_mask,
-        label: context.store_string(&key.label),
-        extractable: key.extractable,
-        residency,
-        hardware_backed: key.hardware_backed,
-        persistent: key.persistent,
-        store_provenance: store_provenance_to_descriptor(context, &key.store_provenance),
+    let label = context.store_string(&key.label);
+    let store_provenance = store_provenance_to_descriptor(context, &key.store_provenance);
+
+    match key.algorithm {
+        CryptoKeyAlgorithm::Rsa => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorRsa(CryptoKeyDescriptorRsa {
+                algorithm: context.store_string("rsa"),
+                key_kind: key.kind,
+                modulus_bits: key.modulus_bits,
+                public_exponent: key.public_exponent,
+                digest: key.digest,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Ec => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorEc(CryptoKeyDescriptorEc {
+                algorithm: context.store_string("ec"),
+                key_kind: key.kind,
+                named_curve: key.named_curve,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Ed25519 => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorEd25519(CryptoKeyDescriptorEd25519 {
+                algorithm: context.store_string("ed25519"),
+                key_kind: key.kind,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Ed448 => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorEd448(CryptoKeyDescriptorEd448 {
+                algorithm: context.store_string("ed448"),
+                key_kind: key.kind,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::X25519 => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorX25519(CryptoKeyDescriptorX25519 {
+                algorithm: context.store_string("x25519"),
+                key_kind: key.kind,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::X448 => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorX448(CryptoKeyDescriptorX448 {
+                algorithm: context.store_string("x448"),
+                key_kind: key.kind,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Aes => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
+                algorithm: context.store_string("aes"),
+                key_kind: key.kind,
+                size_bits: key.size_bits,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::ChaCha20 => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorChaCha20(CryptoKeyDescriptorChaCha20 {
+                algorithm: context.store_string("chacha20"),
+                key_kind: key.kind,
+                size_bits: key.size_bits,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Hmac => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorHmac(CryptoKeyDescriptorHmac {
+                algorithm: context.store_string("hmac"),
+                key_kind: key.kind,
+                size_bits: key.size_bits,
+                digest: key.digest,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
+        CryptoKeyAlgorithm::Unknown => {
+            CryptoKeyDescriptor::CryptoKeyDescriptorAes(CryptoKeyDescriptorAes {
+                algorithm: context.store_string("aes"),
+                key_kind: key.kind,
+                size_bits: key.size_bits,
+                usage_mask: key.usage_mask,
+                label,
+                extractable: key.extractable,
+                residency,
+                hardware_backed: key.hardware_backed,
+                persistent: key.persistent,
+                store_provenance,
+            })
+        }
     }
 }
 

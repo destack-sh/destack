@@ -4,8 +4,9 @@ use std::os::fd::AsRawFd;
 #[cfg(windows)]
 use super::with_native_harness_context;
 use super::{
-    ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioSpec, shell_exit_command,
-    shell_sleep_then_exit_command, spawn_shell, with_harness_context,
+    ProcessFdActionKind, ProcessFdActionSpec, ProcessSpawnOptionsSpec, ProcessStdioKind,
+    ProcessStdioSpec, ProcessWaitKind, shell_exit_command, shell_sleep_then_exit_command,
+    spawn_shell, with_harness_context,
 };
 #[cfg(unix)]
 use super::{assert_platform_error_code, assert_platform_error_codes, is_would_block};
@@ -24,16 +25,12 @@ use crate::platform::fs;
 #[cfg(windows)]
 use crate::platform::fs::core as core_fs;
 #[cfg(unix)]
-use crate::platform::process::ProcessFdActionKind;
-#[cfg(unix)]
 use crate::platform::process::ProcessId;
 #[cfg(windows)]
 use crate::platform::process::{
     ProcessFdAction, ProcessSpawnOptions, ProcessStdio, native as process_native,
 };
-use crate::platform::process::{
-    ProcessFdFlags, ProcessStdioKind, ProcessWaitFlags, ProcessWaitKind,
-};
+use crate::platform::process::{ProcessFdFlags, ProcessWaitFlags};
 #[cfg(unix)]
 use crate::platform::process::{ProcessFdSignalFlags, Signal};
 #[cfg(windows)]
@@ -155,8 +152,9 @@ fn test_process_spawn_wait_handle_roundtrip() {
             context.spawn_options_value(&options)?,
         )?;
         let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 17);
+        assert_eq!(status.exit_code, Some(17));
 
         // consumed handles should not remain waitable
         assert_platform_error_codes(
@@ -179,9 +177,10 @@ fn test_process_fd_wait_roundtrip() {
         let child_pid = fork_child_sleep_then_exit(1, 31)?;
         let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
         let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
+        let status = context.wait_status_from_value(status);
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 31);
+        assert_eq!(status.exit_code, Some(31));
 
         context.destack_process_process_fd_close(handle)?;
         Ok(())
@@ -214,6 +213,7 @@ fn test_process_fd_close_rejects_forged_process_handle() {
         )?;
 
         let status = context.destack_process_wait(process_handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())
@@ -260,9 +260,10 @@ fn test_process_spawn_with_actions_wait_roundtrip() {
             context.fd_action_slice_value(&actions)?,
         )?;
         let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 23);
+        assert_eq!(status.exit_code, Some(23));
 
         Ok(())
     });
@@ -306,24 +307,16 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
         };
 
         let stdio_values = vec![
-            ProcessStdio {
-                kind: ProcessStdioKind::Inherit,
-                file: resource::FileHandle(ResourceId(0)),
-                pipe: resource::PipeHandle(ResourceId(0)),
-                descriptor: 0,
-            },
-            ProcessStdio {
-                kind: ProcessStdioKind::Pipe,
-                file: resource::FileHandle(ResourceId(0)),
+            ProcessStdio::ProcessStdioInherit(crate::platform::process::ProcessStdioInherit {
+                kind: call_context.store_string("inherit"),
+            }),
+            ProcessStdio::ProcessStdioPipe(crate::platform::process::ProcessStdioPipe {
+                kind: call_context.store_string("pipe"),
                 pipe: pipe_handle,
-                descriptor: 0,
-            },
-            ProcessStdio {
-                kind: ProcessStdioKind::Inherit,
-                file: resource::FileHandle(ResourceId(0)),
-                pipe: resource::PipeHandle(ResourceId(0)),
-                descriptor: 0,
-            },
+            }),
+            ProcessStdio::ProcessStdioInherit(crate::platform::process::ProcessStdioInherit {
+                kind: call_context.store_string("inherit"),
+            }),
         ];
         let stdio = call_context.store_slice(stdio_values);
         let actions = call_context.store_slice(Vec::<ProcessFdAction>::new());
@@ -348,8 +341,9 @@ fn test_process_spawn_with_actions_pipe_stdout_roundtrip() {
 
         // wait for the child process to complete successfully
         let status = context.destack_process_wait(child, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 0);
+        assert_eq!(status.exit_code, Some(0));
 
         // pipe output should contain the spawned command payload
         let output = pipe.read_all()?;
@@ -387,8 +381,9 @@ fn test_process_spawn_wait_after_exit_delay_roundtrip() {
 
         // waits should still observe the terminal status
         let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 29);
+        assert_eq!(status.exit_code, Some(29));
 
         Ok(())
     });
@@ -433,8 +428,9 @@ fn test_process_spawn_with_actions_open_stdout_roundtrip() {
             context.fd_action_slice_value(&actions)?,
         )?;
         let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 0);
+        assert_eq!(status.exit_code, Some(0));
 
         // output file should contain child stdout payload
         let output = std::fs::read_to_string(&output_path).expect("output file should be readable");
@@ -505,8 +501,9 @@ fn test_process_spawn_with_actions_dup2_stderr_roundtrip() {
             context.fd_action_slice_value(&actions)?,
         )?;
         let status = context.destack_process_wait(handle, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 0);
+        assert_eq!(status.exit_code, Some(0));
 
         // output file should contain both stdout and redirected stderr payload
         drop(output_file);
@@ -528,9 +525,10 @@ fn test_process_fd_wait_spawn_roundtrip() {
 
         let handle = context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
         let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
+        let status = context.wait_status_from_value(status);
 
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 37);
+        assert_eq!(status.exit_code, Some(37));
         context.destack_process_process_fd_close(handle)?;
 
         Ok(())
@@ -551,8 +549,9 @@ fn test_process_fd_wait_after_exit_delay_roundtrip() {
 
         // wait should still return the terminal exit status
         let status = context.destack_process_process_fd_wait(handle, 2_000_000_000)?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 41);
+        assert_eq!(status.exit_code, Some(41));
         context.destack_process_process_fd_close(handle)?;
 
         Ok(())
@@ -572,10 +571,13 @@ fn test_process_fd_try_wait_and_send_signal_roundtrip() {
         // try-wait should either report running/exited or a would-block error
         let first_try_wait = context.destack_process_process_fd_try_wait(handle);
         match first_try_wait {
-            Ok(status) => assert!(matches!(
-                status.kind,
-                ProcessWaitKind::Running | ProcessWaitKind::Exited
-            )),
+            Ok(status) => {
+                let status = context.wait_status_from_value(status);
+                assert!(matches!(
+                    status.kind,
+                    ProcessWaitKind::Running | ProcessWaitKind::Exited
+                ));
+            }
             Err(error) => {
                 assert!(is_would_block(&error));
             }
@@ -652,6 +654,7 @@ fn test_process_fd_validation_errors_are_specific() {
         let timeout_handle =
             context.destack_process_process_fd_open(child_pid, ProcessFdFlags(0))?;
         let timeout_status = context.destack_process_process_fd_wait(timeout_handle, u64::MAX)?;
+        let timeout_status = context.wait_status_from_value(timeout_status);
         assert_eq!(timeout_status.kind, ProcessWaitKind::Exited);
         context.destack_process_process_fd_close(timeout_handle)?;
 

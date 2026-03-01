@@ -327,65 +327,165 @@ impl VmValueCodec for PlatformErrorCode {
     }
 }
 
-/// ABI enum for PlatformErrorContextKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlatformErrorContextKind {
-    /// Generic.
-    Generic = 1,
-    /// Io.
-    Io = 2,
-    /// Net.
-    Net = 3,
-    /// Process.
-    Process = 4,
-    /// Timer.
-    Timer = 5,
-    /// Resource.
-    Resource = 6,
-    /// Security.
-    Security = 7,
-    /// Ffi.
-    Ffi = 8,
-    /// Thread.
-    Thread = 9,
-    /// Ipc.
-    Ipc = 10,
-    /// Device.
-    Device = 11,
-    /// Display.
-    Display = 12,
-    /// Audio.
-    Audio = 13,
-    /// Gpu.
-    Gpu = 14,
-    /// IoDriver.
-    IoDriver = 15,
+/// ABI tagged union for PlatformErrorContext.
+pub enum PlatformErrorContextAbi<A: BindingAbi> {
+    /// PlatformErrorContextAudio variant.
+    PlatformErrorContextAudio(platform_error::PlatformErrorContextAudioAbi<A>),
+    /// PlatformErrorContextDevice variant.
+    PlatformErrorContextDevice(platform_error::PlatformErrorContextDeviceAbi<A>),
+    /// PlatformErrorContextDisplay variant.
+    PlatformErrorContextDisplay(platform_error::PlatformErrorContextDisplayAbi<A>),
+    /// PlatformErrorContextFfi variant.
+    PlatformErrorContextFfi(platform_error::PlatformErrorContextFfiAbi<A>),
+    /// PlatformErrorContextGeneric variant.
+    PlatformErrorContextGeneric(platform_error::PlatformErrorContextGenericAbi<A>),
+    /// PlatformErrorContextGpu variant.
+    PlatformErrorContextGpu(platform_error::PlatformErrorContextGpuAbi<A>),
+    /// PlatformErrorContextIo variant.
+    PlatformErrorContextIo(platform_error::PlatformErrorContextIoAbi<A>),
+    /// PlatformErrorContextIoDriver variant.
+    PlatformErrorContextIoDriver(platform_error::PlatformErrorContextIoDriverAbi<A>),
+    /// PlatformErrorContextIpc variant.
+    PlatformErrorContextIpc(platform_error::PlatformErrorContextIpcAbi<A>),
+    /// PlatformErrorContextNet variant.
+    PlatformErrorContextNet(platform_error::PlatformErrorContextNetAbi<A>),
+    /// PlatformErrorContextProcess variant.
+    PlatformErrorContextProcess(platform_error::PlatformErrorContextProcessAbi<A>),
+    /// PlatformErrorContextResource variant.
+    PlatformErrorContextResource(platform_error::PlatformErrorContextResourceAbi<A>),
+    /// PlatformErrorContextSecurity variant.
+    PlatformErrorContextSecurity(platform_error::PlatformErrorContextSecurityAbi<A>),
+    /// PlatformErrorContextThread variant.
+    PlatformErrorContextThread(platform_error::PlatformErrorContextThreadAbi<A>),
+    /// PlatformErrorContextTimer variant.
+    PlatformErrorContextTimer(platform_error::PlatformErrorContextTimerAbi<A>),
 }
 
-impl VmValueCodec for PlatformErrorContextKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Generic,
-            2u8 => Self::Io,
-            3u8 => Self::Net,
-            4u8 => Self::Process,
-            5u8 => Self::Timer,
-            6u8 => Self::Resource,
-            7u8 => Self::Security,
-            8u8 => Self::Ffi,
-            9u8 => Self::Thread,
-            10u8 => Self::Ipc,
-            11u8 => Self::Device,
-            12u8 => Self::Display,
-            13u8 => Self::Audio,
-            14u8 => Self::Gpu,
-            15u8 => Self::IoDriver,
+pub type PlatformErrorContext = PlatformErrorContextAbi<NativeAbi>;
+pub type PlatformErrorContextVm = PlatformErrorContextAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("PlatformErrorContextAbi").finish()
+    }
+}
+
+impl Copy for PlatformErrorContextAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextAbi<VmAbi> {}
+impl Clone for PlatformErrorContextAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContext",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            1349179423u32 => Self::PlatformErrorContextAudio(
+                <PlatformErrorContextAudioVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1175468002u32 => Self::PlatformErrorContextDevice(
+                <PlatformErrorContextDeviceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2713129955u32 => Self::PlatformErrorContextDisplay(
+                <PlatformErrorContextDisplayVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            296575469u32 => Self::PlatformErrorContextFfi(
+                <PlatformErrorContextFfiVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1651991300u32 => Self::PlatformErrorContextGeneric(
+                <PlatformErrorContextGenericVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            10423638u32 => Self::PlatformErrorContextGpu(
+                <PlatformErrorContextGpuVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            629091376u32 => Self::PlatformErrorContextIo(
+                <PlatformErrorContextIoVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3236432103u32 => Self::PlatformErrorContextIoDriver(
+                <PlatformErrorContextIoDriverVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1171251870u32 => Self::PlatformErrorContextIpc(
+                <PlatformErrorContextIpcVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2690143185u32 => Self::PlatformErrorContextNet(
+                <PlatformErrorContextNetVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1891737808u32 => Self::PlatformErrorContextProcess(
+                <PlatformErrorContextProcessVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2486361974u32 => Self::PlatformErrorContextResource(
+                <PlatformErrorContextResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            522139370u32 => Self::PlatformErrorContextSecurity(
+                <PlatformErrorContextSecurityVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2561716789u32 => Self::PlatformErrorContextThread(
+                <PlatformErrorContextThreadVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3049620673u32 => Self::PlatformErrorContextTimer(
+                <PlatformErrorContextTimerVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown PlatformErrorContextKind value",
+                    "unknown PlatformErrorContext tag",
                 ))
                 .boxed());
             }
@@ -393,31 +493,219 @@ impl VmValueCodec for PlatformErrorContextKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::PlatformErrorContextAudio(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1349179423u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextAudioVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextDevice(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1175468002u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextDeviceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextDisplay(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2713129955u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextDisplayVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextFfi(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(296575469u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextFfiVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextGeneric(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1651991300u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextGenericVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextGpu(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(10423638u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextGpuVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextIo(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(629091376u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIoVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextIoDriver(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3236432103u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIoDriverVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextIpc(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1171251870u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextIpcVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextNet(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2690143185u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextNetVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextProcess(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1891737808u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextProcessVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2486361974u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextSecurity(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(522139370u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextSecurityVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextThread(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2561716789u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextThreadVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformErrorContextTimer(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3049620673u32, context)?;
+                let payload_value =
+                    <PlatformErrorContextTimerVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
-/// ABI enum for PlatformPathEncoding.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlatformPathEncoding {
-    /// Bytes.
-    Bytes = 1,
-    /// Utf16.
-    Utf16 = 2,
+/// ABI tagged union for PlatformPathPayload.
+pub enum PlatformPathPayloadAbi<A: BindingAbi> {
+    /// PlatformPathPayloadBytes variant.
+    PlatformPathPayloadBytes(platform_error::PlatformPathPayloadBytesAbi<A>),
+    /// PlatformPathPayloadUtf16 variant.
+    PlatformPathPayloadUtf16(platform_error::PlatformPathPayloadUtf16Abi<A>),
 }
 
-impl VmValueCodec for PlatformPathEncoding {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Bytes,
-            2u8 => Self::Utf16,
+pub type PlatformPathPayload = PlatformPathPayloadAbi<NativeAbi>;
+pub type PlatformPathPayloadVm = PlatformPathPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("PlatformPathPayloadAbi").finish()
+    }
+}
+
+impl Copy for PlatformPathPayloadAbi<NativeAbi> {}
+impl Clone for PlatformPathPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformPathPayloadAbi<VmAbi> {}
+impl Clone for PlatformPathPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            2764680609u32 => Self::PlatformPathPayloadBytes(
+                <PlatformPathPayloadBytesVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2409119511u32 => Self::PlatformPathPayloadUtf16(
+                <PlatformPathPayloadUtf16Vm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown PlatformPathEncoding value",
+                    "unknown PlatformPathPayload tag",
                 ))
                 .boxed());
             }
@@ -425,43 +713,130 @@ impl VmValueCodec for PlatformPathEncoding {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::PlatformPathPayloadBytes(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2764680609u32, context)?;
+                let payload_value =
+                    <PlatformPathPayloadBytesVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformPathPayloadUtf16(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2409119511u32, context)?;
+                let payload_value =
+                    <PlatformPathPayloadUtf16Vm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
-/// ABI enum for PlatformSystemSourceKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlatformSystemSourceKind {
-    /// Errno.
-    Errno = 1,
-    /// Winsock.
-    Winsock = 2,
-    /// HResult.
-    HResult = 3,
-    /// Eai.
-    Eai = 4,
-    /// Signal.
-    Signal = 5,
-    /// Other.
-    Other = 255,
+/// ABI tagged union for PlatformSystemSource.
+pub enum PlatformSystemSourceAbi<A: BindingAbi> {
+    /// PlatformSystemSourceEai variant.
+    PlatformSystemSourceEai(platform_error::PlatformSystemSourceEaiAbi<A>),
+    /// PlatformSystemSourceErrno variant.
+    PlatformSystemSourceErrno(platform_error::PlatformSystemSourceErrnoAbi<A>),
+    /// PlatformSystemSourceHResult variant.
+    PlatformSystemSourceHResult(platform_error::PlatformSystemSourceHResultAbi<A>),
+    /// PlatformSystemSourceOther variant.
+    PlatformSystemSourceOther(platform_error::PlatformSystemSourceOtherAbi<A>),
+    /// PlatformSystemSourceSignal variant.
+    PlatformSystemSourceSignal(platform_error::PlatformSystemSourceSignalAbi<A>),
+    /// PlatformSystemSourceWinsock variant.
+    PlatformSystemSourceWinsock(platform_error::PlatformSystemSourceWinsockAbi<A>),
 }
 
-impl VmValueCodec for PlatformSystemSourceKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Errno,
-            2u8 => Self::Winsock,
-            3u8 => Self::HResult,
-            4u8 => Self::Eai,
-            5u8 => Self::Signal,
-            255u8 => Self::Other,
+pub type PlatformSystemSource = PlatformSystemSourceAbi<NativeAbi>;
+pub type PlatformSystemSourceVm = PlatformSystemSourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("PlatformSystemSourceAbi").finish()
+    }
+}
+
+impl Copy for PlatformSystemSourceAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            3714893166u32 => Self::PlatformSystemSourceEai(
+                <PlatformSystemSourceEaiVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            631622357u32 => Self::PlatformSystemSourceErrno(
+                <PlatformSystemSourceErrnoVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1028132082u32 => Self::PlatformSystemSourceHResult(
+                <PlatformSystemSourceHResultVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            3614867150u32 => Self::PlatformSystemSourceOther(
+                <PlatformSystemSourceOtherVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2760780772u32 => Self::PlatformSystemSourceSignal(
+                <PlatformSystemSourceSignalVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            1456327686u32 => Self::PlatformSystemSourceWinsock(
+                <PlatformSystemSourceWinsockVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown PlatformSystemSourceKind value",
+                    "unknown PlatformSystemSource tag",
                 ))
                 .boxed());
             }
@@ -469,8 +844,67 @@ impl VmValueCodec for PlatformSystemSourceKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::PlatformSystemSourceEai(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3714893166u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceEaiVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformSystemSourceErrno(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(631622357u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceErrnoVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformSystemSourceHResult(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1028132082u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceHResultVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformSystemSourceOther(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3614867150u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceOtherVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformSystemSourceSignal(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2760780772u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceSignalVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::PlatformSystemSourceWinsock(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(1456327686u32, context)?;
+                let payload_value =
+                    <PlatformSystemSourceWinsockVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -575,86 +1009,42 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
     }
 }
 
-/// ABI struct for PlatformErrorContext.
+/// ABI struct for PlatformErrorContextAudio.
 #[repr(C)]
-pub struct PlatformErrorContextAbi<A: BindingAbi> {
+pub struct PlatformErrorContextAudioAbi<A: BindingAbi> {
     /// The kind field.
-    pub kind: PlatformErrorContextKind,
+    pub kind: A::String,
     /// The syscall field.
     pub syscall: A::String,
-    /// The path field.
-    pub path: platform_error::PlatformPathPayloadAbi<A>,
-    /// The dest field.
-    pub dest: platform_error::PlatformPathPayloadAbi<A>,
-    /// The path_text field.
-    pub path_text: A::String,
-    /// The dest_text field.
-    pub dest_text: A::String,
-    /// The fd field.
-    pub fd: i32,
-    /// The address field.
-    pub address: A::String,
-    /// The port field.
-    pub port: u16,
-    /// The hostname field.
-    pub hostname: A::String,
-    /// The pid field.
-    pub pid: u64,
-    /// The signal field.
-    pub signal: A::String,
-    /// The exit_code field.
-    pub exit_code: i32,
-    /// The timer_id field.
-    pub timer_id: u64,
-    /// The deadline_ns field.
-    pub deadline_ns: u64,
-    /// The resource_id field.
-    pub resource_id: u64,
-    /// The resource_kind field.
-    pub resource_kind: A::String,
-    /// The capability field.
-    pub capability: A::String,
-    /// The policy field.
-    pub policy: A::String,
-    /// The library field.
-    pub library: A::String,
-    /// The symbol field.
-    pub symbol: A::String,
-    /// The thread_id field.
-    pub thread_id: u64,
-    /// The argument field.
-    pub argument: A::String,
-    /// The pointer field.
-    pub pointer: A::String,
     /// The feature field.
     pub feature: A::String,
 }
 
-pub type PlatformErrorContext = PlatformErrorContextAbi<NativeAbi>;
-pub type PlatformErrorContextVm = PlatformErrorContextAbi<VmAbi>;
+pub type PlatformErrorContextAudio = PlatformErrorContextAudioAbi<NativeAbi>;
+pub type PlatformErrorContextAudioVm = PlatformErrorContextAudioAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextAudioAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("PlatformErrorContextAbi")
+            .debug_struct("PlatformErrorContextAudioAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for PlatformErrorContextAbi<NativeAbi> {}
-impl Clone for PlatformErrorContextAbi<NativeAbi> {
+impl Copy for PlatformErrorContextAudioAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextAudioAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for PlatformErrorContextAbi<VmAbi> {}
-impl Clone for PlatformErrorContextAbi<VmAbi> {
+impl Copy for PlatformErrorContextAudioAbi<VmAbi> {}
+impl Clone for PlatformErrorContextAudioAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
+impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -662,254 +1052,7 @@ impl VmAggregateCodec for PlatformErrorContextAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "PlatformErrorContext",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 25 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 25 fields",
-            ))
-            .boxed());
-        }
-        let field_kind =
-            <PlatformErrorContextKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_syscall =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_path =
-            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_dest =
-            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_path_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_dest_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_fd = <i32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_address =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_port = <u16 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_hostname =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_pid = <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_signal =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_exit_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_timer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_deadline_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_resource_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_resource_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_capability =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_policy =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_library =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_symbol =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[20])?;
-        let field_thread_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[21])?;
-        let field_argument =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[22])?;
-        let field_pointer =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[23])?;
-        let field_feature =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[24])?;
-        Ok(Self {
-            kind: field_kind,
-            syscall: field_syscall,
-            path: field_path,
-            dest: field_dest,
-            path_text: field_path_text,
-            dest_text: field_dest_text,
-            fd: field_fd,
-            address: field_address,
-            port: field_port,
-            hostname: field_hostname,
-            pid: field_pid,
-            signal: field_signal,
-            exit_code: field_exit_code,
-            timer_id: field_timer_id,
-            deadline_ns: field_deadline_ns,
-            resource_id: field_resource_id,
-            resource_kind: field_resource_kind,
-            capability: field_capability,
-            policy: field_policy,
-            library: field_library,
-            symbol: field_symbol,
-            thread_id: field_thread_id,
-            argument: field_argument,
-            pointer: field_pointer,
-            feature: field_feature,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <PlatformErrorContextKind as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
-            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.dest, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.dest_text, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.fd, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.port, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hostname, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.signal, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.resource_id, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.resource_kind,
-                context,
-            )?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.policy, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.library, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.symbol, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.argument, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.pointer, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
-        ];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// ABI struct for PlatformPathPayload.
-#[repr(C)]
-pub struct PlatformPathPayloadAbi<A: BindingAbi> {
-    /// The encoding field.
-    pub encoding: PlatformPathEncoding,
-    /// The data field.
-    pub data: A::Array<u8>,
-}
-
-pub type PlatformPathPayload = PlatformPathPayloadAbi<NativeAbi>;
-pub type PlatformPathPayloadVm = PlatformPathPayloadAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("PlatformPathPayloadAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for PlatformPathPayloadAbi<NativeAbi> {}
-impl Clone for PlatformPathPayloadAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for PlatformPathPayloadAbi<VmAbi> {}
-impl Clone for PlatformPathPayloadAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for PlatformPathPayloadAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PlatformPathPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                "value",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let field_encoding =
-            <PlatformPathEncoding as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_data = <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        Ok(Self {
-            encoding: field_encoding,
-            data: field_data,
-        })
-    }
-
-    fn encode_with_context(
-        self,
-        context: &mut vm::ExternalCallContext<'_>,
-    ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <PlatformPathEncoding as VmAggregateCodec>::encode_with_context(
-                self.encoding,
-                context,
-            )?,
-            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
-        ];
-        Ok(context.allocate_aggregate(slots))
-    }
-}
-
-/// ABI struct for PlatformSystemSource.
-#[repr(C)]
-pub struct PlatformSystemSourceAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: PlatformSystemSourceKind,
-    /// The value field.
-    pub value: i32,
-    /// The name field.
-    pub name: A::String,
-}
-
-pub type PlatformSystemSource = PlatformSystemSourceAbi<NativeAbi>;
-pub type PlatformSystemSourceVm = PlatformSystemSourceAbi<VmAbi>;
-
-impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceAbi<A> {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("PlatformSystemSourceAbi")
-            .finish_non_exhaustive()
-    }
-}
-
-impl Copy for PlatformSystemSourceAbi<NativeAbi> {}
-impl Clone for PlatformSystemSourceAbi<NativeAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl Copy for PlatformSystemSourceAbi<VmAbi> {}
-impl Clone for PlatformSystemSourceAbi<VmAbi> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
-    fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
-        value: vm::Value,
-    ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PlatformSystemSource",
+                "PlatformErrorContextAudio",
             ))
             .boxed());
         }
@@ -924,7 +1067,1513 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
             .boxed());
         }
         let field_kind =
-            <PlatformSystemSourceKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextDevice.
+#[repr(C)]
+pub struct PlatformErrorContextDeviceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The path field.
+    pub path: platform_error::PlatformPathPayloadAbi<A>,
+    /// The path_text field.
+    pub path_text: A::String,
+    /// The feature field.
+    pub feature: A::String,
+}
+
+pub type PlatformErrorContextDevice = PlatformErrorContextDeviceAbi<NativeAbi>;
+pub type PlatformErrorContextDeviceVm = PlatformErrorContextDeviceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextDeviceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextDeviceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextDeviceAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextDeviceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextDeviceAbi<VmAbi> {}
+impl Clone for PlatformErrorContextDeviceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextDevice",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_path_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            path: field_path,
+            path_text: field_path_text,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextDisplay.
+#[repr(C)]
+pub struct PlatformErrorContextDisplayAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The feature field.
+    pub feature: A::String,
+}
+
+pub type PlatformErrorContextDisplay = PlatformErrorContextDisplayAbi<NativeAbi>;
+pub type PlatformErrorContextDisplayVm = PlatformErrorContextDisplayAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextDisplayAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextDisplayAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextDisplayAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextDisplayAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextDisplayAbi<VmAbi> {}
+impl Clone for PlatformErrorContextDisplayAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextDisplay",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextFfi.
+#[repr(C)]
+pub struct PlatformErrorContextFfiAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The library field.
+    pub library: A::String,
+    /// The symbol field.
+    pub symbol: A::String,
+}
+
+pub type PlatformErrorContextFfi = PlatformErrorContextFfiAbi<NativeAbi>;
+pub type PlatformErrorContextFfiVm = PlatformErrorContextFfiAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextFfiAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextFfiAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextFfiAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextFfiAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextFfiAbi<VmAbi> {}
+impl Clone for PlatformErrorContextFfiAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextFfi",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_library =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_symbol =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            library: field_library,
+            symbol: field_symbol,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.library, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.symbol, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextGeneric.
+#[repr(C)]
+pub struct PlatformErrorContextGenericAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The argument field.
+    pub argument: A::String,
+    /// The pointer field.
+    pub pointer: A::String,
+    /// The feature field.
+    pub feature: A::String,
+}
+
+pub type PlatformErrorContextGeneric = PlatformErrorContextGenericAbi<NativeAbi>;
+pub type PlatformErrorContextGenericVm = PlatformErrorContextGenericAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextGenericAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextGenericAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextGenericAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextGenericAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextGenericAbi<VmAbi> {}
+impl Clone for PlatformErrorContextGenericAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextGeneric",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_argument =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pointer =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            argument: field_argument,
+            pointer: field_pointer,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.argument, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.pointer, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextGpu.
+#[repr(C)]
+pub struct PlatformErrorContextGpuAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The feature field.
+    pub feature: A::String,
+}
+
+pub type PlatformErrorContextGpu = PlatformErrorContextGpuAbi<NativeAbi>;
+pub type PlatformErrorContextGpuVm = PlatformErrorContextGpuAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextGpuAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextGpuAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextGpuAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextGpuAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextGpuAbi<VmAbi> {}
+impl Clone for PlatformErrorContextGpuAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextGpu",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextIo.
+#[repr(C)]
+pub struct PlatformErrorContextIoAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The path field.
+    pub path: platform_error::PlatformPathPayloadAbi<A>,
+    /// The dest field.
+    pub dest: platform_error::PlatformPathPayloadAbi<A>,
+    /// The path_text field.
+    pub path_text: A::String,
+    /// The dest_text field.
+    pub dest_text: A::String,
+    /// The fd field.
+    pub fd: i32,
+}
+
+pub type PlatformErrorContextIo = PlatformErrorContextIoAbi<NativeAbi>;
+pub type PlatformErrorContextIoVm = PlatformErrorContextIoAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIoAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextIoAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextIoAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextIoAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextIoAbi<VmAbi> {}
+impl Clone for PlatformErrorContextIoAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIo",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_dest =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_path_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_dest_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_fd = <i32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            path: field_path,
+            dest: field_dest,
+            path_text: field_path_text,
+            dest_text: field_dest_text,
+            fd: field_fd,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.dest, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.dest_text, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.fd, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextIoDriver.
+#[repr(C)]
+pub struct PlatformErrorContextIoDriverAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The fd field.
+    pub fd: i32,
+    /// The feature field.
+    pub feature: A::String,
+}
+
+pub type PlatformErrorContextIoDriver = PlatformErrorContextIoDriverAbi<NativeAbi>;
+pub type PlatformErrorContextIoDriverVm = PlatformErrorContextIoDriverAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIoDriverAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextIoDriverAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextIoDriverAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextIoDriverAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextIoDriverAbi<VmAbi> {}
+impl Clone for PlatformErrorContextIoDriverAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIoDriver",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_fd = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_feature =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            fd: field_fd,
+            feature: field_feature,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.fd, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.feature, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextIpc.
+#[repr(C)]
+pub struct PlatformErrorContextIpcAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The path field.
+    pub path: platform_error::PlatformPathPayloadAbi<A>,
+    /// The path_text field.
+    pub path_text: A::String,
+    /// The fd field.
+    pub fd: i32,
+}
+
+pub type PlatformErrorContextIpc = PlatformErrorContextIpcAbi<NativeAbi>;
+pub type PlatformErrorContextIpcVm = PlatformErrorContextIpcAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextIpcAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextIpcAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextIpcAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextIpcAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextIpcAbi<VmAbi> {}
+impl Clone for PlatformErrorContextIpcAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextIpc",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_path =
+            <PlatformPathPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_path_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_fd = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            path: field_path,
+            path_text: field_path_text,
+            fd: field_fd,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <PlatformPathPayloadVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.path_text, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.fd, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextNet.
+#[repr(C)]
+pub struct PlatformErrorContextNetAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The address field.
+    pub address: A::String,
+    /// The port field.
+    pub port: u16,
+    /// The hostname field.
+    pub hostname: A::String,
+}
+
+pub type PlatformErrorContextNet = PlatformErrorContextNetAbi<NativeAbi>;
+pub type PlatformErrorContextNetVm = PlatformErrorContextNetAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextNetAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextNetAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextNetAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextNetAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextNetAbi<VmAbi> {}
+impl Clone for PlatformErrorContextNetAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextNet",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_address =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_port = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_hostname =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            address: field_address,
+            port: field_port,
+            hostname: field_hostname,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.port, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hostname, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextProcess.
+#[repr(C)]
+pub struct PlatformErrorContextProcessAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The pid field.
+    pub pid: u64,
+    /// The signal field.
+    pub signal: A::String,
+    /// The exit_code field.
+    pub exit_code: i32,
+}
+
+pub type PlatformErrorContextProcess = PlatformErrorContextProcessAbi<NativeAbi>;
+pub type PlatformErrorContextProcessVm = PlatformErrorContextProcessAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextProcessAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextProcessAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextProcessAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextProcessAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextProcessAbi<VmAbi> {}
+impl Clone for PlatformErrorContextProcessAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextProcess",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_pid = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_signal =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_exit_code = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            pid: field_pid,
+            signal: field_signal,
+            exit_code: field_exit_code,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.signal, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.exit_code, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextResource.
+#[repr(C)]
+pub struct PlatformErrorContextResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The resource_id field.
+    pub resource_id: u64,
+    /// The resource_kind field.
+    pub resource_kind: A::String,
+}
+
+pub type PlatformErrorContextResource = PlatformErrorContextResourceAbi<NativeAbi>;
+pub type PlatformErrorContextResourceVm = PlatformErrorContextResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextResourceAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextResourceAbi<VmAbi> {}
+impl Clone for PlatformErrorContextResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_resource_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_resource_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            resource_id: field_resource_id,
+            resource_kind: field_resource_kind,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.resource_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.resource_kind,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextSecurity.
+#[repr(C)]
+pub struct PlatformErrorContextSecurityAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The capability field.
+    pub capability: A::String,
+    /// The policy field.
+    pub policy: A::String,
+}
+
+pub type PlatformErrorContextSecurity = PlatformErrorContextSecurityAbi<NativeAbi>;
+pub type PlatformErrorContextSecurityVm = PlatformErrorContextSecurityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextSecurityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextSecurityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextSecurityAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextSecurityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextSecurityAbi<VmAbi> {}
+impl Clone for PlatformErrorContextSecurityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextSecurity",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_capability =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_policy =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            capability: field_capability,
+            policy: field_policy,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.policy, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextThread.
+#[repr(C)]
+pub struct PlatformErrorContextThreadAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The thread_id field.
+    pub thread_id: u64,
+}
+
+pub type PlatformErrorContextThread = PlatformErrorContextThreadAbi<NativeAbi>;
+pub type PlatformErrorContextThreadVm = PlatformErrorContextThreadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextThreadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextThreadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextThreadAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextThreadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextThreadAbi<VmAbi> {}
+impl Clone for PlatformErrorContextThreadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextThread",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_thread_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            thread_id: field_thread_id,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformErrorContextTimer.
+#[repr(C)]
+pub struct PlatformErrorContextTimerAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The syscall field.
+    pub syscall: A::String,
+    /// The timer_id field.
+    pub timer_id: u64,
+    /// The deadline_ns field.
+    pub deadline_ns: u64,
+}
+
+pub type PlatformErrorContextTimer = PlatformErrorContextTimerAbi<NativeAbi>;
+pub type PlatformErrorContextTimerVm = PlatformErrorContextTimerAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformErrorContextTimerAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformErrorContextTimerAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformErrorContextTimerAbi<NativeAbi> {}
+impl Clone for PlatformErrorContextTimerAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformErrorContextTimerAbi<VmAbi> {}
+impl Clone for PlatformErrorContextTimerAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformErrorContextTimer",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_syscall =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_deadline_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            syscall: field_syscall,
+            timer_id: field_timer_id,
+            deadline_ns: field_deadline_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.syscall, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timer_id, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.deadline_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformPathPayloadBytes.
+#[repr(C)]
+pub struct PlatformPathPayloadBytesAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The bytes field.
+    pub bytes: A::Array<u8>,
+}
+
+pub type PlatformPathPayloadBytes = PlatformPathPayloadBytesAbi<NativeAbi>;
+pub type PlatformPathPayloadBytesVm = PlatformPathPayloadBytesAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadBytesAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformPathPayloadBytesAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformPathPayloadBytesAbi<NativeAbi> {}
+impl Clone for PlatformPathPayloadBytesAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformPathPayloadBytesAbi<VmAbi> {}
+impl Clone for PlatformPathPayloadBytesAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayloadBytes",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            bytes: field_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformPathPayloadUtf16.
+#[repr(C)]
+pub struct PlatformPathPayloadUtf16Abi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The utf16 field.
+    pub utf16: A::Array<u16>,
+}
+
+pub type PlatformPathPayloadUtf16 = PlatformPathPayloadUtf16Abi<NativeAbi>;
+pub type PlatformPathPayloadUtf16Vm = PlatformPathPayloadUtf16Abi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformPathPayloadUtf16Abi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformPathPayloadUtf16Abi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformPathPayloadUtf16Abi<NativeAbi> {}
+impl Clone for PlatformPathPayloadUtf16Abi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformPathPayloadUtf16Abi<VmAbi> {}
+impl Clone for PlatformPathPayloadUtf16Abi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformPathPayloadUtf16",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_utf16 =
+            <VmArray<u16> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            utf16: field_utf16,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceEai.
+#[repr(C)]
+pub struct PlatformSystemSourceEaiAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceEai = PlatformSystemSourceEaiAbi<NativeAbi>;
+pub type PlatformSystemSourceEaiVm = PlatformSystemSourceEaiAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceEaiAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceEaiAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceEaiAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceEaiAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceEaiAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceEaiAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceEai",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
@@ -940,9 +2589,417 @@ impl VmAggregateCodec for PlatformSystemSourceAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <PlatformSystemSourceKind as VmAggregateCodec>::encode_with_context(
-                self.kind, context,
-            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceErrno.
+#[repr(C)]
+pub struct PlatformSystemSourceErrnoAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceErrno = PlatformSystemSourceErrnoAbi<NativeAbi>;
+pub type PlatformSystemSourceErrnoVm = PlatformSystemSourceErrnoAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceErrnoAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceErrnoAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceErrnoAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceErrnoAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceErrnoAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceErrnoAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceErrno",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceHResult.
+#[repr(C)]
+pub struct PlatformSystemSourceHResultAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceHResult = PlatformSystemSourceHResultAbi<NativeAbi>;
+pub type PlatformSystemSourceHResultVm = PlatformSystemSourceHResultAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceHResultAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceHResultAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceHResultAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceHResultAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceHResultAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceHResultAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceHResult",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceOther.
+#[repr(C)]
+pub struct PlatformSystemSourceOtherAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceOther = PlatformSystemSourceOtherAbi<NativeAbi>;
+pub type PlatformSystemSourceOtherVm = PlatformSystemSourceOtherAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceOtherAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceOtherAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceOtherAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceOtherAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceOtherAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceOtherAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceOther",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceSignal.
+#[repr(C)]
+pub struct PlatformSystemSourceSignalAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceSignal = PlatformSystemSourceSignalAbi<NativeAbi>;
+pub type PlatformSystemSourceSignalVm = PlatformSystemSourceSignalAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceSignalAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceSignalAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceSignalAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceSignalAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceSignalAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceSignalAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceSignal",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PlatformSystemSourceWinsock.
+#[repr(C)]
+pub struct PlatformSystemSourceWinsockAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: A::String,
+}
+
+pub type PlatformSystemSourceWinsock = PlatformSystemSourceWinsockAbi<NativeAbi>;
+pub type PlatformSystemSourceWinsockVm = PlatformSystemSourceWinsockAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PlatformSystemSourceWinsockAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PlatformSystemSourceWinsockAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PlatformSystemSourceWinsockAbi<NativeAbi> {}
+impl Clone for PlatformSystemSourceWinsockAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PlatformSystemSourceWinsockAbi<VmAbi> {}
+impl Clone for PlatformSystemSourceWinsockAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PlatformSystemSourceWinsockAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PlatformSystemSourceWinsock",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_value = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+            name: field_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.value, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
         ];
@@ -965,11 +3022,87 @@ pub struct PlatformErrorReplayRecord {
     pub message: String,
 }
 
-/// Replay struct for PlatformErrorContext.
+/// Replay struct for PlatformErrorContextAudio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PlatformErrorContextReplayRecord {
+pub struct PlatformErrorContextAudioReplayRecord {
     /// The kind field.
-    pub kind: PlatformErrorContextKind,
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextDevice.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextDeviceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The path field.
+    pub path: PlatformPathPayloadReplayRecord,
+    /// The path_text field.
+    pub path_text: String,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextDisplay.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextDisplayReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextFfi.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextFfiReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The library field.
+    pub library: String,
+    /// The symbol field.
+    pub symbol: String,
+}
+
+/// Replay struct for PlatformErrorContextGeneric.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextGenericReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The argument field.
+    pub argument: String,
+    /// The pointer field.
+    pub pointer: String,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextGpu.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextGpuReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextIo.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextIoReplayRecord {
+    /// The kind field.
+    pub kind: String,
     /// The syscall field.
     pub syscall: String,
     /// The path field.
@@ -982,60 +3115,257 @@ pub struct PlatformErrorContextReplayRecord {
     pub dest_text: String,
     /// The fd field.
     pub fd: i32,
+}
+
+/// Replay struct for PlatformErrorContextIoDriver.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextIoDriverReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The fd field.
+    pub fd: i32,
+    /// The feature field.
+    pub feature: String,
+}
+
+/// Replay struct for PlatformErrorContextIpc.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextIpcReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The path field.
+    pub path: PlatformPathPayloadReplayRecord,
+    /// The path_text field.
+    pub path_text: String,
+    /// The fd field.
+    pub fd: i32,
+}
+
+/// Replay struct for PlatformErrorContextNet.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextNetReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
     /// The address field.
     pub address: String,
     /// The port field.
     pub port: u16,
     /// The hostname field.
     pub hostname: String,
+}
+
+/// Replay struct for PlatformErrorContextProcess.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextProcessReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
     /// The pid field.
     pub pid: u64,
     /// The signal field.
     pub signal: String,
     /// The exit_code field.
     pub exit_code: i32,
-    /// The timer_id field.
-    pub timer_id: u64,
-    /// The deadline_ns field.
-    pub deadline_ns: u64,
+}
+
+/// Replay struct for PlatformErrorContextResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
     /// The resource_id field.
     pub resource_id: u64,
     /// The resource_kind field.
     pub resource_kind: String,
+}
+
+/// Replay struct for PlatformErrorContextSecurity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextSecurityReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
     /// The capability field.
     pub capability: String,
     /// The policy field.
     pub policy: String,
-    /// The library field.
-    pub library: String,
-    /// The symbol field.
-    pub symbol: String,
+}
+
+/// Replay struct for PlatformErrorContextThread.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorContextThreadReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
     /// The thread_id field.
     pub thread_id: u64,
-    /// The argument field.
-    pub argument: String,
-    /// The pointer field.
-    pub pointer: String,
-    /// The feature field.
-    pub feature: String,
 }
 
-/// Replay struct for PlatformPathPayload.
+/// Replay struct for PlatformErrorContextTimer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PlatformPathPayloadReplayRecord {
-    /// The encoding field.
-    pub encoding: PlatformPathEncoding,
-    /// The data field.
-    pub data: Vec<u8>,
-}
-
-/// Replay struct for PlatformSystemSource.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PlatformSystemSourceReplayRecord {
+pub struct PlatformErrorContextTimerReplayRecord {
     /// The kind field.
-    pub kind: PlatformSystemSourceKind,
+    pub kind: String,
+    /// The syscall field.
+    pub syscall: String,
+    /// The timer_id field.
+    pub timer_id: u64,
+    /// The deadline_ns field.
+    pub deadline_ns: u64,
+}
+
+/// Replay struct for PlatformPathPayloadBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformPathPayloadBytesReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The bytes field.
+    pub bytes: Vec<u8>,
+}
+
+/// Replay struct for PlatformPathPayloadUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformPathPayloadUtf16ReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The utf16 field.
+    pub utf16: Vec<u16>,
+}
+
+/// Replay struct for PlatformSystemSourceEai.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceEaiReplayRecord {
+    /// The kind field.
+    pub kind: String,
     /// The value field.
     pub value: i32,
     /// The name field.
     pub name: String,
+}
+
+/// Replay struct for PlatformSystemSourceErrno.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceErrnoReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: String,
+}
+
+/// Replay struct for PlatformSystemSourceHResult.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceHResultReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: String,
+}
+
+/// Replay struct for PlatformSystemSourceOther.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceOtherReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: String,
+}
+
+/// Replay struct for PlatformSystemSourceSignal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceSignalReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: String,
+}
+
+/// Replay struct for PlatformSystemSourceWinsock.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformSystemSourceWinsockReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The value field.
+    pub value: i32,
+    /// The name field.
+    pub name: String,
+}
+
+/// Replay enum for PlatformErrorContext.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PlatformErrorContextReplayRecord {
+    /// PlatformErrorContextAudio variant.
+    PlatformErrorContextAudio(PlatformErrorContextAudioReplayRecord),
+    /// PlatformErrorContextDevice variant.
+    PlatformErrorContextDevice(PlatformErrorContextDeviceReplayRecord),
+    /// PlatformErrorContextDisplay variant.
+    PlatformErrorContextDisplay(PlatformErrorContextDisplayReplayRecord),
+    /// PlatformErrorContextFfi variant.
+    PlatformErrorContextFfi(PlatformErrorContextFfiReplayRecord),
+    /// PlatformErrorContextGeneric variant.
+    PlatformErrorContextGeneric(PlatformErrorContextGenericReplayRecord),
+    /// PlatformErrorContextGpu variant.
+    PlatformErrorContextGpu(PlatformErrorContextGpuReplayRecord),
+    /// PlatformErrorContextIo variant.
+    PlatformErrorContextIo(PlatformErrorContextIoReplayRecord),
+    /// PlatformErrorContextIoDriver variant.
+    PlatformErrorContextIoDriver(PlatformErrorContextIoDriverReplayRecord),
+    /// PlatformErrorContextIpc variant.
+    PlatformErrorContextIpc(PlatformErrorContextIpcReplayRecord),
+    /// PlatformErrorContextNet variant.
+    PlatformErrorContextNet(PlatformErrorContextNetReplayRecord),
+    /// PlatformErrorContextProcess variant.
+    PlatformErrorContextProcess(PlatformErrorContextProcessReplayRecord),
+    /// PlatformErrorContextResource variant.
+    PlatformErrorContextResource(PlatformErrorContextResourceReplayRecord),
+    /// PlatformErrorContextSecurity variant.
+    PlatformErrorContextSecurity(PlatformErrorContextSecurityReplayRecord),
+    /// PlatformErrorContextThread variant.
+    PlatformErrorContextThread(PlatformErrorContextThreadReplayRecord),
+    /// PlatformErrorContextTimer variant.
+    PlatformErrorContextTimer(PlatformErrorContextTimerReplayRecord),
+}
+
+/// Replay enum for PlatformPathPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PlatformPathPayloadReplayRecord {
+    /// PlatformPathPayloadBytes variant.
+    PlatformPathPayloadBytes(PlatformPathPayloadBytesReplayRecord),
+    /// PlatformPathPayloadUtf16 variant.
+    PlatformPathPayloadUtf16(PlatformPathPayloadUtf16ReplayRecord),
+}
+
+/// Replay enum for PlatformSystemSource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PlatformSystemSourceReplayRecord {
+    /// PlatformSystemSourceEai variant.
+    PlatformSystemSourceEai(PlatformSystemSourceEaiReplayRecord),
+    /// PlatformSystemSourceErrno variant.
+    PlatformSystemSourceErrno(PlatformSystemSourceErrnoReplayRecord),
+    /// PlatformSystemSourceHResult variant.
+    PlatformSystemSourceHResult(PlatformSystemSourceHResultReplayRecord),
+    /// PlatformSystemSourceOther variant.
+    PlatformSystemSourceOther(PlatformSystemSourceOtherReplayRecord),
+    /// PlatformSystemSourceSignal variant.
+    PlatformSystemSourceSignal(PlatformSystemSourceSignalReplayRecord),
+    /// PlatformSystemSourceWinsock variant.
+    PlatformSystemSourceWinsock(PlatformSystemSourceWinsockReplayRecord),
 }

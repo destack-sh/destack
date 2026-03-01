@@ -3,20 +3,24 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
-    self, OsPath, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm, PathEncoding, PathUtf16,
-    PathUtf16Abi, PathUtf16Vm, core as core_fs,
+    self, OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesAbi, PathBytesVm,
+    PathUtf16, PathUtf16Abi, PathUtf16Vm, core as core_fs,
 };
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionKind,
-    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIdsVm, ProcessId,
-    ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind, ProcessSchedulerConfigVm,
-    ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioKind, ProcessStdioVm,
-    ProcessUnshareFlags, ProcessUserIdsVm, ProcessWaitFlags, ProcessWaitStatusVm, Signal,
-    SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId, host as host_process,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionClose,
+    ProcessFdActionDup2, ProcessFdActionOpen, ProcessFdActionVm, ProcessFdFlags,
+    ProcessFdSignalFlags, ProcessGroupIdsVm, ProcessId, ProcessLimitResource, ProcessLimitVm,
+    ProcessNamespaceKind, ProcessSchedulerConfigVm, ProcessSpawnOptions, ProcessSpawnOptionsVm,
+    ProcessStdio, ProcessStdioDescriptor, ProcessStdioFile, ProcessStdioInherit, ProcessStdioNull,
+    ProcessStdioPipe, ProcessStdioVm, ProcessUnshareFlags, ProcessUserIdsVm,
+    ProcessWaitContinuedStatusVm, ProcessWaitExitedStatusVm, ProcessWaitFlags,
+    ProcessWaitRunningStatusVm, ProcessWaitSignaledStatusVm, ProcessWaitStatus,
+    ProcessWaitStatusVm, ProcessWaitStoppedStatusVm, Signal, SignalEventVm, SignalFdFlags,
+    SignalMaskHow, SyscallFilterFlags, UserId, host as host_process,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, VmArray, VmSlice,
-    VmValueCodec, resource,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, VmAggregateCodec, VmArray,
+    VmSlice, VmValueCodec, resource,
 };
 use crate::runtime::BindingCallContext;
 
@@ -24,15 +28,6 @@ fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<
     let mut out = std::mem::MaybeUninit::<T>::uninit();
     call(out.as_mut_ptr())?;
     Ok(unsafe { out.assume_init() })
-}
-
-fn empty_vm_array<T>() -> VmArray<T> {
-    VmArray {
-        data: vm::RawPointer::NULL,
-        len: 0,
-        capacity: 0,
-        _marker: std::marker::PhantomData,
-    }
 }
 
 fn path_bytes_from_vm(
@@ -58,13 +53,13 @@ fn path_ref_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPath> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = path_bytes_from_vm(runtime, context, path.bytes)?;
+    match path {
+        OsPathVm::OsPathBytes(path_bytes) => {
+            let bytes = path_bytes_from_vm(runtime, context, path_bytes.bytes)?;
             Ok(core_fs::path_ref_from_bytes(bytes))
         }
-        PathEncoding::Utf16 => {
-            let utf16 = path_utf16_from_vm(runtime, context, path.utf16)?;
+        OsPathVm::OsPathUtf16(path_utf16) => {
+            let utf16 = path_utf16_from_vm(runtime, context, path_utf16.utf16)?;
             Ok(core_fs::path_ref_from_utf16(utf16))
         }
     }
@@ -92,68 +87,22 @@ fn path_ref_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPath,
 ) -> RuntimeResult<OsPathVm> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = path_bytes_to_vm(context, path.bytes)?;
-            Ok(OsPathVm {
-                encoding: PathEncoding::Bytes,
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
+            let bytes = path_bytes_to_vm(context, path_bytes.bytes)?;
+            Ok(OsPathVm::OsPathBytes(OsPathBytesVm {
+                kind: vm::StringHandle::new(context.intern_string("bytes")),
                 bytes,
-                utf16: PathUtf16Abi::<VmAbi>(empty_vm_array()),
-            })
+            }))
         }
-        PathEncoding::Utf16 => {
-            let utf16 = path_utf16_to_vm(context, path.utf16)?;
-            Ok(OsPathVm {
-                encoding: PathEncoding::Utf16,
-                bytes: PathBytesAbi::<VmAbi>(empty_vm_array()),
+        OsPath::OsPathUtf16(path_utf16) => {
+            let utf16 = path_utf16_to_vm(context, path_utf16.utf16)?;
+            Ok(OsPathVm::OsPathUtf16(OsPathUtf16Vm {
+                kind: vm::StringHandle::new(context.intern_string("utf16")),
                 utf16,
-            })
+            }))
         }
     }
-}
-
-fn decode_os_path_vm_from_value(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
-    field: &str,
-) -> RuntimeResult<OsPathVm> {
-    if value.tag() != vm::ValueTag::Aggregate {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(field, "OsPath")).boxed(),
-        );
-    }
-
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 3 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            field,
-            "expected 3 fields",
-        ))
-        .boxed());
-    }
-
-    let encoding = match u8::decode(slots[0])? {
-        1 => PathEncoding::Bytes,
-        2 => PathEncoding::Utf16,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                field,
-                "unknown PathEncoding value",
-            ))
-            .boxed());
-        }
-    };
-
-    let bytes = VmArray::<u8>::from_value(context, slots[1], field, "bytes")?;
-    let utf16 = VmArray::<u16>::from_value(context, slots[2], field, "utf16")?;
-
-    Ok(OsPathVm {
-        encoding,
-        bytes: PathBytesAbi::<VmAbi>(bytes),
-        utf16: PathUtf16Abi::<VmAbi>(utf16),
-    })
 }
 
 fn string_ref_from_vm(
@@ -288,72 +237,83 @@ fn process_cpu_set_to_vm(
     })
 }
 
-fn decode_process_stdio_from_value(
-    context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
-) -> RuntimeResult<ProcessStdio> {
-    if value.tag() != vm::ValueTag::Aggregate {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-            "stdio",
-            "ProcessStdio",
-        ))
-        .boxed());
-    }
-
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 4 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "stdio",
-            "expected 4 fields",
-        ))
-        .boxed());
-    }
-
-    Ok(ProcessStdio {
-        kind: ProcessStdioKind::decode(slots[0])?,
-        file: resource::FileHandle::decode(slots[1])?,
-        pipe: resource::PipeHandle::decode(slots[2])?,
-        descriptor: i32::decode(slots[3])?,
-    })
-}
-
-fn decode_process_fd_action_from_value(
+fn process_stdio_from_vm(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
-    value: vm::Value,
+    value: ProcessStdioVm,
+) -> RuntimeResult<ProcessStdio> {
+    match value {
+        ProcessStdioVm::ProcessStdioDescriptor(descriptor) => {
+            let kind = string_ref_from_vm(runtime, context, descriptor.kind)?;
+            Ok(ProcessStdio::ProcessStdioDescriptor(
+                ProcessStdioDescriptor {
+                    kind,
+                    descriptor: descriptor.descriptor,
+                },
+            ))
+        }
+        ProcessStdioVm::ProcessStdioFile(file) => {
+            let kind = string_ref_from_vm(runtime, context, file.kind)?;
+            Ok(ProcessStdio::ProcessStdioFile(ProcessStdioFile {
+                kind,
+                file: file.file,
+            }))
+        }
+        ProcessStdioVm::ProcessStdioInherit(inherit) => {
+            let kind = string_ref_from_vm(runtime, context, inherit.kind)?;
+            Ok(ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
+                kind,
+            }))
+        }
+        ProcessStdioVm::ProcessStdioNull(null_value) => {
+            let kind = string_ref_from_vm(runtime, context, null_value.kind)?;
+            Ok(ProcessStdio::ProcessStdioNull(ProcessStdioNull { kind }))
+        }
+        ProcessStdioVm::ProcessStdioPipe(pipe) => {
+            let kind = string_ref_from_vm(runtime, context, pipe.kind)?;
+            Ok(ProcessStdio::ProcessStdioPipe(ProcessStdioPipe {
+                kind,
+                pipe: pipe.pipe,
+            }))
+        }
+    }
+}
+
+fn process_fd_action_from_vm(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    value: ProcessFdActionVm,
 ) -> RuntimeResult<ProcessFdAction> {
-    if value.tag() != vm::ValueTag::Aggregate {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-            "action",
-            "ProcessFdAction",
-        ))
-        .boxed());
+    match value {
+        ProcessFdActionVm::ProcessFdActionClose(close) => {
+            let kind = string_ref_from_vm(runtime, context, close.kind)?;
+            Ok(ProcessFdAction::ProcessFdActionClose(
+                ProcessFdActionClose {
+                    kind,
+                    descriptor: close.descriptor,
+                },
+            ))
+        }
+        ProcessFdActionVm::ProcessFdActionDup2(dup2) => {
+            let kind = string_ref_from_vm(runtime, context, dup2.kind)?;
+            Ok(ProcessFdAction::ProcessFdActionDup2(ProcessFdActionDup2 {
+                kind,
+                source: dup2.source,
+                target: dup2.target,
+            }))
+        }
+        ProcessFdActionVm::ProcessFdActionOpen(open) => {
+            let kind = string_ref_from_vm(runtime, context, open.kind)?;
+            let path = path_ref_from_vm(runtime, context, open.path)?;
+            Ok(ProcessFdAction::ProcessFdActionOpen(ProcessFdActionOpen {
+                kind,
+                target: open.target,
+                path,
+                flags: open.flags,
+                mode: open.mode,
+            }))
+        }
     }
-
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 6 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "action",
-            "expected 6 fields",
-        ))
-        .boxed());
-    }
-
-    let path_vm = decode_os_path_vm_from_value(context, slots[3], "action.path")?;
-    let path = path_ref_from_vm(runtime, context, path_vm)?;
-
-    Ok(ProcessFdAction {
-        op: ProcessFdActionKind::decode(slots[0])?,
-        source: i32::decode(slots[1])?,
-        target: i32::decode(slots[2])?,
-        path,
-        flags: fs::OpenFlags::decode(slots[4])?,
-        mode: fs::FileMode::decode(slots[5])?,
-    })
 }
 
 fn process_stdio_slice_from_vm(
@@ -368,7 +328,8 @@ fn process_stdio_slice_from_vm(
     let values = stdio.raw_values(context)?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
-        native_values.push(decode_process_stdio_from_value(context, value)?);
+        let value = <ProcessStdioVm as VmAggregateCodec>::decode_with_context(context, value)?;
+        native_values.push(process_stdio_from_vm(runtime, context, value)?);
     }
 
     Ok(runtime.store_slice(native_values))
@@ -386,12 +347,68 @@ fn process_fd_action_slice_from_vm(
     let values = actions.raw_values(context)?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
-        native_values.push(decode_process_fd_action_from_value(
-            runtime, context, value,
-        )?);
+        let value = <ProcessFdActionVm as VmAggregateCodec>::decode_with_context(context, value)?;
+        native_values.push(process_fd_action_from_vm(runtime, context, value)?);
     }
 
     Ok(runtime.store_slice(native_values))
+}
+
+fn process_wait_status_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: ProcessWaitStatus,
+) -> RuntimeResult<ProcessWaitStatusVm> {
+    match value {
+        ProcessWaitStatus::ProcessWaitContinuedStatus(status) => {
+            let kind = string_ref_to_vm(context, status.kind)?;
+            Ok(ProcessWaitStatusVm::ProcessWaitContinuedStatus(
+                ProcessWaitContinuedStatusVm {
+                    kind,
+                    pid: status.pid,
+                },
+            ))
+        }
+        ProcessWaitStatus::ProcessWaitExitedStatus(status) => {
+            let kind = string_ref_to_vm(context, status.kind)?;
+            Ok(ProcessWaitStatusVm::ProcessWaitExitedStatus(
+                ProcessWaitExitedStatusVm {
+                    kind,
+                    pid: status.pid,
+                    exit_code: status.exit_code,
+                },
+            ))
+        }
+        ProcessWaitStatus::ProcessWaitRunningStatus(status) => {
+            let kind = string_ref_to_vm(context, status.kind)?;
+            Ok(ProcessWaitStatusVm::ProcessWaitRunningStatus(
+                ProcessWaitRunningStatusVm {
+                    kind,
+                    pid: status.pid,
+                },
+            ))
+        }
+        ProcessWaitStatus::ProcessWaitSignaledStatus(status) => {
+            let kind = string_ref_to_vm(context, status.kind)?;
+            Ok(ProcessWaitStatusVm::ProcessWaitSignaledStatus(
+                ProcessWaitSignaledStatusVm {
+                    kind,
+                    pid: status.pid,
+                    signal: status.signal,
+                    core_dumped: status.core_dumped,
+                },
+            ))
+        }
+        ProcessWaitStatus::ProcessWaitStoppedStatus(status) => {
+            let kind = string_ref_to_vm(context, status.kind)?;
+            Ok(ProcessWaitStatusVm::ProcessWaitStoppedStatus(
+                ProcessWaitStoppedStatusVm {
+                    kind,
+                    pid: status.pid,
+                    signal: status.signal,
+                },
+            ))
+        }
+    }
 }
 
 /// Return the process argument vector.
@@ -930,12 +947,13 @@ pub(crate) fn destack_process_process_fd_send_signal(
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_try_wait(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
-    call_out(|out| unsafe {
+    let value = call_out(|out| unsafe {
         host_process::destack_process_process_fd_try_wait(runtime, out, handle)
-    })
+    })?;
+    process_wait_status_to_vm(context, value)
 }
 
 /// Wait for one process descriptor state transition.
@@ -957,13 +975,14 @@ pub(crate) fn destack_process_process_fd_try_wait(
 /// External, recordable.
 pub(crate) fn destack_process_process_fd_wait(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessFdHandle,
     timeoutns: u64,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
-    call_out(|out| unsafe {
+    let value = call_out(|out| unsafe {
         host_process::destack_process_process_fd_wait(runtime, out, handle, timeoutns)
-    })
+    })?;
+    process_wait_status_to_vm(context, value)
 }
 
 /// Close one signal descriptor.
@@ -2452,11 +2471,14 @@ pub(crate) fn destack_process_umask(
 /// External, recordable.
 pub(crate) fn destack_process_wait_pid(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
-    call_out(|out| unsafe { host_process::destack_process_wait_pid(runtime, out, pid, flags) })
+    let value = call_out(|out| unsafe {
+        host_process::destack_process_wait_pid(runtime, out, pid, flags)
+    })?;
+    process_wait_status_to_vm(context, value)
 }
 
 /// Poll a child process handle without blocking.
@@ -2478,10 +2500,12 @@ pub(crate) fn destack_process_wait_pid(
 /// External, recordable.
 pub(crate) fn destack_process_try_wait(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
-    call_out(|out| unsafe { host_process::destack_process_try_wait(runtime, out, handle) })
+    let value =
+        call_out(|out| unsafe { host_process::destack_process_try_wait(runtime, out, handle) })?;
+    process_wait_status_to_vm(context, value)
 }
 
 /// Wait for a child process handle.
@@ -2503,9 +2527,11 @@ pub(crate) fn destack_process_try_wait(
 /// External, recordable.
 pub(crate) fn destack_process_wait(
     runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     handle: resource::ProcessHandle,
     flags: ProcessWaitFlags,
 ) -> RuntimeResult<ProcessWaitStatusVm> {
-    call_out(|out| unsafe { host_process::destack_process_wait(runtime, out, handle, flags) })
+    let value =
+        call_out(|out| unsafe { host_process::destack_process_wait(runtime, out, handle, flags) })?;
+    process_wait_status_to_vm(context, value)
 }

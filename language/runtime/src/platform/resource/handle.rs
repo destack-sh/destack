@@ -281,3 +281,7 @@ define_handle!(
     UsbWatchHandle
 );
 define_handle!("The handle for one window event stream.", WindowEventHandle);
+define_handle!(
+    "The handle for one display event stream.",
+    DisplayEventHandle
+);
