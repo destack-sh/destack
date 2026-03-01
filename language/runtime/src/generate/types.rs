@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use destack_base::StringPool;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    self as dir, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType, StaticArgument,
-    StaticExpression, TypeLiteral, WellKnownSymbol,
+    self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType,
+    StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::format::{format_local_type, format_type_literal};
@@ -922,6 +922,7 @@ fn binding_type_from_object_type(
         );
         binding_fields.push(BindingField {
             name: field_name,
+            documentation: None,
             binding_type: field_binding,
         });
     }
@@ -960,6 +961,7 @@ fn binding_type_from_tuple(
         );
         fields.push(BindingField {
             name: field_name,
+            documentation: None,
             binding_type: field_binding,
         });
     }
@@ -1045,6 +1047,7 @@ fn binding_type_from_struct(
         };
         fields.push(BindingField {
             name: field_name,
+            documentation: node_documentation(tree, member_id.id, strings),
             binding_type: field_binding,
         });
     }
@@ -1054,6 +1057,33 @@ fn binding_type_from_struct(
         domain,
         fields,
     }
+}
+
+/// Collect documentation comments from one typed node id.
+fn node_documentation(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> Option<String> {
+    let mut lines = Vec::new();
+    let annotations = tree.get_annotations(node_id);
+
+    for annotation_id in annotations {
+        let annotation = tree.get::<Annotation>(annotation_id);
+        let Annotation::Doc { string, .. } = annotation else {
+            continue;
+        };
+        let text = strings.get(*string);
+        for line in text.lines() {
+            lines.push(line.trim_end().to_string());
+        }
+    }
+
+    let Some(start) = lines.iter().position(|line| !line.trim().is_empty()) else {
+        return None;
+    };
+    let end = lines
+        .iter()
+        .rposition(|line| !line.trim().is_empty())
+        .unwrap_or(start);
+
+    Some(lines[start..=end].join("\n"))
 }
 
 /// Resolve enum metadata into a binding type.

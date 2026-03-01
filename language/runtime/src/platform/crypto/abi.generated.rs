@@ -1550,15 +1550,15 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
 /// ABI struct for CryptoAgreementDeriveKeyRequest.
 #[repr(C)]
 pub struct CryptoAgreementDeriveKeyRequestAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Key-agreement algorithm.
     pub algorithm: CryptoKeyAgreementAlgorithm,
-    /// The digest field.
+    /// Digest algorithm used by the KDF stage.
     pub digest: CryptoDigestAlgorithm,
-    /// The salt field.
+    /// KDF salt bytes.
     pub salt: A::Slice<u8>,
-    /// The info field.
+    /// KDF context info bytes.
     pub info: A::Slice<u8>,
-    /// The output_length field.
+    /// Derived key length in bytes.
     pub output_length: u32,
 }
 
@@ -1648,21 +1648,21 @@ impl VmAggregateCodec for CryptoAgreementDeriveKeyRequestAbi<VmAbi> {
 /// ABI struct for CryptoArgon2idRequest.
 #[repr(C)]
 pub struct CryptoArgon2idRequestAbi<A: BindingAbi> {
-    /// The password field.
+    /// Password bytes.
     pub password: A::Slice<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: A::Slice<u8>,
-    /// The associated_data field.
+    /// Optional associated data bytes.
     pub associated_data: A::Slice<u8>,
-    /// The secret field.
+    /// Optional secret bytes.
     pub secret: A::Slice<u8>,
-    /// The iterations field.
+    /// Iteration count.
     pub iterations: u32,
-    /// The memory_ki_b field.
+    /// Memory size in kibibytes.
     pub memory_ki_b: u32,
-    /// The parallelism field.
+    /// Parallel workers.
     pub parallelism: u32,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
@@ -1756,11 +1756,12 @@ impl VmAggregateCodec for CryptoArgon2idRequestAbi<VmAbi> {
 /// ABI struct for CryptoAsymmetricEncryptionParameters.
 #[repr(C)]
 pub struct CryptoAsymmetricEncryptionParametersAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Asymmetric encryption algorithm.
     pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The label field.
+    /// OAEP label bytes.
+    /// Use one empty slice for no label.
     pub label: A::Slice<u8>,
 }
 
@@ -1844,23 +1845,23 @@ impl VmAggregateCodec for CryptoAsymmetricEncryptionParametersAbi<VmAbi> {
 /// ABI struct for CryptoCertificateDescriptor.
 #[repr(C)]
 pub struct CryptoCertificateDescriptorAbi<A: BindingAbi> {
-    /// The subject field.
+    /// Distinguished subject name.
     pub subject: A::String,
-    /// The issuer field.
+    /// Distinguished issuer name.
     pub issuer: A::String,
-    /// The serial_number field.
+    /// Serial number string.
     pub serial_number: A::String,
-    /// The subject_alternative_names field.
+    /// Subject alternative names.
     pub subject_alternative_names: A::Array<A::String>,
-    /// The fingerprint_sha256 field.
+    /// SHA-256 fingerprint bytes.
     pub fingerprint_sha256: A::Slice<u8>,
-    /// The validity field.
+    /// Certificate validity window.
     pub validity: CryptoCertificateValidity,
-    /// The is_certificate_authority field.
+    /// Whether this certificate is a certificate authority.
     pub is_certificate_authority: bool,
-    /// The key_usage_mask field.
+    /// Key-usage bitmask.
     pub key_usage_mask: u32,
-    /// The store_provenance field.
+    /// Effective certificate store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -1985,13 +1986,13 @@ impl VmAggregateCodec for CryptoCertificateDescriptorAbi<VmAbi> {
 /// ABI struct for CryptoCertificateListEntry.
 #[repr(C)]
 pub struct CryptoCertificateListEntryAbi<A: BindingAbi> {
-    /// The handle field.
+    /// Certificate handle.
     pub handle: resource::CryptoCertificateHandle,
-    /// The subject field.
+    /// Subject name string.
     pub subject: A::String,
-    /// The issuer field.
+    /// Issuer name string.
     pub issuer: A::String,
-    /// The serial_number field.
+    /// Serial number string.
     pub serial_number: A::String,
 }
 
@@ -2082,9 +2083,10 @@ impl VmAggregateCodec for CryptoCertificateListEntryAbi<VmAbi> {
 /// ABI struct for CryptoCertificateListPage.
 #[repr(C)]
 pub struct CryptoCertificateListPageAbi<A: BindingAbi> {
-    /// The entries field.
+    /// Page entries.
     pub entries: A::Array<platform_crypto::CryptoCertificateListEntryAbi<A>>,
-    /// The next_cursor field.
+    /// Continuation cursor.
+    /// Use one empty string when there is no next page.
     pub next_cursor: A::String,
 }
 
@@ -2164,15 +2166,15 @@ impl VmAggregateCodec for CryptoCertificateListPageAbi<VmAbi> {
 /// ABI struct for CryptoCertificateQuery.
 #[repr(C)]
 pub struct CryptoCertificateQueryAbi<A: BindingAbi> {
-    /// The subject_contains field.
+    /// Subject substring filter.
     pub subject_contains: A::String,
-    /// The issuer_contains field.
+    /// Issuer substring filter.
     pub issuer_contains: A::String,
-    /// The subject_alternative_name field.
+    /// Subject alternative name exact-match filter.
     pub subject_alternative_name: A::String,
-    /// The cursor field.
+    /// Pagination cursor.
     pub cursor: A::String,
-    /// The limit field.
+    /// Maximum returned entries.
     pub limit: u32,
 }
 
@@ -2268,9 +2270,9 @@ impl VmAggregateCodec for CryptoCertificateQueryAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateValidity {
-    /// The not_before_unix_seconds field.
+    /// Not-before timestamp in Unix seconds.
     pub not_before_unix_seconds: u64,
-    /// The not_after_unix_seconds field.
+    /// Not-after timestamp in Unix seconds.
     pub not_after_unix_seconds: u64,
 }
 
@@ -2323,9 +2325,9 @@ impl VmAggregateCodec for CryptoCertificateValidity {
 /// ABI struct for CryptoCertificateVerifyIdentity.
 #[repr(C)]
 pub struct CryptoCertificateVerifyIdentityAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Identity kind.
     pub kind: CryptoCertificateIdentityKind,
-    /// The value field.
+    /// Identity value string.
     pub value: A::String,
 }
 
@@ -2403,21 +2405,22 @@ impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
 /// ABI struct for CryptoCertificateVerifyRequest.
 #[repr(C)]
 pub struct CryptoCertificateVerifyRequestAbi<A: BindingAbi> {
-    /// The leaf field.
+    /// Leaf certificate handle.
     pub leaf: resource::CryptoCertificateHandle,
-    /// The intermediates field.
+    /// Intermediate certificate handles.
     pub intermediates: A::Slice<resource::CryptoCertificateHandle>,
-    /// The trust_anchors field.
+    /// Trust anchor certificate handles.
     pub trust_anchors: A::Slice<resource::CryptoCertificateHandle>,
-    /// The use_system_trust_anchors field.
+    /// Whether host system trust anchors should be included.
     pub use_system_trust_anchors: bool,
-    /// The purpose field.
+    /// Verification purpose.
     pub purpose: CryptoCertificatePurpose,
-    /// The identity field.
+    /// Optional identity value for name-constrained verification.
+    /// Use one omitted value when no identity check is required.
     pub identity: platform_crypto::CryptoCertificateVerifyIdentityAbi<A>,
-    /// The verification_unix_seconds field.
+    /// Verification time in Unix seconds.
     pub verification_unix_seconds: u64,
-    /// The revocation_mode field.
+    /// Revocation policy.
     pub revocation_mode: CryptoCertificateRevocationMode,
 }
 
@@ -2549,19 +2552,19 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
 /// ABI struct for CryptoCertificateVerifyResult.
 #[repr(C)]
 pub struct CryptoCertificateVerifyResultAbi<A: BindingAbi> {
-    /// The valid field.
+    /// Whether the chain validates.
     pub valid: bool,
-    /// The error field.
+    /// Normalized verification error class.
     pub error: CryptoCertificateVerifyError,
-    /// The error_code field.
+    /// Provider or runtime error code when validation fails.
     pub error_code: u32,
-    /// The failed_certificate_index field.
+    /// Index of the first failing certificate in the evaluated chain.
     pub failed_certificate_index: u32,
-    /// The failed_certificate_subject field.
+    /// Subject string of the first failing certificate when available.
     pub failed_certificate_subject: A::String,
-    /// The chain_length field.
+    /// Number of certificates in the verified chain.
     pub chain_length: u32,
-    /// The used_system_trust_anchor field.
+    /// Whether one system trust anchor was used.
     pub used_system_trust_anchor: bool,
 }
 
@@ -2662,9 +2665,10 @@ impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
 /// ABI struct for CryptoCipherOutput.
 #[repr(C)]
 pub struct CryptoCipherOutputAbi<A: BindingAbi> {
-    /// The bytes field.
+    /// Cipher output bytes.
     pub bytes: A::Slice<u8>,
-    /// The tag field.
+    /// Authentication tag for AEAD encryption.
+    /// Use one empty slice when no authentication tag is produced.
     pub tag: A::Slice<u8>,
 }
 
@@ -2738,15 +2742,17 @@ impl VmAggregateCodec for CryptoCipherOutputAbi<VmAbi> {
 /// ABI struct for CryptoCipherParameters.
 #[repr(C)]
 pub struct CryptoCipherParametersAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Symmetric cipher algorithm.
     pub algorithm: CryptoCipherAlgorithm,
-    /// The nonce field.
+    /// Nonce or IV bytes.
     pub nonce: A::Slice<u8>,
-    /// The additional_data field.
+    /// Additional authenticated data bytes.
     pub additional_data: A::Slice<u8>,
-    /// The tag field.
+    /// Authentication tag bytes for decryption.
+    /// Use one empty slice when no authentication tag is required.
     pub tag: A::Slice<u8>,
-    /// The tag_length_bytes field.
+    /// Authentication tag length in bytes for encryption.
+    /// Set to zero to use provider default tag length.
     pub tag_length_bytes: u32,
 }
 
@@ -2835,15 +2841,15 @@ impl VmAggregateCodec for CryptoCipherParametersAbi<VmAbi> {
 /// ABI struct for CryptoHkdfRequest.
 #[repr(C)]
 pub struct CryptoHkdfRequestAbi<A: BindingAbi> {
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The input_key_material field.
+    /// Input keying material.
     pub input_key_material: A::Slice<u8>,
-    /// The salt field.
+    /// Optional salt bytes.
     pub salt: A::Slice<u8>,
-    /// The info field.
+    /// Context and application info bytes.
     pub info: A::Slice<u8>,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
@@ -2930,25 +2936,26 @@ impl VmAggregateCodec for CryptoHkdfRequestAbi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorAes.
 #[repr(C)]
 pub struct CryptoKeyDescriptorAesAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3058,25 +3065,26 @@ impl VmAggregateCodec for CryptoKeyDescriptorAesAbi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorChaCha20.
 #[repr(C)]
 pub struct CryptoKeyDescriptorChaCha20Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3186,25 +3194,26 @@ impl VmAggregateCodec for CryptoKeyDescriptorChaCha20Abi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorEc.
 #[repr(C)]
 pub struct CryptoKeyDescriptorEcAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The named_curve field.
+    /// Named curve when available.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3315,23 +3324,24 @@ impl VmAggregateCodec for CryptoKeyDescriptorEcAbi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorEd25519.
 #[repr(C)]
 pub struct CryptoKeyDescriptorEd25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3438,23 +3448,24 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorEd448.
 #[repr(C)]
 pub struct CryptoKeyDescriptorEd448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3561,27 +3572,28 @@ impl VmAggregateCodec for CryptoKeyDescriptorEd448Abi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorHmac.
 #[repr(C)]
 pub struct CryptoKeyDescriptorHmacAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The digest field.
+    /// Digest algorithm when available.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3695,29 +3707,30 @@ impl VmAggregateCodec for CryptoKeyDescriptorHmacAbi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorRsa.
 #[repr(C)]
 pub struct CryptoKeyDescriptorRsaAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The modulus_bits field.
+    /// RSA modulus size in bits when available.
     pub modulus_bits: u32,
-    /// The public_exponent field.
+    /// RSA public exponent when available.
     pub public_exponent: u32,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3835,23 +3848,24 @@ impl VmAggregateCodec for CryptoKeyDescriptorRsaAbi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorX25519.
 #[repr(C)]
 pub struct CryptoKeyDescriptorX25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -3958,23 +3972,24 @@ impl VmAggregateCodec for CryptoKeyDescriptorX25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyDescriptorX448.
 #[repr(C)]
 pub struct CryptoKeyDescriptorX448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: A::String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: platform_crypto::CryptoStoreProvenanceAbi<A>,
 }
 
@@ -4081,21 +4096,22 @@ impl VmAggregateCodec for CryptoKeyDescriptorX448Abi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestAes.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestAesAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The size_bits field.
+    /// Key size in bits.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4194,21 +4210,22 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAesAbi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestChaCha20.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestChaCha20Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The size_bits field.
+    /// Key size in bits.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4307,21 +4324,22 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestChaCha20Abi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestEc.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestEcAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The named_curve field.
+    /// Named curve.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4421,19 +4439,20 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEcAbi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestEd25519.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestEd25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4529,19 +4548,20 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestEd448.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestEd448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4637,23 +4657,24 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestEd448Abi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestHmac.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestHmacAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The size_bits field.
+    /// HMAC key size in bits.
     pub size_bits: u32,
-    /// The digest field.
+    /// Digest algorithm for this HMAC key.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4756,25 +4777,26 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestHmacAbi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestRsa.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestRsaAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The modulus_bits field.
+    /// RSA modulus size in bits.
     pub modulus_bits: u32,
-    /// The public_exponent field.
+    /// RSA public exponent.
     pub public_exponent: u32,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4881,19 +4903,20 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestRsaAbi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestX25519.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestX25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -4989,19 +5012,20 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyGenerationRequestX448.
 #[repr(C)]
 pub struct CryptoKeyGenerationRequestX448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: A::String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5097,23 +5121,25 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestX448Abi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestAes.
 #[repr(C)]
 pub struct CryptoKeyImportRequestAesAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5217,23 +5243,25 @@ impl VmAggregateCodec for CryptoKeyImportRequestAesAbi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestChaCha20.
 #[repr(C)]
 pub struct CryptoKeyImportRequestChaCha20Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5337,25 +5365,27 @@ impl VmAggregateCodec for CryptoKeyImportRequestChaCha20Abi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestEc.
 #[repr(C)]
 pub struct CryptoKeyImportRequestEcAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The named_curve field.
+    /// Named curve when format metadata does not encode it.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5463,23 +5493,25 @@ impl VmAggregateCodec for CryptoKeyImportRequestEcAbi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestEd25519.
 #[repr(C)]
 pub struct CryptoKeyImportRequestEd25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5583,23 +5615,25 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestEd448.
 #[repr(C)]
 pub struct CryptoKeyImportRequestEd448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5703,25 +5737,27 @@ impl VmAggregateCodec for CryptoKeyImportRequestEd448Abi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestHmac.
 #[repr(C)]
 pub struct CryptoKeyImportRequestHmacAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The digest field.
+    /// Digest algorithm for this HMAC key.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5829,25 +5865,27 @@ impl VmAggregateCodec for CryptoKeyImportRequestHmacAbi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestRsa.
 #[repr(C)]
 pub struct CryptoKeyImportRequestRsaAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -5955,23 +5993,25 @@ impl VmAggregateCodec for CryptoKeyImportRequestRsaAbi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestX25519.
 #[repr(C)]
 pub struct CryptoKeyImportRequestX25519Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -6075,23 +6115,25 @@ impl VmAggregateCodec for CryptoKeyImportRequestX25519Abi<VmAbi> {
 /// ABI struct for CryptoKeyImportRequestX448.
 #[repr(C)]
 pub struct CryptoKeyImportRequestX448Abi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: A::String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: A::Slice<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: A::Slice<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
@@ -6195,13 +6237,13 @@ impl VmAggregateCodec for CryptoKeyImportRequestX448Abi<VmAbi> {
 /// ABI struct for CryptoKeyListEntry.
 #[repr(C)]
 pub struct CryptoKeyListEntryAbi<A: BindingAbi> {
-    /// The handle field.
+    /// Key handle.
     pub handle: resource::CryptoKeyHandle,
-    /// The label field.
+    /// User-visible key label.
     pub label: A::String,
-    /// The algorithm field.
+    /// Key algorithm family.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
     pub usage_mask: CryptoKeyUsageMask,
 }
 
@@ -6291,9 +6333,10 @@ impl VmAggregateCodec for CryptoKeyListEntryAbi<VmAbi> {
 /// ABI struct for CryptoKeyListPage.
 #[repr(C)]
 pub struct CryptoKeyListPageAbi<A: BindingAbi> {
-    /// The entries field.
+    /// Page entries.
     pub entries: A::Array<platform_crypto::CryptoKeyListEntryAbi<A>>,
-    /// The next_cursor field.
+    /// Continuation cursor.
+    /// Use one empty string when there is no next page.
     pub next_cursor: A::String,
 }
 
@@ -6374,9 +6417,9 @@ impl VmAggregateCodec for CryptoKeyListPageAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyPair {
-    /// The public_key field.
+    /// Public key handle.
     pub public_key: resource::CryptoKeyHandle,
-    /// The private_key field.
+    /// Private key handle.
     pub private_key: resource::CryptoKeyHandle,
 }
 
@@ -6439,15 +6482,15 @@ impl VmAggregateCodec for CryptoKeyPair {
 /// ABI struct for CryptoKeyQuery.
 #[repr(C)]
 pub struct CryptoKeyQueryAbi<A: BindingAbi> {
-    /// The label_prefix field.
+    /// Label prefix filter.
     pub label_prefix: A::String,
-    /// The algorithm field.
+    /// Key algorithm filter.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The usage_mask field.
+    /// Required key usage mask bits.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The cursor field.
+    /// Pagination cursor.
     pub cursor: A::String,
-    /// The limit field.
+    /// Maximum returned entries.
     pub limit: u32,
 }
 
@@ -6539,11 +6582,12 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
 /// ABI struct for CryptoKeyWrapParameters.
 #[repr(C)]
 pub struct CryptoKeyWrapParametersAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Key-wrap algorithm.
     pub algorithm: CryptoKeyWrapAlgorithm,
-    /// The digest field.
+    /// Digest algorithm for RSA-OAEP wrapping.
     pub digest: CryptoDigestAlgorithm,
-    /// The label field.
+    /// OAEP label for RSA-OAEP wrapping.
+    /// Use one empty slice for no label.
     pub label: A::Slice<u8>,
 }
 
@@ -6626,11 +6670,12 @@ impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoMacParameters {
-    /// The algorithm field.
+    /// Message authentication algorithm.
     pub algorithm: CryptoMacAlgorithm,
-    /// The digest field.
+    /// Digest algorithm for HMAC.
     pub digest: CryptoDigestAlgorithm,
-    /// The tag_length_bytes field.
+    /// Output tag length in bytes.
+    /// Set to zero to use provider default tag length.
     pub tag_length_bytes: u32,
 }
 
@@ -6687,15 +6732,15 @@ impl VmAggregateCodec for CryptoMacParameters {
 /// ABI struct for CryptoPbkdf2Request.
 #[repr(C)]
 pub struct CryptoPbkdf2RequestAbi<A: BindingAbi> {
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The password field.
+    /// Password bytes.
     pub password: A::Slice<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: A::Slice<u8>,
-    /// The iterations field.
+    /// Iteration count.
     pub iterations: u32,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
@@ -6779,9 +6824,11 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
 /// ABI struct for CryptoPrivateKeyExportRequest.
 #[repr(C)]
 pub struct CryptoPrivateKeyExportRequestAbi<A: BindingAbi> {
-    /// The format field.
+    /// Requested output format.
     pub format: CryptoKeyFormat,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    /// Use one empty slice for unencrypted private-key formats.
     pub passphrase: A::Slice<u8>,
 }
 
@@ -6856,19 +6903,19 @@ impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
 /// ABI struct for CryptoScryptRequest.
 #[repr(C)]
 pub struct CryptoScryptRequestAbi<A: BindingAbi> {
-    /// The password field.
+    /// Password bytes.
     pub password: A::Slice<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: A::Slice<u8>,
-    /// The cost field.
+    /// CPU and memory cost parameter.
     pub cost: u32,
-    /// The block_size field.
+    /// Block size parameter.
     pub block_size: u32,
-    /// The parallelization field.
+    /// Parallelization parameter.
     pub parallelization: u32,
-    /// The max_memory_bytes field.
+    /// Maximum memory in bytes.
     pub max_memory_bytes: u64,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
@@ -6960,11 +7007,12 @@ impl VmAggregateCodec for CryptoScryptRequestAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoSignatureParameters {
-    /// The algorithm field.
+    /// Signature algorithm.
     pub algorithm: CryptoSignatureAlgorithm,
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The salt_length_bytes field.
+    /// RSA-PSS salt length in bytes.
+    /// Set to zero to use backend default salt behavior.
     pub salt_length_bytes: u32,
 }
 
@@ -7025,15 +7073,15 @@ impl VmAggregateCodec for CryptoSignatureParameters {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreAgreementCapability {
-    /// The private_key_algorithm field.
+    /// Local private-key algorithm family.
     pub private_key_algorithm: CryptoKeyAlgorithm,
-    /// The peer_public_key_algorithm field.
+    /// Peer public-key algorithm family.
     pub peer_public_key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Agreement algorithm selector.
     pub algorithm: CryptoKeyAgreementAlgorithm,
-    /// The supports_derive_shared_secret field.
+    /// Whether shared-secret derivation is supported.
     pub supports_derive_shared_secret: bool,
-    /// The supports_derive_key field.
+    /// Whether key derivation is supported.
     pub supports_derive_key: bool,
 }
 
@@ -7112,15 +7160,15 @@ impl VmAggregateCodec for CryptoStoreAgreementCapability {
 /// ABI struct for CryptoStoreAsymmetricEncryptionCapability.
 #[repr(C)]
 pub struct CryptoStoreAsymmetricEncryptionCapabilityAbi<A: BindingAbi> {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Asymmetric encryption algorithm selector.
     pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
-    /// The supports_encrypt field.
+    /// Whether encrypt is supported.
     pub supports_encrypt: bool,
-    /// The supports_decrypt field.
+    /// Whether decrypt is supported.
     pub supports_decrypt: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
 }
 
@@ -7222,38 +7270,38 @@ impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
 /// ABI struct for CryptoStoreCapability.
 #[repr(C)]
 pub struct CryptoStoreCapabilityAbi<A: BindingAbi> {
-    /// The identity field.
+    /// Store identity.
     pub identity: platform_crypto::CryptoStoreIdentityAbi<A>,
-    /// The is_available field.
+    /// Whether this store identity is available for open calls.
     pub is_available: bool,
-    /// The supports_hardware_backed field.
+    /// Whether hardware-backed key operations are supported.
     pub supports_hardware_backed: bool,
-    /// The supports_persistent field.
+    /// Whether persistent key operations are supported.
     pub supports_persistent: bool,
-    /// The supports_key_export field.
+    /// Whether key export operations are supported by policy.
     pub supports_key_export: bool,
-    /// The supported_key_algorithms field.
+    /// Supported key algorithm families for this store identity.
     pub supported_key_algorithms: A::Array<CryptoKeyAlgorithm>,
-    /// The supported_key_formats field.
+    /// Supported key formats for this store identity.
     pub supported_key_formats: A::Array<CryptoKeyFormat>,
-    /// The supported_key_residencies field.
+    /// Supported key residencies for this store identity.
     pub supported_key_residencies: A::Array<CryptoKeyResidency>,
-    /// The key_capabilities field.
+    /// Operation-scoped key capability rows.
     pub key_capabilities: A::Array<platform_crypto::CryptoStoreKeyCapabilityAbi<A>>,
-    /// The signature_capabilities field.
+    /// Operation-scoped signature capability rows.
     pub signature_capabilities: A::Array<platform_crypto::CryptoStoreSignatureCapabilityAbi<A>>,
-    /// The asymmetric_encryption_capabilities field.
+    /// Operation-scoped asymmetric-encryption capability rows.
     pub asymmetric_encryption_capabilities:
         A::Array<platform_crypto::CryptoStoreAsymmetricEncryptionCapabilityAbi<A>>,
-    /// The key_wrap_capabilities field.
+    /// Operation-scoped key-wrap capability rows.
     pub key_wrap_capabilities: A::Array<platform_crypto::CryptoStoreKeyWrapCapabilityAbi<A>>,
-    /// The cipher_capabilities field.
+    /// Operation-scoped symmetric-cipher capability rows.
     pub cipher_capabilities: A::Array<CryptoStoreCipherCapability>,
-    /// The mac_capabilities field.
+    /// Operation-scoped message-authentication capability rows.
     pub mac_capabilities: A::Array<platform_crypto::CryptoStoreMacCapabilityAbi<A>>,
-    /// The agreement_capabilities field.
+    /// Operation-scoped key-agreement capability rows.
     pub agreement_capabilities: A::Array<CryptoStoreAgreementCapability>,
-    /// The certificate_capabilities field.
+    /// Operation-scoped certificate capability row.
     pub certificate_capabilities: CryptoStoreCertificateCapability,
 }
 
@@ -7406,17 +7454,17 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreCertificateCapability {
-    /// The supports_import field.
+    /// Whether certificate import is supported.
     pub supports_import: bool,
-    /// The supports_export field.
+    /// Whether certificate export is supported.
     pub supports_export: bool,
-    /// The supports_descriptor field.
+    /// Whether certificate descriptor reads are supported.
     pub supports_descriptor: bool,
-    /// The supports_verify field.
+    /// Whether certificate verification is supported.
     pub supports_verify: bool,
-    /// The supports_delete field.
+    /// Whether certificate deletion is supported.
     pub supports_delete: bool,
-    /// The supports_system_trust_anchors field.
+    /// Whether system trust-anchor reads are supported.
     pub supports_system_trust_anchors: bool,
 }
 
@@ -7489,21 +7537,21 @@ impl VmAggregateCodec for CryptoStoreCertificateCapability {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreCipherCapability {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Cipher algorithm selector.
     pub algorithm: CryptoCipherAlgorithm,
-    /// The supports_one_shot field.
+    /// Whether one-shot operation is supported.
     pub supports_one_shot: bool,
-    /// The supports_streaming field.
+    /// Whether streaming operation is supported.
     pub supports_streaming: bool,
-    /// The supports_additional_data field.
+    /// Whether additional authenticated data is supported.
     pub supports_additional_data: bool,
-    /// The supports_detached_tag field.
+    /// Whether detached tag semantics are supported.
     pub supports_detached_tag: bool,
-    /// The min_tag_length_bytes field.
+    /// Minimum supported tag length in bytes.
     pub min_tag_length_bytes: u32,
-    /// The max_tag_length_bytes field.
+    /// Maximum supported tag length in bytes.
     pub max_tag_length_bytes: u32,
 }
 
@@ -7589,11 +7637,11 @@ impl VmAggregateCodec for CryptoStoreCipherCapability {
 /// ABI struct for CryptoStoreIdentity.
 #[repr(C)]
 pub struct CryptoStoreIdentityAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Store backend kind.
     pub kind: CryptoStoreKind,
-    /// The provider field.
+    /// Provider selector.
     pub provider: CryptoStoreProvider,
-    /// The namespace field.
+    /// Provider namespace.
     pub namespace: A::String,
 }
 
@@ -7672,27 +7720,27 @@ impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
 /// ABI struct for CryptoStoreKeyCapability.
 #[repr(C)]
 pub struct CryptoStoreKeyCapabilityAbi<A: BindingAbi> {
-    /// The algorithm field.
+    /// Key algorithm family.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The residency field.
+    /// Key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The supports_generate_secret field.
+    /// Whether secret-key generation is supported.
     pub supports_generate_secret: bool,
-    /// The supports_generate_pair field.
+    /// Whether asymmetric key-pair generation is supported.
     pub supports_generate_pair: bool,
-    /// The supports_import field.
+    /// Whether key import is supported.
     pub supports_import: bool,
-    /// The supports_export_public field.
+    /// Whether public-key export is supported.
     pub supports_export_public: bool,
-    /// The supports_export_private field.
+    /// Whether private-key export is supported.
     pub supports_export_private: bool,
-    /// The supports_export_secret field.
+    /// Whether secret-key export is supported.
     pub supports_export_secret: bool,
-    /// The supported_usage_mask field.
+    /// Supported key usage bits.
     pub supported_usage_mask: CryptoKeyUsageMask,
-    /// The supported_import_formats field.
+    /// Supported import formats.
     pub supported_import_formats: A::Slice<CryptoKeyFormat>,
-    /// The supported_export_formats field.
+    /// Supported export formats.
     pub supported_export_formats: A::Slice<CryptoKeyFormat>,
 }
 
@@ -7817,15 +7865,15 @@ impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
 /// ABI struct for CryptoStoreKeyWrapCapability.
 #[repr(C)]
 pub struct CryptoStoreKeyWrapCapabilityAbi<A: BindingAbi> {
-    /// The wrapping_key_algorithm field.
+    /// Wrapping-key algorithm family.
     pub wrapping_key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Key-wrap algorithm selector.
     pub algorithm: CryptoKeyWrapAlgorithm,
-    /// The supports_wrap field.
+    /// Whether key wrap is supported.
     pub supports_wrap: bool,
-    /// The supports_unwrap field.
+    /// Whether key unwrap is supported.
     pub supports_unwrap: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms for digest-parameterized wrap algorithms.
     pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
 }
 
@@ -7923,19 +7971,19 @@ impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
 /// ABI struct for CryptoStoreMacCapability.
 #[repr(C)]
 pub struct CryptoStoreMacCapabilityAbi<A: BindingAbi> {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// MAC algorithm selector.
     pub algorithm: CryptoMacAlgorithm,
-    /// The supports_one_shot field.
+    /// Whether one-shot operation is supported.
     pub supports_one_shot: bool,
-    /// The supports_streaming field.
+    /// Whether streaming operation is supported.
     pub supports_streaming: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
-    /// The min_tag_length_bytes field.
+    /// Minimum supported tag length in bytes.
     pub min_tag_length_bytes: u32,
-    /// The max_tag_length_bytes field.
+    /// Maximum supported tag length in bytes.
     pub max_tag_length_bytes: u32,
 }
 
@@ -8038,11 +8086,11 @@ impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
 /// ABI struct for CryptoStoreOptions.
 #[repr(C)]
 pub struct CryptoStoreOptionsAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Store backend kind.
     pub kind: CryptoStoreKind,
-    /// The provider field.
+    /// Provider selector for provider-backed stores.
     pub provider: CryptoStoreProvider,
-    /// The namespace field.
+    /// Optional logical namespace.
     pub namespace: A::String,
 }
 
@@ -8121,7 +8169,7 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
 /// ABI struct for CryptoStoreProvenance.
 #[repr(C)]
 pub struct CryptoStoreProvenanceAbi<A: BindingAbi> {
-    /// The identity field.
+    /// Effective store identity.
     pub identity: platform_crypto::CryptoStoreIdentityAbi<A>,
 }
 
@@ -8195,15 +8243,15 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
 /// ABI struct for CryptoStoreSignatureCapability.
 #[repr(C)]
 pub struct CryptoStoreSignatureCapabilityAbi<A: BindingAbi> {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The signature_algorithm field.
+    /// Signature algorithm selector.
     pub signature_algorithm: CryptoSignatureAlgorithm,
-    /// The supports_sign field.
+    /// Whether sign is supported.
     pub supports_sign: bool,
-    /// The supports_verify field.
+    /// Whether verify is supported.
     pub supports_verify: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
 }
 
@@ -8301,1067 +8349,1113 @@ impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
 /// Replay struct for CryptoAgreementDeriveKeyRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoAgreementDeriveKeyRequestReplayRecord {
-    /// The algorithm field.
+    /// Key-agreement algorithm.
     pub algorithm: CryptoKeyAgreementAlgorithm,
-    /// The digest field.
+    /// Digest algorithm used by the KDF stage.
     pub digest: CryptoDigestAlgorithm,
-    /// The salt field.
+    /// KDF salt bytes.
     pub salt: Vec<u8>,
-    /// The info field.
+    /// KDF context info bytes.
     pub info: Vec<u8>,
-    /// The output_length field.
+    /// Derived key length in bytes.
     pub output_length: u32,
 }
 
 /// Replay struct for CryptoArgon2idRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoArgon2idRequestReplayRecord {
-    /// The password field.
+    /// Password bytes.
     pub password: Vec<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: Vec<u8>,
-    /// The associated_data field.
+    /// Optional associated data bytes.
     pub associated_data: Vec<u8>,
-    /// The secret field.
+    /// Optional secret bytes.
     pub secret: Vec<u8>,
-    /// The iterations field.
+    /// Iteration count.
     pub iterations: u32,
-    /// The memory_ki_b field.
+    /// Memory size in kibibytes.
     pub memory_ki_b: u32,
-    /// The parallelism field.
+    /// Parallel workers.
     pub parallelism: u32,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
 /// Replay struct for CryptoAsymmetricEncryptionParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoAsymmetricEncryptionParametersReplayRecord {
-    /// The algorithm field.
+    /// Asymmetric encryption algorithm.
     pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The label field.
+    /// OAEP label bytes.
+    /// Use one empty slice for no label.
     pub label: Vec<u8>,
 }
 
 /// Replay struct for CryptoCertificateDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateDescriptorReplayRecord {
-    /// The subject field.
+    /// Distinguished subject name.
     pub subject: String,
-    /// The issuer field.
+    /// Distinguished issuer name.
     pub issuer: String,
-    /// The serial_number field.
+    /// Serial number string.
     pub serial_number: String,
-    /// The subject_alternative_names field.
+    /// Subject alternative names.
     pub subject_alternative_names: Vec<String>,
-    /// The fingerprint_sha256 field.
+    /// SHA-256 fingerprint bytes.
     pub fingerprint_sha256: Vec<u8>,
-    /// The validity field.
+    /// Certificate validity window.
     pub validity: CryptoCertificateValidity,
-    /// The is_certificate_authority field.
+    /// Whether this certificate is a certificate authority.
     pub is_certificate_authority: bool,
-    /// The key_usage_mask field.
+    /// Key-usage bitmask.
     pub key_usage_mask: u32,
-    /// The store_provenance field.
+    /// Effective certificate store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoCertificateListEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateListEntryReplayRecord {
-    /// The handle field.
+    /// Certificate handle.
     pub handle: resource::CryptoCertificateHandle,
-    /// The subject field.
+    /// Subject name string.
     pub subject: String,
-    /// The issuer field.
+    /// Issuer name string.
     pub issuer: String,
-    /// The serial_number field.
+    /// Serial number string.
     pub serial_number: String,
 }
 
 /// Replay struct for CryptoCertificateListPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateListPageReplayRecord {
-    /// The entries field.
+    /// Page entries.
     pub entries: Vec<CryptoCertificateListEntryReplayRecord>,
-    /// The next_cursor field.
+    /// Continuation cursor.
+    /// Use one empty string when there is no next page.
     pub next_cursor: String,
 }
 
 /// Replay struct for CryptoCertificateQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateQueryReplayRecord {
-    /// The subject_contains field.
+    /// Subject substring filter.
     pub subject_contains: String,
-    /// The issuer_contains field.
+    /// Issuer substring filter.
     pub issuer_contains: String,
-    /// The subject_alternative_name field.
+    /// Subject alternative name exact-match filter.
     pub subject_alternative_name: String,
-    /// The cursor field.
+    /// Pagination cursor.
     pub cursor: String,
-    /// The limit field.
+    /// Maximum returned entries.
     pub limit: u32,
 }
 
 /// Replay struct for CryptoCertificateVerifyIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateVerifyIdentityReplayRecord {
-    /// The kind field.
+    /// Identity kind.
     pub kind: CryptoCertificateIdentityKind,
-    /// The value field.
+    /// Identity value string.
     pub value: String,
 }
 
 /// Replay struct for CryptoCertificateVerifyRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateVerifyRequestReplayRecord {
-    /// The leaf field.
+    /// Leaf certificate handle.
     pub leaf: resource::CryptoCertificateHandle,
-    /// The intermediates field.
+    /// Intermediate certificate handles.
     pub intermediates: Vec<resource::CryptoCertificateHandle>,
-    /// The trust_anchors field.
+    /// Trust anchor certificate handles.
     pub trust_anchors: Vec<resource::CryptoCertificateHandle>,
-    /// The use_system_trust_anchors field.
+    /// Whether host system trust anchors should be included.
     pub use_system_trust_anchors: bool,
-    /// The purpose field.
+    /// Verification purpose.
     pub purpose: CryptoCertificatePurpose,
-    /// The identity field.
+    /// Optional identity value for name-constrained verification.
+    /// Use one omitted value when no identity check is required.
     pub identity: CryptoCertificateVerifyIdentityReplayRecord,
-    /// The verification_unix_seconds field.
+    /// Verification time in Unix seconds.
     pub verification_unix_seconds: u64,
-    /// The revocation_mode field.
+    /// Revocation policy.
     pub revocation_mode: CryptoCertificateRevocationMode,
 }
 
 /// Replay struct for CryptoCertificateVerifyResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateVerifyResultReplayRecord {
-    /// The valid field.
+    /// Whether the chain validates.
     pub valid: bool,
-    /// The error field.
+    /// Normalized verification error class.
     pub error: CryptoCertificateVerifyError,
-    /// The error_code field.
+    /// Provider or runtime error code when validation fails.
     pub error_code: u32,
-    /// The failed_certificate_index field.
+    /// Index of the first failing certificate in the evaluated chain.
     pub failed_certificate_index: u32,
-    /// The failed_certificate_subject field.
+    /// Subject string of the first failing certificate when available.
     pub failed_certificate_subject: String,
-    /// The chain_length field.
+    /// Number of certificates in the verified chain.
     pub chain_length: u32,
-    /// The used_system_trust_anchor field.
+    /// Whether one system trust anchor was used.
     pub used_system_trust_anchor: bool,
 }
 
 /// Replay struct for CryptoCipherOutput.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCipherOutputReplayRecord {
-    /// The bytes field.
+    /// Cipher output bytes.
     pub bytes: Vec<u8>,
-    /// The tag field.
+    /// Authentication tag for AEAD encryption.
+    /// Use one empty slice when no authentication tag is produced.
     pub tag: Vec<u8>,
 }
 
 /// Replay struct for CryptoCipherParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCipherParametersReplayRecord {
-    /// The algorithm field.
+    /// Symmetric cipher algorithm.
     pub algorithm: CryptoCipherAlgorithm,
-    /// The nonce field.
+    /// Nonce or IV bytes.
     pub nonce: Vec<u8>,
-    /// The additional_data field.
+    /// Additional authenticated data bytes.
     pub additional_data: Vec<u8>,
-    /// The tag field.
+    /// Authentication tag bytes for decryption.
+    /// Use one empty slice when no authentication tag is required.
     pub tag: Vec<u8>,
-    /// The tag_length_bytes field.
+    /// Authentication tag length in bytes for encryption.
+    /// Set to zero to use provider default tag length.
     pub tag_length_bytes: u32,
 }
 
 /// Replay struct for CryptoHkdfRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoHkdfRequestReplayRecord {
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The input_key_material field.
+    /// Input keying material.
     pub input_key_material: Vec<u8>,
-    /// The salt field.
+    /// Optional salt bytes.
     pub salt: Vec<u8>,
-    /// The info field.
+    /// Context and application info bytes.
     pub info: Vec<u8>,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
 /// Replay struct for CryptoKeyDescriptorAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorAesReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorChaCha20ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorEcReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The named_curve field.
+    /// Named curve when available.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorEd25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorEd448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorHmacReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The size_bits field.
+    /// Effective key size in bits when available.
     pub size_bits: u32,
-    /// The digest field.
+    /// Digest algorithm when available.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorRsaReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The modulus_bits field.
+    /// RSA modulus size in bits when available.
     pub modulus_bits: u32,
-    /// The public_exponent field.
+    /// RSA public exponent when available.
     pub public_exponent: u32,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorX25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyDescriptorX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyDescriptorX448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-descriptor variant.
     pub algorithm: String,
-    /// The key_kind field.
+    /// Key object kind.
     pub key_kind: CryptoKeyKind,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Effective key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether key storage is hardware-backed.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material persists beyond process lifetime.
     pub persistent: bool,
-    /// The store_provenance field.
+    /// Effective key store provenance.
     pub store_provenance: CryptoStoreProvenanceReplayRecord,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestAesReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The size_bits field.
+    /// Key size in bits.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestChaCha20ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The size_bits field.
+    /// Key size in bits.
     pub size_bits: u32,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestEcReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The named_curve field.
+    /// Named curve.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestEd25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestEd448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestHmacReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The size_bits field.
+    /// HMAC key size in bits.
     pub size_bits: u32,
-    /// The digest field.
+    /// Digest algorithm for this HMAC key.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestRsaReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The modulus_bits field.
+    /// RSA modulus size in bits.
     pub modulus_bits: u32,
-    /// The public_exponent field.
+    /// RSA public exponent.
     pub public_exponent: u32,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestX25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyGenerationRequestX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyGenerationRequestX448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-generation request variant.
     pub algorithm: String,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The hardware_backed field.
+    /// Whether host hardware-backed storage is required.
     pub hardware_backed: bool,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestAes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestAesReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestChaCha20.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestChaCha20ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestEc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestEcReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The named_curve field.
+    /// Named curve when format metadata does not encode it.
     pub named_curve: CryptoNamedCurve,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestEd25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestEd25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestEd448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestEd448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestHmac.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestHmacReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The digest field.
+    /// Digest algorithm for this HMAC key.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestRsa.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestRsaReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The digest field.
+    /// Digest algorithm for RSA-PSS and RSA-OAEP defaults.
     pub digest: CryptoDigestAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestX25519.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestX25519ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyImportRequestX448.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyImportRequestX448ReplayRecord {
-    /// The algorithm field.
+    /// Discriminator for this key-import request variant.
     pub algorithm: String,
-    /// The format field.
+    /// Key material format.
     pub format: CryptoKeyFormat,
-    /// The bytes field.
+    /// Encoded key bytes.
     pub bytes: Vec<u8>,
-    /// The usage_mask field.
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The extractable field.
+    /// Whether key material is exportable.
     pub extractable: bool,
-    /// The residency field.
+    /// Requested key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
     pub passphrase: Vec<u8>,
-    /// The persistent field.
+    /// Whether key material should persist beyond process lifetime.
     pub persistent: bool,
 }
 
 /// Replay struct for CryptoKeyListEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyListEntryReplayRecord {
-    /// The handle field.
+    /// Key handle.
     pub handle: resource::CryptoKeyHandle,
-    /// The label field.
+    /// User-visible key label.
     pub label: String,
-    /// The algorithm field.
+    /// Key algorithm family.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The usage_mask field.
+    /// Key usage mask.
     pub usage_mask: CryptoKeyUsageMask,
 }
 
 /// Replay struct for CryptoKeyListPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyListPageReplayRecord {
-    /// The entries field.
+    /// Page entries.
     pub entries: Vec<CryptoKeyListEntryReplayRecord>,
-    /// The next_cursor field.
+    /// Continuation cursor.
+    /// Use one empty string when there is no next page.
     pub next_cursor: String,
 }
 
 /// Replay struct for CryptoKeyQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyQueryReplayRecord {
-    /// The label_prefix field.
+    /// Label prefix filter.
     pub label_prefix: String,
-    /// The algorithm field.
+    /// Key algorithm filter.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The usage_mask field.
+    /// Required key usage mask bits.
     pub usage_mask: CryptoKeyUsageMask,
-    /// The cursor field.
+    /// Pagination cursor.
     pub cursor: String,
-    /// The limit field.
+    /// Maximum returned entries.
     pub limit: u32,
 }
 
 /// Replay struct for CryptoKeyWrapParameters.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoKeyWrapParametersReplayRecord {
-    /// The algorithm field.
+    /// Key-wrap algorithm.
     pub algorithm: CryptoKeyWrapAlgorithm,
-    /// The digest field.
+    /// Digest algorithm for RSA-OAEP wrapping.
     pub digest: CryptoDigestAlgorithm,
-    /// The label field.
+    /// OAEP label for RSA-OAEP wrapping.
+    /// Use one empty slice for no label.
     pub label: Vec<u8>,
 }
 
 /// Replay struct for CryptoPbkdf2Request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoPbkdf2RequestReplayRecord {
-    /// The digest field.
+    /// Digest algorithm.
     pub digest: CryptoDigestAlgorithm,
-    /// The password field.
+    /// Password bytes.
     pub password: Vec<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: Vec<u8>,
-    /// The iterations field.
+    /// Iteration count.
     pub iterations: u32,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
 /// Replay struct for CryptoPrivateKeyExportRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoPrivateKeyExportRequestReplayRecord {
-    /// The format field.
+    /// Requested output format.
     pub format: CryptoKeyFormat,
-    /// The passphrase field.
+    /// Passphrase bytes for encrypted private-key formats.
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    /// Use one empty slice for unencrypted private-key formats.
     pub passphrase: Vec<u8>,
 }
 
 /// Replay struct for CryptoScryptRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoScryptRequestReplayRecord {
-    /// The password field.
+    /// Password bytes.
     pub password: Vec<u8>,
-    /// The salt field.
+    /// Salt bytes.
     pub salt: Vec<u8>,
-    /// The cost field.
+    /// CPU and memory cost parameter.
     pub cost: u32,
-    /// The block_size field.
+    /// Block size parameter.
     pub block_size: u32,
-    /// The parallelization field.
+    /// Parallelization parameter.
     pub parallelization: u32,
-    /// The max_memory_bytes field.
+    /// Maximum memory in bytes.
     pub max_memory_bytes: u64,
-    /// The length field.
+    /// Output length in bytes.
     pub length: u32,
 }
 
 /// Replay struct for CryptoStoreAsymmetricEncryptionCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreAsymmetricEncryptionCapabilityReplayRecord {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Asymmetric encryption algorithm selector.
     pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
-    /// The supports_encrypt field.
+    /// Whether encrypt is supported.
     pub supports_encrypt: bool,
-    /// The supports_decrypt field.
+    /// Whether decrypt is supported.
     pub supports_decrypt: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: Vec<CryptoDigestAlgorithm>,
 }
 
 /// Replay struct for CryptoStoreCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreCapabilityReplayRecord {
-    /// The identity field.
+    /// Store identity.
     pub identity: CryptoStoreIdentityReplayRecord,
-    /// The is_available field.
+    /// Whether this store identity is available for open calls.
     pub is_available: bool,
-    /// The supports_hardware_backed field.
+    /// Whether hardware-backed key operations are supported.
     pub supports_hardware_backed: bool,
-    /// The supports_persistent field.
+    /// Whether persistent key operations are supported.
     pub supports_persistent: bool,
-    /// The supports_key_export field.
+    /// Whether key export operations are supported by policy.
     pub supports_key_export: bool,
-    /// The supported_key_algorithms field.
+    /// Supported key algorithm families for this store identity.
     pub supported_key_algorithms: Vec<CryptoKeyAlgorithm>,
-    /// The supported_key_formats field.
+    /// Supported key formats for this store identity.
     pub supported_key_formats: Vec<CryptoKeyFormat>,
-    /// The supported_key_residencies field.
+    /// Supported key residencies for this store identity.
     pub supported_key_residencies: Vec<CryptoKeyResidency>,
-    /// The key_capabilities field.
+    /// Operation-scoped key capability rows.
     pub key_capabilities: Vec<CryptoStoreKeyCapabilityReplayRecord>,
-    /// The signature_capabilities field.
+    /// Operation-scoped signature capability rows.
     pub signature_capabilities: Vec<CryptoStoreSignatureCapabilityReplayRecord>,
-    /// The asymmetric_encryption_capabilities field.
+    /// Operation-scoped asymmetric-encryption capability rows.
     pub asymmetric_encryption_capabilities:
         Vec<CryptoStoreAsymmetricEncryptionCapabilityReplayRecord>,
-    /// The key_wrap_capabilities field.
+    /// Operation-scoped key-wrap capability rows.
     pub key_wrap_capabilities: Vec<CryptoStoreKeyWrapCapabilityReplayRecord>,
-    /// The cipher_capabilities field.
+    /// Operation-scoped symmetric-cipher capability rows.
     pub cipher_capabilities: Vec<CryptoStoreCipherCapability>,
-    /// The mac_capabilities field.
+    /// Operation-scoped message-authentication capability rows.
     pub mac_capabilities: Vec<CryptoStoreMacCapabilityReplayRecord>,
-    /// The agreement_capabilities field.
+    /// Operation-scoped key-agreement capability rows.
     pub agreement_capabilities: Vec<CryptoStoreAgreementCapability>,
-    /// The certificate_capabilities field.
+    /// Operation-scoped certificate capability row.
     pub certificate_capabilities: CryptoStoreCertificateCapability,
 }
 
 /// Replay struct for CryptoStoreIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreIdentityReplayRecord {
-    /// The kind field.
+    /// Store backend kind.
     pub kind: CryptoStoreKind,
-    /// The provider field.
+    /// Provider selector.
     pub provider: CryptoStoreProvider,
-    /// The namespace field.
+    /// Provider namespace.
     pub namespace: String,
 }
 
 /// Replay struct for CryptoStoreKeyCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreKeyCapabilityReplayRecord {
-    /// The algorithm field.
+    /// Key algorithm family.
     pub algorithm: CryptoKeyAlgorithm,
-    /// The residency field.
+    /// Key residency policy.
     pub residency: CryptoKeyResidency,
-    /// The supports_generate_secret field.
+    /// Whether secret-key generation is supported.
     pub supports_generate_secret: bool,
-    /// The supports_generate_pair field.
+    /// Whether asymmetric key-pair generation is supported.
     pub supports_generate_pair: bool,
-    /// The supports_import field.
+    /// Whether key import is supported.
     pub supports_import: bool,
-    /// The supports_export_public field.
+    /// Whether public-key export is supported.
     pub supports_export_public: bool,
-    /// The supports_export_private field.
+    /// Whether private-key export is supported.
     pub supports_export_private: bool,
-    /// The supports_export_secret field.
+    /// Whether secret-key export is supported.
     pub supports_export_secret: bool,
-    /// The supported_usage_mask field.
+    /// Supported key usage bits.
     pub supported_usage_mask: CryptoKeyUsageMask,
-    /// The supported_import_formats field.
+    /// Supported import formats.
     pub supported_import_formats: Vec<CryptoKeyFormat>,
-    /// The supported_export_formats field.
+    /// Supported export formats.
     pub supported_export_formats: Vec<CryptoKeyFormat>,
 }
 
 /// Replay struct for CryptoStoreKeyWrapCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreKeyWrapCapabilityReplayRecord {
-    /// The wrapping_key_algorithm field.
+    /// Wrapping-key algorithm family.
     pub wrapping_key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// Key-wrap algorithm selector.
     pub algorithm: CryptoKeyWrapAlgorithm,
-    /// The supports_wrap field.
+    /// Whether key wrap is supported.
     pub supports_wrap: bool,
-    /// The supports_unwrap field.
+    /// Whether key unwrap is supported.
     pub supports_unwrap: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms for digest-parameterized wrap algorithms.
     pub supported_digests: Vec<CryptoDigestAlgorithm>,
 }
 
 /// Replay struct for CryptoStoreMacCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreMacCapabilityReplayRecord {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The algorithm field.
+    /// MAC algorithm selector.
     pub algorithm: CryptoMacAlgorithm,
-    /// The supports_one_shot field.
+    /// Whether one-shot operation is supported.
     pub supports_one_shot: bool,
-    /// The supports_streaming field.
+    /// Whether streaming operation is supported.
     pub supports_streaming: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: Vec<CryptoDigestAlgorithm>,
-    /// The min_tag_length_bytes field.
+    /// Minimum supported tag length in bytes.
     pub min_tag_length_bytes: u32,
-    /// The max_tag_length_bytes field.
+    /// Maximum supported tag length in bytes.
     pub max_tag_length_bytes: u32,
 }
 
 /// Replay struct for CryptoStoreOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreOptionsReplayRecord {
-    /// The kind field.
+    /// Store backend kind.
     pub kind: CryptoStoreKind,
-    /// The provider field.
+    /// Provider selector for provider-backed stores.
     pub provider: CryptoStoreProvider,
-    /// The namespace field.
+    /// Optional logical namespace.
     pub namespace: String,
 }
 
 /// Replay struct for CryptoStoreProvenance.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreProvenanceReplayRecord {
-    /// The identity field.
+    /// Effective store identity.
     pub identity: CryptoStoreIdentityReplayRecord,
 }
 
 /// Replay struct for CryptoStoreSignatureCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreSignatureCapabilityReplayRecord {
-    /// The key_algorithm field.
+    /// Key algorithm family.
     pub key_algorithm: CryptoKeyAlgorithm,
-    /// The signature_algorithm field.
+    /// Signature algorithm selector.
     pub signature_algorithm: CryptoSignatureAlgorithm,
-    /// The supports_sign field.
+    /// Whether sign is supported.
     pub supports_sign: bool,
-    /// The supports_verify field.
+    /// Whether verify is supported.
     pub supports_verify: bool,
-    /// The supported_digests field.
+    /// Supported digest algorithms.
     pub supported_digests: Vec<CryptoDigestAlgorithm>,
 }
 

@@ -80,9 +80,9 @@ impl VmValueCodec for SecurityPolicyMode {
 /// ABI struct for SecurityPolicyRule.
 #[repr(C)]
 pub struct SecurityPolicyRuleAbi<A: BindingAbi> {
-    /// The capability field.
+    /// Capability selector for the rule.
     pub capability: platform_security::PlatformCapabilityAbi<A>,
-    /// The mode field.
+    /// Decision mode for the capability.
     pub mode: SecurityPolicyMode,
 }
 
@@ -160,8 +160,8 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
 /// Replay struct for SecurityPolicyRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecurityPolicyRuleReplayRecord {
-    /// The capability field.
+    /// Capability selector for the rule.
     pub capability: String,
-    /// The mode field.
+    /// Decision mode for the capability.
     pub mode: SecurityPolicyMode,
 }

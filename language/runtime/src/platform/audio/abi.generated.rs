@@ -1139,27 +1139,29 @@ impl VmAggregateCodec for AudioEventAbi<VmAbi> {
 /// ABI struct for AudioBackendDescriptor.
 #[repr(C)]
 pub struct AudioBackendDescriptorAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Backend selector.
     pub backend: AudioBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: A::String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     pub capability_flags: AudioBackendCapabilityFlags,
-    /// The supported_device_list_flags field.
+    /// Supported device-list flags for this backend.
     pub supported_device_list_flags: AudioDeviceListFlags,
-    /// The supported_device_open_flags field.
+    /// Supported device-open flags for this backend.
     pub supported_device_open_flags: AudioDeviceOpenFlags,
-    /// The supported_stream_flags field.
+    /// Supported stream-option flags for this backend.
     pub supported_stream_flags: AudioSupportedStreamFlags,
-    /// The supported_stream_requirement_flags field.
+    /// Supported stream-requirement flags for this backend.
     pub supported_stream_requirement_flags: AudioSupportedStreamRequirementFlags,
-    /// The supported_event_subscription_flags field.
+    /// Supported event-subscription flags for this backend.
     pub supported_event_subscription_flags: AudioSupportedEventSubscriptionFlags,
-    /// The supported_stream_clock_domains field.
+    /// Supported stream-clock domains for this backend.
     pub supported_stream_clock_domains: AudioSupportedStreamClockDomains,
 }
 
@@ -1299,11 +1301,11 @@ impl VmAggregateCodec for AudioBackendDescriptorAbi<VmAbi> {
 /// ABI struct for AudioBackendDisconnectedEvent.
 #[repr(C)]
 pub struct AudioBackendDisconnectedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Backend-disconnected payload.
     pub payload: AudioBackendDisconnectedPayload,
 }
 
@@ -1391,7 +1393,7 @@ impl VmAggregateCodec for AudioBackendDisconnectedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDisconnectedPayload {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
 }
 
@@ -1445,11 +1447,11 @@ impl VmAggregateCodec for AudioBackendDisconnectedPayload {
 /// ABI struct for AudioBackendResetEvent.
 #[repr(C)]
 pub struct AudioBackendResetEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Backend-reset payload.
     pub payload: AudioBackendResetPayload,
 }
 
@@ -1536,7 +1538,7 @@ impl VmAggregateCodec for AudioBackendResetEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendResetPayload {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
 }
 
@@ -1591,29 +1593,29 @@ impl VmAggregateCodec for AudioBackendResetPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioClockSnapshot {
-    /// The stream_frames field.
+    /// Stream position in frames.
     pub stream_frames: u64,
-    /// The clock_ns field.
+    /// Selected clock timestamp in nanoseconds.
     pub clock_ns: u64,
-    /// The clock_quality field.
+    /// Selected clock sample quality.
     pub clock_quality: AudioClockQuality,
-    /// The callback_ns field.
+    /// Callback timestamp in nanoseconds when available.
     pub callback_ns: Option<u64>,
-    /// The callback_quality field.
+    /// Callback timestamp quality.
     pub callback_quality: AudioClockQuality,
-    /// The input_adc_ns field.
+    /// ADC capture timestamp in nanoseconds when available.
     pub input_adc_ns: Option<u64>,
-    /// The input_adc_quality field.
+    /// ADC capture timestamp quality.
     pub input_adc_quality: AudioClockQuality,
-    /// The output_dac_ns field.
+    /// DAC presentation timestamp in nanoseconds when available.
     pub output_dac_ns: Option<u64>,
-    /// The output_dac_quality field.
+    /// DAC presentation timestamp quality.
     pub output_dac_quality: AudioClockQuality,
-    /// The device_ns field.
+    /// Device timeline timestamp in nanoseconds when available.
     pub device_ns: Option<u64>,
-    /// The device_quality field.
+    /// Device timeline timestamp quality.
     pub device_quality: AudioClockQuality,
-    /// The monotonic_ns field.
+    /// Runtime monotonic timestamp in nanoseconds.
     pub monotonic_ns: u64,
 }
 
@@ -1720,11 +1722,11 @@ impl VmAggregateCodec for AudioClockSnapshot {
 /// ABI struct for AudioDefaultCaptureChangedEvent.
 #[repr(C)]
 pub struct AudioDefaultCaptureChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-capture-changed payload.
     pub payload: platform_audio::AudioDefaultCaptureChangedPayloadAbi<A>,
 }
 
@@ -1811,7 +1813,7 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedEventAbi<VmAbi> {
 /// ABI struct for AudioDefaultCaptureChangedPayload.
 #[repr(C)]
 pub struct AudioDefaultCaptureChangedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -1885,11 +1887,11 @@ impl VmAggregateCodec for AudioDefaultCaptureChangedPayloadAbi<VmAbi> {
 /// ABI struct for AudioDefaultLoopbackChangedEvent.
 #[repr(C)]
 pub struct AudioDefaultLoopbackChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-loopback-changed payload.
     pub payload: platform_audio::AudioDefaultLoopbackChangedPayloadAbi<A>,
 }
 
@@ -1976,7 +1978,7 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedEventAbi<VmAbi> {
 /// ABI struct for AudioDefaultLoopbackChangedPayload.
 #[repr(C)]
 pub struct AudioDefaultLoopbackChangedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -2050,11 +2052,11 @@ impl VmAggregateCodec for AudioDefaultLoopbackChangedPayloadAbi<VmAbi> {
 /// ABI struct for AudioDefaultPlaybackChangedEvent.
 #[repr(C)]
 pub struct AudioDefaultPlaybackChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-playback-changed payload.
     pub payload: platform_audio::AudioDefaultPlaybackChangedPayloadAbi<A>,
 }
 
@@ -2141,7 +2143,7 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedEventAbi<VmAbi> {
 /// ABI struct for AudioDefaultPlaybackChangedPayload.
 #[repr(C)]
 pub struct AudioDefaultPlaybackChangedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -2215,11 +2217,11 @@ impl VmAggregateCodec for AudioDefaultPlaybackChangedPayloadAbi<VmAbi> {
 /// ABI struct for AudioDeviceAddedEvent.
 #[repr(C)]
 pub struct AudioDeviceAddedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-added payload.
     pub payload: platform_audio::AudioDeviceAddedPayloadAbi<A>,
 }
 
@@ -2305,7 +2307,7 @@ impl VmAggregateCodec for AudioDeviceAddedEventAbi<VmAbi> {
 /// ABI struct for AudioDeviceAddedPayload.
 #[repr(C)]
 pub struct AudioDeviceAddedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -2379,65 +2381,69 @@ impl VmAggregateCodec for AudioDeviceAddedPayloadAbi<VmAbi> {
 /// ABI struct for AudioDeviceDescriptor.
 #[repr(C)]
 pub struct AudioDeviceDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable runtime device identifier.
     pub id: A::String,
-    /// The group_id field.
+    /// Stable group identifier used to correlate related endpoints.
     pub group_id: A::String,
-    /// The name field.
+    /// Host-facing device name.
     pub name: A::String,
-    /// The transport field.
+    /// Backend transport name when available.
     pub transport: A::String,
-    /// The backend field.
+    /// Host backend for this device.
     pub backend: AudioBackend,
-    /// The direction field.
+    /// Device direction capability.
     pub direction: AudioDeviceDirection,
-    /// The connected field.
+    /// Whether this device is currently connected.
     pub connected: bool,
-    /// The is_raw field.
+    /// Whether this device exposes raw or direct endpoint mode.
     pub is_raw: bool,
-    /// The is_default_playback field.
+    /// Whether this device is the default playback endpoint.
     pub is_default_playback: bool,
-    /// The is_default_capture field.
+    /// Whether this device is the default capture endpoint.
     pub is_default_capture: bool,
-    /// The is_default_loopback field.
+    /// Whether this device is the default loopback endpoint.
     pub is_default_loopback: bool,
-    /// The capability_flags field.
+    /// Device-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     pub capability_flags: AudioDeviceCapabilityFlags,
-    /// The supported_device_open_flags field.
+    /// Supported device-open flags for this device.
     pub supported_device_open_flags: AudioDeviceOpenFlags,
-    /// The supported_stream_flags field.
+    /// Supported stream-option flags for this device.
     pub supported_stream_flags: AudioSupportedStreamFlags,
-    /// The supported_stream_requirement_flags field.
+    /// Supported stream-requirement flags for this device.
     pub supported_stream_requirement_flags: AudioSupportedStreamRequirementFlags,
-    /// The supported_event_subscription_flags field.
+    /// Supported event-subscription flags for this device.
     pub supported_event_subscription_flags: AudioSupportedEventSubscriptionFlags,
-    /// The supported_stream_clock_domains field.
+    /// Supported stream-clock domains for this device.
     pub supported_stream_clock_domains: AudioSupportedStreamClockDomains,
-    /// The preferred_sample_rate field.
+    /// Preferred sample rate in hertz.
     pub preferred_sample_rate: u32,
-    /// The min_sample_rate field.
+    /// Minimum sample rate in hertz.
     pub min_sample_rate: u32,
-    /// The max_sample_rate field.
+    /// Maximum sample rate in hertz.
     pub max_sample_rate: u32,
-    /// The preferred_period_frames field.
+    /// Preferred period in frames.
     pub preferred_period_frames: u32,
-    /// The min_channels field.
+    /// Minimum channel count.
     pub min_channels: u16,
-    /// The max_channels field.
+    /// Maximum channel count.
     pub max_channels: u16,
-    /// The preferred_layout field.
+    /// Preferred channel layout.
     pub preferred_layout: AudioChannelLayout,
-    /// The preferred_channel_mask field.
+    /// Preferred speaker channel mask when available.
     pub preferred_channel_mask: u64,
-    /// The supported_channel_mask field.
+    /// Supported speaker channel mask when available.
     pub supported_channel_mask: u64,
-    /// The min_period_frames field.
+    /// Minimum low-latency period in frames.
     pub min_period_frames: u32,
-    /// The max_period_frames field.
+    /// Maximum period in frames.
     pub max_period_frames: u32,
-    /// The format_mask field.
+    /// Supported sample format bitmask.
     pub format_mask: u32,
-    /// The share_mode_mask field.
+    /// Supported share mode bitmask.
+    /// Bit 0 is shared mode.
+    /// Bit 1 is exclusive mode.
     pub share_mode_mask: u32,
 }
 
@@ -2655,11 +2661,11 @@ impl VmAggregateCodec for AudioDeviceDescriptorAbi<VmAbi> {
 /// ABI struct for AudioDeviceFormatChangedEvent.
 #[repr(C)]
 pub struct AudioDeviceFormatChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-format-changed payload.
     pub payload: platform_audio::AudioDeviceFormatChangedPayloadAbi<A>,
 }
 
@@ -2746,7 +2752,7 @@ impl VmAggregateCodec for AudioDeviceFormatChangedEventAbi<VmAbi> {
 /// ABI struct for AudioDeviceFormatChangedPayload.
 #[repr(C)]
 pub struct AudioDeviceFormatChangedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -2821,13 +2827,13 @@ impl VmAggregateCodec for AudioDeviceFormatChangedPayloadAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceListRequest {
-    /// The direction field.
+    /// Device direction filter.
     pub direction: AudioDeviceDirection,
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: AudioBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: AudioBackendSelectionPolicy,
-    /// The flags field.
+    /// Request option flags.
     pub flags: AudioDeviceListFlags,
 }
 
@@ -2897,15 +2903,15 @@ impl VmAggregateCodec for AudioDeviceListRequest {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceOpenOptions {
-    /// The direction field.
+    /// Stream direction for the opened endpoint.
     pub direction: AudioDeviceDirection,
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: AudioBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: AudioBackendSelectionPolicy,
-    /// The share_mode field.
+    /// Shared or exclusive endpoint mode.
     pub share_mode: AudioShareMode,
-    /// The flags field.
+    /// Open option flags.
     pub flags: AudioDeviceOpenFlags,
 }
 
@@ -2978,11 +2984,11 @@ impl VmAggregateCodec for AudioDeviceOpenOptions {
 /// ABI struct for AudioDeviceRemovedEvent.
 #[repr(C)]
 pub struct AudioDeviceRemovedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-removed payload.
     pub payload: platform_audio::AudioDeviceRemovedPayloadAbi<A>,
 }
 
@@ -3068,7 +3074,7 @@ impl VmAggregateCodec for AudioDeviceRemovedEventAbi<VmAbi> {
 /// ABI struct for AudioDeviceRemovedPayload.
 #[repr(C)]
 pub struct AudioDeviceRemovedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -3142,11 +3148,11 @@ impl VmAggregateCodec for AudioDeviceRemovedPayloadAbi<VmAbi> {
 /// ABI struct for AudioDeviceReroutedEvent.
 #[repr(C)]
 pub struct AudioDeviceReroutedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-rerouted payload.
     pub payload: platform_audio::AudioDeviceReroutedPayloadAbi<A>,
 }
 
@@ -3233,7 +3239,7 @@ impl VmAggregateCodec for AudioDeviceReroutedEventAbi<VmAbi> {
 /// ABI struct for AudioDeviceReroutedPayload.
 #[repr(C)]
 pub struct AudioDeviceReroutedPayloadAbi<A: BindingAbi> {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -3308,17 +3314,17 @@ impl VmAggregateCodec for AudioDeviceReroutedPayloadAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioEventMetadata {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Event sequence number for one subscription queue.
     pub sequence: u64,
-    /// The dropped_count field.
+    /// Number of events dropped before this event.
     pub dropped_count: u64,
-    /// The source field.
+    /// Event source selector.
     pub source: AudioEventSource,
-    /// The backend field.
+    /// Backend selector for this event.
     pub backend: AudioBackend,
-    /// The flags field.
+    /// Event flags.
     pub flags: u32,
 }
 
@@ -3385,21 +3391,21 @@ impl VmAggregateCodec for AudioEventMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioEventSubscriptionOptions {
-    /// The backend field.
+    /// Backend selector for this subscription.
     pub backend: AudioBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: AudioBackendSelectionPolicy,
-    /// The flags field.
+    /// Subscription behavior flags.
     pub flags: AudioEventSubscriptionFlags,
-    /// The delivery_mode field.
+    /// Event delivery mode.
     pub delivery_mode: AudioEventDeliveryMode,
-    /// The overflow_policy field.
+    /// Queue overflow policy.
     pub overflow_policy: AudioEventOverflowPolicy,
-    /// The stream field.
+    /// Stream to monitor when provided.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The queue_capacity field.
+    /// Requested queue capacity, or zero for backend default.
     pub queue_capacity: u32,
-    /// The poll_interval_ns field.
+    /// Requested backend poll interval in nanoseconds, or zero for backend default.
     pub poll_interval_ns: u64,
 }
 
@@ -3495,11 +3501,11 @@ impl VmAggregateCodec for AudioEventSubscriptionOptions {
 /// ABI struct for AudioInterruptionBeganEvent.
 #[repr(C)]
 pub struct AudioInterruptionBeganEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Interruption-began payload.
     pub payload: AudioInterruptionBeganPayload,
 }
 
@@ -3587,7 +3593,7 @@ impl VmAggregateCodec for AudioInterruptionBeganEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioInterruptionBeganPayload {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
 }
 
@@ -3641,11 +3647,11 @@ impl VmAggregateCodec for AudioInterruptionBeganPayload {
 /// ABI struct for AudioInterruptionEndedEvent.
 #[repr(C)]
 pub struct AudioInterruptionEndedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Interruption-ended payload.
     pub payload: AudioInterruptionEndedPayload,
 }
 
@@ -3733,7 +3739,7 @@ impl VmAggregateCodec for AudioInterruptionEndedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioInterruptionEndedPayload {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
 }
 
@@ -3788,15 +3794,15 @@ impl VmAggregateCodec for AudioInterruptionEndedPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamAvailability {
-    /// The readable_frames field.
+    /// Immediately readable frames in the backend capture buffer.
     pub readable_frames: u64,
-    /// The writable_frames field.
+    /// Immediately writable frames in the backend playback buffer.
     pub writable_frames: u64,
-    /// The min_transfer_frames field.
+    /// Minimum transfer frame count for the current callback quantum.
     pub min_transfer_frames: u32,
-    /// The max_transfer_frames field.
+    /// Maximum transfer frame count for the current callback quantum.
     pub max_transfer_frames: u32,
-    /// The timestamp_ns field.
+    /// Snapshot timestamp in nanoseconds.
     pub timestamp_ns: u64,
 }
 
@@ -3861,19 +3867,19 @@ impl VmAggregateCodec for AudioStreamAvailability {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamConfig {
-    /// The sample_rate field.
+    /// Sample rate in hertz.
     pub sample_rate: u32,
-    /// The channels field.
+    /// Channel count.
     pub channels: u16,
-    /// The channel_layout field.
+    /// Requested channel layout.
     pub channel_layout: AudioChannelLayout,
-    /// The channel_mask field.
+    /// Requested speaker channel mask, zero to use backend defaults.
     pub channel_mask: u64,
-    /// The format field.
+    /// Audio sample format.
     pub format: AudioSampleFormat,
-    /// The period_frames field.
+    /// Target period size in frames.
     pub period_frames: u32,
-    /// The transfer_mode field.
+    /// Stream transfer mode.
     pub transfer_mode: AudioStreamTransferMode,
 }
 
@@ -3949,51 +3955,52 @@ impl VmAggregateCodec for AudioStreamConfig {
 /// ABI struct for AudioStreamDescriptor.
 #[repr(C)]
 pub struct AudioStreamDescriptorAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Host backend for this stream instance.
     pub backend: AudioBackend,
-    /// The backend_id field.
+    /// Backend identifier for this stream instance.
     pub backend_id: A::String,
-    /// The device_id field.
+    /// Current device identifier for this stream instance.
     pub device_id: A::String,
-    /// The sample_rate field.
+    /// Effective sample rate in hertz.
     pub sample_rate: u32,
-    /// The channels field.
+    /// Effective channel count.
     pub channels: u16,
-    /// The channel_layout field.
+    /// Effective channel layout.
     pub channel_layout: AudioChannelLayout,
-    /// The channel_mask field.
+    /// Effective speaker channel mask when available.
     pub channel_mask: u64,
-    /// The format field.
+    /// Effective sample format.
     pub format: AudioSampleFormat,
-    /// The period_frames field.
+    /// Effective period size in frames.
     pub period_frames: u32,
-    /// The transfer_mode field.
+    /// Stream transfer mode selected by backend.
     pub transfer_mode: AudioStreamTransferMode,
-    /// The share_mode field.
+    /// Effective share mode selected by backend.
     pub share_mode: AudioShareMode,
-    /// The requested_flags field.
+    /// Requested stream option flags from open time.
     pub requested_flags: AudioStreamFlags,
-    /// The requested_requirements field.
+    /// Requested stream requirement flags from open time.
     pub requested_requirements: AudioStreamRequirementFlags,
-    /// The effective_flags field.
+    /// Effective stream option flags after backend negotiation.
     pub effective_flags: AudioStreamFlags,
-    /// The effective_requirements field.
+    /// Effective stream requirement flags satisfied by the backend.
     pub effective_requirements: AudioStreamRequirementFlags,
-    /// The period_jitter_ns field.
+    /// Backend period jitter estimate in nanoseconds.
+    /// Zero indicates unavailable timing history or insufficient callback samples.
     pub period_jitter_ns: u64,
-    /// The non_interleaved field.
+    /// Whether this stream currently uses non-interleaved backend buffers.
     pub non_interleaved: bool,
-    /// The supports_write_at field.
+    /// Whether scheduled write submission is supported.
     pub supports_write_at: bool,
-    /// The supports_pause field.
+    /// Whether pause and resume operations are supported.
     pub supports_pause: bool,
-    /// The supports_non_interleaved field.
+    /// Whether non-interleaved operation is supported.
     pub supports_non_interleaved: bool,
-    /// The supports_volume field.
+    /// Whether stream gain control is supported.
     pub supports_volume: bool,
-    /// The supports_mute field.
+    /// Whether stream mute control is supported.
     pub supports_mute: bool,
-    /// The supports_hardware_timestamps field.
+    /// Whether hardware timestamp correlation is supported.
     pub supports_hardware_timestamps: bool,
 }
 
@@ -4177,11 +4184,11 @@ impl VmAggregateCodec for AudioStreamDescriptorAbi<VmAbi> {
 /// ABI struct for AudioStreamDeviceChangedEvent.
 #[repr(C)]
 pub struct AudioStreamDeviceChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-device-changed payload.
     pub payload: platform_audio::AudioStreamDeviceChangedPayloadAbi<A>,
 }
 
@@ -4268,11 +4275,11 @@ impl VmAggregateCodec for AudioStreamDeviceChangedEventAbi<VmAbi> {
 /// ABI struct for AudioStreamDeviceChangedPayload.
 #[repr(C)]
 pub struct AudioStreamDeviceChangedPayloadAbi<A: BindingAbi> {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -4363,9 +4370,10 @@ impl VmAggregateCodec for AudioStreamDeviceChangedPayloadAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamOpenOptions {
-    /// The flags field.
+    /// Requested stream option flags.
     pub flags: AudioStreamFlags,
-    /// The requirements field.
+    /// Requested strict requirement flags.
+    /// Any unsatisfied requirement must fail open with `notSupported`.
     pub requirements: AudioStreamRequirementFlags,
 }
 
@@ -4424,33 +4432,33 @@ impl VmAggregateCodec for AudioStreamOpenOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamState {
-    /// The state field.
+    /// Stream run-state selector.
     pub state: AudioStreamStateKind,
-    /// The running field.
+    /// Whether the stream is currently running.
     pub running: bool,
-    /// The paused field.
+    /// Whether the stream is currently paused.
     pub paused: bool,
-    /// The buffered_frames field.
+    /// Frames buffered by the host backend.
     pub buffered_frames: u64,
-    /// The input_latency_ns field.
+    /// Estimated input latency in nanoseconds.
     pub input_latency_ns: u64,
-    /// The output_latency_ns field.
+    /// Estimated output latency in nanoseconds.
     pub output_latency_ns: u64,
-    /// The total_latency_ns field.
+    /// Estimated total latency in nanoseconds.
     pub total_latency_ns: u64,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
-    /// The xrun_count field.
+    /// Total xrun count observed by the backend.
     pub xrun_count: u64,
-    /// The input_underflow_count field.
+    /// Total input underflow count observed by the backend.
     pub input_underflow_count: u64,
-    /// The input_overflow_count field.
+    /// Total input overflow count observed by the backend.
     pub input_overflow_count: u64,
-    /// The output_underflow_count field.
+    /// Total output underflow count observed by the backend.
     pub output_underflow_count: u64,
-    /// The output_overflow_count field.
+    /// Total output overflow count observed by the backend.
     pub output_overflow_count: u64,
-    /// The callback_cpu_load field.
+    /// Backend callback CPU load estimate in [0, +inf) when available.
     pub callback_cpu_load: f64,
 }
 
@@ -4551,11 +4559,11 @@ impl VmAggregateCodec for AudioStreamState {
 /// ABI struct for AudioStreamStateChangedEvent.
 #[repr(C)]
 pub struct AudioStreamStateChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-state-changed payload.
     pub payload: AudioStreamStateChangedPayload,
 }
 
@@ -4643,9 +4651,9 @@ impl VmAggregateCodec for AudioStreamStateChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamStateChangedPayload {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
 }
 
@@ -4706,13 +4714,14 @@ impl VmAggregateCodec for AudioStreamStateChangedPayload {
 /// ABI struct for AudioStreamSupport.
 #[repr(C)]
 pub struct AudioStreamSupportAbi<A: BindingAbi> {
-    /// The supported field.
+    /// Whether the requested stream configuration is fully supported.
     pub supported: bool,
-    /// The descriptor field.
+    /// Negotiated stream descriptor for this support check.
+    /// When `supported` is false this is the closest backend-supported candidate.
     pub descriptor: platform_audio::AudioStreamDescriptorAbi<A>,
-    /// The satisfied_requirements field.
+    /// Requirement flags satisfied by this support result.
     pub satisfied_requirements: AudioStreamRequirementFlags,
-    /// The unsatisfied_requirements field.
+    /// Requirement flags not satisfied by this support result.
     pub unsatisfied_requirements: AudioStreamRequirementFlags,
 }
 
@@ -4808,23 +4817,24 @@ impl VmAggregateCodec for AudioStreamSupportAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamTiming {
-    /// The stream_frames field.
+    /// Stream position in frames.
     pub stream_frames: u64,
-    /// The stream_time_ns field.
+    /// Stream clock in nanoseconds when available.
     pub stream_time_ns: u64,
-    /// The input_adc_time_ns field.
+    /// ADC capture timestamp in nanoseconds when available.
     pub input_adc_time_ns: Option<u64>,
-    /// The output_dac_time_ns field.
+    /// DAC presentation timestamp in nanoseconds when available.
     pub output_dac_time_ns: Option<u64>,
-    /// The callback_time_ns field.
+    /// Callback invocation timestamp in nanoseconds when available.
     pub callback_time_ns: Option<u64>,
-    /// The device_clock_ns field.
+    /// Host device clock in nanoseconds when available.
     pub device_clock_ns: Option<u64>,
-    /// The monotonic_clock_ns field.
+    /// Runtime monotonic clock in nanoseconds.
     pub monotonic_clock_ns: u64,
-    /// The drift_ppm field.
+    /// Estimated drift in parts-per-million.
+    /// Zero indicates unavailable timing history or insufficient callback samples.
     pub drift_ppm: f64,
-    /// The callback_cpu_load field.
+    /// Backend callback CPU load estimate in [0, +inf) when available.
     pub callback_cpu_load: f64,
 }
 
@@ -4910,11 +4920,11 @@ impl VmAggregateCodec for AudioStreamTiming {
 /// ABI struct for AudioStreamXRunEvent.
 #[repr(C)]
 pub struct AudioStreamXRunEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-xrun payload.
     pub payload: platform_audio::AudioStreamXRunPayloadAbi<A>,
 }
 
@@ -4999,13 +5009,13 @@ impl VmAggregateCodec for AudioStreamXRunEventAbi<VmAbi> {
 /// ABI struct for AudioStreamXRunPayload.
 #[repr(C)]
 pub struct AudioStreamXRunPayloadAbi<A: BindingAbi> {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
-    /// The xrun_count_delta field.
+    /// Xrun count delta for this event.
     pub xrun_count_delta: u64,
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<A::String>,
 }
 
@@ -5099,11 +5109,11 @@ impl VmAggregateCodec for AudioStreamXRunPayloadAbi<VmAbi> {
 /// ABI struct for MidiMessage.
 #[repr(C)]
 pub struct MidiMessageAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Message timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The source_id field.
+    /// Source endpoint identifier.
     pub source_id: A::String,
-    /// The data field.
+    /// Raw MIDI bytes.
     pub data: A::Slice<u8>,
 }
 
@@ -5180,17 +5190,17 @@ impl VmAggregateCodec for MidiMessageAbi<VmAbi> {
 /// ABI struct for MidiPortDescriptor.
 #[repr(C)]
 pub struct MidiPortDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable endpoint identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: A::String,
-    /// The manufacturer field.
+    /// Host-visible endpoint manufacturer name when available.
     pub manufacturer: A::String,
-    /// The version field.
+    /// Host-visible endpoint version string when available.
     pub version: A::String,
-    /// The direction field.
+    /// Endpoint direction.
     pub direction: MidiPortDirection,
-    /// The is_virtual field.
+    /// Whether the endpoint is virtual.
     pub is_virtual: bool,
 }
 
@@ -5283,411 +5293,419 @@ impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
 /// Replay struct for AudioBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDescriptorReplayRecord {
-    /// The backend field.
+    /// Backend selector.
     pub backend: AudioBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     pub capability_flags: AudioBackendCapabilityFlags,
-    /// The supported_device_list_flags field.
+    /// Supported device-list flags for this backend.
     pub supported_device_list_flags: AudioDeviceListFlags,
-    /// The supported_device_open_flags field.
+    /// Supported device-open flags for this backend.
     pub supported_device_open_flags: AudioDeviceOpenFlags,
-    /// The supported_stream_flags field.
+    /// Supported stream-option flags for this backend.
     pub supported_stream_flags: AudioSupportedStreamFlags,
-    /// The supported_stream_requirement_flags field.
+    /// Supported stream-requirement flags for this backend.
     pub supported_stream_requirement_flags: AudioSupportedStreamRequirementFlags,
-    /// The supported_event_subscription_flags field.
+    /// Supported event-subscription flags for this backend.
     pub supported_event_subscription_flags: AudioSupportedEventSubscriptionFlags,
-    /// The supported_stream_clock_domains field.
+    /// Supported stream-clock domains for this backend.
     pub supported_stream_clock_domains: AudioSupportedStreamClockDomains,
 }
 
 /// Replay struct for AudioBackendDisconnectedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDisconnectedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Backend-disconnected payload.
     pub payload: AudioBackendDisconnectedPayload,
 }
 
 /// Replay struct for AudioBackendResetEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendResetEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Backend-reset payload.
     pub payload: AudioBackendResetPayload,
 }
 
 /// Replay struct for AudioDefaultCaptureChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultCaptureChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-capture-changed payload.
     pub payload: AudioDefaultCaptureChangedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDefaultCaptureChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultCaptureChangedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDefaultLoopbackChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultLoopbackChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-loopback-changed payload.
     pub payload: AudioDefaultLoopbackChangedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDefaultLoopbackChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultLoopbackChangedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDefaultPlaybackChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultPlaybackChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Default-playback-changed payload.
     pub payload: AudioDefaultPlaybackChangedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDefaultPlaybackChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDefaultPlaybackChangedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDeviceAddedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceAddedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-added payload.
     pub payload: AudioDeviceAddedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDeviceAddedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceAddedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceDescriptorReplayRecord {
-    /// The id field.
+    /// Stable runtime device identifier.
     pub id: String,
-    /// The group_id field.
+    /// Stable group identifier used to correlate related endpoints.
     pub group_id: String,
-    /// The name field.
+    /// Host-facing device name.
     pub name: String,
-    /// The transport field.
+    /// Backend transport name when available.
     pub transport: String,
-    /// The backend field.
+    /// Host backend for this device.
     pub backend: AudioBackend,
-    /// The direction field.
+    /// Device direction capability.
     pub direction: AudioDeviceDirection,
-    /// The connected field.
+    /// Whether this device is currently connected.
     pub connected: bool,
-    /// The is_raw field.
+    /// Whether this device exposes raw or direct endpoint mode.
     pub is_raw: bool,
-    /// The is_default_playback field.
+    /// Whether this device is the default playback endpoint.
     pub is_default_playback: bool,
-    /// The is_default_capture field.
+    /// Whether this device is the default capture endpoint.
     pub is_default_capture: bool,
-    /// The is_default_loopback field.
+    /// Whether this device is the default loopback endpoint.
     pub is_default_loopback: bool,
-    /// The capability_flags field.
+    /// Device-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     pub capability_flags: AudioDeviceCapabilityFlags,
-    /// The supported_device_open_flags field.
+    /// Supported device-open flags for this device.
     pub supported_device_open_flags: AudioDeviceOpenFlags,
-    /// The supported_stream_flags field.
+    /// Supported stream-option flags for this device.
     pub supported_stream_flags: AudioSupportedStreamFlags,
-    /// The supported_stream_requirement_flags field.
+    /// Supported stream-requirement flags for this device.
     pub supported_stream_requirement_flags: AudioSupportedStreamRequirementFlags,
-    /// The supported_event_subscription_flags field.
+    /// Supported event-subscription flags for this device.
     pub supported_event_subscription_flags: AudioSupportedEventSubscriptionFlags,
-    /// The supported_stream_clock_domains field.
+    /// Supported stream-clock domains for this device.
     pub supported_stream_clock_domains: AudioSupportedStreamClockDomains,
-    /// The preferred_sample_rate field.
+    /// Preferred sample rate in hertz.
     pub preferred_sample_rate: u32,
-    /// The min_sample_rate field.
+    /// Minimum sample rate in hertz.
     pub min_sample_rate: u32,
-    /// The max_sample_rate field.
+    /// Maximum sample rate in hertz.
     pub max_sample_rate: u32,
-    /// The preferred_period_frames field.
+    /// Preferred period in frames.
     pub preferred_period_frames: u32,
-    /// The min_channels field.
+    /// Minimum channel count.
     pub min_channels: u16,
-    /// The max_channels field.
+    /// Maximum channel count.
     pub max_channels: u16,
-    /// The preferred_layout field.
+    /// Preferred channel layout.
     pub preferred_layout: AudioChannelLayout,
-    /// The preferred_channel_mask field.
+    /// Preferred speaker channel mask when available.
     pub preferred_channel_mask: u64,
-    /// The supported_channel_mask field.
+    /// Supported speaker channel mask when available.
     pub supported_channel_mask: u64,
-    /// The min_period_frames field.
+    /// Minimum low-latency period in frames.
     pub min_period_frames: u32,
-    /// The max_period_frames field.
+    /// Maximum period in frames.
     pub max_period_frames: u32,
-    /// The format_mask field.
+    /// Supported sample format bitmask.
     pub format_mask: u32,
-    /// The share_mode_mask field.
+    /// Supported share mode bitmask.
+    /// Bit 0 is shared mode.
+    /// Bit 1 is exclusive mode.
     pub share_mode_mask: u32,
 }
 
 /// Replay struct for AudioDeviceFormatChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceFormatChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-format-changed payload.
     pub payload: AudioDeviceFormatChangedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDeviceFormatChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceFormatChangedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDeviceRemovedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceRemovedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-removed payload.
     pub payload: AudioDeviceRemovedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDeviceRemovedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceRemovedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioDeviceReroutedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceReroutedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Device-rerouted payload.
     pub payload: AudioDeviceReroutedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioDeviceReroutedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioDeviceReroutedPayloadReplayRecord {
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioInterruptionBeganEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioInterruptionBeganEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Interruption-began payload.
     pub payload: AudioInterruptionBeganPayload,
 }
 
 /// Replay struct for AudioInterruptionEndedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioInterruptionEndedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Interruption-ended payload.
     pub payload: AudioInterruptionEndedPayload,
 }
 
 /// Replay struct for AudioStreamDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamDescriptorReplayRecord {
-    /// The backend field.
+    /// Host backend for this stream instance.
     pub backend: AudioBackend,
-    /// The backend_id field.
+    /// Backend identifier for this stream instance.
     pub backend_id: String,
-    /// The device_id field.
+    /// Current device identifier for this stream instance.
     pub device_id: String,
-    /// The sample_rate field.
+    /// Effective sample rate in hertz.
     pub sample_rate: u32,
-    /// The channels field.
+    /// Effective channel count.
     pub channels: u16,
-    /// The channel_layout field.
+    /// Effective channel layout.
     pub channel_layout: AudioChannelLayout,
-    /// The channel_mask field.
+    /// Effective speaker channel mask when available.
     pub channel_mask: u64,
-    /// The format field.
+    /// Effective sample format.
     pub format: AudioSampleFormat,
-    /// The period_frames field.
+    /// Effective period size in frames.
     pub period_frames: u32,
-    /// The transfer_mode field.
+    /// Stream transfer mode selected by backend.
     pub transfer_mode: AudioStreamTransferMode,
-    /// The share_mode field.
+    /// Effective share mode selected by backend.
     pub share_mode: AudioShareMode,
-    /// The requested_flags field.
+    /// Requested stream option flags from open time.
     pub requested_flags: AudioStreamFlags,
-    /// The requested_requirements field.
+    /// Requested stream requirement flags from open time.
     pub requested_requirements: AudioStreamRequirementFlags,
-    /// The effective_flags field.
+    /// Effective stream option flags after backend negotiation.
     pub effective_flags: AudioStreamFlags,
-    /// The effective_requirements field.
+    /// Effective stream requirement flags satisfied by the backend.
     pub effective_requirements: AudioStreamRequirementFlags,
-    /// The period_jitter_ns field.
+    /// Backend period jitter estimate in nanoseconds.
+    /// Zero indicates unavailable timing history or insufficient callback samples.
     pub period_jitter_ns: u64,
-    /// The non_interleaved field.
+    /// Whether this stream currently uses non-interleaved backend buffers.
     pub non_interleaved: bool,
-    /// The supports_write_at field.
+    /// Whether scheduled write submission is supported.
     pub supports_write_at: bool,
-    /// The supports_pause field.
+    /// Whether pause and resume operations are supported.
     pub supports_pause: bool,
-    /// The supports_non_interleaved field.
+    /// Whether non-interleaved operation is supported.
     pub supports_non_interleaved: bool,
-    /// The supports_volume field.
+    /// Whether stream gain control is supported.
     pub supports_volume: bool,
-    /// The supports_mute field.
+    /// Whether stream mute control is supported.
     pub supports_mute: bool,
-    /// The supports_hardware_timestamps field.
+    /// Whether hardware timestamp correlation is supported.
     pub supports_hardware_timestamps: bool,
 }
 
 /// Replay struct for AudioStreamDeviceChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamDeviceChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-device-changed payload.
     pub payload: AudioStreamDeviceChangedPayloadReplayRecord,
 }
 
 /// Replay struct for AudioStreamDeviceChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamDeviceChangedPayloadReplayRecord {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for AudioStreamStateChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamStateChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-state-changed payload.
     pub payload: AudioStreamStateChangedPayload,
 }
 
 /// Replay struct for AudioStreamSupport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamSupportReplayRecord {
-    /// The supported field.
+    /// Whether the requested stream configuration is fully supported.
     pub supported: bool,
-    /// The descriptor field.
+    /// Negotiated stream descriptor for this support check.
+    /// When `supported` is false this is the closest backend-supported candidate.
     pub descriptor: AudioStreamDescriptorReplayRecord,
-    /// The satisfied_requirements field.
+    /// Requirement flags satisfied by this support result.
     pub satisfied_requirements: AudioStreamRequirementFlags,
-    /// The unsatisfied_requirements field.
+    /// Requirement flags not satisfied by this support result.
     pub unsatisfied_requirements: AudioStreamRequirementFlags,
 }
 
 /// Replay struct for AudioStreamXRunEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamXRunEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this audio event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: AudioEventMetadata,
-    /// The payload field.
+    /// Stream-xrun payload.
     pub payload: AudioStreamXRunPayloadReplayRecord,
 }
 
 /// Replay struct for AudioStreamXRunPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioStreamXRunPayloadReplayRecord {
-    /// The stream field.
+    /// Target stream handle when present.
     pub stream: Option<resource::AudioStreamHandle>,
-    /// The status_flags field.
+    /// Current stream status flags.
     pub status_flags: AudioStreamStatusFlags,
-    /// The xrun_count_delta field.
+    /// Xrun count delta for this event.
     pub xrun_count_delta: u64,
-    /// The device_id field.
+    /// Target device identifier when present.
     pub device_id: Option<String>,
 }
 
 /// Replay struct for MidiMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiMessageReplayRecord {
-    /// The timestamp_ns field.
+    /// Message timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The source_id field.
+    /// Source endpoint identifier.
     pub source_id: String,
-    /// The data field.
+    /// Raw MIDI bytes.
     pub data: Vec<u8>,
 }
 
 /// Replay struct for MidiPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MidiPortDescriptorReplayRecord {
-    /// The id field.
+    /// Stable endpoint identifier.
     pub id: String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: String,
-    /// The manufacturer field.
+    /// Host-visible endpoint manufacturer name when available.
     pub manufacturer: String,
-    /// The version field.
+    /// Host-visible endpoint version string when available.
     pub version: String,
-    /// The direction field.
+    /// Endpoint direction.
     pub direction: MidiPortDirection,
-    /// The is_virtual field.
+    /// Whether the endpoint is virtual.
     pub is_virtual: bool,
 }
 

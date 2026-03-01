@@ -125,9 +125,9 @@ impl VmValueCodec for TtyTermiosSetAction {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PtyPair {
-    /// The controller field.
+    /// Controller endpoint.
     pub controller: resource::PtyHandle,
-    /// The worker field.
+    /// Worker terminal endpoint.
     pub worker: resource::TtyHandle,
 }
 
@@ -183,13 +183,13 @@ impl VmAggregateCodec for PtyPair {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TtyMode {
-    /// The input_flags field.
+    /// Input-mode bit flags.
     pub input_flags: u64,
-    /// The output_flags field.
+    /// Output-mode bit flags.
     pub output_flags: u64,
-    /// The control_flags field.
+    /// Control-mode bit flags.
     pub control_flags: u64,
-    /// The local_flags field.
+    /// Local-mode bit flags.
     pub local_flags: u64,
 }
 
@@ -247,13 +247,13 @@ impl VmAggregateCodec for TtyMode {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TtySize {
-    /// The rows field.
+    /// Character rows.
     pub rows: u32,
-    /// The columns field.
+    /// Character columns.
     pub columns: u32,
-    /// The x_pixels field.
+    /// Horizontal pixel size.
     pub x_pixels: u32,
-    /// The y_pixels field.
+    /// Vertical pixel size.
     pub y_pixels: u32,
 }
 
@@ -309,19 +309,19 @@ impl VmAggregateCodec for TtySize {
 /// ABI struct for TtyTermiosAttributes.
 #[repr(C)]
 pub struct TtyTermiosAttributesAbi<A: BindingAbi> {
-    /// The input_flags field.
+    /// Input-mode bit flags.
     pub input_flags: u64,
-    /// The output_flags field.
+    /// Output-mode bit flags.
     pub output_flags: u64,
-    /// The control_flags field.
+    /// Control-mode bit flags.
     pub control_flags: u64,
-    /// The local_flags field.
+    /// Local-mode bit flags.
     pub local_flags: u64,
-    /// The control_characters field.
+    /// Control-character table bytes in host order.
     pub control_characters: A::Slice<u8>,
-    /// The input_speed_code field.
+    /// Input speed code from host termios representation.
     pub input_speed_code: u64,
-    /// The output_speed_code field.
+    /// Output speed code from host termios representation.
     pub output_speed_code: u64,
 }
 
@@ -416,18 +416,18 @@ impl VmAggregateCodec for TtyTermiosAttributesAbi<VmAbi> {
 /// Replay struct for TtyTermiosAttributes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TtyTermiosAttributesReplayRecord {
-    /// The input_flags field.
+    /// Input-mode bit flags.
     pub input_flags: u64,
-    /// The output_flags field.
+    /// Output-mode bit flags.
     pub output_flags: u64,
-    /// The control_flags field.
+    /// Control-mode bit flags.
     pub control_flags: u64,
-    /// The local_flags field.
+    /// Local-mode bit flags.
     pub local_flags: u64,
-    /// The control_characters field.
+    /// Control-character table bytes in host order.
     pub control_characters: Vec<u8>,
-    /// The input_speed_code field.
+    /// Input speed code from host termios representation.
     pub input_speed_code: u64,
-    /// The output_speed_code field.
+    /// Output speed code from host termios representation.
     pub output_speed_code: u64,
 }

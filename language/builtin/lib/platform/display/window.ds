@@ -195,6 +195,8 @@ export struct WindowOptions {
 
 /// Window descriptor payload.
 export struct WindowDescriptor {
+    /// Resolved backend that owns this window.
+    backend: DisplayBackend;
     /// Stable runtime window identifier.
     id: string;
     /// Current host-visible title.
@@ -215,6 +217,8 @@ export struct WindowDescriptor {
 
 /// Window state snapshot.
 export struct WindowState {
+    /// Resolved backend that owns this window.
+    backend: DisplayBackend;
     /// Current desktop position.
     position: WindowPosition;
     /// Current logical size.

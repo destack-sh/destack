@@ -42,6 +42,8 @@ export struct DisplayModeChangedPayload {
 
 /// Shared metadata for all display monitor events.
 export struct DisplayEventMetadata {
+    /// Resolved backend that produced this event.
+    backend: DisplayBackend;
     /// Display identifier associated with this event.
     displayId: string | void;
     /// Event timestamp in nanoseconds.

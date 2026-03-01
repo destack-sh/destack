@@ -49,6 +49,8 @@ export struct DisplayMode {
 
 /// One monitor descriptor snapshot.
 export struct DisplayDescriptor {
+    /// Resolved backend that produced this descriptor.
+    backend: DisplayBackend;
     /// Stable runtime display identifier.
     id: string;
     /// Host display name.

@@ -161,6 +161,26 @@ fn tagged_union_variant_tags(union_name: &str, variants: &[BindingTaggedUnionVar
     tags
 }
 
+/// Write documentation for one generated struct field.
+fn write_struct_field_docs(output: &mut String, documentation: Option<&str>, field_name: &str) {
+    if let Some(documentation) = documentation {
+        let mut wrote_line = false;
+        for line in documentation.lines() {
+            if line.trim().is_empty() {
+                output.push_str("    ///\n");
+                continue;
+            }
+            output.push_str(&format!("    /// {}\n", line.trim_end()));
+            wrote_line = true;
+        }
+        if wrote_line {
+            return;
+        }
+    }
+
+    output.push_str(&format!("    /// The {field_name} field.\n"));
+}
+
 /// Render ABI type definitions for a runtime domain.
 pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
     let structs = &types.structs;
@@ -505,7 +525,7 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         for field in fields {
             let field_name = to_snake_case(&field.name);
             let field_type = abi_struct_field_type(domain, &field.binding_type);
-            output.push_str(&format!("    /// The {field_name} field.\n"));
+            write_struct_field_docs(&mut output, field.documentation.as_deref(), &field_name);
             output.push_str(&format!("    pub {field_name}: {field_type},\n"));
         }
         output.push_str("}\n\n");
@@ -655,7 +675,7 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         for field in fields {
             let field_name = to_snake_case(&field.name);
             let field_type = replay_type_for_binding(domain, &field.binding_type);
-            output.push_str(&format!("    /// The {field_name} field.\n"));
+            write_struct_field_docs(&mut output, field.documentation.as_deref(), &field_name);
             output.push_str(&format!("    pub {field_name}: {field_type},\n"));
         }
         output.push_str("}\n\n");

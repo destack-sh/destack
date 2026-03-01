@@ -158,9 +158,9 @@ impl VmValueCodec for MemoryNumaPolicy {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct MemoryRange {
-    /// The address field.
+    /// Base address of the mapped range.
     pub address: u64,
-    /// The length field.
+    /// Length of the mapped range in bytes.
     pub length: u64,
 }
 
@@ -212,9 +212,9 @@ impl VmAggregateCodec for MemoryRange {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ProtectedMemoryRange {
-    /// The address field.
+    /// Base address of the mapped range.
     pub address: u64,
-    /// The length field.
+    /// Length of the mapped range in bytes.
     pub length: u64,
 }
 

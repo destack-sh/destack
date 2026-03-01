@@ -17,9 +17,9 @@ use serde::{Deserialize, Serialize};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct MessageQueueReceive {
-    /// The bytes field.
+    /// Number of payload bytes copied into the caller buffer.
     pub bytes: u32,
-    /// The priority field.
+    /// Priority value for the received message.
     pub priority: u32,
 }
 
@@ -71,9 +71,9 @@ impl VmAggregateCodec for MessageQueueReceive {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PipePair {
-    /// The read field.
+    /// Read endpoint.
     pub read: resource::PipeHandle,
-    /// The write field.
+    /// Write endpoint.
     pub write: resource::PipeHandle,
 }
 
@@ -126,9 +126,9 @@ impl VmAggregateCodec for PipePair {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SharedMemoryMapping {
-    /// The address field.
+    /// Base address in the process virtual space.
     pub address: u64,
-    /// The length field.
+    /// Mapping length in bytes.
     pub length: u64,
 }
 
@@ -180,11 +180,11 @@ impl VmAggregateCodec for SharedMemoryMapping {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UnixPeerCredentials {
-    /// The pid field.
+    /// Peer process identifier when available.
     pub pid: Option<u32>,
-    /// The uid field.
+    /// Peer user identifier.
     pub uid: u32,
-    /// The gid field.
+    /// Peer group identifier.
     pub gid: u32,
 }
 
@@ -238,11 +238,11 @@ impl VmAggregateCodec for UnixPeerCredentials {
 /// ABI struct for UnixReceiveAncillary.
 #[repr(C)]
 pub struct UnixReceiveAncillaryAbi<A: BindingAbi> {
-    /// The bytes field.
+    /// Received payload bytes.
     pub bytes: u64,
-    /// The handles field.
+    /// Received transferred handles.
     pub handles: A::Array<resource::TransferredHandle>,
-    /// The credentials field.
+    /// Peer credentials when available.
     pub credentials: Option<UnixPeerCredentials>,
 }
 
@@ -330,10 +330,10 @@ impl VmAggregateCodec for UnixReceiveAncillaryAbi<VmAbi> {
 /// Replay struct for UnixReceiveAncillary.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UnixReceiveAncillaryReplayRecord {
-    /// The bytes field.
+    /// Received payload bytes.
     pub bytes: u64,
-    /// The handles field.
+    /// Received transferred handles.
     pub handles: Vec<resource::TransferredHandle>,
-    /// The credentials field.
+    /// Peer credentials when available.
     pub credentials: Option<UnixPeerCredentials>,
 }
