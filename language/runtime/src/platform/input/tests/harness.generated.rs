@@ -11,27 +11,34 @@ use crate::platform::input::{
     InputCapabilityMetadataFidelity, InputCapabilityMetadataOrigin, InputCompositionEvent,
     InputCompositionEventPayload, InputCompositionEventPayloadVm, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
-    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEventPayload,
-    InputDeviceEventPayloadVm, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
-    InputEventPayload, InputEventPayloadVm, InputEventVm, InputGamepadBatteryState,
+    InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceEvent, InputDeviceEventPayload,
+    InputDeviceEventPayloadVm, InputDeviceEventVm, InputDeviceKind, InputEvent, InputEventAction,
+    InputEventMetadata, InputEventMetadataVm, InputEventVm, InputGamepadBatteryState,
     InputGamepadBatteryStatus, InputGamepadBatteryStatusVm, InputGamepadButtonState,
-    InputGamepadButtonStateVm, InputGamepadConnectionType, InputGamepadEventPayload,
-    InputGamepadEventPayloadVm, InputGamepadMappingType, InputGamepadState, InputGamepadStateVm,
-    InputGamepadTouchState, InputGamepadTouchStateVm, InputHapticEffectParameters,
-    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult, InputKeyEventPayload,
-    InputKeyEventPayloadVm, InputKeyboardState, InputKeyboardStateVm, InputMonitorEvent,
-    InputMonitorEventKind, InputMonitorEventVm, InputPenState, InputPenStateVm,
-    InputPointerButtonEventPayload, InputPointerButtonEventPayloadVm, InputPointerGrabMode,
-    InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm, InputPointerState,
-    InputPointerStateVm, InputRawHidReport, InputRawHidReportVm, InputReadMode,
-    InputScrollEventPayload, InputScrollEventPayloadVm, InputSensorConfig, InputSensorConfigVm,
+    InputGamepadButtonStateVm, InputGamepadConnectionType, InputGamepadEvent,
+    InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadEventVm,
+    InputGamepadMappingType, InputGamepadState, InputGamepadStateVm, InputGamepadTouchState,
+    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
+    InputHapticEffectType, InputHapticsResult, InputKeyEvent, InputKeyEventPayload,
+    InputKeyEventPayloadVm, InputKeyEventVm, InputKeyboardState, InputKeyboardStateVm,
+    InputMonitorChangeEvent, InputMonitorChangeEventVm, InputMonitorConnectEvent,
+    InputMonitorConnectEventVm, InputMonitorDisconnectEvent, InputMonitorDisconnectEventVm,
+    InputMonitorEvent, InputMonitorEventMetadata, InputMonitorEventMetadataVm, InputMonitorEventVm,
+    InputPenState, InputPenStateVm, InputPointerButtonEvent, InputPointerButtonEventPayload,
+    InputPointerButtonEventPayloadVm, InputPointerButtonEventVm, InputPointerGrabMode,
+    InputPointerMotionEvent, InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm,
+    InputPointerMotionEventVm, InputPointerState, InputPointerStateVm, InputRawHidReport,
+    InputRawHidReportVm, InputReadMode, InputScrollEvent, InputScrollEventPayload,
+    InputScrollEventPayloadVm, InputScrollEventVm, InputSensorConfig, InputSensorConfigVm,
     InputSensorDescriptor, InputSensorDescriptorVm, InputSensorEffectiveConfig,
-    InputSensorEffectiveConfigVm, InputSensorEventPayload, InputSensorEventPayloadVm,
-    InputSensorKind, InputSensorSample, InputSensorSampleVm, InputTextEventPayload,
-    InputTextEventPayloadVm, InputTextInputArea, InputTextInputAreaVm, InputTextInputType,
-    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm,
-    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchState, InputTouchStateVm,
-    InputWindowTarget, InputWindowTargetVm, native as input_native, vm as input_vm,
+    InputSensorEffectiveConfigVm, InputSensorEvent, InputSensorEventPayload,
+    InputSensorEventPayloadVm, InputSensorEventVm, InputSensorKind, InputSensorSample,
+    InputSensorSampleVm, InputTextEvent, InputTextEventPayload, InputTextEventPayloadVm,
+    InputTextEventVm, InputTextInputArea, InputTextInputAreaVm, InputTextInputType,
+    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm, InputTouchEvent,
+    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchEventVm, InputTouchState,
+    InputTouchStateVm, InputWindowTarget, InputWindowTargetVm, native as input_native,
+    vm as input_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -767,22 +774,22 @@ impl<'call> InputHarnessContext<'call> {
         &mut self,
         handle: resource::InputDeviceHandle,
         effect: InputHapticEffectType,
-        params: HarnessValue<InputHapticEffectParameters, InputHapticEffectParametersVm>,
+        parameters: HarnessValue<InputHapticEffectParameters, InputHapticEffectParametersVm>,
     ) -> RuntimeResult<InputHapticsResult> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let params = params.into_vm("params")?;
+                let parameters = parameters.into_vm("parameters")?;
                 let out = input_vm::destack_input_haptics_play(
                     self.call_context,
                     context,
                     handle,
                     effect,
-                    params,
+                    parameters,
                 )?;
                 Ok(out)
             }
             None => {
-                let params = params.into_native("params")?;
+                let parameters = parameters.into_native("parameters")?;
                 let mut out = std::mem::MaybeUninit::<InputHapticsResult>::uninit();
                 unsafe {
                     input_native::destack_input_haptics_play(
@@ -790,7 +797,7 @@ impl<'call> InputHarnessContext<'call> {
                         out.as_mut_ptr(),
                         handle,
                         effect,
-                        params,
+                        parameters,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

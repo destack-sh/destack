@@ -286,6 +286,8 @@ pub(crate) fn default_window_options(
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
             HarnessValue::Vm(display::WindowOptionsVm {
+                backend: display::DisplayBackend::Auto,
+                backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
                 title: vm::StringHandle::new(vm_context.intern_string(title)),
                 size_logical: display::WindowLogicalSizeVm {
                     width: 1280.0,
@@ -308,6 +310,8 @@ pub(crate) fn default_window_options(
             })
         }
         None => HarnessValue::Native(display::WindowOptions {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
             title: context.call_context.store_string(title),
             size_logical: display::WindowLogicalSize {
                 width: 1280.0,
@@ -331,6 +335,79 @@ pub(crate) fn default_window_options(
     };
 
     Ok(options)
+}
+
+/// Build one default monitor-list request payload for harness calls.
+pub(crate) fn default_monitor_list_request(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<display::DisplayMonitorListRequest, display::DisplayMonitorListRequestVm> {
+    let request = display::DisplayMonitorListRequest {
+        backend: display::DisplayBackend::Auto,
+        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+    };
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(request)
+    } else {
+        HarnessValue::Native(request)
+    }
+}
+
+/// Build one default monitor-open options payload for harness calls.
+pub(crate) fn default_monitor_open_options(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<display::DisplayMonitorOpenOptions, display::DisplayMonitorOpenOptionsVm> {
+    let options = display::DisplayMonitorOpenOptions {
+        backend: display::DisplayBackend::Auto,
+        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+    };
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(options)
+    } else {
+        HarnessValue::Native(options)
+    }
+}
+
+/// Build one default monitor-event open options payload for harness calls.
+pub(crate) fn default_monitor_event_open_options(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<display::DisplayMonitorEventOpenOptions, display::DisplayMonitorEventOpenOptionsVm>
+{
+    let options = display::DisplayMonitorEventOpenOptions {
+        backend: display::DisplayBackend::Auto,
+        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+        queue: display::DisplayEventQueueOptions {
+            queue_capacity: 256,
+            overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
+        },
+    };
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(options)
+    } else {
+        HarnessValue::Native(options)
+    }
+}
+
+/// Build one default window-event open options payload for harness calls.
+pub(crate) fn default_window_event_open_options(
+    context: &DisplayHarnessContext<'_>,
+) -> HarnessValue<display::WindowEventOpenOptions, display::WindowEventOpenOptionsVm> {
+    let options = display::WindowEventOpenOptions {
+        backend: display::DisplayBackend::Auto,
+        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+        queue: display::DisplayEventQueueOptions {
+            queue_capacity: 256,
+            overflow_policy: display::DisplayEventOverflowPolicy::DropOldest,
+        },
+    };
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(options)
+    } else {
+        HarnessValue::Native(options)
+    }
 }
 
 /// Decode one harness value where native and vm payloads share one ABI shape.

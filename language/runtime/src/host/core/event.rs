@@ -1,7 +1,6 @@
 use super::service::{
     HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
 };
-use crate::runtime::poller::PollerEvent;
 
 /// Host semantic event kind key for scheduler watches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,8 +42,6 @@ pub(crate) enum HostEventCoalescingKey {
 /// Runtime-visible host event payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostEvent {
-    /// Event routed from the runtime poller layer.
-    Poller(PollerEvent),
     /// Host lifecycle transition event.
     Lifecycle(HostLifecycleEvent),
     /// Host window and surface event.
@@ -69,7 +66,6 @@ impl HostEvent {
     /// Return the host semantic event kind for this event when one exists.
     pub const fn kind(&self) -> Option<HostEventKind> {
         match self {
-            HostEvent::Poller(_) => None,
             HostEvent::Lifecycle(_) => Some(HostEventKind::Lifecycle),
             HostEvent::Window(_) => Some(HostEventKind::Window),
             HostEvent::WindowFocus(_) => Some(HostEventKind::WindowFocus),
@@ -111,7 +107,6 @@ impl HostEvent {
         }
 
         match self {
-            HostEvent::Poller(_) => None,
             HostEvent::Window(event) => Some(HostEventCoalescingKey::Window {
                 kind: HostEventKind::Window,
                 window_id: event.window_id(),

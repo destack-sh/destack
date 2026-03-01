@@ -2,14 +2,24 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayDescriptorVm, DisplayEventVm, DisplayModeVm, WindowAttentionLevel, WindowCursorIcon,
-    WindowCursorMode, WindowDescriptorVm, WindowEventVm, WindowLogicalSizeVm, WindowModeOptionsVm,
+    DisplayBackendDescriptorVm, DisplayDescriptorVm, DisplayEventVm, DisplayModeVm,
+    DisplayMonitorEventOpenOptionsVm, DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm,
+    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptorVm,
+    WindowEventOpenOptionsVm, WindowEventVm, WindowLogicalSizeVm, WindowModeOptionsVm,
     WindowOptionsVm, WindowPhysicalSizeVm, WindowPositionVm, WindowSizeConstraintsVm,
     WindowStateVm, WindowVisibility,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
+
+/// List display backends that are available for the active target.
+pub(crate) fn destack_display_backend_list(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmSlice<DisplayBackendDescriptorVm>> {
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.backend.list")).boxed())
+}
 
 /// Close one display endpoint.
 ///
@@ -204,6 +214,7 @@ pub(crate) fn destack_display_monitor_event_close(
 pub(crate) fn destack_display_monitor_event_open(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    _options: DisplayMonitorEventOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayEventHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventOpen",
@@ -348,6 +359,7 @@ pub(crate) fn destack_display_monitor_event_try_read_batch(
 pub(crate) fn destack_display_monitor_list(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    _request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<VmSlice<DisplayDescriptorVm>> {
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
 }
@@ -402,6 +414,7 @@ pub(crate) fn destack_display_monitor_open(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     id: vm::StringHandle,
+    _options: DisplayMonitorOpenOptionsVm,
 ) -> RuntimeResult<resource::DisplayHandle> {
     let _ = id;
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
@@ -427,6 +440,7 @@ pub(crate) fn destack_display_monitor_open(
 pub(crate) fn destack_display_monitor_primary(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    _request: DisplayMonitorListRequestVm,
 ) -> RuntimeResult<Option<resource::DisplayHandle>> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.primary",
@@ -566,6 +580,7 @@ pub(crate) fn destack_display_window_event_close(
 pub(crate) fn destack_display_window_event_open(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
+    _options: WindowEventOpenOptionsVm,
 ) -> RuntimeResult<resource::WindowEventHandle> {
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventOpen",

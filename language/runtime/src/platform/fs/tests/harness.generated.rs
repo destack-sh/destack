@@ -7,15 +7,19 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext, DirentNextVm,
-    DirentVm, FdFlags, FileAdvice, FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice,
-    MmapFlags, MmapProt, MmapSyncFlags, NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm,
-    OpenResolveFlags, OsPath, OsPathVm, PathBytes, PathBytesVm, PathEncoding, PathUtf16,
-    PathUtf16Vm, ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursor, SpliceCursorVm,
+    AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext, DirentNextEnd,
+    DirentNextEndVm, DirentNextEntry, DirentNextEntryVm, DirentNextVm, DirentVm, FdFlags,
+    FileAdvice, FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt,
+    MmapSyncFlags, NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OpenResolveFlags, OsPath,
+    OsPathBytes, OsPathBytesVm, OsPathUtf16, OsPathUtf16Vm, OsPathVm, PathBytes, PathBytesVm,
+    PathUtf16, PathUtf16Vm, ReadWriteFlags, RenameFlags, SeekWhence, SpliceCursor, SpliceCursorVm,
     SpliceFlags, Stat, StatFs, StatFsFlags, StatFsVm, StatVm, StatusFlags, Statx, StatxFlags,
-    StatxMask, StatxVm, SymlinkType, SyncFlags, WatchBatch, WatchBatchVm, WatchEvent,
-    WatchEventKind, WatchEventVm, WatchMask, WatchOptions, WatchOptionsVm, XattrFlags,
-    native as fs_native, vm as fs_vm,
+    StatxMask, StatxVm, SymlinkType, SyncFlags, WatchBatch, WatchBatchVm, WatchCreateEvent,
+    WatchCreateEventVm, WatchEvent, WatchEventMetadata, WatchEventMetadataVm, WatchEventVm,
+    WatchMask, WatchMetadataEvent, WatchMetadataEventVm, WatchModifyEvent, WatchModifyEventVm,
+    WatchOptions, WatchOptionsVm, WatchOverflowEvent, WatchOverflowEventVm, WatchRemoveEvent,
+    WatchRemoveEventVm, WatchRenameEvent, WatchRenameEventVm, XattrFlags, native as fs_native,
+    vm as fs_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -720,7 +724,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Read a single directory entry from an open directory handle.
     ///
     /// Read at most one entry from the current directory cursor and advance the host iterator.
-    /// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
+    /// Callers can iterate deterministically by repeatedly invoking this operation until `kind` is `"end"`.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

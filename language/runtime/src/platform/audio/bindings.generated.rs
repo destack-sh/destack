@@ -8,28 +8,61 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor,
-    AudioBackendDescriptorReplayRecord, AudioBackendDescriptorVm, AudioBackendSelectionPolicy,
-    AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioClockSnapshotVm,
-    AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorReplayRecord,
-    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
-    AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
-    AudioDeviceOpenOptionsVm, AudioEvent, AudioEventDeliveryMode, AudioEventKind,
-    AudioEventOverflowPolicy, AudioEventReplayRecord, AudioEventSource,
-    AudioEventSubscriptionFlags, AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm,
-    AudioEventVm, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
-    AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm,
-    AudioStreamDescriptor, AudioStreamDescriptorReplayRecord, AudioStreamDescriptorVm,
-    AudioStreamFlags, AudioStreamOpenOptions, AudioStreamOpenOptionsVm,
-    AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateVm, AudioStreamStatusFlags,
-    AudioStreamSupport, AudioStreamSupportReplayRecord, AudioStreamSupportVm, AudioStreamTiming,
-    AudioStreamTimingVm, AudioStreamTransferMode, AudioSupportedEventSubscriptionFlags,
+    AudioBackendDescriptorReplayRecord, AudioBackendDescriptorVm, AudioBackendDisconnectedEvent,
+    AudioBackendDisconnectedEventReplayRecord, AudioBackendDisconnectedEventVm,
+    AudioBackendDisconnectedPayload, AudioBackendDisconnectedPayloadVm, AudioBackendResetEvent,
+    AudioBackendResetEventReplayRecord, AudioBackendResetEventVm, AudioBackendResetPayload,
+    AudioBackendResetPayloadVm, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain,
+    AudioClockSnapshot, AudioClockSnapshotVm, AudioDefaultCaptureChangedEvent,
+    AudioDefaultCaptureChangedEventReplayRecord, AudioDefaultCaptureChangedEventVm,
+    AudioDefaultCaptureChangedPayload, AudioDefaultCaptureChangedPayloadReplayRecord,
+    AudioDefaultCaptureChangedPayloadVm, AudioDefaultLoopbackChangedEvent,
+    AudioDefaultLoopbackChangedEventReplayRecord, AudioDefaultLoopbackChangedEventVm,
+    AudioDefaultLoopbackChangedPayload, AudioDefaultLoopbackChangedPayloadReplayRecord,
+    AudioDefaultLoopbackChangedPayloadVm, AudioDefaultPlaybackChangedEvent,
+    AudioDefaultPlaybackChangedEventReplayRecord, AudioDefaultPlaybackChangedEventVm,
+    AudioDefaultPlaybackChangedPayload, AudioDefaultPlaybackChangedPayloadReplayRecord,
+    AudioDefaultPlaybackChangedPayloadVm, AudioDeviceAddedEvent, AudioDeviceAddedEventReplayRecord,
+    AudioDeviceAddedEventVm, AudioDeviceAddedPayload, AudioDeviceAddedPayloadReplayRecord,
+    AudioDeviceAddedPayloadVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
+    AudioDeviceDescriptorReplayRecord, AudioDeviceDescriptorVm, AudioDeviceDirection,
+    AudioDeviceFormatChangedEvent, AudioDeviceFormatChangedEventReplayRecord,
+    AudioDeviceFormatChangedEventVm, AudioDeviceFormatChangedPayload,
+    AudioDeviceFormatChangedPayloadReplayRecord, AudioDeviceFormatChangedPayloadVm,
+    AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags,
+    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioDeviceRemovedEvent,
+    AudioDeviceRemovedEventReplayRecord, AudioDeviceRemovedEventVm, AudioDeviceRemovedPayload,
+    AudioDeviceRemovedPayloadReplayRecord, AudioDeviceRemovedPayloadVm, AudioDeviceReroutedEvent,
+    AudioDeviceReroutedEventReplayRecord, AudioDeviceReroutedEventVm, AudioDeviceReroutedPayload,
+    AudioDeviceReroutedPayloadReplayRecord, AudioDeviceReroutedPayloadVm, AudioEvent,
+    AudioEventDeliveryMode, AudioEventMetadata, AudioEventMetadataVm, AudioEventOverflowPolicy,
+    AudioEventReplayRecord, AudioEventSubscriptionFlags, AudioEventSubscriptionOptions,
+    AudioEventSubscriptionOptionsVm, AudioEventVm, AudioInterruptionBeganEvent,
+    AudioInterruptionBeganEventReplayRecord, AudioInterruptionBeganEventVm,
+    AudioInterruptionBeganPayload, AudioInterruptionBeganPayloadVm, AudioInterruptionEndedEvent,
+    AudioInterruptionEndedEventReplayRecord, AudioInterruptionEndedEventVm,
+    AudioInterruptionEndedPayload, AudioInterruptionEndedPayloadVm, AudioSampleFormat,
+    AudioShareMode, AudioStreamAvailability, AudioStreamAvailabilityVm, AudioStreamClockDomain,
+    AudioStreamConfig, AudioStreamConfigVm, AudioStreamDescriptor,
+    AudioStreamDescriptorReplayRecord, AudioStreamDescriptorVm, AudioStreamDeviceChangedEvent,
+    AudioStreamDeviceChangedEventReplayRecord, AudioStreamDeviceChangedEventVm,
+    AudioStreamDeviceChangedPayload, AudioStreamDeviceChangedPayloadReplayRecord,
+    AudioStreamDeviceChangedPayloadVm, AudioStreamFlags, AudioStreamOpenOptions,
+    AudioStreamOpenOptionsVm, AudioStreamRequirementFlags, AudioStreamState,
+    AudioStreamStateChangedEvent, AudioStreamStateChangedEventReplayRecord,
+    AudioStreamStateChangedEventVm, AudioStreamStateChangedPayload,
+    AudioStreamStateChangedPayloadVm, AudioStreamStateVm, AudioStreamSupport,
+    AudioStreamSupportReplayRecord, AudioStreamSupportVm, AudioStreamTiming, AudioStreamTimingVm,
+    AudioStreamTransferMode, AudioStreamXRunEvent, AudioStreamXRunEventReplayRecord,
+    AudioStreamXRunEventVm, AudioStreamXRunPayload, AudioStreamXRunPayloadReplayRecord,
+    AudioStreamXRunPayloadVm, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
     AudioSupportedStreamRequirementFlags, MidiMessage, MidiMessageReplayRecord, MidiMessageVm,
     MidiPortDescriptor, MidiPortDescriptorReplayRecord, MidiPortDescriptorVm, MidiPortDirection,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -162,6 +195,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -172,6 +206,7 @@ fn decode_slice<T>(
 }
 
 /// Decode an array argument.
+#[allow(dead_code)]
 fn decode_array<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -877,28 +912,383 @@ fn encode_destack_audio_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = vm::Value::uint(value.dropped_count, 64);
-        let field_4 = vm::Value::uint(value.source as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_6 = vm::Value::uint(value.flags as u64, 32);
-        let field_7 = vm::Value::uint(value.status_flags.0 as u64, 32);
-        let field_8 = vm::Value::uint(value.xrun_count_delta, 64);
-        let field_9 = match value.device_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
-        };
-        let field_10 = match value.stream {
-            Some(value) => vm::Value::uint(value.0.0, 64),
-            None => vm::Value::VOID,
-        };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10,
-        ])
+    result.map(|value| match value {
+        AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+            let tag_value = vm::Value::uint(2671385442u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioBackendResetEvent(value) => {
+            let tag_value = vm::Value::uint(882086390u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3898931457u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+            let tag_value = vm::Value::uint(148848279u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3146923047u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceAddedEvent(value) => {
+            let tag_value = vm::Value::uint(4188441349u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3233210258u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceRemovedEvent(value) => {
+            let tag_value = vm::Value::uint(4161309046u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceReroutedEvent(value) => {
+            let tag_value = vm::Value::uint(3459080735u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioInterruptionBeganEvent(value) => {
+            let tag_value = vm::Value::uint(1214582496u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioInterruptionEndedEvent(value) => {
+            let tag_value = vm::Value::uint(2799812553u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3694639736u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamStateChangedEvent(value) => {
+            let tag_value = vm::Value::uint(1303591687u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamXRunEvent(value) => {
+            let tag_value = vm::Value::uint(3186589411u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64);
+                    let field_3 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -947,28 +1337,383 @@ fn encode_destack_audio_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AudioEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = vm::Value::uint(value.dropped_count, 64);
-        let field_4 = vm::Value::uint(value.source as u8 as u64, 8);
-        let field_5 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_6 = vm::Value::uint(value.flags as u64, 32);
-        let field_7 = vm::Value::uint(value.status_flags.0 as u64, 32);
-        let field_8 = vm::Value::uint(value.xrun_count_delta, 64);
-        let field_9 = match value.device_id {
-            Some(value) => value.value(),
-            None => vm::Value::VOID,
-        };
-        let field_10 = match value.stream {
-            Some(value) => vm::Value::uint(value.0.0, 64),
-            None => vm::Value::VOID,
-        };
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10,
-        ])
+    result.map(|value| match value {
+        AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+            let tag_value = vm::Value::uint(2671385442u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioBackendResetEvent(value) => {
+            let tag_value = vm::Value::uint(882086390u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3898931457u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+            let tag_value = vm::Value::uint(148848279u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3146923047u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceAddedEvent(value) => {
+            let tag_value = vm::Value::uint(4188441349u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3233210258u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceRemovedEvent(value) => {
+            let tag_value = vm::Value::uint(4161309046u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioDeviceReroutedEvent(value) => {
+            let tag_value = vm::Value::uint(3459080735u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioInterruptionBeganEvent(value) => {
+            let tag_value = vm::Value::uint(1214582496u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioInterruptionEndedEvent(value) => {
+            let tag_value = vm::Value::uint(2799812553u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+            let tag_value = vm::Value::uint(3694639736u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamStateChangedEvent(value) => {
+            let tag_value = vm::Value::uint(1303591687u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        AudioEventVm::AudioStreamXRunEvent(value) => {
+            let tag_value = vm::Value::uint(3186589411u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = vm::Value::uint(value.metadata.dropped_count, 64);
+                    let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8);
+                    let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_5 = vm::Value::uint(value.metadata.flags as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                let field_2 = {
+                    let field_0 = match value.payload.stream {
+                        Some(value) => vm::Value::uint(value.0.0, 64),
+                        None => vm::Value::VOID,
+                    };
+                    let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64);
+                    let field_3 = match value.payload.device_id {
+                        Some(value) => value.value(),
+                        None => vm::Value::VOID,
+                    };
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -4711,56 +5456,486 @@ fn destack_audio_event_read_replay(
         AUDIO_EVENT_READ,
         context.replay_payload_for(AUDIO_EVENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_read(context, out, handle, timeoutns)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_read(
-                    context, out, handle, timeoutns,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read(context, out, handle, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read(context, out, handle, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_dropped_count = result_value.dropped_count;
-                let result_recorded_source = result_value.source;
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_flags = result_value.flags;
-                let result_recorded_status_flags = result_value.status_flags;
-                let result_recorded_xrun_count_delta = result_value.xrun_count_delta;
-                let result_recorded_device_id = if let Some(value) = result_value.device_id {
-                    let result_recorded_device_id_inner = unsafe { value.as_str()? }.to_string();
-                    Some(result_recorded_device_id_inner)
-                } else {
-                    None
-                };
-                let result_recorded_stream = if let Some(value) = result_value.stream {
-                    let result_recorded_stream_inner = value;
-                    Some(result_recorded_stream_inner)
-                } else {
-                    None
-                };
-                let result_recorded = AudioEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    dropped_count: result_recorded_dropped_count,
-                    source: result_recorded_source,
-                    backend: result_recorded_backend,
-                    flags: result_recorded_flags,
-                    status_flags: result_recorded_status_flags,
-                    xrun_count_delta: result_recorded_xrun_count_delta,
-                    device_id: result_recorded_device_id,
-                    stream: result_recorded_stream,
+                let result_recorded = match result_value {
+                    AudioEvent::AudioBackendDisconnectedEvent(value) => {
+                        let result_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_disconnected_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_disconnected_event_metadata_source,
+                            backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
+                            flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                            kind: result_recorded_audio_backend_disconnected_event_kind,
+                            metadata: result_recorded_audio_backend_disconnected_event_metadata,
+                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
+                    }
+                    AudioEvent::AudioBackendResetEvent(value) => {
+                        let result_recorded_audio_backend_reset_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_reset_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_reset_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_reset_event_metadata_source,
+                            backend: result_recorded_audio_backend_reset_event_metadata_backend,
+                            flags: result_recorded_audio_backend_reset_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                            stream: result_recorded_audio_backend_reset_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                            kind: result_recorded_audio_backend_reset_event_kind,
+                            metadata: result_recorded_audio_backend_reset_event_metadata,
+                            payload: result_recorded_audio_backend_reset_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
+                    }
+                    AudioEvent::AudioDefaultCaptureChangedEvent(value) => {
+                        let result_recorded_audio_default_capture_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_capture_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_capture_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_capture_changed_event_kind,
+                            metadata: result_recorded_audio_default_capture_changed_event_metadata,
+                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
+                    }
+                    AudioEvent::AudioDefaultLoopbackChangedEvent(value) => {
+                        let result_recorded_audio_default_loopback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_loopback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_loopback_changed_event_kind,
+                            metadata: result_recorded_audio_default_loopback_changed_event_metadata,
+                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
+                    }
+                    AudioEvent::AudioDefaultPlaybackChangedEvent(value) => {
+                        let result_recorded_audio_default_playback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_playback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_playback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_playback_changed_event_kind,
+                            metadata: result_recorded_audio_default_playback_changed_event_metadata,
+                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
+                    }
+                    AudioEvent::AudioDeviceAddedEvent(value) => {
+                        let result_recorded_audio_device_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_added_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_added_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_added_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_added_event_metadata_source,
+                            backend: result_recorded_audio_device_added_event_metadata_backend,
+                            flags: result_recorded_audio_device_added_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_added_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                            kind: result_recorded_audio_device_added_event_kind,
+                            metadata: result_recorded_audio_device_added_event_metadata,
+                            payload: result_recorded_audio_device_added_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
+                    }
+                    AudioEvent::AudioDeviceFormatChangedEvent(value) => {
+                        let result_recorded_audio_device_format_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_format_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_format_changed_event_metadata_source,
+                            backend: result_recorded_audio_device_format_changed_event_metadata_backend,
+                            flags: result_recorded_audio_device_format_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                            kind: result_recorded_audio_device_format_changed_event_kind,
+                            metadata: result_recorded_audio_device_format_changed_event_metadata,
+                            payload: result_recorded_audio_device_format_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
+                    }
+                    AudioEvent::AudioDeviceRemovedEvent(value) => {
+                        let result_recorded_audio_device_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_removed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_removed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_removed_event_metadata_source,
+                            backend: result_recorded_audio_device_removed_event_metadata_backend,
+                            flags: result_recorded_audio_device_removed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                            kind: result_recorded_audio_device_removed_event_kind,
+                            metadata: result_recorded_audio_device_removed_event_metadata,
+                            payload: result_recorded_audio_device_removed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
+                    }
+                    AudioEvent::AudioDeviceReroutedEvent(value) => {
+                        let result_recorded_audio_device_rerouted_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_rerouted_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_rerouted_event_metadata_source,
+                            backend: result_recorded_audio_device_rerouted_event_metadata_backend,
+                            flags: result_recorded_audio_device_rerouted_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                            kind: result_recorded_audio_device_rerouted_event_kind,
+                            metadata: result_recorded_audio_device_rerouted_event_metadata,
+                            payload: result_recorded_audio_device_rerouted_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
+                    }
+                    AudioEvent::AudioInterruptionBeganEvent(value) => {
+                        let result_recorded_audio_interruption_began_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_began_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_began_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_began_event_metadata_source,
+                            backend: result_recorded_audio_interruption_began_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_began_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                            stream: result_recorded_audio_interruption_began_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                            kind: result_recorded_audio_interruption_began_event_kind,
+                            metadata: result_recorded_audio_interruption_began_event_metadata,
+                            payload: result_recorded_audio_interruption_began_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
+                    }
+                    AudioEvent::AudioInterruptionEndedEvent(value) => {
+                        let result_recorded_audio_interruption_ended_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_ended_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_ended_event_metadata_source,
+                            backend: result_recorded_audio_interruption_ended_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_ended_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                            kind: result_recorded_audio_interruption_ended_event_kind,
+                            metadata: result_recorded_audio_interruption_ended_event_metadata,
+                            payload: result_recorded_audio_interruption_ended_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
+                    }
+                    AudioEvent::AudioStreamDeviceChangedEvent(value) => {
+                        let result_recorded_audio_stream_device_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_device_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_device_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_device_changed_event_kind,
+                            metadata: result_recorded_audio_stream_device_changed_event_metadata,
+                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
+                    }
+                    AudioEvent::AudioStreamStateChangedEvent(value) => {
+                        let result_recorded_audio_stream_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_state_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_state_changed_event_kind,
+                            metadata: result_recorded_audio_stream_state_changed_event_metadata,
+                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
+                    }
+                    AudioEvent::AudioStreamXRunEvent(value) => {
+                        let result_recorded_audio_stream_x_run_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_x_run_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_x_run_event_metadata_source,
+                            backend: result_recorded_audio_stream_x_run_event_metadata_backend,
+                            flags: result_recorded_audio_stream_x_run_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                            kind: result_recorded_audio_stream_x_run_event_kind,
+                            metadata: result_recorded_audio_stream_x_run_event_metadata,
+                            payload: result_recorded_audio_stream_x_run_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
+                    }
                 };
                 let payload = AudioEventReadReplay {
                     result: Ok(result_recorded),
@@ -4771,7 +5946,9 @@ fn destack_audio_event_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventReadReplay { result }
+                    AudioEventReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -4782,43 +5959,479 @@ fn destack_audio_event_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_dropped_count = value.dropped_count;
-                    let value_native_source = value.source;
-                    let value_native_backend = value.backend;
-                    let value_native_flags = value.flags;
-                    let value_native_status_flags = value.status_flags;
-                    let value_native_xrun_count_delta = value.xrun_count_delta;
-                    let value_native_device_id = if let Some(value) = value.device_id {
-                        let value_native_device_id_inner = context.store_string(&value);
-                        Some(value_native_device_id_inner)
-                    } else {
-                        None
+                    let value_native = match value {
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                            let value_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let value_native_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: value_native_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: value_native_audio_backend_disconnected_event_metadata_source,
+                                backend: value_native_audio_backend_disconnected_event_metadata_backend,
+                                flags: value_native_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let value_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(value_native_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: value_native_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let value_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                kind: value_native_audio_backend_disconnected_event_kind,
+                                metadata: value_native_audio_backend_disconnected_event_metadata,
+                                payload: value_native_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
+                        }
+                        AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                            let value_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let value_native_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: value_native_audio_backend_reset_event_metadata_dropped_count,
+                                source: value_native_audio_backend_reset_event_metadata_source,
+                                backend: value_native_audio_backend_reset_event_metadata_backend,
+                                flags: value_native_audio_backend_reset_event_metadata_flags,
+                            };
+                            let value_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(value_native_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: value_native_audio_backend_reset_event_payload_stream,
+                            };
+                            let value_native_audio_backend_reset_event = AudioBackendResetEvent {
+                                kind: value_native_audio_backend_reset_event_kind,
+                                metadata: value_native_audio_backend_reset_event_metadata,
+                                payload: value_native_audio_backend_reset_event_payload,
+                            };
+                            AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                            let value_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_capture_changed_event_metadata_source,
+                                backend: value_native_audio_default_capture_changed_event_metadata_backend,
+                                flags: value_native_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
+                                device_id: value_native_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                kind: value_native_audio_default_capture_changed_event_kind,
+                                metadata: value_native_audio_default_capture_changed_event_metadata,
+                                payload: value_native_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                            let value_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_loopback_changed_event_metadata_source,
+                                backend: value_native_audio_default_loopback_changed_event_metadata_backend,
+                                flags: value_native_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
+                                device_id: value_native_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                kind: value_native_audio_default_loopback_changed_event_kind,
+                                metadata: value_native_audio_default_loopback_changed_event_metadata,
+                                payload: value_native_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                            let value_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_playback_changed_event_metadata_source,
+                                backend: value_native_audio_default_playback_changed_event_metadata_backend,
+                                flags: value_native_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
+                                device_id: value_native_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                kind: value_native_audio_default_playback_changed_event_kind,
+                                metadata: value_native_audio_default_playback_changed_event_metadata,
+                                payload: value_native_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                            let value_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_added_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_added_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_added_event_metadata_dropped_count,
+                                source: value_native_audio_device_added_event_metadata_source,
+                                backend: value_native_audio_device_added_event_metadata_backend,
+                                flags: value_native_audio_device_added_event_metadata_flags,
+                            };
+                            let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
+                                device_id: value_native_audio_device_added_event_payload_device_id,
+                            };
+                            let value_native_audio_device_added_event = AudioDeviceAddedEvent {
+                                kind: value_native_audio_device_added_event_kind,
+                                metadata: value_native_audio_device_added_event_metadata,
+                                payload: value_native_audio_device_added_event_payload,
+                            };
+                            AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                            let value_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_format_changed_event_metadata_dropped_count,
+                                source: value_native_audio_device_format_changed_event_metadata_source,
+                                backend: value_native_audio_device_format_changed_event_metadata_backend,
+                                flags: value_native_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
+                                device_id: value_native_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                kind: value_native_audio_device_format_changed_event_kind,
+                                metadata: value_native_audio_device_format_changed_event_metadata,
+                                payload: value_native_audio_device_format_changed_event_payload,
+                            };
+                            AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                            let value_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_removed_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_removed_event_metadata_dropped_count,
+                                source: value_native_audio_device_removed_event_metadata_source,
+                                backend: value_native_audio_device_removed_event_metadata_backend,
+                                flags: value_native_audio_device_removed_event_metadata_flags,
+                            };
+                            let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
+                                device_id: value_native_audio_device_removed_event_payload_device_id,
+                            };
+                            let value_native_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                kind: value_native_audio_device_removed_event_kind,
+                                metadata: value_native_audio_device_removed_event_metadata,
+                                payload: value_native_audio_device_removed_event_payload,
+                            };
+                            AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                            let value_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_rerouted_event_metadata_dropped_count,
+                                source: value_native_audio_device_rerouted_event_metadata_source,
+                                backend: value_native_audio_device_rerouted_event_metadata_backend,
+                                flags: value_native_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
+                                device_id: value_native_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let value_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                kind: value_native_audio_device_rerouted_event_kind,
+                                metadata: value_native_audio_device_rerouted_event_metadata,
+                                payload: value_native_audio_device_rerouted_event_payload,
+                            };
+                            AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                            let value_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let value_native_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: value_native_audio_interruption_began_event_metadata_dropped_count,
+                                source: value_native_audio_interruption_began_event_metadata_source,
+                                backend: value_native_audio_interruption_began_event_metadata_backend,
+                                flags: value_native_audio_interruption_began_event_metadata_flags,
+                            };
+                            let value_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(value_native_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: value_native_audio_interruption_began_event_payload_stream,
+                            };
+                            let value_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                kind: value_native_audio_interruption_began_event_kind,
+                                metadata: value_native_audio_interruption_began_event_metadata,
+                                payload: value_native_audio_interruption_began_event_payload,
+                            };
+                            AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                            let value_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let value_native_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: value_native_audio_interruption_ended_event_metadata_dropped_count,
+                                source: value_native_audio_interruption_ended_event_metadata_source,
+                                backend: value_native_audio_interruption_ended_event_metadata_backend,
+                                flags: value_native_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let value_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(value_native_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: value_native_audio_interruption_ended_event_payload_stream,
+                            };
+                            let value_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                kind: value_native_audio_interruption_ended_event_kind,
+                                metadata: value_native_audio_interruption_ended_event_metadata,
+                                payload: value_native_audio_interruption_ended_event_payload,
+                            };
+                            AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                            let value_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: value_native_audio_stream_device_changed_event_metadata_source,
+                                backend: value_native_audio_stream_device_changed_event_metadata_backend,
+                                flags: value_native_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
+                                stream: value_native_audio_stream_device_changed_event_payload_stream,
+                                status_flags: value_native_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: value_native_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                kind: value_native_audio_stream_device_changed_event_kind,
+                                metadata: value_native_audio_stream_device_changed_event_metadata,
+                                payload: value_native_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                            let value_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: value_native_audio_stream_state_changed_event_metadata_source,
+                                backend: value_native_audio_stream_state_changed_event_metadata_backend,
+                                flags: value_native_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: value_native_audio_stream_state_changed_event_payload_stream,
+                                status_flags: value_native_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let value_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                kind: value_native_audio_stream_state_changed_event_kind,
+                                metadata: value_native_audio_stream_state_changed_event_metadata,
+                                payload: value_native_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                            let value_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_x_run_event_metadata_dropped_count,
+                                source: value_native_audio_stream_x_run_event_metadata_source,
+                                backend: value_native_audio_stream_x_run_event_metadata_backend,
+                                flags: value_native_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
+                                stream: value_native_audio_stream_x_run_event_payload_stream,
+                                status_flags: value_native_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: value_native_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: value_native_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let value_native_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                kind: value_native_audio_stream_x_run_event_kind,
+                                metadata: value_native_audio_stream_x_run_event_metadata,
+                                payload: value_native_audio_stream_x_run_event_payload,
+                            };
+                            AudioEvent::AudioStreamXRunEvent(value_native_audio_stream_x_run_event)
+                        }
                     };
-                    let value_native_stream = if let Some(value) = value.stream {
-                        let value_native_stream_inner = value;
-                        Some(value_native_stream_inner)
-                    } else {
-                        None
-                    };
-                    let value_native = AudioEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        dropped_count: value_native_dropped_count,
-                        source: value_native_source,
-                        backend: value_native_backend,
-                        flags: value_native_flags,
-                        status_flags: value_native_status_flags,
-                        xrun_count_delta: value_native_xrun_count_delta,
-                        device_id: value_native_device_id,
-                        stream: value_native_stream,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -4842,69 +6455,490 @@ fn destack_audio_event_read_batch_replay(
         AUDIO_EVENT_READ_BATCH,
         context.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_read_batch(
-                    context, out, handle, maxevents, timeoutns,
-                )
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_read_batch(
-                    context, out, handle, maxevents, timeoutns,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_read_batch(context, out, handle, maxevents, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_read_batch(context, out, handle, maxevents, timeoutns) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
                 let result_recorded_raw = unsafe { result_value.as_slice()? };
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns =
-                        result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_dropped_count =
-                        result_recorded_item.dropped_count;
-                    let result_recorded_item_recorded_source = result_recorded_item.source;
-                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                    let result_recorded_item_recorded_status_flags =
-                        result_recorded_item.status_flags;
-                    let result_recorded_item_recorded_xrun_count_delta =
-                        result_recorded_item.xrun_count_delta;
-                    let result_recorded_item_recorded_device_id =
-                        if let Some(value) = result_recorded_item.device_id {
-                            let result_recorded_item_recorded_device_id_inner =
-                                unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_item_recorded_device_id_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded_stream =
-                        if let Some(value) = result_recorded_item.stream {
-                            let result_recorded_item_recorded_stream_inner = value;
-                            Some(result_recorded_item_recorded_stream_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded = AudioEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        dropped_count: result_recorded_item_recorded_dropped_count,
-                        source: result_recorded_item_recorded_source,
-                        backend: result_recorded_item_recorded_backend,
-                        flags: result_recorded_item_recorded_flags,
-                        status_flags: result_recorded_item_recorded_status_flags,
-                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
-                        device_id: result_recorded_item_recorded_device_id,
-                        stream: result_recorded_item_recorded_stream,
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        AudioEvent::AudioBackendDisconnectedEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
+                        }
+                        AudioEvent::AudioBackendResetEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_reset_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_reset_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
+                        }
+                        AudioEvent::AudioDefaultCaptureChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
+                        }
+                        AudioEvent::AudioDefaultLoopbackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
+                        }
+                        AudioEvent::AudioDefaultPlaybackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
+                        }
+                        AudioEvent::AudioDeviceAddedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_added_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_added_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_added_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
+                        }
+                        AudioEvent::AudioDeviceFormatChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_format_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_format_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
+                        }
+                        AudioEvent::AudioDeviceRemovedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_removed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_removed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_removed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
+                        }
+                        AudioEvent::AudioDeviceReroutedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_rerouted_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_rerouted_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
+                        }
+                        AudioEvent::AudioInterruptionBeganEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_began_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_began_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
+                        }
+                        AudioEvent::AudioInterruptionEndedEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_ended_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_ended_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
+                        }
+                        AudioEvent::AudioStreamDeviceChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
+                        }
+                        AudioEvent::AudioStreamStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
+                        }
+                        AudioEvent::AudioStreamXRunEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_x_run_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_x_run_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -4917,7 +6951,9 @@ fn destack_audio_event_read_batch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventReadBatchReplay { result }
+                    AudioEventReadBatchReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -4930,51 +6966,482 @@ fn destack_audio_event_read_batch_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_kind = value_native_item.kind;
-                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
-                        let value_native_item_native_sequence = value_native_item.sequence;
-                        let value_native_item_native_dropped_count =
-                            value_native_item.dropped_count;
-                        let value_native_item_native_source = value_native_item.source;
-                        let value_native_item_native_backend = value_native_item.backend;
-                        let value_native_item_native_flags = value_native_item.flags;
-                        let value_native_item_native_status_flags = value_native_item.status_flags;
-                        let value_native_item_native_xrun_count_delta =
-                            value_native_item.xrun_count_delta;
-                        let value_native_item_native_device_id =
-                            if let Some(value) = value_native_item.device_id {
-                                let value_native_item_native_device_id_inner =
-                                    context.store_string(&value);
-                                Some(value_native_item_native_device_id_inner)
-                            } else {
-                                None
-                            };
-                        let value_native_item_native_stream =
-                            if let Some(value) = value_native_item.stream {
-                                let value_native_item_native_stream_inner = value;
-                                Some(value_native_item_native_stream_inner)
-                            } else {
-                                None
-                            };
-                        let value_native_item_native = AudioEvent {
-                            kind: value_native_item_native_kind,
-                            timestamp_ns: value_native_item_native_timestamp_ns,
-                            sequence: value_native_item_native_sequence,
-                            dropped_count: value_native_item_native_dropped_count,
-                            source: value_native_item_native_source,
-                            backend: value_native_item_native_backend,
-                            flags: value_native_item_native_flags,
-                            status_flags: value_native_item_native_status_flags,
-                            xrun_count_delta: value_native_item_native_xrun_count_delta,
-                            device_id: value_native_item_native_device_id,
-                            stream: value_native_item_native_stream,
+                        let value_native_item_native = match value_native_item {
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                let value_native_item_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_backend_disconnected_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_backend_disconnected_event_metadata_source,
+                                    backend: value_native_item_native_audio_backend_disconnected_event_metadata_backend,
+                                    flags: value_native_item_native_audio_backend_disconnected_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_backend_disconnected_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_backend_disconnected_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                    stream: value_native_item_native_audio_backend_disconnected_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                    kind: value_native_item_native_audio_backend_disconnected_event_kind,
+                                    metadata: value_native_item_native_audio_backend_disconnected_event_metadata,
+                                    payload: value_native_item_native_audio_backend_disconnected_event_payload,
+                                };
+                                AudioEvent::AudioBackendDisconnectedEvent(value_native_item_native_audio_backend_disconnected_event)
+                            }
+                            AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                                let value_native_item_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_backend_reset_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_backend_reset_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_backend_reset_event_metadata_source,
+                                    backend: value_native_item_native_audio_backend_reset_event_metadata_backend,
+                                    flags: value_native_item_native_audio_backend_reset_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_backend_reset_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_backend_reset_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                    stream: value_native_item_native_audio_backend_reset_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_backend_reset_event = AudioBackendResetEvent {
+                                    kind: value_native_item_native_audio_backend_reset_event_kind,
+                                    metadata: value_native_item_native_audio_backend_reset_event_metadata,
+                                    payload: value_native_item_native_audio_backend_reset_event_payload,
+                                };
+                                AudioEvent::AudioBackendResetEvent(value_native_item_native_audio_backend_reset_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                let value_native_item_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_capture_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_capture_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_capture_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_capture_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
+                                    device_id: value_native_item_native_audio_default_capture_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                    kind: value_native_item_native_audio_default_capture_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_capture_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_capture_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultCaptureChangedEvent(value_native_item_native_audio_default_capture_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                let value_native_item_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_loopback_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_loopback_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_loopback_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_loopback_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
+                                    device_id: value_native_item_native_audio_default_loopback_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                    kind: value_native_item_native_audio_default_loopback_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_loopback_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_loopback_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_item_native_audio_default_loopback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                let value_native_item_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_playback_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_playback_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_playback_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_playback_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
+                                    device_id: value_native_item_native_audio_default_playback_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                    kind: value_native_item_native_audio_default_playback_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_playback_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_playback_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_item_native_audio_default_playback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                let value_native_item_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_added_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_added_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_added_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_added_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_added_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_added_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_added_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_added_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_added_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
+                                    device_id: value_native_item_native_audio_device_added_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_added_event = AudioDeviceAddedEvent {
+                                    kind: value_native_item_native_audio_device_added_event_kind,
+                                    metadata: value_native_item_native_audio_device_added_event_metadata,
+                                    payload: value_native_item_native_audio_device_added_event_payload,
+                                };
+                                AudioEvent::AudioDeviceAddedEvent(value_native_item_native_audio_device_added_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                let value_native_item_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_format_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_format_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_format_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_format_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_format_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_format_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
+                                    device_id: value_native_item_native_audio_device_format_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                    kind: value_native_item_native_audio_device_format_changed_event_kind,
+                                    metadata: value_native_item_native_audio_device_format_changed_event_metadata,
+                                    payload: value_native_item_native_audio_device_format_changed_event_payload,
+                                };
+                                AudioEvent::AudioDeviceFormatChangedEvent(value_native_item_native_audio_device_format_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                let value_native_item_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_removed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_removed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_removed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_removed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_removed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_removed_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_removed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_removed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_removed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
+                                    device_id: value_native_item_native_audio_device_removed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                    kind: value_native_item_native_audio_device_removed_event_kind,
+                                    metadata: value_native_item_native_audio_device_removed_event_metadata,
+                                    payload: value_native_item_native_audio_device_removed_event_payload,
+                                };
+                                AudioEvent::AudioDeviceRemovedEvent(value_native_item_native_audio_device_removed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                let value_native_item_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_rerouted_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_rerouted_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_rerouted_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_rerouted_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_rerouted_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_rerouted_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
+                                    device_id: value_native_item_native_audio_device_rerouted_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                    kind: value_native_item_native_audio_device_rerouted_event_kind,
+                                    metadata: value_native_item_native_audio_device_rerouted_event_metadata,
+                                    payload: value_native_item_native_audio_device_rerouted_event_payload,
+                                };
+                                AudioEvent::AudioDeviceReroutedEvent(value_native_item_native_audio_device_rerouted_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                let value_native_item_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_interruption_began_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_interruption_began_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_interruption_began_event_metadata_source,
+                                    backend: value_native_item_native_audio_interruption_began_event_metadata_backend,
+                                    flags: value_native_item_native_audio_interruption_began_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_interruption_began_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_interruption_began_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                    stream: value_native_item_native_audio_interruption_began_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                    kind: value_native_item_native_audio_interruption_began_event_kind,
+                                    metadata: value_native_item_native_audio_interruption_began_event_metadata,
+                                    payload: value_native_item_native_audio_interruption_began_event_payload,
+                                };
+                                AudioEvent::AudioInterruptionBeganEvent(value_native_item_native_audio_interruption_began_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                let value_native_item_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_interruption_ended_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_interruption_ended_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_interruption_ended_event_metadata_source,
+                                    backend: value_native_item_native_audio_interruption_ended_event_metadata_backend,
+                                    flags: value_native_item_native_audio_interruption_ended_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_interruption_ended_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_interruption_ended_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                    stream: value_native_item_native_audio_interruption_ended_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                    kind: value_native_item_native_audio_interruption_ended_event_kind,
+                                    metadata: value_native_item_native_audio_interruption_ended_event_metadata,
+                                    payload: value_native_item_native_audio_interruption_ended_event_payload,
+                                };
+                                AudioEvent::AudioInterruptionEndedEvent(value_native_item_native_audio_interruption_ended_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                let value_native_item_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_device_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_device_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_device_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_device_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_device_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
+                                    stream: value_native_item_native_audio_stream_device_changed_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_device_changed_event_payload_status_flags,
+                                    device_id: value_native_item_native_audio_stream_device_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                    kind: value_native_item_native_audio_stream_device_changed_event_kind,
+                                    metadata: value_native_item_native_audio_stream_device_changed_event_metadata,
+                                    payload: value_native_item_native_audio_stream_device_changed_event_payload,
+                                };
+                                AudioEvent::AudioStreamDeviceChangedEvent(value_native_item_native_audio_stream_device_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                let value_native_item_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_state_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_state_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_state_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_state_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_state_changed_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_state_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                    stream: value_native_item_native_audio_stream_state_changed_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_state_changed_event_payload_status_flags,
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                    kind: value_native_item_native_audio_stream_state_changed_event_kind,
+                                    metadata: value_native_item_native_audio_stream_state_changed_event_metadata,
+                                    payload: value_native_item_native_audio_stream_state_changed_event_payload,
+                                };
+                                AudioEvent::AudioStreamStateChangedEvent(value_native_item_native_audio_stream_state_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                                let value_native_item_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_x_run_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_x_run_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_x_run_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_x_run_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_x_run_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_x_run_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_x_run_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                                let value_native_item_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_stream_x_run_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
+                                    stream: value_native_item_native_audio_stream_x_run_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_x_run_event_payload_status_flags,
+                                    xrun_count_delta: value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta,
+                                    device_id: value_native_item_native_audio_stream_x_run_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                    kind: value_native_item_native_audio_stream_x_run_event_kind,
+                                    metadata: value_native_item_native_audio_stream_x_run_event_metadata,
+                                    payload: value_native_item_native_audio_stream_x_run_event_payload,
+                                };
+                                AudioEvent::AudioStreamXRunEvent(value_native_item_native_audio_stream_x_run_event)
+                            }
                         };
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_slice(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -4996,54 +7463,486 @@ fn destack_audio_event_try_read_replay(
         AUDIO_EVENT_TRY_READ,
         context.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_try_read(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_try_read(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_dropped_count = result_value.dropped_count;
-                let result_recorded_source = result_value.source;
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_flags = result_value.flags;
-                let result_recorded_status_flags = result_value.status_flags;
-                let result_recorded_xrun_count_delta = result_value.xrun_count_delta;
-                let result_recorded_device_id = if let Some(value) = result_value.device_id {
-                    let result_recorded_device_id_inner = unsafe { value.as_str()? }.to_string();
-                    Some(result_recorded_device_id_inner)
-                } else {
-                    None
-                };
-                let result_recorded_stream = if let Some(value) = result_value.stream {
-                    let result_recorded_stream_inner = value;
-                    Some(result_recorded_stream_inner)
-                } else {
-                    None
-                };
-                let result_recorded = AudioEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    dropped_count: result_recorded_dropped_count,
-                    source: result_recorded_source,
-                    backend: result_recorded_backend,
-                    flags: result_recorded_flags,
-                    status_flags: result_recorded_status_flags,
-                    xrun_count_delta: result_recorded_xrun_count_delta,
-                    device_id: result_recorded_device_id,
-                    stream: result_recorded_stream,
+                let result_recorded = match result_value {
+                    AudioEvent::AudioBackendDisconnectedEvent(value) => {
+                        let result_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_disconnected_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_disconnected_event_metadata_source,
+                            backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
+                            flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                            kind: result_recorded_audio_backend_disconnected_event_kind,
+                            metadata: result_recorded_audio_backend_disconnected_event_metadata,
+                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
+                    }
+                    AudioEvent::AudioBackendResetEvent(value) => {
+                        let result_recorded_audio_backend_reset_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_reset_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_reset_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_reset_event_metadata_source,
+                            backend: result_recorded_audio_backend_reset_event_metadata_backend,
+                            flags: result_recorded_audio_backend_reset_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                            stream: result_recorded_audio_backend_reset_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                            kind: result_recorded_audio_backend_reset_event_kind,
+                            metadata: result_recorded_audio_backend_reset_event_metadata,
+                            payload: result_recorded_audio_backend_reset_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
+                    }
+                    AudioEvent::AudioDefaultCaptureChangedEvent(value) => {
+                        let result_recorded_audio_default_capture_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_capture_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_capture_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_capture_changed_event_kind,
+                            metadata: result_recorded_audio_default_capture_changed_event_metadata,
+                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
+                    }
+                    AudioEvent::AudioDefaultLoopbackChangedEvent(value) => {
+                        let result_recorded_audio_default_loopback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_loopback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_loopback_changed_event_kind,
+                            metadata: result_recorded_audio_default_loopback_changed_event_metadata,
+                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
+                    }
+                    AudioEvent::AudioDefaultPlaybackChangedEvent(value) => {
+                        let result_recorded_audio_default_playback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_playback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_playback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_playback_changed_event_kind,
+                            metadata: result_recorded_audio_default_playback_changed_event_metadata,
+                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
+                    }
+                    AudioEvent::AudioDeviceAddedEvent(value) => {
+                        let result_recorded_audio_device_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_added_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_added_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_added_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_added_event_metadata_source,
+                            backend: result_recorded_audio_device_added_event_metadata_backend,
+                            flags: result_recorded_audio_device_added_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_added_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                            kind: result_recorded_audio_device_added_event_kind,
+                            metadata: result_recorded_audio_device_added_event_metadata,
+                            payload: result_recorded_audio_device_added_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
+                    }
+                    AudioEvent::AudioDeviceFormatChangedEvent(value) => {
+                        let result_recorded_audio_device_format_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_format_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_format_changed_event_metadata_source,
+                            backend: result_recorded_audio_device_format_changed_event_metadata_backend,
+                            flags: result_recorded_audio_device_format_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                            kind: result_recorded_audio_device_format_changed_event_kind,
+                            metadata: result_recorded_audio_device_format_changed_event_metadata,
+                            payload: result_recorded_audio_device_format_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
+                    }
+                    AudioEvent::AudioDeviceRemovedEvent(value) => {
+                        let result_recorded_audio_device_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_removed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_removed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_removed_event_metadata_source,
+                            backend: result_recorded_audio_device_removed_event_metadata_backend,
+                            flags: result_recorded_audio_device_removed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                            kind: result_recorded_audio_device_removed_event_kind,
+                            metadata: result_recorded_audio_device_removed_event_metadata,
+                            payload: result_recorded_audio_device_removed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
+                    }
+                    AudioEvent::AudioDeviceReroutedEvent(value) => {
+                        let result_recorded_audio_device_rerouted_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_rerouted_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_rerouted_event_metadata_source,
+                            backend: result_recorded_audio_device_rerouted_event_metadata_backend,
+                            flags: result_recorded_audio_device_rerouted_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                            kind: result_recorded_audio_device_rerouted_event_kind,
+                            metadata: result_recorded_audio_device_rerouted_event_metadata,
+                            payload: result_recorded_audio_device_rerouted_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
+                    }
+                    AudioEvent::AudioInterruptionBeganEvent(value) => {
+                        let result_recorded_audio_interruption_began_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_began_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_began_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_began_event_metadata_source,
+                            backend: result_recorded_audio_interruption_began_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_began_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                            stream: result_recorded_audio_interruption_began_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                            kind: result_recorded_audio_interruption_began_event_kind,
+                            metadata: result_recorded_audio_interruption_began_event_metadata,
+                            payload: result_recorded_audio_interruption_began_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
+                    }
+                    AudioEvent::AudioInterruptionEndedEvent(value) => {
+                        let result_recorded_audio_interruption_ended_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_ended_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_ended_event_metadata_source,
+                            backend: result_recorded_audio_interruption_ended_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_ended_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                            kind: result_recorded_audio_interruption_ended_event_kind,
+                            metadata: result_recorded_audio_interruption_ended_event_metadata,
+                            payload: result_recorded_audio_interruption_ended_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
+                    }
+                    AudioEvent::AudioStreamDeviceChangedEvent(value) => {
+                        let result_recorded_audio_stream_device_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_device_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_device_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_device_changed_event_kind,
+                            metadata: result_recorded_audio_stream_device_changed_event_metadata,
+                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
+                    }
+                    AudioEvent::AudioStreamStateChangedEvent(value) => {
+                        let result_recorded_audio_stream_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_state_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_state_changed_event_kind,
+                            metadata: result_recorded_audio_stream_state_changed_event_metadata,
+                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
+                    }
+                    AudioEvent::AudioStreamXRunEvent(value) => {
+                        let result_recorded_audio_stream_x_run_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_x_run_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_x_run_event_metadata_source,
+                            backend: result_recorded_audio_stream_x_run_event_metadata_backend,
+                            flags: result_recorded_audio_stream_x_run_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                            kind: result_recorded_audio_stream_x_run_event_kind,
+                            metadata: result_recorded_audio_stream_x_run_event_metadata,
+                            payload: result_recorded_audio_stream_x_run_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
+                    }
                 };
                 let payload = AudioEventTryReadReplay {
                     result: Ok(result_recorded),
@@ -5054,7 +7953,9 @@ fn destack_audio_event_try_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventTryReadReplay { result }
+                    AudioEventTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -5065,43 +7966,479 @@ fn destack_audio_event_try_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_dropped_count = value.dropped_count;
-                    let value_native_source = value.source;
-                    let value_native_backend = value.backend;
-                    let value_native_flags = value.flags;
-                    let value_native_status_flags = value.status_flags;
-                    let value_native_xrun_count_delta = value.xrun_count_delta;
-                    let value_native_device_id = if let Some(value) = value.device_id {
-                        let value_native_device_id_inner = context.store_string(&value);
-                        Some(value_native_device_id_inner)
-                    } else {
-                        None
+                    let value_native = match value {
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                            let value_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let value_native_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: value_native_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: value_native_audio_backend_disconnected_event_metadata_source,
+                                backend: value_native_audio_backend_disconnected_event_metadata_backend,
+                                flags: value_native_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let value_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(value_native_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: value_native_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let value_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                kind: value_native_audio_backend_disconnected_event_kind,
+                                metadata: value_native_audio_backend_disconnected_event_metadata,
+                                payload: value_native_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEvent::AudioBackendDisconnectedEvent(value_native_audio_backend_disconnected_event)
+                        }
+                        AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                            let value_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let value_native_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: value_native_audio_backend_reset_event_metadata_dropped_count,
+                                source: value_native_audio_backend_reset_event_metadata_source,
+                                backend: value_native_audio_backend_reset_event_metadata_backend,
+                                flags: value_native_audio_backend_reset_event_metadata_flags,
+                            };
+                            let value_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(value_native_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: value_native_audio_backend_reset_event_payload_stream,
+                            };
+                            let value_native_audio_backend_reset_event = AudioBackendResetEvent {
+                                kind: value_native_audio_backend_reset_event_kind,
+                                metadata: value_native_audio_backend_reset_event_metadata,
+                                payload: value_native_audio_backend_reset_event_payload,
+                            };
+                            AudioEvent::AudioBackendResetEvent(value_native_audio_backend_reset_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                            let value_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_capture_changed_event_metadata_source,
+                                backend: value_native_audio_default_capture_changed_event_metadata_backend,
+                                flags: value_native_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
+                                device_id: value_native_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                kind: value_native_audio_default_capture_changed_event_kind,
+                                metadata: value_native_audio_default_capture_changed_event_metadata,
+                                payload: value_native_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultCaptureChangedEvent(value_native_audio_default_capture_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                            let value_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_loopback_changed_event_metadata_source,
+                                backend: value_native_audio_default_loopback_changed_event_metadata_backend,
+                                flags: value_native_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
+                                device_id: value_native_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                kind: value_native_audio_default_loopback_changed_event_kind,
+                                metadata: value_native_audio_default_loopback_changed_event_metadata,
+                                payload: value_native_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_audio_default_loopback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                            let value_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: value_native_audio_default_playback_changed_event_metadata_source,
+                                backend: value_native_audio_default_playback_changed_event_metadata_backend,
+                                flags: value_native_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
+                                device_id: value_native_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                kind: value_native_audio_default_playback_changed_event_kind,
+                                metadata: value_native_audio_default_playback_changed_event_metadata,
+                                payload: value_native_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_audio_default_playback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                            let value_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_added_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_added_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_added_event_metadata_dropped_count,
+                                source: value_native_audio_device_added_event_metadata_source,
+                                backend: value_native_audio_device_added_event_metadata_backend,
+                                flags: value_native_audio_device_added_event_metadata_flags,
+                            };
+                            let value_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
+                                device_id: value_native_audio_device_added_event_payload_device_id,
+                            };
+                            let value_native_audio_device_added_event = AudioDeviceAddedEvent {
+                                kind: value_native_audio_device_added_event_kind,
+                                metadata: value_native_audio_device_added_event_metadata,
+                                payload: value_native_audio_device_added_event_payload,
+                            };
+                            AudioEvent::AudioDeviceAddedEvent(value_native_audio_device_added_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                            let value_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_format_changed_event_metadata_dropped_count,
+                                source: value_native_audio_device_format_changed_event_metadata_source,
+                                backend: value_native_audio_device_format_changed_event_metadata_backend,
+                                flags: value_native_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
+                                device_id: value_native_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                kind: value_native_audio_device_format_changed_event_kind,
+                                metadata: value_native_audio_device_format_changed_event_metadata,
+                                payload: value_native_audio_device_format_changed_event_payload,
+                            };
+                            AudioEvent::AudioDeviceFormatChangedEvent(value_native_audio_device_format_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                            let value_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_removed_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_removed_event_metadata_dropped_count,
+                                source: value_native_audio_device_removed_event_metadata_source,
+                                backend: value_native_audio_device_removed_event_metadata_backend,
+                                flags: value_native_audio_device_removed_event_metadata_flags,
+                            };
+                            let value_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
+                                device_id: value_native_audio_device_removed_event_payload_device_id,
+                            };
+                            let value_native_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                kind: value_native_audio_device_removed_event_kind,
+                                metadata: value_native_audio_device_removed_event_metadata,
+                                payload: value_native_audio_device_removed_event_payload,
+                            };
+                            AudioEvent::AudioDeviceRemovedEvent(value_native_audio_device_removed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                            let value_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let value_native_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: value_native_audio_device_rerouted_event_metadata_dropped_count,
+                                source: value_native_audio_device_rerouted_event_metadata_source,
+                                backend: value_native_audio_device_rerouted_event_metadata_backend,
+                                flags: value_native_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let value_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
+                                device_id: value_native_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let value_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                kind: value_native_audio_device_rerouted_event_kind,
+                                metadata: value_native_audio_device_rerouted_event_metadata,
+                                payload: value_native_audio_device_rerouted_event_payload,
+                            };
+                            AudioEvent::AudioDeviceReroutedEvent(value_native_audio_device_rerouted_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                            let value_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let value_native_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: value_native_audio_interruption_began_event_metadata_dropped_count,
+                                source: value_native_audio_interruption_began_event_metadata_source,
+                                backend: value_native_audio_interruption_began_event_metadata_backend,
+                                flags: value_native_audio_interruption_began_event_metadata_flags,
+                            };
+                            let value_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(value_native_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: value_native_audio_interruption_began_event_payload_stream,
+                            };
+                            let value_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                kind: value_native_audio_interruption_began_event_kind,
+                                metadata: value_native_audio_interruption_began_event_metadata,
+                                payload: value_native_audio_interruption_began_event_payload,
+                            };
+                            AudioEvent::AudioInterruptionBeganEvent(value_native_audio_interruption_began_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                            let value_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let value_native_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: value_native_audio_interruption_ended_event_metadata_dropped_count,
+                                source: value_native_audio_interruption_ended_event_metadata_source,
+                                backend: value_native_audio_interruption_ended_event_metadata_backend,
+                                flags: value_native_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let value_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(value_native_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: value_native_audio_interruption_ended_event_payload_stream,
+                            };
+                            let value_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                kind: value_native_audio_interruption_ended_event_kind,
+                                metadata: value_native_audio_interruption_ended_event_metadata,
+                                payload: value_native_audio_interruption_ended_event_payload,
+                            };
+                            AudioEvent::AudioInterruptionEndedEvent(value_native_audio_interruption_ended_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                            let value_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: value_native_audio_stream_device_changed_event_metadata_source,
+                                backend: value_native_audio_stream_device_changed_event_metadata_backend,
+                                flags: value_native_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
+                                stream: value_native_audio_stream_device_changed_event_payload_stream,
+                                status_flags: value_native_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: value_native_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let value_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                kind: value_native_audio_stream_device_changed_event_kind,
+                                metadata: value_native_audio_stream_device_changed_event_metadata,
+                                payload: value_native_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEvent::AudioStreamDeviceChangedEvent(value_native_audio_stream_device_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                            let value_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: value_native_audio_stream_state_changed_event_metadata_source,
+                                backend: value_native_audio_stream_state_changed_event_metadata_backend,
+                                flags: value_native_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: value_native_audio_stream_state_changed_event_payload_stream,
+                                status_flags: value_native_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let value_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                kind: value_native_audio_stream_state_changed_event_kind,
+                                metadata: value_native_audio_stream_state_changed_event_metadata,
+                                payload: value_native_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEvent::AudioStreamStateChangedEvent(value_native_audio_stream_state_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                            let value_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                            let value_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let value_native_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let value_native_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let value_native_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let value_native_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: value_native_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: value_native_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: value_native_audio_stream_x_run_event_metadata_dropped_count,
+                                source: value_native_audio_stream_x_run_event_metadata_source,
+                                backend: value_native_audio_stream_x_run_event_metadata_backend,
+                                flags: value_native_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let value_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let value_native_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(value_native_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let value_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let value_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let value_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                Some(value_native_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
+                                stream: value_native_audio_stream_x_run_event_payload_stream,
+                                status_flags: value_native_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: value_native_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: value_native_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let value_native_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                kind: value_native_audio_stream_x_run_event_kind,
+                                metadata: value_native_audio_stream_x_run_event_metadata,
+                                payload: value_native_audio_stream_x_run_event_payload,
+                            };
+                            AudioEvent::AudioStreamXRunEvent(value_native_audio_stream_x_run_event)
+                        }
                     };
-                    let value_native_stream = if let Some(value) = value.stream {
-                        let value_native_stream_inner = value;
-                        Some(value_native_stream_inner)
-                    } else {
-                        None
-                    };
-                    let value_native = AudioEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        dropped_count: value_native_dropped_count,
-                        source: value_native_source,
-                        backend: value_native_backend,
-                        flags: value_native_flags,
-                        status_flags: value_native_status_flags,
-                        xrun_count_delta: value_native_xrun_count_delta,
-                        device_id: value_native_device_id,
-                        stream: value_native_stream,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -5124,67 +8461,490 @@ fn destack_audio_event_try_read_batch_replay(
         AUDIO_EVENT_TRY_READ_BATCH,
         context.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_event_try_read_batch(context, out, handle, maxevents)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_event_try_read_batch(
-                    context, out, handle, maxevents,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_audio_event_try_read_batch(context, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_audio_event_try_read_batch(context, out, handle, maxevents) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
                 let result_recorded_raw = unsafe { result_value.as_slice()? };
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns =
-                        result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_dropped_count =
-                        result_recorded_item.dropped_count;
-                    let result_recorded_item_recorded_source = result_recorded_item.source;
-                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                    let result_recorded_item_recorded_status_flags =
-                        result_recorded_item.status_flags;
-                    let result_recorded_item_recorded_xrun_count_delta =
-                        result_recorded_item.xrun_count_delta;
-                    let result_recorded_item_recorded_device_id =
-                        if let Some(value) = result_recorded_item.device_id {
-                            let result_recorded_item_recorded_device_id_inner =
-                                unsafe { value.as_str()? }.to_string();
-                            Some(result_recorded_item_recorded_device_id_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded_stream =
-                        if let Some(value) = result_recorded_item.stream {
-                            let result_recorded_item_recorded_stream_inner = value;
-                            Some(result_recorded_item_recorded_stream_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded = AudioEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        dropped_count: result_recorded_item_recorded_dropped_count,
-                        source: result_recorded_item_recorded_source,
-                        backend: result_recorded_item_recorded_backend,
-                        flags: result_recorded_item_recorded_flags,
-                        status_flags: result_recorded_item_recorded_status_flags,
-                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
-                        device_id: result_recorded_item_recorded_device_id,
-                        stream: result_recorded_item_recorded_stream,
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        AudioEvent::AudioBackendDisconnectedEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
+                        }
+                        AudioEvent::AudioBackendResetEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_reset_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_reset_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
+                        }
+                        AudioEvent::AudioDefaultCaptureChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
+                        }
+                        AudioEvent::AudioDefaultLoopbackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
+                        }
+                        AudioEvent::AudioDefaultPlaybackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
+                        }
+                        AudioEvent::AudioDeviceAddedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_added_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_added_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_added_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
+                        }
+                        AudioEvent::AudioDeviceFormatChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_format_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_format_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
+                        }
+                        AudioEvent::AudioDeviceRemovedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_removed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_removed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_removed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
+                        }
+                        AudioEvent::AudioDeviceReroutedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_rerouted_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_rerouted_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
+                        }
+                        AudioEvent::AudioInterruptionBeganEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_began_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_began_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
+                        }
+                        AudioEvent::AudioInterruptionEndedEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_ended_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_ended_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
+                        }
+                        AudioEvent::AudioStreamDeviceChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
+                        }
+                        AudioEvent::AudioStreamStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
+                        }
+                        AudioEvent::AudioStreamXRunEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_x_run_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_x_run_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = unsafe { value.as_str()? }.to_string();
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -5197,7 +8957,9 @@ fn destack_audio_event_try_read_batch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventTryReadBatchReplay { result }
+                    AudioEventTryReadBatchReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -5210,51 +8972,482 @@ fn destack_audio_event_try_read_batch_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_kind = value_native_item.kind;
-                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
-                        let value_native_item_native_sequence = value_native_item.sequence;
-                        let value_native_item_native_dropped_count =
-                            value_native_item.dropped_count;
-                        let value_native_item_native_source = value_native_item.source;
-                        let value_native_item_native_backend = value_native_item.backend;
-                        let value_native_item_native_flags = value_native_item.flags;
-                        let value_native_item_native_status_flags = value_native_item.status_flags;
-                        let value_native_item_native_xrun_count_delta =
-                            value_native_item.xrun_count_delta;
-                        let value_native_item_native_device_id =
-                            if let Some(value) = value_native_item.device_id {
-                                let value_native_item_native_device_id_inner =
-                                    context.store_string(&value);
-                                Some(value_native_item_native_device_id_inner)
-                            } else {
-                                None
-                            };
-                        let value_native_item_native_stream =
-                            if let Some(value) = value_native_item.stream {
-                                let value_native_item_native_stream_inner = value;
-                                Some(value_native_item_native_stream_inner)
-                            } else {
-                                None
-                            };
-                        let value_native_item_native = AudioEvent {
-                            kind: value_native_item_native_kind,
-                            timestamp_ns: value_native_item_native_timestamp_ns,
-                            sequence: value_native_item_native_sequence,
-                            dropped_count: value_native_item_native_dropped_count,
-                            source: value_native_item_native_source,
-                            backend: value_native_item_native_backend,
-                            flags: value_native_item_native_flags,
-                            status_flags: value_native_item_native_status_flags,
-                            xrun_count_delta: value_native_item_native_xrun_count_delta,
-                            device_id: value_native_item_native_device_id,
-                            stream: value_native_item_native_stream,
+                        let value_native_item_native = match value_native_item {
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                let value_native_item_native_audio_backend_disconnected_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_backend_disconnected_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_backend_disconnected_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_backend_disconnected_event_metadata_source,
+                                    backend: value_native_item_native_audio_backend_disconnected_event_metadata_backend,
+                                    flags: value_native_item_native_audio_backend_disconnected_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_backend_disconnected_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_backend_disconnected_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                    stream: value_native_item_native_audio_backend_disconnected_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_backend_disconnected_event = AudioBackendDisconnectedEvent {
+                                    kind: value_native_item_native_audio_backend_disconnected_event_kind,
+                                    metadata: value_native_item_native_audio_backend_disconnected_event_metadata,
+                                    payload: value_native_item_native_audio_backend_disconnected_event_payload,
+                                };
+                                AudioEvent::AudioBackendDisconnectedEvent(value_native_item_native_audio_backend_disconnected_event)
+                            }
+                            AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                                let value_native_item_native_audio_backend_reset_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_backend_reset_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_backend_reset_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_backend_reset_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_backend_reset_event_metadata_source,
+                                    backend: value_native_item_native_audio_backend_reset_event_metadata_backend,
+                                    flags: value_native_item_native_audio_backend_reset_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_backend_reset_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_backend_reset_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                    stream: value_native_item_native_audio_backend_reset_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_backend_reset_event = AudioBackendResetEvent {
+                                    kind: value_native_item_native_audio_backend_reset_event_kind,
+                                    metadata: value_native_item_native_audio_backend_reset_event_metadata,
+                                    payload: value_native_item_native_audio_backend_reset_event_payload,
+                                };
+                                AudioEvent::AudioBackendResetEvent(value_native_item_native_audio_backend_reset_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                let value_native_item_native_audio_default_capture_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_capture_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_capture_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_capture_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_capture_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_capture_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_capture_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayload {
+                                    device_id: value_native_item_native_audio_default_capture_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_capture_changed_event = AudioDefaultCaptureChangedEvent {
+                                    kind: value_native_item_native_audio_default_capture_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_capture_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_capture_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultCaptureChangedEvent(value_native_item_native_audio_default_capture_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                let value_native_item_native_audio_default_loopback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_loopback_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_loopback_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_loopback_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_loopback_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_loopback_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_loopback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayload {
+                                    device_id: value_native_item_native_audio_default_loopback_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEvent {
+                                    kind: value_native_item_native_audio_default_loopback_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_loopback_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_loopback_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultLoopbackChangedEvent(value_native_item_native_audio_default_loopback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                let value_native_item_native_audio_default_playback_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_default_playback_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_default_playback_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_default_playback_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_default_playback_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_default_playback_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_default_playback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayload {
+                                    device_id: value_native_item_native_audio_default_playback_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEvent {
+                                    kind: value_native_item_native_audio_default_playback_changed_event_kind,
+                                    metadata: value_native_item_native_audio_default_playback_changed_event_metadata,
+                                    payload: value_native_item_native_audio_default_playback_changed_event_payload,
+                                };
+                                AudioEvent::AudioDefaultPlaybackChangedEvent(value_native_item_native_audio_default_playback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                let value_native_item_native_audio_device_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_added_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_added_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_added_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_added_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_added_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_added_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_added_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_added_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_added_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_added_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_added_event_payload = AudioDeviceAddedPayload {
+                                    device_id: value_native_item_native_audio_device_added_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_added_event = AudioDeviceAddedEvent {
+                                    kind: value_native_item_native_audio_device_added_event_kind,
+                                    metadata: value_native_item_native_audio_device_added_event_metadata,
+                                    payload: value_native_item_native_audio_device_added_event_payload,
+                                };
+                                AudioEvent::AudioDeviceAddedEvent(value_native_item_native_audio_device_added_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                let value_native_item_native_audio_device_format_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_format_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_format_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_format_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_format_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_format_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_format_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_format_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_format_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayload {
+                                    device_id: value_native_item_native_audio_device_format_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_format_changed_event = AudioDeviceFormatChangedEvent {
+                                    kind: value_native_item_native_audio_device_format_changed_event_kind,
+                                    metadata: value_native_item_native_audio_device_format_changed_event_metadata,
+                                    payload: value_native_item_native_audio_device_format_changed_event_payload,
+                                };
+                                AudioEvent::AudioDeviceFormatChangedEvent(value_native_item_native_audio_device_format_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                let value_native_item_native_audio_device_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_removed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_removed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_removed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_removed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_removed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_removed_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_removed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_removed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_removed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_removed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_removed_event_payload = AudioDeviceRemovedPayload {
+                                    device_id: value_native_item_native_audio_device_removed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_removed_event = AudioDeviceRemovedEvent {
+                                    kind: value_native_item_native_audio_device_removed_event_kind,
+                                    metadata: value_native_item_native_audio_device_removed_event_metadata,
+                                    payload: value_native_item_native_audio_device_removed_event_payload,
+                                };
+                                AudioEvent::AudioDeviceRemovedEvent(value_native_item_native_audio_device_removed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                let value_native_item_native_audio_device_rerouted_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_device_rerouted_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_device_rerouted_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_device_rerouted_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_device_rerouted_event_metadata_source,
+                                    backend: value_native_item_native_audio_device_rerouted_event_metadata_backend,
+                                    flags: value_native_item_native_audio_device_rerouted_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_device_rerouted_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_device_rerouted_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_device_rerouted_event_payload = AudioDeviceReroutedPayload {
+                                    device_id: value_native_item_native_audio_device_rerouted_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_device_rerouted_event = AudioDeviceReroutedEvent {
+                                    kind: value_native_item_native_audio_device_rerouted_event_kind,
+                                    metadata: value_native_item_native_audio_device_rerouted_event_metadata,
+                                    payload: value_native_item_native_audio_device_rerouted_event_payload,
+                                };
+                                AudioEvent::AudioDeviceReroutedEvent(value_native_item_native_audio_device_rerouted_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                let value_native_item_native_audio_interruption_began_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_interruption_began_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_interruption_began_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_interruption_began_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_interruption_began_event_metadata_source,
+                                    backend: value_native_item_native_audio_interruption_began_event_metadata_backend,
+                                    flags: value_native_item_native_audio_interruption_began_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_interruption_began_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_interruption_began_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                    stream: value_native_item_native_audio_interruption_began_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_interruption_began_event = AudioInterruptionBeganEvent {
+                                    kind: value_native_item_native_audio_interruption_began_event_kind,
+                                    metadata: value_native_item_native_audio_interruption_began_event_metadata,
+                                    payload: value_native_item_native_audio_interruption_began_event_payload,
+                                };
+                                AudioEvent::AudioInterruptionBeganEvent(value_native_item_native_audio_interruption_began_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                let value_native_item_native_audio_interruption_ended_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_interruption_ended_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_interruption_ended_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_interruption_ended_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_interruption_ended_event_metadata_source,
+                                    backend: value_native_item_native_audio_interruption_ended_event_metadata_backend,
+                                    flags: value_native_item_native_audio_interruption_ended_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_interruption_ended_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_interruption_ended_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                    stream: value_native_item_native_audio_interruption_ended_event_payload_stream,
+                                };
+                                let value_native_item_native_audio_interruption_ended_event = AudioInterruptionEndedEvent {
+                                    kind: value_native_item_native_audio_interruption_ended_event_kind,
+                                    metadata: value_native_item_native_audio_interruption_ended_event_metadata,
+                                    payload: value_native_item_native_audio_interruption_ended_event_payload,
+                                };
+                                AudioEvent::AudioInterruptionEndedEvent(value_native_item_native_audio_interruption_ended_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                let value_native_item_native_audio_stream_device_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_device_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_device_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_device_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_device_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_device_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_device_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_stream_device_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayload {
+                                    stream: value_native_item_native_audio_stream_device_changed_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_device_changed_event_payload_status_flags,
+                                    device_id: value_native_item_native_audio_stream_device_changed_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_stream_device_changed_event = AudioStreamDeviceChangedEvent {
+                                    kind: value_native_item_native_audio_stream_device_changed_event_kind,
+                                    metadata: value_native_item_native_audio_stream_device_changed_event_metadata,
+                                    payload: value_native_item_native_audio_stream_device_changed_event_payload,
+                                };
+                                AudioEvent::AudioStreamDeviceChangedEvent(value_native_item_native_audio_stream_device_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                let value_native_item_native_audio_stream_state_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_state_changed_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_state_changed_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_state_changed_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_state_changed_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_state_changed_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_state_changed_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_state_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                    stream: value_native_item_native_audio_stream_state_changed_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_state_changed_event_payload_status_flags,
+                                };
+                                let value_native_item_native_audio_stream_state_changed_event = AudioStreamStateChangedEvent {
+                                    kind: value_native_item_native_audio_stream_state_changed_event_kind,
+                                    metadata: value_native_item_native_audio_stream_state_changed_event_metadata,
+                                    payload: value_native_item_native_audio_stream_state_changed_event_payload,
+                                };
+                                AudioEvent::AudioStreamStateChangedEvent(value_native_item_native_audio_stream_state_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                                let value_native_item_native_audio_stream_x_run_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                let value_native_item_native_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                let value_native_item_native_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                    timestamp_ns: value_native_item_native_audio_stream_x_run_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_audio_stream_x_run_event_metadata_sequence,
+                                    dropped_count: value_native_item_native_audio_stream_x_run_event_metadata_dropped_count,
+                                    source: value_native_item_native_audio_stream_x_run_event_metadata_source,
+                                    backend: value_native_item_native_audio_stream_x_run_event_metadata_backend,
+                                    flags: value_native_item_native_audio_stream_x_run_event_metadata_flags,
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let value_native_item_native_audio_stream_x_run_event_payload_stream_inner = value;
+                                    Some(value_native_item_native_audio_stream_x_run_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                                let value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                                let value_native_item_native_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let value_native_item_native_audio_stream_x_run_event_payload_device_id_inner = context.store_string(&value);
+                                    Some(value_native_item_native_audio_stream_x_run_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let value_native_item_native_audio_stream_x_run_event_payload = AudioStreamXRunPayload {
+                                    stream: value_native_item_native_audio_stream_x_run_event_payload_stream,
+                                    status_flags: value_native_item_native_audio_stream_x_run_event_payload_status_flags,
+                                    xrun_count_delta: value_native_item_native_audio_stream_x_run_event_payload_xrun_count_delta,
+                                    device_id: value_native_item_native_audio_stream_x_run_event_payload_device_id,
+                                };
+                                let value_native_item_native_audio_stream_x_run_event = AudioStreamXRunEvent {
+                                    kind: value_native_item_native_audio_stream_x_run_event_kind,
+                                    metadata: value_native_item_native_audio_stream_x_run_event_metadata,
+                                    payload: value_native_item_native_audio_stream_x_run_event_payload,
+                                };
+                                AudioEvent::AudioStreamXRunEvent(value_native_item_native_audio_stream_x_run_event)
+                            }
                         };
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_slice(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -10229,56 +14422,556 @@ fn destack_audio_event_read_vm_replay(
         AUDIO_EVENT_READ,
         runtime.replay_payload_for(AUDIO_EVENT_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_event_read(runtime, context, handle, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read(runtime, context, handle, timeoutns),
             }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read(
-                runtime, context, handle, timeoutns,
-            ),
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: AudioEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_dropped_count = result_value.dropped_count;
-                let result_recorded_source = result_value.source;
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_flags = result_value.flags;
-                let result_recorded_status_flags = result_value.status_flags;
-                let result_recorded_xrun_count_delta = result_value.xrun_count_delta;
-                let result_recorded_device_id = if let Some(value) = result_value.device_id {
-                    let result_recorded_device_id_inner = {
-                        let result_recorded_device_id_inner_ref = context
-                            .string_ref(value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_device_id_inner_ref.as_str().to_string()
-                    };
-                    Some(result_recorded_device_id_inner)
-                } else {
-                    None
-                };
-                let result_recorded_stream = if let Some(value) = result_value.stream {
-                    let result_recorded_stream_inner = value;
-                    Some(result_recorded_stream_inner)
-                } else {
-                    None
-                };
-                let result_recorded = AudioEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    dropped_count: result_recorded_dropped_count,
-                    source: result_recorded_source,
-                    backend: result_recorded_backend,
-                    flags: result_recorded_flags,
-                    status_flags: result_recorded_status_flags,
-                    xrun_count_delta: result_recorded_xrun_count_delta,
-                    device_id: result_recorded_device_id,
-                    stream: result_recorded_stream,
+                let result_recorded = match result_value {
+                    AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+                        let result_recorded_audio_backend_disconnected_event_kind = {
+                            let result_recorded_audio_backend_disconnected_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_backend_disconnected_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_disconnected_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_disconnected_event_metadata_source,
+                            backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
+                            flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                            kind: result_recorded_audio_backend_disconnected_event_kind,
+                            metadata: result_recorded_audio_backend_disconnected_event_metadata,
+                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
+                    }
+                    AudioEventVm::AudioBackendResetEvent(value) => {
+                        let result_recorded_audio_backend_reset_event_kind = {
+                            let result_recorded_audio_backend_reset_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_backend_reset_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_reset_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_reset_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_reset_event_metadata_source,
+                            backend: result_recorded_audio_backend_reset_event_metadata_backend,
+                            flags: result_recorded_audio_backend_reset_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                            stream: result_recorded_audio_backend_reset_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                            kind: result_recorded_audio_backend_reset_event_kind,
+                            metadata: result_recorded_audio_backend_reset_event_metadata,
+                            payload: result_recorded_audio_backend_reset_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
+                    }
+                    AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+                        let result_recorded_audio_default_capture_changed_event_kind = {
+                            let result_recorded_audio_default_capture_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_capture_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_capture_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_capture_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_capture_changed_event_kind,
+                            metadata: result_recorded_audio_default_capture_changed_event_metadata,
+                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
+                    }
+                    AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+                        let result_recorded_audio_default_loopback_changed_event_kind = {
+                            let result_recorded_audio_default_loopback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_loopback_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_loopback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_loopback_changed_event_kind,
+                            metadata: result_recorded_audio_default_loopback_changed_event_metadata,
+                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
+                    }
+                    AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+                        let result_recorded_audio_default_playback_changed_event_kind = {
+                            let result_recorded_audio_default_playback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_playback_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_playback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_playback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_playback_changed_event_kind,
+                            metadata: result_recorded_audio_default_playback_changed_event_metadata,
+                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
+                    }
+                    AudioEventVm::AudioDeviceAddedEvent(value) => {
+                        let result_recorded_audio_device_added_event_kind = {
+                            let result_recorded_audio_device_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_added_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_added_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_added_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_added_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_added_event_metadata_source,
+                            backend: result_recorded_audio_device_added_event_metadata_backend,
+                            flags: result_recorded_audio_device_added_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_added_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_added_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                            kind: result_recorded_audio_device_added_event_kind,
+                            metadata: result_recorded_audio_device_added_event_metadata,
+                            payload: result_recorded_audio_device_added_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
+                    }
+                    AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+                        let result_recorded_audio_device_format_changed_event_kind = {
+                            let result_recorded_audio_device_format_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_format_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_format_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_format_changed_event_metadata_source,
+                            backend: result_recorded_audio_device_format_changed_event_metadata_backend,
+                            flags: result_recorded_audio_device_format_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                            kind: result_recorded_audio_device_format_changed_event_kind,
+                            metadata: result_recorded_audio_device_format_changed_event_metadata,
+                            payload: result_recorded_audio_device_format_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
+                    }
+                    AudioEventVm::AudioDeviceRemovedEvent(value) => {
+                        let result_recorded_audio_device_removed_event_kind = {
+                            let result_recorded_audio_device_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_removed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_removed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_removed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_removed_event_metadata_source,
+                            backend: result_recorded_audio_device_removed_event_metadata_backend,
+                            flags: result_recorded_audio_device_removed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_removed_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                            kind: result_recorded_audio_device_removed_event_kind,
+                            metadata: result_recorded_audio_device_removed_event_metadata,
+                            payload: result_recorded_audio_device_removed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
+                    }
+                    AudioEventVm::AudioDeviceReroutedEvent(value) => {
+                        let result_recorded_audio_device_rerouted_event_kind = {
+                            let result_recorded_audio_device_rerouted_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_rerouted_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_rerouted_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_rerouted_event_metadata_source,
+                            backend: result_recorded_audio_device_rerouted_event_metadata_backend,
+                            flags: result_recorded_audio_device_rerouted_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                            kind: result_recorded_audio_device_rerouted_event_kind,
+                            metadata: result_recorded_audio_device_rerouted_event_metadata,
+                            payload: result_recorded_audio_device_rerouted_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
+                    }
+                    AudioEventVm::AudioInterruptionBeganEvent(value) => {
+                        let result_recorded_audio_interruption_began_event_kind = {
+                            let result_recorded_audio_interruption_began_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_interruption_began_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_began_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_began_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_began_event_metadata_source,
+                            backend: result_recorded_audio_interruption_began_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_began_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                            stream: result_recorded_audio_interruption_began_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                            kind: result_recorded_audio_interruption_began_event_kind,
+                            metadata: result_recorded_audio_interruption_began_event_metadata,
+                            payload: result_recorded_audio_interruption_began_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
+                    }
+                    AudioEventVm::AudioInterruptionEndedEvent(value) => {
+                        let result_recorded_audio_interruption_ended_event_kind = {
+                            let result_recorded_audio_interruption_ended_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_interruption_ended_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_ended_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_ended_event_metadata_source,
+                            backend: result_recorded_audio_interruption_ended_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_ended_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                            kind: result_recorded_audio_interruption_ended_event_kind,
+                            metadata: result_recorded_audio_interruption_ended_event_metadata,
+                            payload: result_recorded_audio_interruption_ended_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
+                    }
+                    AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+                        let result_recorded_audio_stream_device_changed_event_kind = {
+                            let result_recorded_audio_stream_device_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_device_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_device_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_device_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_device_changed_event_kind,
+                            metadata: result_recorded_audio_stream_device_changed_event_metadata,
+                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
+                    }
+                    AudioEventVm::AudioStreamStateChangedEvent(value) => {
+                        let result_recorded_audio_stream_state_changed_event_kind = {
+                            let result_recorded_audio_stream_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_state_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_state_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_state_changed_event_kind,
+                            metadata: result_recorded_audio_stream_state_changed_event_metadata,
+                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
+                    }
+                    AudioEventVm::AudioStreamXRunEvent(value) => {
+                        let result_recorded_audio_stream_x_run_event_kind = {
+                            let result_recorded_audio_stream_x_run_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_x_run_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_x_run_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_x_run_event_metadata_source,
+                            backend: result_recorded_audio_stream_x_run_event_metadata_backend,
+                            flags: result_recorded_audio_stream_x_run_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = {
+                                let result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                            kind: result_recorded_audio_stream_x_run_event_kind,
+                            metadata: result_recorded_audio_stream_x_run_event_metadata,
+                            payload: result_recorded_audio_stream_x_run_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
+                    }
                 };
                 let payload = AudioEventReadReplay {
                     result: Ok(result_recorded),
@@ -10289,7 +14982,9 @@ fn destack_audio_event_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventReadReplay { result }
+                    AudioEventReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10301,41 +14996,500 @@ fn destack_audio_event_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_dropped_count = value.dropped_count;
-                    let vm_result_source = value.source;
-                    let vm_result_backend = value.backend;
-                    let vm_result_flags = value.flags;
-                    let vm_result_status_flags = value.status_flags;
-                    let vm_result_xrun_count_delta = value.xrun_count_delta;
-                    let vm_result_device_id = if let Some(value) = value.device_id {
-                        let vm_result_device_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_device_id_inner =
-                            vm::StringHandle::new(vm_result_device_id_inner_value);
-                        Some(vm_result_device_id_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_stream = if let Some(value) = value.stream {
-                        let vm_result_stream_inner = value;
-                        Some(vm_result_stream_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result = AudioEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        dropped_count: vm_result_dropped_count,
-                        source: vm_result_source,
-                        backend: vm_result_backend,
-                        flags: vm_result_flags,
-                        status_flags: vm_result_status_flags,
-                        xrun_count_delta: vm_result_xrun_count_delta,
-                        device_id: vm_result_device_id,
-                        stream: vm_result_stream,
+                    let vm_result = match value {
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                            let vm_result_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_audio_backend_disconnected_event_kind_value);
+                            let vm_result_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_backend_disconnected_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: vm_result_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: vm_result_audio_backend_disconnected_event_metadata_source,
+                                backend: vm_result_audio_backend_disconnected_event_metadata_backend,
+                                flags: vm_result_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let vm_result_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(vm_result_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayloadVm {
+                                stream: vm_result_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let vm_result_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
+                                kind: vm_result_audio_backend_disconnected_event_kind,
+                                metadata: vm_result_audio_backend_disconnected_event_metadata,
+                                payload: vm_result_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
+                        }
+                        AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                            let vm_result_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_audio_backend_reset_event_kind_value);
+                            let vm_result_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_backend_reset_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: vm_result_audio_backend_reset_event_metadata_dropped_count,
+                                source: vm_result_audio_backend_reset_event_metadata_source,
+                                backend: vm_result_audio_backend_reset_event_metadata_backend,
+                                flags: vm_result_audio_backend_reset_event_metadata_flags,
+                            };
+                            let vm_result_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(vm_result_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_backend_reset_event_payload = AudioBackendResetPayloadVm {
+                                stream: vm_result_audio_backend_reset_event_payload_stream,
+                            };
+                            let vm_result_audio_backend_reset_event = AudioBackendResetEventVm {
+                                kind: vm_result_audio_backend_reset_event_kind,
+                                metadata: vm_result_audio_backend_reset_event_metadata,
+                                payload: vm_result_audio_backend_reset_event_payload,
+                            };
+                            AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                            let vm_result_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_kind_value);
+                            let vm_result_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_capture_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_capture_changed_event_metadata_source,
+                                backend: vm_result_audio_default_capture_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
+                                device_id: vm_result_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
+                                kind: vm_result_audio_default_capture_changed_event_kind,
+                                metadata: vm_result_audio_default_capture_changed_event_metadata,
+                                payload: vm_result_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                            let vm_result_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_kind_value);
+                            let vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_loopback_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_loopback_changed_event_metadata_source,
+                                backend: vm_result_audio_default_loopback_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
+                                device_id: vm_result_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
+                                kind: vm_result_audio_default_loopback_changed_event_kind,
+                                metadata: vm_result_audio_default_loopback_changed_event_metadata,
+                                payload: vm_result_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                            let vm_result_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_kind_value);
+                            let vm_result_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_playback_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_playback_changed_event_metadata_source,
+                                backend: vm_result_audio_default_playback_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
+                                device_id: vm_result_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
+                                kind: vm_result_audio_default_playback_changed_event_kind,
+                                metadata: vm_result_audio_default_playback_changed_event_metadata,
+                                payload: vm_result_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                            let vm_result_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_added_event_kind = vm::StringHandle::new(vm_result_audio_device_added_event_kind_value);
+                            let vm_result_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_added_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_added_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_added_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_added_event_metadata_dropped_count,
+                                source: vm_result_audio_device_added_event_metadata_source,
+                                backend: vm_result_audio_device_added_event_metadata_backend,
+                                flags: vm_result_audio_device_added_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_added_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
+                                device_id: vm_result_audio_device_added_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_added_event = AudioDeviceAddedEventVm {
+                                kind: vm_result_audio_device_added_event_kind,
+                                metadata: vm_result_audio_device_added_event_metadata,
+                                payload: vm_result_audio_device_added_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                            let vm_result_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_audio_device_format_changed_event_kind_value);
+                            let vm_result_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_format_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_format_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_device_format_changed_event_metadata_source,
+                                backend: vm_result_audio_device_format_changed_event_metadata_backend,
+                                flags: vm_result_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_format_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
+                                device_id: vm_result_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
+                                kind: vm_result_audio_device_format_changed_event_kind,
+                                metadata: vm_result_audio_device_format_changed_event_metadata,
+                                payload: vm_result_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                            let vm_result_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_audio_device_removed_event_kind_value);
+                            let vm_result_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_removed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_removed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_removed_event_metadata_dropped_count,
+                                source: vm_result_audio_device_removed_event_metadata_source,
+                                backend: vm_result_audio_device_removed_event_metadata_backend,
+                                flags: vm_result_audio_device_removed_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_removed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
+                                device_id: vm_result_audio_device_removed_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_removed_event = AudioDeviceRemovedEventVm {
+                                kind: vm_result_audio_device_removed_event_kind,
+                                metadata: vm_result_audio_device_removed_event_metadata,
+                                payload: vm_result_audio_device_removed_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                            let vm_result_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_audio_device_rerouted_event_kind_value);
+                            let vm_result_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_rerouted_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_rerouted_event_metadata_dropped_count,
+                                source: vm_result_audio_device_rerouted_event_metadata_source,
+                                backend: vm_result_audio_device_rerouted_event_metadata_backend,
+                                flags: vm_result_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_rerouted_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
+                                device_id: vm_result_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
+                                kind: vm_result_audio_device_rerouted_event_kind,
+                                metadata: vm_result_audio_device_rerouted_event_metadata,
+                                payload: vm_result_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                            let vm_result_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_audio_interruption_began_event_kind_value);
+                            let vm_result_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_interruption_began_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: vm_result_audio_interruption_began_event_metadata_dropped_count,
+                                source: vm_result_audio_interruption_began_event_metadata_source,
+                                backend: vm_result_audio_interruption_began_event_metadata_backend,
+                                flags: vm_result_audio_interruption_began_event_metadata_flags,
+                            };
+                            let vm_result_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(vm_result_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_interruption_began_event_payload = AudioInterruptionBeganPayloadVm {
+                                stream: vm_result_audio_interruption_began_event_payload_stream,
+                            };
+                            let vm_result_audio_interruption_began_event = AudioInterruptionBeganEventVm {
+                                kind: vm_result_audio_interruption_began_event_kind,
+                                metadata: vm_result_audio_interruption_began_event_metadata,
+                                payload: vm_result_audio_interruption_began_event_payload,
+                            };
+                            AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                            let vm_result_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_audio_interruption_ended_event_kind_value);
+                            let vm_result_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_interruption_ended_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: vm_result_audio_interruption_ended_event_metadata_dropped_count,
+                                source: vm_result_audio_interruption_ended_event_metadata_source,
+                                backend: vm_result_audio_interruption_ended_event_metadata_backend,
+                                flags: vm_result_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let vm_result_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(vm_result_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_interruption_ended_event_payload = AudioInterruptionEndedPayloadVm {
+                                stream: vm_result_audio_interruption_ended_event_payload_stream,
+                            };
+                            let vm_result_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
+                                kind: vm_result_audio_interruption_ended_event_kind,
+                                metadata: vm_result_audio_interruption_ended_event_metadata,
+                                payload: vm_result_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                            let vm_result_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_kind_value);
+                            let vm_result_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_device_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_device_changed_event_metadata_source,
+                                backend: vm_result_audio_stream_device_changed_event_metadata_backend,
+                                flags: vm_result_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
+                                stream: vm_result_audio_stream_device_changed_event_payload_stream,
+                                status_flags: vm_result_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: vm_result_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
+                                kind: vm_result_audio_stream_device_changed_event_kind,
+                                metadata: vm_result_audio_stream_device_changed_event_metadata,
+                                payload: vm_result_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                            let vm_result_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_state_changed_event_kind_value);
+                            let vm_result_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_state_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_state_changed_event_metadata_source,
+                                backend: vm_result_audio_stream_state_changed_event_metadata_backend,
+                                flags: vm_result_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayloadVm {
+                                stream: vm_result_audio_stream_state_changed_event_payload_stream,
+                                status_flags: vm_result_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let vm_result_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
+                                kind: vm_result_audio_stream_state_changed_event_kind,
+                                metadata: vm_result_audio_stream_state_changed_event_metadata,
+                                payload: vm_result_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                            let vm_result_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_audio_stream_x_run_event_kind_value);
+                            let vm_result_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_x_run_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_x_run_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_x_run_event_metadata_source,
+                                backend: vm_result_audio_stream_x_run_event_metadata_backend,
+                                flags: vm_result_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_x_run_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
+                                stream: vm_result_audio_stream_x_run_event_payload_stream,
+                                status_flags: vm_result_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: vm_result_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: vm_result_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let vm_result_audio_stream_x_run_event = AudioStreamXRunEventVm {
+                                kind: vm_result_audio_stream_x_run_event_kind,
+                                metadata: vm_result_audio_stream_x_run_event_metadata,
+                                payload: vm_result_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventVm::AudioStreamXRunEvent(vm_result_audio_stream_x_run_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -10360,13 +15514,11 @@ fn destack_audio_event_read_batch_vm_replay(
         AUDIO_EVENT_READ_BATCH,
         runtime.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_audio_event_read_batch(
-                runtime, context, handle, maxevents, timeoutns,
-            ),
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read_batch(
-                runtime, context, handle, maxevents, timeoutns,
-            ),
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_event_read_batch(runtime, context, handle, maxevents, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read_batch(runtime, context, handle, maxevents, timeoutns),
+            }
         },
         |context, result| {
             let _ = &context;
@@ -10375,202 +15527,547 @@ fn destack_audio_event_read_batch_vm_replay(
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 11 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 11 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_kind_raw =
-                            decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                            1u8 => AudioEventKind::DeviceAdded,
-                            2u8 => AudioEventKind::DeviceRemoved,
-                            3u8 => AudioEventKind::DefaultPlaybackChanged,
-                            4u8 => AudioEventKind::DefaultCaptureChanged,
-                            5u8 => AudioEventKind::DefaultLoopbackChanged,
-                            6u8 => AudioEventKind::DeviceFormatChanged,
-                            7u8 => AudioEventKind::DeviceRerouted,
-                            8u8 => AudioEventKind::InterruptionBegan,
-                            9u8 => AudioEventKind::InterruptionEnded,
-                            10u8 => AudioEventKind::BackendDisconnected,
-                            11u8 => AudioEventKind::StreamXRun,
-                            12u8 => AudioEventKind::StreamDeviceChanged,
-                            13u8 => AudioEventKind::StreamStateChanged,
-                            14u8 => AudioEventKind::BackendReset,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_kind",
-                                        "unknown AudioEventKind value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_timestamp_ns = decode_uint64(
-                            slots[1],
-                            "result_recorded_item_timestamp_ns",
-                            "timestampNs",
-                        )?;
-                        let result_recorded_item_sequence =
-                            decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
-                        let result_recorded_item_dropped_count = decode_uint64(
-                            slots[3],
-                            "result_recorded_item_dropped_count",
-                            "droppedCount",
-                        )?;
-                        let result_recorded_item_source_raw =
-                            decode_uint8(slots[4], "result_recorded_item_source_raw", "source")?;
-                        let result_recorded_item_source = match result_recorded_item_source_raw {
-                            1u8 => AudioEventSource::Native,
-                            2u8 => AudioEventSource::SyntheticPoll,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_source",
-                                        "unknown AudioEventSource value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_backend_raw =
-                            decode_uint8(slots[5], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0u8 => AudioBackend::Auto,
-                            1u8 => AudioBackend::Alsa,
-                            2u8 => AudioBackend::PulseAudio,
-                            3u8 => AudioBackend::PipeWire,
-                            4u8 => AudioBackend::CoreAudio,
-                            5u8 => AudioBackend::Wasapi,
-                            6u8 => AudioBackend::AAudio,
-                            7u8 => AudioBackend::OpenSLES,
-                            8u8 => AudioBackend::Jack,
-                            9u8 => AudioBackend::Asio,
-                            255u8 => AudioBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown AudioBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_flags =
-                            decode_uint32(slots[6], "result_recorded_item_flags", "flags")?;
-                        let result_recorded_item_status_flags_inner = decode_uint32(
-                            slots[7],
-                            "result_recorded_item_status_flags_inner",
-                            "statusFlags",
-                        )?;
-                        let result_recorded_item_status_flags =
-                            AudioStreamStatusFlags(result_recorded_item_status_flags_inner);
-                        let result_recorded_item_xrun_count_delta = decode_uint64(
-                            slots[8],
-                            "result_recorded_item_xrun_count_delta",
-                            "xrunCountDelta",
-                        )?;
-                        let result_recorded_item_device_id = if slots[9].tag() == vm::ValueTag::Void
-                        {
-                            None
-                        } else {
-                            let result_recorded_item_device_id_inner = decode_string(
-                                slots[9],
-                                "result_recorded_item_device_id_inner",
-                                "deviceId",
-                            )?;
-                            Some(result_recorded_item_device_id_inner)
-                        };
-                        let result_recorded_item_stream = if slots[10].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_stream_inner_inner_inner = decode_uint64(
-                                slots[10],
-                                "result_recorded_item_stream_inner_inner_inner",
-                                "stream",
-                            )?;
-                            let result_recorded_item_stream_inner_inner =
-                                resource::ResourceId(result_recorded_item_stream_inner_inner_inner);
-                            let result_recorded_item_stream_inner = resource::AudioStreamHandle(
-                                result_recorded_item_stream_inner_inner,
-                            );
-                            Some(result_recorded_item_stream_inner)
-                        };
-                        AudioEventVm {
-                            kind: result_recorded_item_kind,
-                            timestamp_ns: result_recorded_item_timestamp_ns,
-                            sequence: result_recorded_item_sequence,
-                            dropped_count: result_recorded_item_dropped_count,
-                            source: result_recorded_item_source,
-                            backend: result_recorded_item_backend,
-                            flags: result_recorded_item_flags,
-                            status_flags: result_recorded_item_status_flags,
-                            xrun_count_delta: result_recorded_item_xrun_count_delta,
-                            device_id: result_recorded_item_device_id,
-                            stream: result_recorded_item_stream,
-                        }
-                    };
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns =
-                        result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_dropped_count =
-                        result_recorded_item.dropped_count;
-                    let result_recorded_item_recorded_source = result_recorded_item.source;
-                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                    let result_recorded_item_recorded_status_flags =
-                        result_recorded_item.status_flags;
-                    let result_recorded_item_recorded_xrun_count_delta =
-                        result_recorded_item.xrun_count_delta;
-                    let result_recorded_item_recorded_device_id =
-                        if let Some(value) = result_recorded_item.device_id {
-                            let result_recorded_item_recorded_device_id_inner = {
-                                let result_recorded_item_recorded_device_id_inner_ref = context
-                                    .string_ref(value)
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_device_id_inner_ref
-                                    .as_str()
-                                    .to_string()
+                    let result_recorded_item = <AudioEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_kind = {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_backend_disconnected_event_kind_ref.as_str().to_string()
                             };
-                            Some(result_recorded_item_recorded_device_id_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded_stream =
-                        if let Some(value) = result_recorded_item.stream {
-                            let result_recorded_item_recorded_stream_inner = value;
-                            Some(result_recorded_item_recorded_stream_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded = AudioEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        dropped_count: result_recorded_item_recorded_dropped_count,
-                        source: result_recorded_item_recorded_source,
-                        backend: result_recorded_item_recorded_backend,
-                        flags: result_recorded_item_recorded_flags,
-                        status_flags: result_recorded_item_recorded_status_flags,
-                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
-                        device_id: result_recorded_item_recorded_device_id,
-                        stream: result_recorded_item_recorded_stream,
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
+                        }
+                        AudioEventVm::AudioBackendResetEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_reset_event_kind = {
+                                let result_recorded_item_recorded_audio_backend_reset_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_backend_reset_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_reset_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
+                        }
+                        AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_capture_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
+                        }
+                        AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_loopback_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
+                        }
+                        AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_playback_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
+                        }
+                        AudioEventVm::AudioDeviceAddedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_added_event_kind = {
+                                let result_recorded_item_recorded_audio_device_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_added_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_added_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_added_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_added_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
+                        }
+                        AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_format_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_format_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_format_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
+                        }
+                        AudioEventVm::AudioDeviceRemovedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_removed_event_kind = {
+                                let result_recorded_item_recorded_audio_device_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_removed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_removed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_removed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_removed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
+                        }
+                        AudioEventVm::AudioDeviceReroutedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_rerouted_event_kind = {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_rerouted_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_rerouted_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
+                        }
+                        AudioEventVm::AudioInterruptionBeganEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_began_event_kind = {
+                                let result_recorded_item_recorded_audio_interruption_began_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_interruption_began_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_began_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
+                        }
+                        AudioEventVm::AudioInterruptionEndedEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_ended_event_kind = {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_interruption_ended_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_ended_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
+                        }
+                        AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_device_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
+                        }
+                        AudioEventVm::AudioStreamStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_state_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
+                        }
+                        AudioEventVm::AudioStreamXRunEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_x_run_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_x_run_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_x_run_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -10583,7 +16080,9 @@ fn destack_audio_event_read_batch_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventReadBatchReplay { result }
+                    AudioEventReadBatchReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10598,82 +16097,506 @@ fn destack_audio_event_read_batch_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
-                        let vm_result_item_value_kind = vm_result_item.kind;
-                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
-                        let vm_result_item_value_sequence = vm_result_item.sequence;
-                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
-                        let vm_result_item_value_source = vm_result_item.source;
-                        let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_flags = vm_result_item.flags;
-                        let vm_result_item_value_status_flags = vm_result_item.status_flags;
-                        let vm_result_item_value_xrun_count_delta = vm_result_item.xrun_count_delta;
-                        let vm_result_item_value_device_id = if let Some(value) =
-                            vm_result_item.device_id
-                        {
-                            let vm_result_item_value_device_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_device_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_device_id_inner_value);
-                            Some(vm_result_item_value_device_id_inner)
-                        } else {
-                            None
+                        let vm_result_item_value = match vm_result_item {
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                let vm_result_item_value_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_disconnected_event_kind_value);
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_backend_disconnected_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_backend_disconnected_event_metadata_source,
+                                    backend: vm_result_item_value_audio_backend_disconnected_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_backend_disconnected_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayloadVm {
+                                    stream: vm_result_item_value_audio_backend_disconnected_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
+                                    kind: vm_result_item_value_audio_backend_disconnected_event_kind,
+                                    metadata: vm_result_item_value_audio_backend_disconnected_event_metadata,
+                                    payload: vm_result_item_value_audio_backend_disconnected_event_payload,
+                                };
+                                AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
+                            }
+                            AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                                let vm_result_item_value_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_reset_event_kind_value);
+                                let vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_backend_reset_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_backend_reset_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_backend_reset_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_backend_reset_event_metadata_source,
+                                    backend: vm_result_item_value_audio_backend_reset_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_backend_reset_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_backend_reset_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_reset_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_backend_reset_event_payload = AudioBackendResetPayloadVm {
+                                    stream: vm_result_item_value_audio_backend_reset_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_backend_reset_event = AudioBackendResetEventVm {
+                                    kind: vm_result_item_value_audio_backend_reset_event_kind,
+                                    metadata: vm_result_item_value_audio_backend_reset_event_metadata,
+                                    payload: vm_result_item_value_audio_backend_reset_event_payload,
+                                };
+                                AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_capture_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_capture_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_capture_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_capture_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_capture_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_capture_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_capture_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_loopback_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_loopback_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_loopback_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_loopback_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_loopback_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_playback_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_playback_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_playback_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_playback_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_playback_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_playback_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_playback_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                let vm_result_item_value_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_added_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_kind_value);
+                                let vm_result_item_value_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_added_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_added_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_added_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_added_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_added_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_added_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_added_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_added_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_added_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_added_event = AudioDeviceAddedEventVm {
+                                    kind: vm_result_item_value_audio_device_added_event_kind,
+                                    metadata: vm_result_item_value_audio_device_added_event_metadata,
+                                    payload: vm_result_item_value_audio_device_added_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                let vm_result_item_value_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_kind_value);
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_format_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_format_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_format_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_format_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
+                                    kind: vm_result_item_value_audio_device_format_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_device_format_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_device_format_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                let vm_result_item_value_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_kind_value);
+                                let vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_removed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_removed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_removed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_removed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_removed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_removed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_removed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_removed_event = AudioDeviceRemovedEventVm {
+                                    kind: vm_result_item_value_audio_device_removed_event_kind,
+                                    metadata: vm_result_item_value_audio_device_removed_event_metadata,
+                                    payload: vm_result_item_value_audio_device_removed_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                let vm_result_item_value_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_kind_value);
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_rerouted_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_rerouted_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_rerouted_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_rerouted_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
+                                    kind: vm_result_item_value_audio_device_rerouted_event_kind,
+                                    metadata: vm_result_item_value_audio_device_rerouted_event_metadata,
+                                    payload: vm_result_item_value_audio_device_rerouted_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                let vm_result_item_value_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_began_event_kind_value);
+                                let vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_interruption_began_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_interruption_began_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_interruption_began_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_interruption_began_event_metadata_source,
+                                    backend: vm_result_item_value_audio_interruption_began_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_interruption_began_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_interruption_began_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_began_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_interruption_began_event_payload = AudioInterruptionBeganPayloadVm {
+                                    stream: vm_result_item_value_audio_interruption_began_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_interruption_began_event = AudioInterruptionBeganEventVm {
+                                    kind: vm_result_item_value_audio_interruption_began_event_kind,
+                                    metadata: vm_result_item_value_audio_interruption_began_event_metadata,
+                                    payload: vm_result_item_value_audio_interruption_began_event_payload,
+                                };
+                                AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                let vm_result_item_value_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_ended_event_kind_value);
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_interruption_ended_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_interruption_ended_event_metadata_source,
+                                    backend: vm_result_item_value_audio_interruption_ended_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_interruption_ended_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_interruption_ended_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_ended_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event_payload = AudioInterruptionEndedPayloadVm {
+                                    stream: vm_result_item_value_audio_interruption_ended_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
+                                    kind: vm_result_item_value_audio_interruption_ended_event_kind,
+                                    metadata: vm_result_item_value_audio_interruption_ended_event_metadata,
+                                    payload: vm_result_item_value_audio_interruption_ended_event_payload,
+                                };
+                                AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                let vm_result_item_value_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_kind_value);
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_device_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_device_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_device_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_device_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_device_changed_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_payload_status_flags,
+                                    device_id: vm_result_item_value_audio_stream_device_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
+                                    kind: vm_result_item_value_audio_stream_device_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_device_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_device_changed_event_payload,
+                                };
+                                AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                let vm_result_item_value_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_state_changed_event_kind_value);
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_state_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_state_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_state_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_state_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_state_changed_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_payload_status_flags,
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
+                                    kind: vm_result_item_value_audio_stream_state_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_state_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_state_changed_event_payload,
+                                };
+                                AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                                let vm_result_item_value_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_kind_value);
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_x_run_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_x_run_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_x_run_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_x_run_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                                let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_x_run_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_x_run_event_payload_status_flags,
+                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta,
+                                    device_id: vm_result_item_value_audio_stream_x_run_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event = AudioStreamXRunEventVm {
+                                    kind: vm_result_item_value_audio_stream_x_run_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_x_run_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_x_run_event_payload,
+                                };
+                                AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
+                            }
                         };
-                        let vm_result_item_value_stream = if let Some(value) = vm_result_item.stream
-                        {
-                            let vm_result_item_value_stream_inner = value;
-                            Some(vm_result_item_value_stream_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value = AudioEventVm {
-                            kind: vm_result_item_value_kind,
-                            timestamp_ns: vm_result_item_value_timestamp_ns,
-                            sequence: vm_result_item_value_sequence,
-                            dropped_count: vm_result_item_value_dropped_count,
-                            source: vm_result_item_value_source,
-                            backend: vm_result_item_value_backend,
-                            flags: vm_result_item_value_flags,
-                            status_flags: vm_result_item_value_status_flags,
-                            xrun_count_delta: vm_result_item_value_xrun_count_delta,
-                            device_id: vm_result_item_value_device_id,
-                            stream: vm_result_item_value_stream,
-                        };
-                        let vm_result_item_value_encoded = {
-                            let field_0 =
-                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                            let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
-                            let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64);
-                            let field_3 = vm::Value::uint(vm_result_item_value.dropped_count, 64);
-                            let field_4 =
-                                vm::Value::uint(vm_result_item_value.source as u8 as u64, 8);
-                            let field_5 =
-                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
-                            let field_6 = vm::Value::uint(vm_result_item_value.flags as u64, 32);
-                            let field_7 =
-                                vm::Value::uint(vm_result_item_value.status_flags.0 as u64, 32);
-                            let field_8 =
-                                vm::Value::uint(vm_result_item_value.xrun_count_delta, 64);
-                            let field_9 = match vm_result_item_value.device_id {
-                                Some(value) => value.value(),
-                                None => vm::Value::VOID,
-                            };
-                            let field_10 = match vm_result_item_value.stream {
-                                Some(value) => vm::Value::uint(value.0.0, 64),
-                                None => vm::Value::VOID,
-                            };
-                            context.allocate_aggregate(vec![
-                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                                field_7, field_8, field_9, field_10,
-                            ])
-                        };
+                        let vm_result_item_value_encoded = match vm_result_item_value { AudioEventVm::AudioBackendDisconnectedEvent(value) => { let tag_value = vm::Value::uint(2671385442u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioBackendResetEvent(value) => { let tag_value = vm::Value::uint(882086390u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultCaptureChangedEvent(value) => { let tag_value = vm::Value::uint(3898931457u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => { let tag_value = vm::Value::uint(148848279u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => { let tag_value = vm::Value::uint(3146923047u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceAddedEvent(value) => { let tag_value = vm::Value::uint(4188441349u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceFormatChangedEvent(value) => { let tag_value = vm::Value::uint(3233210258u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceRemovedEvent(value) => { let tag_value = vm::Value::uint(4161309046u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceReroutedEvent(value) => { let tag_value = vm::Value::uint(3459080735u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioInterruptionBeganEvent(value) => { let tag_value = vm::Value::uint(1214582496u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioInterruptionEndedEvent(value) => { let tag_value = vm::Value::uint(2799812553u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamDeviceChangedEvent(value) => { let tag_value = vm::Value::uint(3694639736u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); let field_2 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamStateChangedEvent(value) => { let tag_value = vm::Value::uint(1303591687u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamXRunEvent(value) => { let tag_value = vm::Value::uint(3186589411u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64); let field_3 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
-                    let vm_result: VmSlice<AudioEventVm> = VmSlice {
-                        data: vm_result_data,
-                        len: value.len() as u32,
-                        _marker: std::marker::PhantomData,
-                    };
+                    let vm_result: VmSlice<AudioEventVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -10695,56 +16618,556 @@ fn destack_audio_event_try_read_vm_replay(
         AUDIO_EVENT_TRY_READ,
         runtime.replay_payload_for(AUDIO_EVENT_TRY_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_audio_event_try_read(runtime, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: AudioEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_dropped_count = result_value.dropped_count;
-                let result_recorded_source = result_value.source;
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_flags = result_value.flags;
-                let result_recorded_status_flags = result_value.status_flags;
-                let result_recorded_xrun_count_delta = result_value.xrun_count_delta;
-                let result_recorded_device_id = if let Some(value) = result_value.device_id {
-                    let result_recorded_device_id_inner = {
-                        let result_recorded_device_id_inner_ref = context
-                            .string_ref(value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_device_id_inner_ref.as_str().to_string()
-                    };
-                    Some(result_recorded_device_id_inner)
-                } else {
-                    None
-                };
-                let result_recorded_stream = if let Some(value) = result_value.stream {
-                    let result_recorded_stream_inner = value;
-                    Some(result_recorded_stream_inner)
-                } else {
-                    None
-                };
-                let result_recorded = AudioEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    dropped_count: result_recorded_dropped_count,
-                    source: result_recorded_source,
-                    backend: result_recorded_backend,
-                    flags: result_recorded_flags,
-                    status_flags: result_recorded_status_flags,
-                    xrun_count_delta: result_recorded_xrun_count_delta,
-                    device_id: result_recorded_device_id,
-                    stream: result_recorded_stream,
+                let result_recorded = match result_value {
+                    AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+                        let result_recorded_audio_backend_disconnected_event_kind = {
+                            let result_recorded_audio_backend_disconnected_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_backend_disconnected_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_disconnected_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_disconnected_event_metadata_source,
+                            backend: result_recorded_audio_backend_disconnected_event_metadata_backend,
+                            flags: result_recorded_audio_backend_disconnected_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                            stream: result_recorded_audio_backend_disconnected_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                            kind: result_recorded_audio_backend_disconnected_event_kind,
+                            metadata: result_recorded_audio_backend_disconnected_event_metadata,
+                            payload: result_recorded_audio_backend_disconnected_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_audio_backend_disconnected_event)
+                    }
+                    AudioEventVm::AudioBackendResetEvent(value) => {
+                        let result_recorded_audio_backend_reset_event_kind = {
+                            let result_recorded_audio_backend_reset_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_backend_reset_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_backend_reset_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_backend_reset_event_metadata_dropped_count,
+                            source: result_recorded_audio_backend_reset_event_metadata_source,
+                            backend: result_recorded_audio_backend_reset_event_metadata_backend,
+                            flags: result_recorded_audio_backend_reset_event_metadata_flags,
+                        };
+                        let result_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_backend_reset_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                            stream: result_recorded_audio_backend_reset_event_payload_stream,
+                        };
+                        let result_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                            kind: result_recorded_audio_backend_reset_event_kind,
+                            metadata: result_recorded_audio_backend_reset_event_metadata,
+                            payload: result_recorded_audio_backend_reset_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_audio_backend_reset_event)
+                    }
+                    AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+                        let result_recorded_audio_default_capture_changed_event_kind = {
+                            let result_recorded_audio_default_capture_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_capture_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_capture_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_capture_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_capture_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_capture_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_capture_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_capture_changed_event_kind,
+                            metadata: result_recorded_audio_default_capture_changed_event_metadata,
+                            payload: result_recorded_audio_default_capture_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_audio_default_capture_changed_event)
+                    }
+                    AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+                        let result_recorded_audio_default_loopback_changed_event_kind = {
+                            let result_recorded_audio_default_loopback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_loopback_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_loopback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_loopback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_loopback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_loopback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_loopback_changed_event_kind,
+                            metadata: result_recorded_audio_default_loopback_changed_event_metadata,
+                            payload: result_recorded_audio_default_loopback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_audio_default_loopback_changed_event)
+                    }
+                    AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+                        let result_recorded_audio_default_playback_changed_event_kind = {
+                            let result_recorded_audio_default_playback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_default_playback_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_default_playback_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_default_playback_changed_event_metadata_source,
+                            backend: result_recorded_audio_default_playback_changed_event_metadata_backend,
+                            flags: result_recorded_audio_default_playback_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_default_playback_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                            kind: result_recorded_audio_default_playback_changed_event_kind,
+                            metadata: result_recorded_audio_default_playback_changed_event_metadata,
+                            payload: result_recorded_audio_default_playback_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_audio_default_playback_changed_event)
+                    }
+                    AudioEventVm::AudioDeviceAddedEvent(value) => {
+                        let result_recorded_audio_device_added_event_kind = {
+                            let result_recorded_audio_device_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_added_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_added_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_added_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_added_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_added_event_metadata_source,
+                            backend: result_recorded_audio_device_added_event_metadata_backend,
+                            flags: result_recorded_audio_device_added_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_added_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_added_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_added_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                            kind: result_recorded_audio_device_added_event_kind,
+                            metadata: result_recorded_audio_device_added_event_metadata,
+                            payload: result_recorded_audio_device_added_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_audio_device_added_event)
+                    }
+                    AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+                        let result_recorded_audio_device_format_changed_event_kind = {
+                            let result_recorded_audio_device_format_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_format_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_format_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_format_changed_event_metadata_source,
+                            backend: result_recorded_audio_device_format_changed_event_metadata_backend,
+                            flags: result_recorded_audio_device_format_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_format_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_format_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                            kind: result_recorded_audio_device_format_changed_event_kind,
+                            metadata: result_recorded_audio_device_format_changed_event_metadata,
+                            payload: result_recorded_audio_device_format_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_audio_device_format_changed_event)
+                    }
+                    AudioEventVm::AudioDeviceRemovedEvent(value) => {
+                        let result_recorded_audio_device_removed_event_kind = {
+                            let result_recorded_audio_device_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_removed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_removed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_removed_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_removed_event_metadata_source,
+                            backend: result_recorded_audio_device_removed_event_metadata_backend,
+                            flags: result_recorded_audio_device_removed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_removed_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_removed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_removed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                            kind: result_recorded_audio_device_removed_event_kind,
+                            metadata: result_recorded_audio_device_removed_event_metadata,
+                            payload: result_recorded_audio_device_removed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_audio_device_removed_event)
+                    }
+                    AudioEventVm::AudioDeviceReroutedEvent(value) => {
+                        let result_recorded_audio_device_rerouted_event_kind = {
+                            let result_recorded_audio_device_rerouted_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_device_rerouted_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_device_rerouted_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                            source: result_recorded_audio_device_rerouted_event_metadata_source,
+                            backend: result_recorded_audio_device_rerouted_event_metadata_backend,
+                            flags: result_recorded_audio_device_rerouted_event_metadata_flags,
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_device_rerouted_event_payload_device_id_inner = {
+                                let result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                            device_id: result_recorded_audio_device_rerouted_event_payload_device_id,
+                        };
+                        let result_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                            kind: result_recorded_audio_device_rerouted_event_kind,
+                            metadata: result_recorded_audio_device_rerouted_event_metadata,
+                            payload: result_recorded_audio_device_rerouted_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_audio_device_rerouted_event)
+                    }
+                    AudioEventVm::AudioInterruptionBeganEvent(value) => {
+                        let result_recorded_audio_interruption_began_event_kind = {
+                            let result_recorded_audio_interruption_began_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_interruption_began_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_began_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_began_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_began_event_metadata_source,
+                            backend: result_recorded_audio_interruption_began_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_began_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_began_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                            stream: result_recorded_audio_interruption_began_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                            kind: result_recorded_audio_interruption_began_event_kind,
+                            metadata: result_recorded_audio_interruption_began_event_metadata,
+                            payload: result_recorded_audio_interruption_began_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_audio_interruption_began_event)
+                    }
+                    AudioEventVm::AudioInterruptionEndedEvent(value) => {
+                        let result_recorded_audio_interruption_ended_event_kind = {
+                            let result_recorded_audio_interruption_ended_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_interruption_ended_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_interruption_ended_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                            source: result_recorded_audio_interruption_ended_event_metadata_source,
+                            backend: result_recorded_audio_interruption_ended_event_metadata_backend,
+                            flags: result_recorded_audio_interruption_ended_event_metadata_flags,
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_interruption_ended_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                            stream: result_recorded_audio_interruption_ended_event_payload_stream,
+                        };
+                        let result_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                            kind: result_recorded_audio_interruption_ended_event_kind,
+                            metadata: result_recorded_audio_interruption_ended_event_metadata,
+                            payload: result_recorded_audio_interruption_ended_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_audio_interruption_ended_event)
+                    }
+                    AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+                        let result_recorded_audio_stream_device_changed_event_kind = {
+                            let result_recorded_audio_stream_device_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_device_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_device_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_device_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_device_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_device_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
+                                let result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_device_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_device_changed_event_payload_status_flags,
+                            device_id: result_recorded_audio_stream_device_changed_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_device_changed_event_kind,
+                            metadata: result_recorded_audio_stream_device_changed_event_metadata,
+                            payload: result_recorded_audio_stream_device_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_audio_stream_device_changed_event)
+                    }
+                    AudioEventVm::AudioStreamStateChangedEvent(value) => {
+                        let result_recorded_audio_stream_state_changed_event_kind = {
+                            let result_recorded_audio_stream_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_state_changed_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_state_changed_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_state_changed_event_metadata_source,
+                            backend: result_recorded_audio_stream_state_changed_event_metadata_backend,
+                            flags: result_recorded_audio_stream_state_changed_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                            stream: result_recorded_audio_stream_state_changed_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_state_changed_event_payload_status_flags,
+                        };
+                        let result_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                            kind: result_recorded_audio_stream_state_changed_event_kind,
+                            metadata: result_recorded_audio_stream_state_changed_event_metadata,
+                            payload: result_recorded_audio_stream_state_changed_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_audio_stream_state_changed_event)
+                    }
+                    AudioEventVm::AudioStreamXRunEvent(value) => {
+                        let result_recorded_audio_stream_x_run_event_kind = {
+                            let result_recorded_audio_stream_x_run_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_audio_stream_x_run_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                        let result_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                        let result_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                        let result_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                        let result_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                            timestamp_ns: result_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                            sequence: result_recorded_audio_stream_x_run_event_metadata_sequence,
+                            dropped_count: result_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                            source: result_recorded_audio_stream_x_run_event_metadata_source,
+                            backend: result_recorded_audio_stream_x_run_event_metadata_backend,
+                            flags: result_recorded_audio_stream_x_run_event_metadata_flags,
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                            let result_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                            Some(result_recorded_audio_stream_x_run_event_payload_stream_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                        let result_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                        let result_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                            let result_recorded_audio_stream_x_run_event_payload_device_id_inner = {
+                                let result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                            };
+                            Some(result_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                        } else {
+                            None
+                        };
+                        let result_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                            stream: result_recorded_audio_stream_x_run_event_payload_stream,
+                            status_flags: result_recorded_audio_stream_x_run_event_payload_status_flags,
+                            xrun_count_delta: result_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                            device_id: result_recorded_audio_stream_x_run_event_payload_device_id,
+                        };
+                        let result_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                            kind: result_recorded_audio_stream_x_run_event_kind,
+                            metadata: result_recorded_audio_stream_x_run_event_metadata,
+                            payload: result_recorded_audio_stream_x_run_event_payload,
+                        };
+                        AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_audio_stream_x_run_event)
+                    }
                 };
                 let payload = AudioEventTryReadReplay {
                     result: Ok(result_recorded),
@@ -10755,7 +17178,9 @@ fn destack_audio_event_try_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventTryReadReplay { result }
+                    AudioEventTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10767,41 +17192,500 @@ fn destack_audio_event_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_dropped_count = value.dropped_count;
-                    let vm_result_source = value.source;
-                    let vm_result_backend = value.backend;
-                    let vm_result_flags = value.flags;
-                    let vm_result_status_flags = value.status_flags;
-                    let vm_result_xrun_count_delta = value.xrun_count_delta;
-                    let vm_result_device_id = if let Some(value) = value.device_id {
-                        let vm_result_device_id_inner_value = context.intern_string(value.as_str());
-                        let vm_result_device_id_inner =
-                            vm::StringHandle::new(vm_result_device_id_inner_value);
-                        Some(vm_result_device_id_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result_stream = if let Some(value) = value.stream {
-                        let vm_result_stream_inner = value;
-                        Some(vm_result_stream_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result = AudioEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        dropped_count: vm_result_dropped_count,
-                        source: vm_result_source,
-                        backend: vm_result_backend,
-                        flags: vm_result_flags,
-                        status_flags: vm_result_status_flags,
-                        xrun_count_delta: vm_result_xrun_count_delta,
-                        device_id: vm_result_device_id,
-                        stream: vm_result_stream,
+                    let vm_result = match value {
+                        AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                            let vm_result_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_audio_backend_disconnected_event_kind_value);
+                            let vm_result_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_backend_disconnected_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: vm_result_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: vm_result_audio_backend_disconnected_event_metadata_source,
+                                backend: vm_result_audio_backend_disconnected_event_metadata_backend,
+                                flags: vm_result_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let vm_result_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(vm_result_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayloadVm {
+                                stream: vm_result_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let vm_result_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
+                                kind: vm_result_audio_backend_disconnected_event_kind,
+                                metadata: vm_result_audio_backend_disconnected_event_metadata,
+                                payload: vm_result_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventVm::AudioBackendDisconnectedEvent(vm_result_audio_backend_disconnected_event)
+                        }
+                        AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                            let vm_result_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_audio_backend_reset_event_kind_value);
+                            let vm_result_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_backend_reset_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: vm_result_audio_backend_reset_event_metadata_dropped_count,
+                                source: vm_result_audio_backend_reset_event_metadata_source,
+                                backend: vm_result_audio_backend_reset_event_metadata_backend,
+                                flags: vm_result_audio_backend_reset_event_metadata_flags,
+                            };
+                            let vm_result_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(vm_result_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_backend_reset_event_payload = AudioBackendResetPayloadVm {
+                                stream: vm_result_audio_backend_reset_event_payload_stream,
+                            };
+                            let vm_result_audio_backend_reset_event = AudioBackendResetEventVm {
+                                kind: vm_result_audio_backend_reset_event_kind,
+                                metadata: vm_result_audio_backend_reset_event_metadata,
+                                payload: vm_result_audio_backend_reset_event_payload,
+                            };
+                            AudioEventVm::AudioBackendResetEvent(vm_result_audio_backend_reset_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                            let vm_result_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_kind_value);
+                            let vm_result_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_capture_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_capture_changed_event_metadata_source,
+                                backend: vm_result_audio_default_capture_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_capture_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
+                                device_id: vm_result_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
+                                kind: vm_result_audio_default_capture_changed_event_kind,
+                                metadata: vm_result_audio_default_capture_changed_event_metadata,
+                                payload: vm_result_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_audio_default_capture_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                            let vm_result_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_kind_value);
+                            let vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_loopback_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_loopback_changed_event_metadata_source,
+                                backend: vm_result_audio_default_loopback_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_loopback_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
+                                device_id: vm_result_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
+                                kind: vm_result_audio_default_loopback_changed_event_kind,
+                                metadata: vm_result_audio_default_loopback_changed_event_metadata,
+                                payload: vm_result_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_audio_default_loopback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                            let vm_result_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_kind_value);
+                            let vm_result_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_default_playback_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_default_playback_changed_event_metadata_source,
+                                backend: vm_result_audio_default_playback_changed_event_metadata_backend,
+                                flags: vm_result_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_default_playback_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
+                                device_id: vm_result_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
+                                kind: vm_result_audio_default_playback_changed_event_kind,
+                                metadata: vm_result_audio_default_playback_changed_event_metadata,
+                                payload: vm_result_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_audio_default_playback_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                            let vm_result_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_added_event_kind = vm::StringHandle::new(vm_result_audio_device_added_event_kind_value);
+                            let vm_result_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_added_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_added_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_added_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_added_event_metadata_dropped_count,
+                                source: vm_result_audio_device_added_event_metadata_source,
+                                backend: vm_result_audio_device_added_event_metadata_backend,
+                                flags: vm_result_audio_device_added_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_added_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
+                                device_id: vm_result_audio_device_added_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_added_event = AudioDeviceAddedEventVm {
+                                kind: vm_result_audio_device_added_event_kind,
+                                metadata: vm_result_audio_device_added_event_metadata,
+                                payload: vm_result_audio_device_added_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceAddedEvent(vm_result_audio_device_added_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                            let vm_result_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_audio_device_format_changed_event_kind_value);
+                            let vm_result_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_format_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_format_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_device_format_changed_event_metadata_source,
+                                backend: vm_result_audio_device_format_changed_event_metadata_backend,
+                                flags: vm_result_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_format_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
+                                device_id: vm_result_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
+                                kind: vm_result_audio_device_format_changed_event_kind,
+                                metadata: vm_result_audio_device_format_changed_event_metadata,
+                                payload: vm_result_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_audio_device_format_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                            let vm_result_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_audio_device_removed_event_kind_value);
+                            let vm_result_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_removed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_removed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_removed_event_metadata_dropped_count,
+                                source: vm_result_audio_device_removed_event_metadata_source,
+                                backend: vm_result_audio_device_removed_event_metadata_backend,
+                                flags: vm_result_audio_device_removed_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_removed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
+                                device_id: vm_result_audio_device_removed_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_removed_event = AudioDeviceRemovedEventVm {
+                                kind: vm_result_audio_device_removed_event_kind,
+                                metadata: vm_result_audio_device_removed_event_metadata,
+                                payload: vm_result_audio_device_removed_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceRemovedEvent(vm_result_audio_device_removed_event)
+                        }
+                        AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                            let vm_result_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_audio_device_rerouted_event_kind_value);
+                            let vm_result_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_device_rerouted_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: vm_result_audio_device_rerouted_event_metadata_dropped_count,
+                                source: vm_result_audio_device_rerouted_event_metadata_source,
+                                backend: vm_result_audio_device_rerouted_event_metadata_backend,
+                                flags: vm_result_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let vm_result_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_device_rerouted_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
+                                device_id: vm_result_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let vm_result_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
+                                kind: vm_result_audio_device_rerouted_event_kind,
+                                metadata: vm_result_audio_device_rerouted_event_metadata,
+                                payload: vm_result_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventVm::AudioDeviceReroutedEvent(vm_result_audio_device_rerouted_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                            let vm_result_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_audio_interruption_began_event_kind_value);
+                            let vm_result_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_interruption_began_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: vm_result_audio_interruption_began_event_metadata_dropped_count,
+                                source: vm_result_audio_interruption_began_event_metadata_source,
+                                backend: vm_result_audio_interruption_began_event_metadata_backend,
+                                flags: vm_result_audio_interruption_began_event_metadata_flags,
+                            };
+                            let vm_result_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(vm_result_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_interruption_began_event_payload = AudioInterruptionBeganPayloadVm {
+                                stream: vm_result_audio_interruption_began_event_payload_stream,
+                            };
+                            let vm_result_audio_interruption_began_event = AudioInterruptionBeganEventVm {
+                                kind: vm_result_audio_interruption_began_event_kind,
+                                metadata: vm_result_audio_interruption_began_event_metadata,
+                                payload: vm_result_audio_interruption_began_event_payload,
+                            };
+                            AudioEventVm::AudioInterruptionBeganEvent(vm_result_audio_interruption_began_event)
+                        }
+                        AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                            let vm_result_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_audio_interruption_ended_event_kind_value);
+                            let vm_result_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_interruption_ended_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: vm_result_audio_interruption_ended_event_metadata_dropped_count,
+                                source: vm_result_audio_interruption_ended_event_metadata_source,
+                                backend: vm_result_audio_interruption_ended_event_metadata_backend,
+                                flags: vm_result_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let vm_result_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(vm_result_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_interruption_ended_event_payload = AudioInterruptionEndedPayloadVm {
+                                stream: vm_result_audio_interruption_ended_event_payload_stream,
+                            };
+                            let vm_result_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
+                                kind: vm_result_audio_interruption_ended_event_kind,
+                                metadata: vm_result_audio_interruption_ended_event_metadata,
+                                payload: vm_result_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventVm::AudioInterruptionEndedEvent(vm_result_audio_interruption_ended_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                            let vm_result_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_kind_value);
+                            let vm_result_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_device_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_device_changed_event_metadata_source,
+                                backend: vm_result_audio_stream_device_changed_event_metadata_backend,
+                                flags: vm_result_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_device_changed_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
+                                stream: vm_result_audio_stream_device_changed_event_payload_stream,
+                                status_flags: vm_result_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: vm_result_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let vm_result_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
+                                kind: vm_result_audio_stream_device_changed_event_kind,
+                                metadata: vm_result_audio_stream_device_changed_event_metadata,
+                                payload: vm_result_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_audio_stream_device_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                            let vm_result_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_audio_stream_state_changed_event_kind_value);
+                            let vm_result_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_state_changed_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_state_changed_event_metadata_source,
+                                backend: vm_result_audio_stream_state_changed_event_metadata_backend,
+                                flags: vm_result_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayloadVm {
+                                stream: vm_result_audio_stream_state_changed_event_payload_stream,
+                                status_flags: vm_result_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let vm_result_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
+                                kind: vm_result_audio_stream_state_changed_event_kind,
+                                metadata: vm_result_audio_stream_state_changed_event_metadata,
+                                payload: vm_result_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventVm::AudioStreamStateChangedEvent(vm_result_audio_stream_state_changed_event)
+                        }
+                        AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                            let vm_result_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_audio_stream_x_run_event_kind_value);
+                            let vm_result_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let vm_result_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let vm_result_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let vm_result_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let vm_result_audio_stream_x_run_event_metadata = AudioEventMetadataVm {
+                                timestamp_ns: vm_result_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: vm_result_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: vm_result_audio_stream_x_run_event_metadata_dropped_count,
+                                source: vm_result_audio_stream_x_run_event_metadata_source,
+                                backend: vm_result_audio_stream_x_run_event_metadata_backend,
+                                flags: vm_result_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let vm_result_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let vm_result_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(vm_result_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let vm_result_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let vm_result_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                let vm_result_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_audio_stream_x_run_event_payload_device_id_inner_value);
+                                Some(vm_result_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let vm_result_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
+                                stream: vm_result_audio_stream_x_run_event_payload_stream,
+                                status_flags: vm_result_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: vm_result_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: vm_result_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let vm_result_audio_stream_x_run_event = AudioStreamXRunEventVm {
+                                kind: vm_result_audio_stream_x_run_event_kind,
+                                metadata: vm_result_audio_stream_x_run_event_metadata,
+                                payload: vm_result_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventVm::AudioStreamXRunEvent(vm_result_audio_stream_x_run_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -10825,13 +17709,11 @@ fn destack_audio_event_try_read_batch_vm_replay(
         AUDIO_EVENT_TRY_READ_BATCH,
         runtime.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents),
             }
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read_batch(
-                runtime, context, handle, maxevents,
-            ),
         },
         |context, result| {
             let _ = &context;
@@ -10840,202 +17722,547 @@ fn destack_audio_event_try_read_batch_vm_replay(
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 11 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 11 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_kind_raw =
-                            decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                            1u8 => AudioEventKind::DeviceAdded,
-                            2u8 => AudioEventKind::DeviceRemoved,
-                            3u8 => AudioEventKind::DefaultPlaybackChanged,
-                            4u8 => AudioEventKind::DefaultCaptureChanged,
-                            5u8 => AudioEventKind::DefaultLoopbackChanged,
-                            6u8 => AudioEventKind::DeviceFormatChanged,
-                            7u8 => AudioEventKind::DeviceRerouted,
-                            8u8 => AudioEventKind::InterruptionBegan,
-                            9u8 => AudioEventKind::InterruptionEnded,
-                            10u8 => AudioEventKind::BackendDisconnected,
-                            11u8 => AudioEventKind::StreamXRun,
-                            12u8 => AudioEventKind::StreamDeviceChanged,
-                            13u8 => AudioEventKind::StreamStateChanged,
-                            14u8 => AudioEventKind::BackendReset,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_kind",
-                                        "unknown AudioEventKind value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_timestamp_ns = decode_uint64(
-                            slots[1],
-                            "result_recorded_item_timestamp_ns",
-                            "timestampNs",
-                        )?;
-                        let result_recorded_item_sequence =
-                            decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
-                        let result_recorded_item_dropped_count = decode_uint64(
-                            slots[3],
-                            "result_recorded_item_dropped_count",
-                            "droppedCount",
-                        )?;
-                        let result_recorded_item_source_raw =
-                            decode_uint8(slots[4], "result_recorded_item_source_raw", "source")?;
-                        let result_recorded_item_source = match result_recorded_item_source_raw {
-                            1u8 => AudioEventSource::Native,
-                            2u8 => AudioEventSource::SyntheticPoll,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_source",
-                                        "unknown AudioEventSource value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_backend_raw =
-                            decode_uint8(slots[5], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0u8 => AudioBackend::Auto,
-                            1u8 => AudioBackend::Alsa,
-                            2u8 => AudioBackend::PulseAudio,
-                            3u8 => AudioBackend::PipeWire,
-                            4u8 => AudioBackend::CoreAudio,
-                            5u8 => AudioBackend::Wasapi,
-                            6u8 => AudioBackend::AAudio,
-                            7u8 => AudioBackend::OpenSLES,
-                            8u8 => AudioBackend::Jack,
-                            9u8 => AudioBackend::Asio,
-                            255u8 => AudioBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown AudioBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_flags =
-                            decode_uint32(slots[6], "result_recorded_item_flags", "flags")?;
-                        let result_recorded_item_status_flags_inner = decode_uint32(
-                            slots[7],
-                            "result_recorded_item_status_flags_inner",
-                            "statusFlags",
-                        )?;
-                        let result_recorded_item_status_flags =
-                            AudioStreamStatusFlags(result_recorded_item_status_flags_inner);
-                        let result_recorded_item_xrun_count_delta = decode_uint64(
-                            slots[8],
-                            "result_recorded_item_xrun_count_delta",
-                            "xrunCountDelta",
-                        )?;
-                        let result_recorded_item_device_id = if slots[9].tag() == vm::ValueTag::Void
-                        {
-                            None
-                        } else {
-                            let result_recorded_item_device_id_inner = decode_string(
-                                slots[9],
-                                "result_recorded_item_device_id_inner",
-                                "deviceId",
-                            )?;
-                            Some(result_recorded_item_device_id_inner)
-                        };
-                        let result_recorded_item_stream = if slots[10].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_stream_inner_inner_inner = decode_uint64(
-                                slots[10],
-                                "result_recorded_item_stream_inner_inner_inner",
-                                "stream",
-                            )?;
-                            let result_recorded_item_stream_inner_inner =
-                                resource::ResourceId(result_recorded_item_stream_inner_inner_inner);
-                            let result_recorded_item_stream_inner = resource::AudioStreamHandle(
-                                result_recorded_item_stream_inner_inner,
-                            );
-                            Some(result_recorded_item_stream_inner)
-                        };
-                        AudioEventVm {
-                            kind: result_recorded_item_kind,
-                            timestamp_ns: result_recorded_item_timestamp_ns,
-                            sequence: result_recorded_item_sequence,
-                            dropped_count: result_recorded_item_dropped_count,
-                            source: result_recorded_item_source,
-                            backend: result_recorded_item_backend,
-                            flags: result_recorded_item_flags,
-                            status_flags: result_recorded_item_status_flags,
-                            xrun_count_delta: result_recorded_item_xrun_count_delta,
-                            device_id: result_recorded_item_device_id,
-                            stream: result_recorded_item_stream,
-                        }
-                    };
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns =
-                        result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_dropped_count =
-                        result_recorded_item.dropped_count;
-                    let result_recorded_item_recorded_source = result_recorded_item.source;
-                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
-                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
-                    let result_recorded_item_recorded_status_flags =
-                        result_recorded_item.status_flags;
-                    let result_recorded_item_recorded_xrun_count_delta =
-                        result_recorded_item.xrun_count_delta;
-                    let result_recorded_item_recorded_device_id =
-                        if let Some(value) = result_recorded_item.device_id {
-                            let result_recorded_item_recorded_device_id_inner = {
-                                let result_recorded_item_recorded_device_id_inner_ref = context
-                                    .string_ref(value)
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                result_recorded_item_recorded_device_id_inner_ref
-                                    .as_str()
-                                    .to_string()
+                    let result_recorded_item = <AudioEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        AudioEventVm::AudioBackendDisconnectedEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_kind = {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_backend_disconnected_event_kind_ref.as_str().to_string()
                             };
-                            Some(result_recorded_item_recorded_device_id_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded_stream =
-                        if let Some(value) = result_recorded_item.stream {
-                            let result_recorded_item_recorded_stream_inner = value;
-                            Some(result_recorded_item_recorded_stream_inner)
-                        } else {
-                            None
-                        };
-                    let result_recorded_item_recorded = AudioEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        dropped_count: result_recorded_item_recorded_dropped_count,
-                        source: result_recorded_item_recorded_source,
-                        backend: result_recorded_item_recorded_backend,
-                        flags: result_recorded_item_recorded_flags,
-                        status_flags: result_recorded_item_recorded_status_flags,
-                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
-                        device_id: result_recorded_item_recorded_device_id,
-                        stream: result_recorded_item_recorded_stream,
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_disconnected_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayload {
+                                stream: result_recorded_item_recorded_audio_backend_disconnected_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_disconnected_event = AudioBackendDisconnectedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_disconnected_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_disconnected_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_disconnected_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(result_recorded_item_recorded_audio_backend_disconnected_event)
+                        }
+                        AudioEventVm::AudioBackendResetEvent(value) => {
+                            let result_recorded_item_recorded_audio_backend_reset_event_kind = {
+                                let result_recorded_item_recorded_audio_backend_reset_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_backend_reset_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_backend_reset_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_backend_reset_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_backend_reset_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_backend_reset_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_backend_reset_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_backend_reset_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_backend_reset_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_backend_reset_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event_payload = AudioBackendResetPayload {
+                                stream: result_recorded_item_recorded_audio_backend_reset_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_backend_reset_event = AudioBackendResetEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_backend_reset_event_kind,
+                                metadata: result_recorded_item_recorded_audio_backend_reset_event_metadata,
+                                payload: result_recorded_item_recorded_audio_backend_reset_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioBackendResetEvent(result_recorded_item_recorded_audio_backend_reset_event)
+                        }
+                        AudioEventVm::AudioDefaultCaptureChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_capture_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_capture_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_capture_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_capture_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_capture_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_capture_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(result_recorded_item_recorded_audio_default_capture_changed_event)
+                        }
+                        AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_loopback_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_loopback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_loopback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_loopback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_loopback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(result_recorded_item_recorded_audio_default_loopback_changed_event)
+                        }
+                        AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_default_playback_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_default_playback_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_default_playback_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_default_playback_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_default_playback_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_default_playback_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(result_recorded_item_recorded_audio_default_playback_changed_event)
+                        }
+                        AudioEventVm::AudioDeviceAddedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_added_event_kind = {
+                                let result_recorded_item_recorded_audio_device_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_added_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_added_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_added_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_added_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_added_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_added_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_added_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_added_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_added_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event_payload = AudioDeviceAddedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_added_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_added_event = AudioDeviceAddedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_added_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_added_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_added_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(result_recorded_item_recorded_audio_device_added_event)
+                        }
+                        AudioEventVm::AudioDeviceFormatChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_format_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_format_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_format_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_format_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_format_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_format_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_format_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_format_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_format_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_format_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_format_changed_event = AudioDeviceFormatChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_format_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_format_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_format_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(result_recorded_item_recorded_audio_device_format_changed_event)
+                        }
+                        AudioEventVm::AudioDeviceRemovedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_removed_event_kind = {
+                                let result_recorded_item_recorded_audio_device_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_removed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_removed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_removed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_removed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_removed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_removed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_removed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_removed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_removed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event_payload = AudioDeviceRemovedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_removed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_removed_event = AudioDeviceRemovedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_removed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_removed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_removed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(result_recorded_item_recorded_audio_device_removed_event)
+                        }
+                        AudioEventVm::AudioDeviceReroutedEvent(value) => {
+                            let result_recorded_item_recorded_audio_device_rerouted_event_kind = {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_device_rerouted_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_device_rerouted_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_device_rerouted_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_device_rerouted_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_device_rerouted_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_device_rerouted_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_device_rerouted_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_device_rerouted_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadReplayRecord {
+                                device_id: result_recorded_item_recorded_audio_device_rerouted_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_device_rerouted_event = AudioDeviceReroutedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_device_rerouted_event_kind,
+                                metadata: result_recorded_item_recorded_audio_device_rerouted_event_metadata,
+                                payload: result_recorded_item_recorded_audio_device_rerouted_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(result_recorded_item_recorded_audio_device_rerouted_event)
+                        }
+                        AudioEventVm::AudioInterruptionBeganEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_began_event_kind = {
+                                let result_recorded_item_recorded_audio_interruption_began_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_interruption_began_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_began_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_began_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_began_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_began_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_began_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_began_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_began_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_began_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event_payload = AudioInterruptionBeganPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_began_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_began_event = AudioInterruptionBeganEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_began_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_began_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_began_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(result_recorded_item_recorded_audio_interruption_began_event)
+                        }
+                        AudioEventVm::AudioInterruptionEndedEvent(value) => {
+                            let result_recorded_item_recorded_audio_interruption_ended_event_kind = {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_interruption_ended_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_interruption_ended_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_interruption_ended_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_interruption_ended_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_interruption_ended_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_interruption_ended_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_interruption_ended_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_interruption_ended_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_interruption_ended_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event_payload = AudioInterruptionEndedPayload {
+                                stream: result_recorded_item_recorded_audio_interruption_ended_event_payload_stream,
+                            };
+                            let result_recorded_item_recorded_audio_interruption_ended_event = AudioInterruptionEndedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_interruption_ended_event_kind,
+                                metadata: result_recorded_item_recorded_audio_interruption_ended_event_metadata,
+                                payload: result_recorded_item_recorded_audio_interruption_ended_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(result_recorded_item_recorded_audio_interruption_ended_event)
+                        }
+                        AudioEventVm::AudioStreamDeviceChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_device_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_device_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_device_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_device_changed_event_payload_status_flags,
+                                device_id: result_recorded_item_recorded_audio_stream_device_changed_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_device_changed_event = AudioStreamDeviceChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_device_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_device_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_device_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(result_recorded_item_recorded_audio_stream_device_changed_event)
+                        }
+                        AudioEventVm::AudioStreamStateChangedEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_state_changed_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_state_changed_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayload {
+                                stream: result_recorded_item_recorded_audio_stream_state_changed_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_state_changed_event_payload_status_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_state_changed_event = AudioStreamStateChangedEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_state_changed_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_state_changed_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_state_changed_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(result_recorded_item_recorded_audio_stream_state_changed_event)
+                        }
+                        AudioEventVm::AudioStreamXRunEvent(value) => {
+                            let result_recorded_item_recorded_audio_stream_x_run_event_kind = {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_audio_stream_x_run_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_metadata = AudioEventMetadata {
+                                timestamp_ns: result_recorded_item_recorded_audio_stream_x_run_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_audio_stream_x_run_event_metadata_sequence,
+                                dropped_count: result_recorded_item_recorded_audio_stream_x_run_event_metadata_dropped_count,
+                                source: result_recorded_item_recorded_audio_stream_x_run_event_metadata_source,
+                                backend: result_recorded_item_recorded_audio_stream_x_run_event_metadata_backend,
+                                flags: result_recorded_item_recorded_audio_stream_x_run_event_metadata_flags,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner = value;
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_stream_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner = {
+                                    let result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner_ref.as_str().to_string()
+                                };
+                                Some(result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id_inner)
+                            } else {
+                                None
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event_payload = AudioStreamXRunPayloadReplayRecord {
+                                stream: result_recorded_item_recorded_audio_stream_x_run_event_payload_stream,
+                                status_flags: result_recorded_item_recorded_audio_stream_x_run_event_payload_status_flags,
+                                xrun_count_delta: result_recorded_item_recorded_audio_stream_x_run_event_payload_xrun_count_delta,
+                                device_id: result_recorded_item_recorded_audio_stream_x_run_event_payload_device_id,
+                            };
+                            let result_recorded_item_recorded_audio_stream_x_run_event = AudioStreamXRunEventReplayRecord {
+                                kind: result_recorded_item_recorded_audio_stream_x_run_event_kind,
+                                metadata: result_recorded_item_recorded_audio_stream_x_run_event_metadata,
+                                payload: result_recorded_item_recorded_audio_stream_x_run_event_payload,
+                            };
+                            AudioEventReplayRecord::AudioStreamXRunEvent(result_recorded_item_recorded_audio_stream_x_run_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -11048,7 +18275,9 @@ fn destack_audio_event_try_read_batch_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AudioEventTryReadBatchReplay { result }
+                    AudioEventTryReadBatchReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -11063,82 +18292,506 @@ fn destack_audio_event_try_read_batch_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
-                        let vm_result_item_value_kind = vm_result_item.kind;
-                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
-                        let vm_result_item_value_sequence = vm_result_item.sequence;
-                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
-                        let vm_result_item_value_source = vm_result_item.source;
-                        let vm_result_item_value_backend = vm_result_item.backend;
-                        let vm_result_item_value_flags = vm_result_item.flags;
-                        let vm_result_item_value_status_flags = vm_result_item.status_flags;
-                        let vm_result_item_value_xrun_count_delta = vm_result_item.xrun_count_delta;
-                        let vm_result_item_value_device_id = if let Some(value) =
-                            vm_result_item.device_id
-                        {
-                            let vm_result_item_value_device_id_inner_value =
-                                context.intern_string(value.as_str());
-                            let vm_result_item_value_device_id_inner =
-                                vm::StringHandle::new(vm_result_item_value_device_id_inner_value);
-                            Some(vm_result_item_value_device_id_inner)
-                        } else {
-                            None
+                        let vm_result_item_value = match vm_result_item {
+                            AudioEventReplayRecord::AudioBackendDisconnectedEvent(value) => {
+                                let vm_result_item_value_audio_backend_disconnected_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_disconnected_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_disconnected_event_kind_value);
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_backend_disconnected_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_backend_disconnected_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_backend_disconnected_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_backend_disconnected_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_backend_disconnected_event_metadata_source,
+                                    backend: vm_result_item_value_audio_backend_disconnected_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_backend_disconnected_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_disconnected_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event_payload = AudioBackendDisconnectedPayloadVm {
+                                    stream: vm_result_item_value_audio_backend_disconnected_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_backend_disconnected_event = AudioBackendDisconnectedEventVm {
+                                    kind: vm_result_item_value_audio_backend_disconnected_event_kind,
+                                    metadata: vm_result_item_value_audio_backend_disconnected_event_metadata,
+                                    payload: vm_result_item_value_audio_backend_disconnected_event_payload,
+                                };
+                                AudioEventVm::AudioBackendDisconnectedEvent(vm_result_item_value_audio_backend_disconnected_event)
+                            }
+                            AudioEventReplayRecord::AudioBackendResetEvent(value) => {
+                                let vm_result_item_value_audio_backend_reset_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_backend_reset_event_kind = vm::StringHandle::new(vm_result_item_value_audio_backend_reset_event_kind_value);
+                                let vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_backend_reset_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_backend_reset_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_backend_reset_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_backend_reset_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_backend_reset_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_backend_reset_event_metadata_source,
+                                    backend: vm_result_item_value_audio_backend_reset_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_backend_reset_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_backend_reset_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_backend_reset_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_backend_reset_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_backend_reset_event_payload = AudioBackendResetPayloadVm {
+                                    stream: vm_result_item_value_audio_backend_reset_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_backend_reset_event = AudioBackendResetEventVm {
+                                    kind: vm_result_item_value_audio_backend_reset_event_kind,
+                                    metadata: vm_result_item_value_audio_backend_reset_event_metadata,
+                                    payload: vm_result_item_value_audio_backend_reset_event_payload,
+                                };
+                                AudioEventVm::AudioBackendResetEvent(vm_result_item_value_audio_backend_reset_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultCaptureChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_capture_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_capture_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_capture_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_capture_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_capture_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_capture_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_capture_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_capture_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_capture_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_capture_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event_payload = AudioDefaultCaptureChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_capture_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_capture_changed_event = AudioDefaultCaptureChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_capture_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_capture_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_capture_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultCaptureChangedEvent(vm_result_item_value_audio_default_capture_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultLoopbackChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_loopback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_loopback_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_loopback_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_loopback_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_loopback_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_loopback_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_loopback_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_loopback_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_loopback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event_payload = AudioDefaultLoopbackChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_loopback_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_loopback_changed_event = AudioDefaultLoopbackChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_loopback_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_loopback_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_loopback_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultLoopbackChangedEvent(vm_result_item_value_audio_default_loopback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDefaultPlaybackChangedEvent(value) => {
+                                let vm_result_item_value_audio_default_playback_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_default_playback_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_kind_value);
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_default_playback_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_default_playback_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_default_playback_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_default_playback_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_default_playback_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_default_playback_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_default_playback_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_default_playback_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event_payload = AudioDefaultPlaybackChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_default_playback_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_default_playback_changed_event = AudioDefaultPlaybackChangedEventVm {
+                                    kind: vm_result_item_value_audio_default_playback_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_default_playback_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_default_playback_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDefaultPlaybackChangedEvent(vm_result_item_value_audio_default_playback_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceAddedEvent(value) => {
+                                let vm_result_item_value_audio_device_added_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_added_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_kind_value);
+                                let vm_result_item_value_audio_device_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_added_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_added_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_added_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_added_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_added_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_added_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_added_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_added_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_added_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_added_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_added_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_added_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_added_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_added_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_added_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_added_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_added_event_payload = AudioDeviceAddedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_added_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_added_event = AudioDeviceAddedEventVm {
+                                    kind: vm_result_item_value_audio_device_added_event_kind,
+                                    metadata: vm_result_item_value_audio_device_added_event_metadata,
+                                    payload: vm_result_item_value_audio_device_added_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceAddedEvent(vm_result_item_value_audio_device_added_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceFormatChangedEvent(value) => {
+                                let vm_result_item_value_audio_device_format_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_format_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_kind_value);
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_format_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_format_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_format_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_format_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_format_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_format_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_format_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_format_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event_payload = AudioDeviceFormatChangedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_format_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_format_changed_event = AudioDeviceFormatChangedEventVm {
+                                    kind: vm_result_item_value_audio_device_format_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_device_format_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_device_format_changed_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceFormatChangedEvent(vm_result_item_value_audio_device_format_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceRemovedEvent(value) => {
+                                let vm_result_item_value_audio_device_removed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_removed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_kind_value);
+                                let vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_removed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_removed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_removed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_removed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_removed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_removed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_removed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_removed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_removed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_removed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_removed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_removed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_removed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_removed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_removed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_removed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_removed_event_payload = AudioDeviceRemovedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_removed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_removed_event = AudioDeviceRemovedEventVm {
+                                    kind: vm_result_item_value_audio_device_removed_event_kind,
+                                    metadata: vm_result_item_value_audio_device_removed_event_metadata,
+                                    payload: vm_result_item_value_audio_device_removed_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceRemovedEvent(vm_result_item_value_audio_device_removed_event)
+                            }
+                            AudioEventReplayRecord::AudioDeviceReroutedEvent(value) => {
+                                let vm_result_item_value_audio_device_rerouted_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_device_rerouted_event_kind = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_kind_value);
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_device_rerouted_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_device_rerouted_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_device_rerouted_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_device_rerouted_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_device_rerouted_event_metadata_source,
+                                    backend: vm_result_item_value_audio_device_rerouted_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_device_rerouted_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_device_rerouted_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event_payload = AudioDeviceReroutedPayloadVm {
+                                    device_id: vm_result_item_value_audio_device_rerouted_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_device_rerouted_event = AudioDeviceReroutedEventVm {
+                                    kind: vm_result_item_value_audio_device_rerouted_event_kind,
+                                    metadata: vm_result_item_value_audio_device_rerouted_event_metadata,
+                                    payload: vm_result_item_value_audio_device_rerouted_event_payload,
+                                };
+                                AudioEventVm::AudioDeviceReroutedEvent(vm_result_item_value_audio_device_rerouted_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionBeganEvent(value) => {
+                                let vm_result_item_value_audio_interruption_began_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_began_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_began_event_kind_value);
+                                let vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_interruption_began_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_interruption_began_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_interruption_began_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_interruption_began_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_interruption_began_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_interruption_began_event_metadata_source,
+                                    backend: vm_result_item_value_audio_interruption_began_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_interruption_began_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_interruption_began_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_interruption_began_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_began_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_interruption_began_event_payload = AudioInterruptionBeganPayloadVm {
+                                    stream: vm_result_item_value_audio_interruption_began_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_interruption_began_event = AudioInterruptionBeganEventVm {
+                                    kind: vm_result_item_value_audio_interruption_began_event_kind,
+                                    metadata: vm_result_item_value_audio_interruption_began_event_metadata,
+                                    payload: vm_result_item_value_audio_interruption_began_event_payload,
+                                };
+                                AudioEventVm::AudioInterruptionBeganEvent(vm_result_item_value_audio_interruption_began_event)
+                            }
+                            AudioEventReplayRecord::AudioInterruptionEndedEvent(value) => {
+                                let vm_result_item_value_audio_interruption_ended_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_interruption_ended_event_kind = vm::StringHandle::new(vm_result_item_value_audio_interruption_ended_event_kind_value);
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_interruption_ended_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_interruption_ended_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_interruption_ended_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_interruption_ended_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_interruption_ended_event_metadata_source,
+                                    backend: vm_result_item_value_audio_interruption_ended_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_interruption_ended_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_interruption_ended_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_interruption_ended_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event_payload = AudioInterruptionEndedPayloadVm {
+                                    stream: vm_result_item_value_audio_interruption_ended_event_payload_stream,
+                                };
+                                let vm_result_item_value_audio_interruption_ended_event = AudioInterruptionEndedEventVm {
+                                    kind: vm_result_item_value_audio_interruption_ended_event_kind,
+                                    metadata: vm_result_item_value_audio_interruption_ended_event_metadata,
+                                    payload: vm_result_item_value_audio_interruption_ended_event_payload,
+                                };
+                                AudioEventVm::AudioInterruptionEndedEvent(vm_result_item_value_audio_interruption_ended_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamDeviceChangedEvent(value) => {
+                                let vm_result_item_value_audio_stream_device_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_device_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_kind_value);
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_device_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_device_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_device_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_device_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_device_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_device_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_device_changed_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_stream_device_changed_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event_payload = AudioStreamDeviceChangedPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_device_changed_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_device_changed_event_payload_status_flags,
+                                    device_id: vm_result_item_value_audio_stream_device_changed_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_stream_device_changed_event = AudioStreamDeviceChangedEventVm {
+                                    kind: vm_result_item_value_audio_stream_device_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_device_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_device_changed_event_payload,
+                                };
+                                AudioEventVm::AudioStreamDeviceChangedEvent(vm_result_item_value_audio_stream_device_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamStateChangedEvent(value) => {
+                                let vm_result_item_value_audio_stream_state_changed_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_state_changed_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_state_changed_event_kind_value);
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_state_changed_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_state_changed_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_state_changed_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_state_changed_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_state_changed_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_state_changed_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_state_changed_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_state_changed_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_state_changed_event_payload = AudioStreamStateChangedPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_state_changed_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_state_changed_event_payload_status_flags,
+                                };
+                                let vm_result_item_value_audio_stream_state_changed_event = AudioStreamStateChangedEventVm {
+                                    kind: vm_result_item_value_audio_stream_state_changed_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_state_changed_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_state_changed_event_payload,
+                                };
+                                AudioEventVm::AudioStreamStateChangedEvent(vm_result_item_value_audio_stream_state_changed_event)
+                            }
+                            AudioEventReplayRecord::AudioStreamXRunEvent(value) => {
+                                let vm_result_item_value_audio_stream_x_run_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_audio_stream_x_run_event_kind = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_kind_value);
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count = value.metadata.dropped_count;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_source = value.metadata.source;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_backend = value.metadata.backend;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata_flags = value.metadata.flags;
+                                let vm_result_item_value_audio_stream_x_run_event_metadata = AudioEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_audio_stream_x_run_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_audio_stream_x_run_event_metadata_sequence,
+                                    dropped_count: vm_result_item_value_audio_stream_x_run_event_metadata_dropped_count,
+                                    source: vm_result_item_value_audio_stream_x_run_event_metadata_source,
+                                    backend: vm_result_item_value_audio_stream_x_run_event_metadata_backend,
+                                    flags: vm_result_item_value_audio_stream_x_run_event_metadata_flags,
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload_stream = if let Some(value) = value.payload.stream {
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_stream_inner = value;
+                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_stream_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload_status_flags = value.payload.status_flags;
+                                let vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta = value.payload.xrun_count_delta;
+                                let vm_result_item_value_audio_stream_x_run_event_payload_device_id = if let Some(value) = value.payload.device_id {
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value = context.intern_string(value.as_str());
+                                    let vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner = vm::StringHandle::new(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner_value);
+                                    Some(vm_result_item_value_audio_stream_x_run_event_payload_device_id_inner)
+                                } else {
+                                    None
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event_payload = AudioStreamXRunPayloadVm {
+                                    stream: vm_result_item_value_audio_stream_x_run_event_payload_stream,
+                                    status_flags: vm_result_item_value_audio_stream_x_run_event_payload_status_flags,
+                                    xrun_count_delta: vm_result_item_value_audio_stream_x_run_event_payload_xrun_count_delta,
+                                    device_id: vm_result_item_value_audio_stream_x_run_event_payload_device_id,
+                                };
+                                let vm_result_item_value_audio_stream_x_run_event = AudioStreamXRunEventVm {
+                                    kind: vm_result_item_value_audio_stream_x_run_event_kind,
+                                    metadata: vm_result_item_value_audio_stream_x_run_event_metadata,
+                                    payload: vm_result_item_value_audio_stream_x_run_event_payload,
+                                };
+                                AudioEventVm::AudioStreamXRunEvent(vm_result_item_value_audio_stream_x_run_event)
+                            }
                         };
-                        let vm_result_item_value_stream = if let Some(value) = vm_result_item.stream
-                        {
-                            let vm_result_item_value_stream_inner = value;
-                            Some(vm_result_item_value_stream_inner)
-                        } else {
-                            None
-                        };
-                        let vm_result_item_value = AudioEventVm {
-                            kind: vm_result_item_value_kind,
-                            timestamp_ns: vm_result_item_value_timestamp_ns,
-                            sequence: vm_result_item_value_sequence,
-                            dropped_count: vm_result_item_value_dropped_count,
-                            source: vm_result_item_value_source,
-                            backend: vm_result_item_value_backend,
-                            flags: vm_result_item_value_flags,
-                            status_flags: vm_result_item_value_status_flags,
-                            xrun_count_delta: vm_result_item_value_xrun_count_delta,
-                            device_id: vm_result_item_value_device_id,
-                            stream: vm_result_item_value_stream,
-                        };
-                        let vm_result_item_value_encoded = {
-                            let field_0 =
-                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                            let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
-                            let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64);
-                            let field_3 = vm::Value::uint(vm_result_item_value.dropped_count, 64);
-                            let field_4 =
-                                vm::Value::uint(vm_result_item_value.source as u8 as u64, 8);
-                            let field_5 =
-                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
-                            let field_6 = vm::Value::uint(vm_result_item_value.flags as u64, 32);
-                            let field_7 =
-                                vm::Value::uint(vm_result_item_value.status_flags.0 as u64, 32);
-                            let field_8 =
-                                vm::Value::uint(vm_result_item_value.xrun_count_delta, 64);
-                            let field_9 = match vm_result_item_value.device_id {
-                                Some(value) => value.value(),
-                                None => vm::Value::VOID,
-                            };
-                            let field_10 = match vm_result_item_value.stream {
-                                Some(value) => vm::Value::uint(value.0.0, 64),
-                                None => vm::Value::VOID,
-                            };
-                            context.allocate_aggregate(vec![
-                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-                                field_7, field_8, field_9, field_10,
-                            ])
-                        };
+                        let vm_result_item_value_encoded = match vm_result_item_value { AudioEventVm::AudioBackendDisconnectedEvent(value) => { let tag_value = vm::Value::uint(2671385442u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioBackendResetEvent(value) => { let tag_value = vm::Value::uint(882086390u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultCaptureChangedEvent(value) => { let tag_value = vm::Value::uint(3898931457u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => { let tag_value = vm::Value::uint(148848279u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => { let tag_value = vm::Value::uint(3146923047u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceAddedEvent(value) => { let tag_value = vm::Value::uint(4188441349u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceFormatChangedEvent(value) => { let tag_value = vm::Value::uint(3233210258u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceRemovedEvent(value) => { let tag_value = vm::Value::uint(4161309046u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioDeviceReroutedEvent(value) => { let tag_value = vm::Value::uint(3459080735u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioInterruptionBeganEvent(value) => { let tag_value = vm::Value::uint(1214582496u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioInterruptionEndedEvent(value) => { let tag_value = vm::Value::uint(2799812553u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamDeviceChangedEvent(value) => { let tag_value = vm::Value::uint(3694639736u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); let field_2 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamStateChangedEvent(value) => { let tag_value = vm::Value::uint(1303591687u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, AudioEventVm::AudioStreamXRunEvent(value) => { let tag_value = vm::Value::uint(3186589411u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = vm::Value::uint(value.metadata.dropped_count, 64); let field_3 = vm::Value::uint(value.metadata.source as u8 as u64, 8); let field_4 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_5 = vm::Value::uint(value.metadata.flags as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_2 = { let field_0 = match value.payload.stream { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.payload.status_flags.0 as u64, 32); let field_2 = vm::Value::uint(value.payload.xrun_count_delta, 64); let field_3 = match value.payload.device_id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
-                    let vm_result: VmSlice<AudioEventVm> = VmSlice {
-                        data: vm_result_data,
-                        len: value.len() as u32,
-                        _marker: std::marker::PhantomData,
-                    };
+                    let vm_result: VmSlice<AudioEventVm> = VmSlice { data: vm_result_data, len: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),

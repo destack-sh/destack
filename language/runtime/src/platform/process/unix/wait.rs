@@ -11,11 +11,12 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessUnshareFlags, ProcessUserIds, ProcessWaitContinuedStatus, ProcessWaitExitedStatus,
+    ProcessWaitFlags, ProcessWaitRunningStatus, ProcessWaitSignaledStatus, ProcessWaitStatus,
+    ProcessWaitStoppedStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
@@ -45,7 +46,11 @@ fn resolve_spawned_process_handle(
 
 /// Return true when a wait status is terminal for a spawned process.
 fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
-    status.kind == ProcessWaitKind::Exited || status.kind == ProcessWaitKind::Signaled
+    matches!(
+        status,
+        ProcessWaitStatus::ProcessWaitExitedStatus(_)
+            | ProcessWaitStatus::ProcessWaitSignaledStatus(_)
+    )
 }
 /// Wait for a process identifier.
 ///
@@ -332,50 +337,39 @@ fn waitpid_error(pid: u32, flags: u32) -> Box<RuntimeError> {
 /// Decode a host wait status into the platform wait payload.
 fn wait_status_from_raw(waited: libc::pid_t, raw_status: libc::c_int) -> ProcessWaitStatus {
     if libc::WIFEXITED(raw_status) {
-        return ProcessWaitStatus {
+        return ProcessWaitStatus::ProcessWaitExitedStatus(ProcessWaitExitedStatus {
+            kind: "exited".into(),
             pid: ProcessId(waited as u32),
-            kind: ProcessWaitKind::Exited,
             exit_code: libc::WEXITSTATUS(raw_status),
-            signal: Signal(0),
-            core_dumped: false,
-        };
+        });
     }
 
     if libc::WIFSIGNALED(raw_status) {
-        return ProcessWaitStatus {
+        return ProcessWaitStatus::ProcessWaitSignaledStatus(ProcessWaitSignaledStatus {
+            kind: "signaled".into(),
             pid: ProcessId(waited as u32),
-            kind: ProcessWaitKind::Signaled,
-            exit_code: 0,
             signal: Signal(libc::WTERMSIG(raw_status) as u32),
             core_dumped: libc::WCOREDUMP(raw_status),
-        };
+        });
     }
 
     if libc::WIFSTOPPED(raw_status) {
-        return ProcessWaitStatus {
+        return ProcessWaitStatus::ProcessWaitStoppedStatus(ProcessWaitStoppedStatus {
+            kind: "stopped".into(),
             pid: ProcessId(waited as u32),
-            kind: ProcessWaitKind::Stopped,
-            exit_code: 0,
             signal: Signal(libc::WSTOPSIG(raw_status) as u32),
-            core_dumped: false,
-        };
+        });
     }
 
     if libc::WIFCONTINUED(raw_status) {
-        return ProcessWaitStatus {
+        return ProcessWaitStatus::ProcessWaitContinuedStatus(ProcessWaitContinuedStatus {
+            kind: "continued".into(),
             pid: ProcessId(waited as u32),
-            kind: ProcessWaitKind::Continued,
-            exit_code: 0,
-            signal: Signal(0),
-            core_dumped: false,
-        };
+        });
     }
 
-    ProcessWaitStatus {
+    ProcessWaitStatus::ProcessWaitRunningStatus(ProcessWaitRunningStatus {
+        kind: "running".into(),
         pid: ProcessId(waited as u32),
-        kind: ProcessWaitKind::Running,
-        exit_code: 0,
-        signal: Signal(0),
-        core_dumped: false,
-    }
+    })
 }

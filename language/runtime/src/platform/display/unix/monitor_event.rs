@@ -1,11 +1,11 @@
 #[cfg(target_os = "android")]
-use super::android::monitor_event as backend_monitor_event;
+use super::android as backend_monitor_event;
 #[cfg(target_os = "ios")]
-use super::ios::monitor_event as backend_monitor_event;
+use super::ios as backend_monitor_event;
 #[cfg(target_os = "linux")]
-use super::linux_x11::monitor_event as backend_monitor_event;
+use super::linux_x11 as backend_monitor_event;
 #[cfg(target_os = "macos")]
-use super::macos::monitor_event as backend_monitor_event;
+use super::macos as backend_monitor_event;
 #[cfg(all(
     unix,
     not(any(
@@ -15,9 +15,9 @@ use super::macos::monitor_event as backend_monitor_event;
         target_os = "macos"
     ))
 ))]
-use super::other::monitor_event as backend_monitor_event;
+use super::other as backend_monitor_event;
 use crate::diagnostic::RuntimeResult;
-use crate::platform::display::DisplayEvent;
+use crate::platform::display::{DisplayEvent, DisplayMonitorEventOpenOptions};
 use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
@@ -33,8 +33,9 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
 pub(crate) unsafe fn destack_display_monitor_event_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
+    options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
-    unsafe { backend_monitor_event::destack_display_monitor_event_open(context, out) }
+    unsafe { backend_monitor_event::destack_display_monitor_event_open(context, out, options) }
 }
 
 /// Wait for one monitor event.
@@ -44,7 +45,9 @@ pub(crate) unsafe fn destack_display_monitor_event_read(
     handle: resource::DisplayEventHandle,
     timeout_ns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { backend_monitor_event::destack_display_monitor_event_read(context, out, handle, timeout_ns) }
+    unsafe {
+        backend_monitor_event::destack_display_monitor_event_read(context, out, handle, timeout_ns)
+    }
 }
 
 /// Wait for one batch of monitor events.

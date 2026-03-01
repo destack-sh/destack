@@ -8,7 +8,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface,
-    NetInterfaceFlags, NetInterfaceReplayRecord, NetInterfaceVm, PacketCaptureOptions,
+    NetInterfaceFlags, NetInterfaceReplayRecord, NetInterfaceVm, PacketBackend,
+    PacketBackendCapabilityFlags, PacketBackendDescriptor, PacketBackendDescriptorReplayRecord,
+    PacketBackendDescriptorVm, PacketBackendSelectionPolicy, PacketCaptureOptions,
     PacketCaptureOptionsVm, PacketCaptureRecord, PacketCaptureRecordVm, PacketCaptureStats,
     PacketCaptureStatsVm, PacketFanoutMode, PacketFanoutOptions, PacketFanoutOptionsVm,
     PacketRingOptions, PacketRingOptionsVm, PacketTimestampMode, ResolveFlags, ResolveQuery,
@@ -22,11 +24,11 @@ use crate::platform::net::{
     SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm,
     SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive,
     UdpReceiveReplayRecord, UdpReceiveVm, UdpSourceMembershipV4, UdpSourceMembershipV4Vm,
-    UdpSourceMembershipV6, UdpSourceMembershipV6Vm, UdsAddress, UdsAddressKind, UdsAddressVm,
+    UdpSourceMembershipV6, UdpSourceMembershipV6Vm, UdsAddress, UdsAddressVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -179,6 +181,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -189,6 +192,7 @@ fn decode_slice<T>(
 }
 
 /// Decode an array argument.
+#[allow(dead_code)]
 fn decode_array<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -1067,6 +1071,15 @@ fn encode_destack_net_options_set_write_timeout_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Encode the result for destack.net.raw.packetBackendList.
+#[inline]
+fn encode_destack_net_raw_packet_backend_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<PacketBackendDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Decode arguments for destack.net.raw.packetClearFanout.
 #[inline]
 fn decode_destack_net_raw_packet_clear_fanout_args(
@@ -1151,19 +1164,49 @@ fn decode_destack_net_raw_packet_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 6 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 4 fields",
+                "expected 6 fields",
             ))
             .boxed());
         }
+        let options_backend_raw = decode_uint8(slots[0], "options_backend_raw", "backend")?;
+        let options_backend = match options_backend_raw {
+            0u8 => PacketBackend::Auto,
+            1u8 => PacketBackend::AfPacket,
+            2u8 => PacketBackend::Bpf,
+            3u8 => PacketBackend::WinRawSocket,
+            255u8 => PacketBackend::Null,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_backend",
+                    "unknown PacketBackend value",
+                ))
+                .boxed());
+            }
+        };
+        let options_backend_policy_raw =
+            decode_uint8(slots[1], "options_backend_policy_raw", "backendPolicy")?;
+        let options_backend_policy = match options_backend_policy_raw {
+            1u8 => PacketBackendSelectionPolicy::Strict,
+            2u8 => PacketBackendSelectionPolicy::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_backend_policy",
+                    "unknown PacketBackendSelectionPolicy value",
+                ))
+                .boxed());
+            }
+        };
         let options_interface_index =
-            decode_uint32(slots[0], "options_interface_index", "interfaceIndex")?;
-        let options_snap_length = decode_uint32(slots[1], "options_snap_length", "snapLength")?;
-        let options_timeout_ms = decode_int32(slots[2], "options_timeout_ms", "timeoutMs")?;
-        let options_promiscuous = decode_bool(slots[3], "options_promiscuous", "promiscuous")?;
+            decode_uint32(slots[2], "options_interface_index", "interfaceIndex")?;
+        let options_snap_length = decode_uint32(slots[3], "options_snap_length", "snapLength")?;
+        let options_timeout_ms = decode_int32(slots[4], "options_timeout_ms", "timeoutMs")?;
+        let options_promiscuous = decode_bool(slots[5], "options_promiscuous", "promiscuous")?;
         PacketCaptureOptionsVm {
+            backend: options_backend,
+            backend_policy: options_backend_policy,
             interface_index: options_interface_index,
             snap_length: options_snap_length,
             timeout_ms: options_timeout_ms,
@@ -3690,90 +3733,7 @@ fn decode_destack_net_uds_uds_connect_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm,)> {
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "UdsAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_kind_raw = decode_uint8(slots[0], "address_kind_raw", "kind")?;
-        let address_kind = match address_kind_raw {
-            1u8 => UdsAddressKind::Path,
-            2u8 => UdsAddressKind::Abstract,
-            3u8 => UdsAddressKind::Unnamed,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "address_kind",
-                    "unknown UdsAddressKind value",
-                ))
-                .boxed());
-            }
-        };
-        let address_path = {
-            if slots[1].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "address_path",
-                    "path",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[1])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "address_path",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let address_path_encoding_raw =
-                decode_uint8(slots[0], "address_path_encoding_raw", "encoding")?;
-            let address_path_encoding = match address_path_encoding_raw {
-                1u8 => fs::PathEncoding::Bytes,
-                2u8 => fs::PathEncoding::Utf16,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "address_path_encoding",
-                        "unknown fs::PathEncoding value",
-                    ))
-                    .boxed());
-                }
-            };
-            let address_path_bytes_inner =
-                decode_array::<u8>(context, slots[1], "address_path_bytes_inner", "bytes")?;
-            let address_path_bytes =
-                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(address_path_bytes_inner);
-            let address_path_utf16_inner =
-                decode_array::<u16>(context, slots[2], "address_path_utf16_inner", "utf16")?;
-            let address_path_utf16 =
-                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(address_path_utf16_inner);
-            fs::OsPathVm {
-                encoding: address_path_encoding,
-                bytes: address_path_bytes,
-                utf16: address_path_utf16,
-            }
-        };
-        let address_abstract_name =
-            decode_array::<u8>(context, slots[2], "address_abstract_name", "abstractName")?;
-        UdsAddressVm {
-            kind: address_kind,
-            path: address_path,
-            abstract_name: address_abstract_name,
-        }
-    };
+    let address = <UdsAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((address,))
 }
 
@@ -3793,90 +3753,7 @@ fn decode_destack_net_uds_uds_listen_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm, u32)> {
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "UdsAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_kind_raw = decode_uint8(slots[0], "address_kind_raw", "kind")?;
-        let address_kind = match address_kind_raw {
-            1u8 => UdsAddressKind::Path,
-            2u8 => UdsAddressKind::Abstract,
-            3u8 => UdsAddressKind::Unnamed,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "address_kind",
-                    "unknown UdsAddressKind value",
-                ))
-                .boxed());
-            }
-        };
-        let address_path = {
-            if slots[1].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "address_path",
-                    "path",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[1])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "address_path",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let address_path_encoding_raw =
-                decode_uint8(slots[0], "address_path_encoding_raw", "encoding")?;
-            let address_path_encoding = match address_path_encoding_raw {
-                1u8 => fs::PathEncoding::Bytes,
-                2u8 => fs::PathEncoding::Utf16,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "address_path_encoding",
-                        "unknown fs::PathEncoding value",
-                    ))
-                    .boxed());
-                }
-            };
-            let address_path_bytes_inner =
-                decode_array::<u8>(context, slots[1], "address_path_bytes_inner", "bytes")?;
-            let address_path_bytes =
-                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(address_path_bytes_inner);
-            let address_path_utf16_inner =
-                decode_array::<u16>(context, slots[2], "address_path_utf16_inner", "utf16")?;
-            let address_path_utf16 =
-                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(address_path_utf16_inner);
-            fs::OsPathVm {
-                encoding: address_path_encoding,
-                bytes: address_path_bytes,
-                utf16: address_path_utf16,
-            }
-        };
-        let address_abstract_name =
-            decode_array::<u8>(context, slots[2], "address_abstract_name", "abstractName")?;
-        UdsAddressVm {
-            kind: address_kind,
-            path: address_path,
-            abstract_name: address_abstract_name,
-        }
-    };
+    let address = <UdsAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     let backlog_value = arg_value(args, 1, "backlog", "uint32")?;
     let backlog = decode_uint32(backlog_value, "backlog", "uint32")?;
     Ok((address, backlog))
@@ -4145,6 +4022,13 @@ struct NetOptionsSetTtlReplay {
 struct NetOptionsSetWriteTimeoutReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.net.raw.packetBackendList.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct NetRawPacketBackendListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<PacketBackendDescriptorReplayRecord>, PlatformError>,
 }
 
 /// Replay payload for destack.net.raw.packetClearFanout.
@@ -5277,6 +5161,18 @@ pub const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.net.raw.packetBackendList.
+pub const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.net.raw.packetBackendList",
+    "export function packetBackendList(): Result<Slice<PacketBackendDescriptor>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["net.raw"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.net.raw.packetClearFanout.
 pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -6391,6 +6287,7 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     NET_OPTIONS_SET_TOS,
     NET_OPTIONS_SET_TTL,
     NET_OPTIONS_SET_WRITE_TIMEOUT,
+    NET_RAW_PACKET_BACKEND_LIST,
     NET_RAW_PACKET_CLEAR_FANOUT,
     NET_RAW_PACKET_CLEAR_FILTER,
     NET_RAW_PACKET_CLEAR_RING,
@@ -6630,6 +6527,11 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             NET_OPTIONS_SET_WRITE_TIMEOUT,
             "destack.net.options.setWriteTimeout",
             destack_net_options_set_write_timeout as *const (),
+        ),
+        NativeBinding::new(
+            NET_RAW_PACKET_BACKEND_LIST,
+            "destack.net.raw.packetBackendList",
+            destack_net_raw_packet_backend_list as *const (),
         ),
         NativeBinding::new(
             NET_RAW_PACKET_CLEAR_FANOUT,
@@ -8989,6 +8891,101 @@ fn destack_net_options_set_write_timeout_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_net_raw_packet_backend_list_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<PacketBackendDescriptor>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        NET_RAW_PACKET_BACKEND_LIST,
+        context.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_net_packet_backend_list(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_net_packet_backend_list(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_available = result_recorded_item.available;
+                    let result_recorded_item_recorded_priority = result_recorded_item.priority;
+                    let result_recorded_item_recorded_capability_flags =
+                        result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded = PacketBackendDescriptorReplayRecord {
+                        backend: result_recorded_item_recorded_backend,
+                        name: result_recorded_item_recorded_name,
+                        available: result_recorded_item_recorded_available,
+                        priority: result_recorded_item_recorded_priority,
+                        capability_flags: result_recorded_item_recorded_capability_flags,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = NetRawPacketBackendListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetRawPacketBackendListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_backend = value_native_item.backend;
+                        let value_native_item_native_name =
+                            context.store_string(&value_native_item.name);
+                        let value_native_item_native_available = value_native_item.available;
+                        let value_native_item_native_priority = value_native_item.priority;
+                        let value_native_item_native_capability_flags =
+                            value_native_item.capability_flags;
+                        let value_native_item_native = PacketBackendDescriptor {
+                            backend: value_native_item_native_backend,
+                            name: value_native_item_native_name,
+                            available: value_native_item_native_available,
+                            priority: value_native_item_native_priority,
+                            capability_flags: value_native_item_native_capability_flags,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -14154,6 +14151,21 @@ pub unsafe extern "C" fn destack_net_options_set_write_timeout(
     })
 }
 
+#[unsafe(export_name = "destack.net.raw.packetBackendList")]
+pub unsafe extern "C" fn destack_net_raw_packet_backend_list(
+    out: *mut NativeSlice<PacketBackendDescriptor>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(NET_RAW_PACKET_BACKEND_LIST)?;
+        destack_net_raw_packet_backend_list_replay(context, world, out)
+    })
+}
+
 #[unsafe(export_name = "destack.net.raw.packetClearFanout")]
 pub unsafe extern "C" fn destack_net_raw_packet_clear_fanout(
     handle: resource::SocketHandle,
@@ -17280,6 +17292,176 @@ fn destack_net_options_set_write_timeout_vm_replay(
         },
     );
     let result = encode_destack_net_options_set_write_timeout_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_net_raw_packet_backend_list_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        NET_RAW_PACKET_BACKEND_LIST,
+        runtime.replay_payload_for(NET_RAW_PACKET_BACKEND_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_net_packet_backend_list(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_net_packet_backend_list(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<PacketBackendDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 5 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
+                            0u8 => PacketBackend::Auto,
+                            1u8 => PacketBackend::AfPacket,
+                            2u8 => PacketBackend::Bpf,
+                            3u8 => PacketBackend::WinRawSocket,
+                            255u8 => PacketBackend::Null,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_backend",
+                                        "unknown PacketBackend value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_available =
+                            decode_bool(slots[2], "result_recorded_item_available", "available")?;
+                        let result_recorded_item_priority =
+                            decode_uint16(slots[3], "result_recorded_item_priority", "priority")?;
+                        let result_recorded_item_capability_flags_inner = decode_uint64(
+                            slots[4],
+                            "result_recorded_item_capability_flags_inner",
+                            "capabilityFlags",
+                        )?;
+                        let result_recorded_item_capability_flags = PacketBackendCapabilityFlags(
+                            result_recorded_item_capability_flags_inner,
+                        );
+                        PacketBackendDescriptorVm {
+                            backend: result_recorded_item_backend,
+                            name: result_recorded_item_name,
+                            available: result_recorded_item_available,
+                            priority: result_recorded_item_priority,
+                            capability_flags: result_recorded_item_capability_flags,
+                        }
+                    };
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_available = result_recorded_item.available;
+                    let result_recorded_item_recorded_priority = result_recorded_item.priority;
+                    let result_recorded_item_recorded_capability_flags =
+                        result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded = PacketBackendDescriptorReplayRecord {
+                        backend: result_recorded_item_recorded_backend,
+                        name: result_recorded_item_recorded_name,
+                        available: result_recorded_item_recorded_available,
+                        priority: result_recorded_item_recorded_priority,
+                        capability_flags: result_recorded_item_recorded_capability_flags,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = NetRawPacketBackendListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    NetRawPacketBackendListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_available = vm_result_item.available;
+                        let vm_result_item_value_priority = vm_result_item.priority;
+                        let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
+                        let vm_result_item_value = PacketBackendDescriptorVm {
+                            backend: vm_result_item_value_backend,
+                            name: vm_result_item_value_name,
+                            available: vm_result_item_value_available,
+                            priority: vm_result_item_value_priority,
+                            capability_flags: vm_result_item_value_capability_flags,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
+                            let field_1 = vm_result_item_value.name.value();
+                            let field_2 = vm::Value::bool(vm_result_item_value.available);
+                            let field_3 = vm::Value::uint(vm_result_item_value.priority as u64, 16);
+                            let field_4 =
+                                vm::Value::uint(vm_result_item_value.capability_flags.0, 64);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<PacketBackendDescriptorVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_net_raw_packet_backend_list_result(context, result)?;
     Ok(result)
 }
 
@@ -22794,6 +22976,21 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     destack_net_options_set_write_timeout_vm_replay(
                         runtime, context, world, handle, timeoutms,
                     )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            NET_RAW_PACKET_BACKEND_LIST,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(NET_RAW_PACKET_BACKEND_LIST)?;
+                    destack_net_raw_packet_backend_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }

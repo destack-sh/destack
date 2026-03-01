@@ -31,7 +31,9 @@ pub(crate) unsafe fn destack_display_window_open(
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_window_open(context, out, options) }
+    unsafe {
+        crate::platform::display::unsupported::destack_display_window_open(context, out, options)
+    }
 }
 
 pub(crate) unsafe fn destack_display_window_request_attention(
@@ -51,7 +53,9 @@ pub(crate) unsafe fn destack_display_window_request_refresh(
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     unsafe {
-        crate::platform::display::unsupported::destack_display_window_request_refresh(context, window)
+        crate::platform::display::unsupported::destack_display_window_request_refresh(
+            context, window,
+        )
     }
 }
 
@@ -62,7 +66,9 @@ pub(crate) unsafe fn destack_display_window_set_always_on_top(
 ) -> RuntimeResult<()> {
     unsafe {
         crate::platform::display::unsupported::destack_display_window_set_always_on_top(
-            context, window, alwaysontop,
+            context,
+            window,
+            alwaysontop,
         )
     }
 }
@@ -170,7 +176,9 @@ pub(crate) unsafe fn destack_display_window_set_size_constraints(
 ) -> RuntimeResult<()> {
     unsafe {
         crate::platform::display::unsupported::destack_display_window_set_size_constraints(
-            context, window, constraints,
+            context,
+            window,
+            constraints,
         )
     }
 }
@@ -204,7 +212,11 @@ pub(crate) unsafe fn destack_display_window_set_title(
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_window_set_title(context, window, title) }
+    unsafe {
+        crate::platform::display::unsupported::destack_display_window_set_title(
+            context, window, title,
+        )
+    }
 }
 
 pub(crate) unsafe fn destack_display_window_set_visibility(
@@ -224,7 +236,9 @@ pub(crate) unsafe fn destack_display_window_state(
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_window_state(context, out, window) }
+    unsafe {
+        crate::platform::display::unsupported::destack_display_window_state(context, out, window)
+    }
 }
 
 pub(crate) unsafe fn destack_display_window_vsync_wait(
@@ -232,5 +246,9 @@ pub(crate) unsafe fn destack_display_window_vsync_wait(
     window: resource::WindowHandle,
     timeoutns: u64,
 ) -> RuntimeResult<()> {
-    unsafe { crate::platform::display::unsupported::destack_display_window_vsync_wait(context, window, timeoutns) }
+    unsafe {
+        crate::platform::display::unsupported::destack_display_window_vsync_wait(
+            context, window, timeoutns,
+        )
+    }
 }

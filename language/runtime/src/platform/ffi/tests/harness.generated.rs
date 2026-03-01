@@ -8,8 +8,8 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::{FfiPointer, native as ffi_native, vm as ffi_vm};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
+    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs,
+    resource,
 };
 use destack_vm as vm;
 

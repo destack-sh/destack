@@ -1,11 +1,11 @@
 #[cfg(target_os = "android")]
-use super::android::window as backend_window;
+use super::android as backend_window;
 #[cfg(target_os = "ios")]
-use super::ios::window as backend_window;
+use super::ios as backend_window;
 #[cfg(target_os = "linux")]
-use super::linux_x11::window as backend_window;
+use super::linux_x11 as backend_window;
 #[cfg(target_os = "macos")]
-use super::macos::window as backend_window;
+use super::macos as backend_window;
 #[cfg(all(
     unix,
     not(any(
@@ -15,7 +15,7 @@ use super::macos::window as backend_window;
         target_os = "macos"
     ))
 ))]
-use super::other::window as backend_window;
+use super::other as backend_window;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
     WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowLogicalSize,
@@ -74,7 +74,9 @@ pub(crate) unsafe fn destack_display_window_set_always_on_top(
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
-    unsafe { backend_window::destack_display_window_set_always_on_top(context, window, alwaysontop) }
+    unsafe {
+        backend_window::destack_display_window_set_always_on_top(context, window, alwaysontop)
+    }
 }
 
 /// Set cursor icon for one window.
@@ -155,7 +157,9 @@ pub(crate) unsafe fn destack_display_window_set_size_constraints(
     window: resource::WindowHandle,
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
-    unsafe { backend_window::destack_display_window_set_size_constraints(context, window, constraints) }
+    unsafe {
+        backend_window::destack_display_window_set_size_constraints(context, window, constraints)
+    }
 }
 
 /// Set one logical window size.

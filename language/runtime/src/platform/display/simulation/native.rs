@@ -7,12 +7,23 @@ use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 
 use crate::platform::display::{
-    DisplayDescriptor, DisplayEvent, DisplayMode, WindowAttentionLevel, WindowCursorIcon,
-    WindowCursorMode, WindowDescriptor, WindowEvent, WindowLogicalSize, WindowModeOptions,
-    WindowOptions, WindowPhysicalSize, WindowPosition, WindowSizeConstraints, WindowState,
-    WindowVisibility,
+    DisplayBackendDescriptor, DisplayDescriptor, DisplayEvent, DisplayMode,
+    DisplayMonitorEventOpenOptions, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
+    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowEvent,
+    WindowEventOpenOptions, WindowLogicalSize, WindowModeOptions, WindowOptions,
+    WindowPhysicalSize, WindowPosition, WindowSizeConstraints, WindowState, WindowVisibility,
 };
 use crate::platform::resource;
+
+/// List display backends that are available for the active target.
+pub(crate) unsafe fn destack_display_backend_list(
+    _context: &BindingCallContext,
+    out: *mut NativeSlice<DisplayBackendDescriptor>,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.backend.list")).boxed())
+}
 
 /// Close one display endpoint.
 ///
@@ -211,8 +222,9 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
 pub(crate) unsafe fn destack_display_monitor_event_open(
     _context: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
+    options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = out;
+    let _ = (out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventOpen",
@@ -361,8 +373,9 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
 pub(crate) unsafe fn destack_display_monitor_list(
     _context: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    let _ = out;
+    let _ = (out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
 }
@@ -418,8 +431,9 @@ pub(crate) unsafe fn destack_display_monitor_open(
     _context: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
+    options: DisplayMonitorOpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = (out, id);
+    let _ = (out, id, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
 }
@@ -444,8 +458,9 @@ pub(crate) unsafe fn destack_display_monitor_open(
 pub(crate) unsafe fn destack_display_monitor_primary(
     _context: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    let _ = out;
+    let _ = (out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.primary",
@@ -586,8 +601,9 @@ pub(crate) unsafe fn destack_display_window_event_close(
 pub(crate) unsafe fn destack_display_window_event_open(
     _context: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
+    options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = out;
+    let _ = (out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventOpen",

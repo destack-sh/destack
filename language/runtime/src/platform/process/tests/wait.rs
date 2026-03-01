@@ -1,12 +1,11 @@
+use super::{
+    ProcessWaitKind, shell_exit_command, shell_sleep_then_exit_command, spawn_shell,
+    with_harness_context,
+};
 #[cfg(unix)]
 use super::{fork_child_exit, fork_child_sleep_then_exit};
-use super::{shell_exit_command, shell_sleep_then_exit_command, spawn_shell, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(unix)]
-use crate::platform::process::Signal;
-use crate::platform::process::{
-    ProcessId, ProcessWaitFlags, ProcessWaitKind, host as host_process,
-};
+use crate::platform::process::{ProcessId, ProcessWaitFlags, host as host_process};
 
 /// Wait for a forked child exit and verify full wait status fields.
 #[cfg(unix)]
@@ -15,11 +14,12 @@ fn test_process_wait_pid_exit_status_roundtrip() {
     with_harness_context(|mut context| {
         let child_pid = fork_child_exit(7)?;
         let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
 
         assert_eq!(status.pid, child_pid);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 7);
-        assert_eq!(status.signal, Signal(0));
+        assert_eq!(status.exit_code, Some(7));
+        assert_eq!(status.signal, None);
         assert!(!status.core_dumped);
 
         Ok(())
@@ -43,6 +43,7 @@ fn test_process_wait_pid_nohang_would_block_then_reap() {
         assert_eq!(first.code, PlatformErrorCode::IoWouldBlock);
 
         let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())
@@ -57,10 +58,11 @@ fn test_process_wait_pid_spawn_roundtrip() {
         let (command, arguments) = shell_exit_command(21);
         let child_pid = spawn_shell(command, arguments)?;
         let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
 
         assert_eq!(status.pid, child_pid);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
-        assert_eq!(status.exit_code, 21);
+        assert_eq!(status.exit_code, Some(21));
 
         Ok(())
     });
@@ -85,6 +87,7 @@ fn test_process_wait_pid_nonblocking_spawn_roundtrip() {
         assert_eq!(first.code, PlatformErrorCode::IoWouldBlock);
 
         let status = context.destack_process_wait_pid(child_pid, ProcessWaitFlags(0))?;
+        let status = context.wait_status_from_value(status);
         assert_eq!(status.kind, ProcessWaitKind::Exited);
 
         Ok(())

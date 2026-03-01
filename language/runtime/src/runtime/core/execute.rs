@@ -1,5 +1,4 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostEvent;
 use crate::platform::resource;
 use crate::runtime::RuntimeHookState;
 use crate::runtime::engine::{
@@ -556,24 +555,11 @@ impl Runtime {
         Ok(false)
     }
 
-    /// Poll host events and enqueue runtime poller events.
+    /// Poll host events and enqueue host semantic events.
     fn poll_host_events(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<usize> {
         // drain host events for this tick
         let poll_result = self.state.host.poll_events(timeout_nanos)?;
-        let events = poll_result.events;
-        let mut poller_events = Vec::new();
-        let mut host_events = Vec::new();
-        for event in events {
-            // route poller-compatible host events into the scheduler queue
-            match event {
-                HostEvent::Poller(event) => {
-                    poller_events.push(event);
-                }
-                event => {
-                    host_events.push(event);
-                }
-            }
-        }
+        let host_events = poll_result.events;
 
         // record dropped host queue events from host-side queue policy
         let dropped_host_events = poll_result.dropped_event_count;
@@ -583,19 +569,13 @@ impl Runtime {
         }
 
         let host_event_count = host_events.len();
-        let poller_event_count = poller_events.len();
 
         // enqueue host semantic events for watch-based dispatch
         if !host_events.is_empty() {
             self.event_loop.enqueue_host_events(host_events);
         }
 
-        // enqueue poller events for token-based dispatch
-        if !poller_events.is_empty() {
-            self.event_loop.enqueue_events(poller_events);
-        }
-
-        Ok(host_event_count.saturating_add(poller_event_count))
+        Ok(host_event_count)
     }
 
     /// Return whether the current tick exhausted the configured budget.

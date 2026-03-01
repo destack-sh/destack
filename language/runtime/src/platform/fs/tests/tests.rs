@@ -17,14 +17,15 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, fs as platform_fs,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, VmAggregateCodec, VmArray, VmSlice,
+    fs as platform_fs,
 };
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{
     Dirent, DirentKind, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm, OsPath,
-    OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, WatchBatch, WatchBatchVm, WatchEvent,
-    WatchEventKind, WatchEventVm, WatchOptions, core as core_fs,
+    OsPathVm, PathBytesAbi, PathUtf16Abi, WatchBatch, WatchBatchVm, WatchEvent, WatchEventVm,
+    WatchOptions, core as core_fs,
 };
 
 /// Path reference payload used by filesystem test helpers.
@@ -249,44 +250,34 @@ pub(crate) fn native_slice(buffer: &[u8]) -> NativeSlice<u8> {
     }
 }
 
-/// Build an empty VM array.
-fn empty_vm_array<T>() -> VmArray<T> {
-    VmArray {
-        data: vm::RawPointer::NULL,
-        len: 0,
-        capacity: 0,
-        _marker: std::marker::PhantomData,
-    }
-}
-
 /// Read raw bytes from a native path reference.
 fn path_ref_bytes_native(path: OsPath) -> Vec<u8> {
-    match path.encoding {
-        PathEncoding::Bytes => unsafe { path.bytes.0.as_slice() }
+    match path {
+        OsPath::OsPathBytes(path) => unsafe { path.bytes.0.as_slice() }
             .expect("path bytes should be valid")
             .to_vec(),
-        PathEncoding::Utf16 => panic!("expected byte path"),
+        OsPath::OsPathUtf16(_) => panic!("expected byte path"),
     }
 }
 
 /// Read UTF-16 units from a native path reference.
 fn path_ref_utf16_native(path: OsPath) -> Vec<u16> {
-    match path.encoding {
-        PathEncoding::Utf16 => unsafe { path.utf16.0.as_slice() }
+    match path {
+        OsPath::OsPathUtf16(path) => unsafe { path.utf16.0.as_slice() }
             .expect("path utf16 should be valid")
             .to_vec(),
-        PathEncoding::Bytes => panic!("expected utf16 path"),
+        OsPath::OsPathBytes(_) => panic!("expected utf16 path"),
     }
 }
 
 /// Render a native path reference into a displayable string.
 fn path_ref_string_native(path: OsPath) -> String {
-    match path.encoding {
-        PathEncoding::Bytes => {
+    match path {
+        OsPath::OsPathBytes(_) => {
             let bytes = path_ref_bytes_native(path);
             String::from_utf8_lossy(&bytes).to_string()
         }
-        PathEncoding::Utf16 => {
+        OsPath::OsPathUtf16(_) => {
             let units = path_ref_utf16_native(path);
             String::from_utf16_lossy(&units)
         }
@@ -347,9 +338,9 @@ fn path_ref_bytes_vm(
     context: &vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Vec<u8>> {
-    match path.encoding {
-        PathEncoding::Bytes => path.bytes.0.read_bytes(context),
-        PathEncoding::Utf16 => Err(RuntimeError::from(PlatformError::invalid_argument_value(
+    match path {
+        OsPathVm::OsPathBytes(path) => path.bytes.0.read_bytes(context),
+        OsPathVm::OsPathUtf16(_) => Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
             "expected byte path",
         ))
@@ -362,12 +353,12 @@ fn path_ref_string_vm(
     context: &vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<String> {
-    match path.encoding {
-        PathEncoding::Bytes => {
+    match path {
+        OsPathVm::OsPathBytes(path) => {
             let bytes = path.bytes.0.read_bytes(context)?;
             Ok(String::from_utf8_lossy(&bytes).to_string())
         }
-        PathEncoding::Utf16 => {
+        OsPathVm::OsPathUtf16(path) => {
             let units = path.utf16.0.read_values(context)?;
             Ok(String::from_utf16_lossy(&units))
         }
@@ -379,44 +370,7 @@ fn decode_path_ref_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<OsPathVm> {
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 3 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "path",
-            "expected OsPath aggregate with 3 fields",
-        ))
-        .boxed());
-    }
-
-    let (encoding, width) = slots[0].as_uint_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed()
-    })?;
-    if width != 8 {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-        );
-    }
-    let encoding = match encoding as u8 {
-        value if value == PathEncoding::Bytes as u8 => PathEncoding::Bytes,
-        value if value == PathEncoding::Utf16 as u8 => PathEncoding::Utf16,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "unknown path encoding",
-            ))
-            .boxed());
-        }
-    };
-
-    let bytes = VmArray::from_value(context, slots[1], "path.bytes", "PathBytes")?;
-    let utf16 = VmArray::from_value(context, slots[2], "path.utf16", "PathUtf16")?;
-    Ok(OsPathVm {
-        encoding,
-        bytes: PathBytesAbi(bytes),
-        utf16: PathUtf16Abi(utf16),
-    })
+    OsPathVm::decode_with_context(context, value)
 }
 
 /// Decode a VM directory entry from an aggregate value.
@@ -460,70 +414,7 @@ fn decode_watch_event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<WatchEventVm> {
-    let slots = context
-        .aggregate_slots(value)
-        .map_err(|error| RuntimeError::from(error).boxed())?;
-    if slots.len() != 4 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "watchEvent",
-            "expected WatchEvent aggregate with 4 fields",
-        ))
-        .boxed());
-    }
-
-    let (kind, width) = slots[0].as_uint_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type(
-            "watchEvent",
-            "WatchEvent",
-        ))
-        .boxed()
-    })?;
-    if width != 8 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-            "watchEvent",
-            "WatchEvent",
-        ))
-        .boxed());
-    }
-    let kind = match kind as u8 {
-        value if value == WatchEventKind::Create as u8 => WatchEventKind::Create,
-        value if value == WatchEventKind::Remove as u8 => WatchEventKind::Remove,
-        value if value == WatchEventKind::Modify as u8 => WatchEventKind::Modify,
-        value if value == WatchEventKind::Rename as u8 => WatchEventKind::Rename,
-        value if value == WatchEventKind::Metadata as u8 => WatchEventKind::Metadata,
-        value if value == WatchEventKind::Overflow as u8 => WatchEventKind::Overflow,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "watchEvent.kind",
-                "unknown WatchEventKind value",
-            ))
-            .boxed());
-        }
-    };
-
-    let path = decode_path_ref_vm(context, slots[1])?;
-    let related_path = decode_path_ref_vm(context, slots[2])?;
-    let (cookie, width) = slots[3].as_uint_with_width().ok_or_else(|| {
-        RuntimeError::from(PlatformError::invalid_argument_type(
-            "watchEvent",
-            "WatchEvent",
-        ))
-        .boxed()
-    })?;
-    if width != 64 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-            "watchEvent",
-            "WatchEvent",
-        ))
-        .boxed());
-    }
-
-    Ok(WatchEventVm {
-        kind,
-        path,
-        related_path,
-        cookie,
-    })
+    WatchEventVm::decode_with_context(context, value)
 }
 
 fn decode_string_value(

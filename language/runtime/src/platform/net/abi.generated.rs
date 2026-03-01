@@ -53,6 +53,26 @@ impl VmValueCodec for NetInterfaceFlags {
     }
 }
 
+/// ABI newtype for PacketBackendCapabilityFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PacketBackendCapabilityFlags(
+    /// Inner value.
+    pub u64,
+);
+
+pub type PacketBackendCapabilityFlagsVm = PacketBackendCapabilityFlags;
+
+impl VmValueCodec for PacketBackendCapabilityFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for ResolveFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -239,6 +259,79 @@ impl VmValueCodec for UdpMessageFlags {
 
     fn encode(self) -> vm::Value {
         <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI enum for PacketBackend.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PacketBackend {
+    /// Auto.
+    Auto = 0,
+    /// AfPacket.
+    AfPacket = 1,
+    /// Bpf.
+    Bpf = 2,
+    /// WinRawSocket.
+    WinRawSocket = 3,
+    /// Null.
+    Null = 255,
+}
+
+impl VmValueCodec for PacketBackend {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Auto,
+            1u8 => Self::AfPacket,
+            2u8 => Self::Bpf,
+            3u8 => Self::WinRawSocket,
+            255u8 => Self::Null,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PacketBackend value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for PacketBackendSelectionPolicy.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PacketBackendSelectionPolicy {
+    /// Strict.
+    Strict = 1,
+    /// AllowFallback.
+    AllowFallback = 2,
+}
+
+impl VmValueCodec for PacketBackendSelectionPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Strict,
+            2u8 => Self::AllowFallback,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PacketBackendSelectionPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
     }
 }
 
@@ -467,29 +560,75 @@ impl VmValueCodec for SocketTimestampingMode {
     }
 }
 
-/// ABI enum for UdsAddressKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum UdsAddressKind {
-    /// Path.
-    Path = 1,
-    /// Abstract.
-    Abstract = 2,
-    /// Unnamed.
-    Unnamed = 3,
+/// ABI tagged union for UdsAddress.
+pub enum UdsAddressAbi<A: BindingAbi> {
+    /// UdsAbstractAddress variant.
+    UdsAbstractAddress(platform_net::UdsAbstractAddressAbi<A>),
+    /// UdsPathAddress variant.
+    UdsPathAddress(platform_net::UdsPathAddressAbi<A>),
+    /// UdsUnnamedAddress variant.
+    UdsUnnamedAddress(platform_net::UdsUnnamedAddressAbi<A>),
 }
 
-impl VmValueCodec for UdsAddressKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            1u8 => Self::Path,
-            2u8 => Self::Abstract,
-            3u8 => Self::Unnamed,
+pub type UdsAddress = UdsAddressAbi<NativeAbi>;
+pub type UdsAddressVm = UdsAddressAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UdsAddressAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("UdsAddressAbi").finish()
+    }
+}
+
+impl Copy for UdsAddressAbi<NativeAbi> {}
+impl Clone for UdsAddressAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UdsAddressAbi<VmAbi> {}
+impl Clone for UdsAddressAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UdsAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            680113494u32 => Self::UdsAbstractAddress(
+                <UdsAbstractAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            3869824463u32 => Self::UdsPathAddress(
+                <UdsPathAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
+            2806614451u32 => Self::UdsUnnamedAddress(
+                <UdsUnnamedAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+            ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown UdsAddressKind value",
+                    "unknown UdsAddress tag",
                 ))
                 .boxed());
             }
@@ -497,8 +636,36 @@ impl VmValueCodec for UdsAddressKind {
         Ok(decoded)
     }
 
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::UdsAbstractAddress(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(680113494u32, context)?;
+                let payload_value =
+                    <UdsAbstractAddressVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::UdsPathAddress(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3869824463u32, context)?;
+                let payload_value =
+                    <UdsPathAddressVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::UdsUnnamedAddress(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2806614451u32, context)?;
+                let payload_value =
+                    <UdsUnnamedAddressVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -722,10 +889,112 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
     }
 }
 
+/// ABI struct for PacketBackendDescriptor.
+#[repr(C)]
+pub struct PacketBackendDescriptorAbi<A: BindingAbi> {
+    /// The backend field.
+    pub backend: PacketBackend,
+    /// The name field.
+    pub name: A::String,
+    /// The available field.
+    pub available: bool,
+    /// The priority field.
+    pub priority: u16,
+    /// The capability_flags field.
+    pub capability_flags: PacketBackendCapabilityFlags,
+}
+
+pub type PacketBackendDescriptor = PacketBackendDescriptorAbi<NativeAbi>;
+pub type PacketBackendDescriptorVm = PacketBackendDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for PacketBackendDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("PacketBackendDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for PacketBackendDescriptorAbi<NativeAbi> {}
+impl Clone for PacketBackendDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for PacketBackendDescriptorAbi<VmAbi> {}
+impl Clone for PacketBackendDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PacketBackendDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_backend =
+            <PacketBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_available = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_capability_flags =
+            <PacketBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        Ok(Self {
+            backend: field_backend,
+            name: field_name,
+            available: field_available,
+            priority: field_priority,
+            capability_flags: field_capability_flags,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.available, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
+            <PacketBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
+                self.capability_flags,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for PacketCaptureOptions.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketCaptureOptions {
+    /// The backend field.
+    pub backend: PacketBackend,
+    /// The backend_policy field.
+    pub backend_policy: PacketBackendSelectionPolicy,
     /// The interface_index field.
     pub interface_index: u32,
     /// The snap_length field.
@@ -753,19 +1022,27 @@ impl VmAggregateCodec for PacketCaptureOptions {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 6 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <PacketBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend_policy =
+            <PacketBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
         let field_interface_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_snap_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_timeout_ms = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_promiscuous = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_snap_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timeout_ms = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_promiscuous = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         Ok(Self {
+            backend: field_backend,
+            backend_policy: field_backend_policy,
             interface_index: field_interface_index,
             snap_length: field_snap_length,
             timeout_ms: field_timeout_ms,
@@ -778,6 +1055,11 @@ impl VmAggregateCodec for PacketCaptureOptions {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+            <PacketBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
+                self.backend_policy,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.snap_length, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.timeout_ms, context)?,
@@ -2331,42 +2613,40 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
     }
 }
 
-/// ABI struct for UdsAddress.
+/// ABI struct for UdsAbstractAddress.
 #[repr(C)]
-pub struct UdsAddressAbi<A: BindingAbi> {
+pub struct UdsAbstractAddressAbi<A: BindingAbi> {
     /// The kind field.
-    pub kind: UdsAddressKind,
-    /// The path field.
-    pub path: platform_fs::OsPathAbi<A>,
+    pub kind: A::String,
     /// The abstract_name field.
     pub abstract_name: A::Array<u8>,
 }
 
-pub type UdsAddress = UdsAddressAbi<NativeAbi>;
-pub type UdsAddressVm = UdsAddressAbi<VmAbi>;
+pub type UdsAbstractAddress = UdsAbstractAddressAbi<NativeAbi>;
+pub type UdsAbstractAddressVm = UdsAbstractAddressAbi<VmAbi>;
 
-impl<A: BindingAbi> std::fmt::Debug for UdsAddressAbi<A> {
+impl<A: BindingAbi> std::fmt::Debug for UdsAbstractAddressAbi<A> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("UdsAddressAbi")
+            .debug_struct("UdsAbstractAddressAbi")
             .finish_non_exhaustive()
     }
 }
 
-impl Copy for UdsAddressAbi<NativeAbi> {}
-impl Clone for UdsAddressAbi<NativeAbi> {
+impl Copy for UdsAbstractAddressAbi<NativeAbi> {}
+impl Clone for UdsAbstractAddressAbi<NativeAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl Copy for UdsAddressAbi<VmAbi> {}
-impl Clone for UdsAddressAbi<VmAbi> {
+impl Copy for UdsAbstractAddressAbi<VmAbi> {}
+impl Clone for UdsAbstractAddressAbi<VmAbi> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
+impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2374,29 +2654,26 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "UdsAddress",
+                "UdsAbstractAddress",
             ))
             .boxed());
         }
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 2 fields",
             ))
             .boxed());
         }
         let field_kind =
-            <UdsAddressKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_path =
-            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_abstract_name =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             kind: field_kind,
-            path: field_path,
             abstract_name: field_abstract_name,
         })
     }
@@ -2406,10 +2683,155 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <UdsAddressKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.abstract_name, context)?,
         ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for UdsPathAddress.
+#[repr(C)]
+pub struct UdsPathAddressAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The path field.
+    pub path: platform_fs::OsPathAbi<A>,
+}
+
+pub type UdsPathAddress = UdsPathAddressAbi<NativeAbi>;
+pub type UdsPathAddressVm = UdsPathAddressAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UdsPathAddressAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UdsPathAddressAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UdsPathAddressAbi<NativeAbi> {}
+impl Clone for UdsPathAddressAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UdsPathAddressAbi<VmAbi> {}
+impl Clone for UdsPathAddressAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UdsPathAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_path =
+            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            path: field_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for UdsUnnamedAddress.
+#[repr(C)]
+pub struct UdsUnnamedAddressAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+}
+
+pub type UdsUnnamedAddress = UdsUnnamedAddressAbi<NativeAbi>;
+pub type UdsUnnamedAddressVm = UdsUnnamedAddressAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for UdsUnnamedAddressAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UdsUnnamedAddressAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for UdsUnnamedAddressAbi<NativeAbi> {}
+impl Clone for UdsUnnamedAddressAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for UdsUnnamedAddressAbi<VmAbi> {}
+impl Clone for UdsUnnamedAddressAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "UdsUnnamedAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { kind: field_kind })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.kind, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -2429,6 +2851,21 @@ pub struct NetInterfaceReplayRecord {
     pub mac_address: Vec<u8>,
     /// The addresses field.
     pub addresses: Vec<SocketAddressReplayRecord>,
+}
+
+/// Replay struct for PacketBackendDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PacketBackendDescriptorReplayRecord {
+    /// The backend field.
+    pub backend: PacketBackend,
+    /// The name field.
+    pub name: String,
+    /// The available field.
+    pub available: bool,
+    /// The priority field.
+    pub priority: u16,
+    /// The capability_flags field.
+    pub capability_flags: PacketBackendCapabilityFlags,
 }
 
 /// Replay struct for ResolveQuery.
@@ -2590,13 +3027,38 @@ pub struct UdpSourceMembershipV6ReplayRecord {
     pub interface_index: u32,
 }
 
-/// Replay struct for UdsAddress.
+/// Replay struct for UdsAbstractAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct UdsAddressReplayRecord {
+pub struct UdsAbstractAddressReplayRecord {
     /// The kind field.
-    pub kind: UdsAddressKind,
-    /// The path field.
-    pub path: fs::OsPathReplayRecord,
+    pub kind: String,
     /// The abstract_name field.
     pub abstract_name: Vec<u8>,
+}
+
+/// Replay struct for UdsPathAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UdsPathAddressReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The path field.
+    pub path: fs::OsPathReplayRecord,
+}
+
+/// Replay struct for UdsUnnamedAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UdsUnnamedAddressReplayRecord {
+    /// The kind field.
+    pub kind: String,
+}
+
+/// Replay enum for UdsAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UdsAddressReplayRecord {
+    /// UdsAbstractAddress variant.
+    UdsAbstractAddress(UdsAbstractAddressReplayRecord),
+    /// UdsPathAddress variant.
+    UdsPathAddress(UdsPathAddressReplayRecord),
+    /// UdsUnnamedAddress variant.
+    UdsUnnamedAddress(UdsUnnamedAddressReplayRecord),
 }

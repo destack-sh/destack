@@ -1214,17 +1214,17 @@ pub(crate) unsafe fn destack_fs_readlink(
     }
     #[cfg(unix)]
     {
-        match path.encoding {
-            PathEncoding::Bytes => {
+        match path {
+            OsPath::OsPathBytes(path_bytes) => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlink_bytes(context, &mut inner, path.bytes) }?;
+                unsafe { destack_fs_readlink_bytes(context, &mut inner, path_bytes.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
-            PathEncoding::Utf16 => {
-                let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
+            OsPath::OsPathUtf16(path_utf16) => {
+                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
                     unsafe { destack_fs_readlink_bytes(context, &mut inner, path) }?;
                     Ok(inner)
@@ -1288,17 +1288,17 @@ pub(crate) unsafe fn destack_fs_readlinkat(
     }
     #[cfg(unix)]
     {
-        match path.encoding {
-            PathEncoding::Bytes => {
+        match path {
+            OsPath::OsPathBytes(path_bytes) => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path.bytes) }?;
+                unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path_bytes.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
-            PathEncoding::Utf16 => {
-                let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
+            OsPath::OsPathUtf16(path_utf16) => {
+                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
                     unsafe { destack_fs_readlinkat_bytes(context, &mut inner, dir, path) }?;
                     Ok(inner)
@@ -1361,17 +1361,17 @@ pub(crate) unsafe fn destack_fs_realpath(
     }
     #[cfg(unix)]
     {
-        match path.encoding {
-            PathEncoding::Bytes => {
+        match path {
+            OsPath::OsPathBytes(path_bytes) => {
                 let mut inner = core_fs::empty_path_bytes();
-                unsafe { destack_fs_realpath_bytes(context, &mut inner, path.bytes) }?;
+                unsafe { destack_fs_realpath_bytes(context, &mut inner, path_bytes.bytes) }?;
                 unsafe {
                     *out = core_fs::path_ref_from_bytes(inner);
                 }
                 Ok(())
             }
-            PathEncoding::Utf16 => {
-                let bytes = core_fs::with_utf16_as_bytes(path.utf16, "path", |path| {
+            OsPath::OsPathUtf16(path_utf16) => {
+                let bytes = core_fs::with_utf16_as_bytes(path_utf16.utf16, "path", |path| {
                     let mut inner = core_fs::empty_path_bytes();
                     unsafe { destack_fs_realpath_bytes(context, &mut inner, path) }?;
                     Ok(inner)

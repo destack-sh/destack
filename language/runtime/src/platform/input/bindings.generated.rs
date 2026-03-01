@@ -12,32 +12,44 @@ use crate::platform::input::{
     InputCompositionEventPayloadVm, InputCompositionEventReplayRecord, InputCompositionEventVm,
     InputDeviceCapabilities, InputDeviceCapabilitiesReplayRecord, InputDeviceCapabilitiesVm,
     InputDeviceCapabilityKind, InputDeviceDescriptor, InputDeviceDescriptorReplayRecord,
-    InputDeviceDescriptorVm, InputDeviceEventPayload, InputDeviceEventPayloadVm, InputDeviceKind,
-    InputEvent, InputEventAction, InputEventKind, InputEventPayload, InputEventPayloadReplayRecord,
-    InputEventPayloadVm, InputEventReplayRecord, InputEventVm, InputGamepadBatteryStatus,
-    InputGamepadBatteryStatusVm, InputGamepadButtonState, InputGamepadButtonStateVm,
-    InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadState,
-    InputGamepadStateReplayRecord, InputGamepadStateVm, InputGamepadTouchState,
-    InputGamepadTouchStateVm, InputHapticEffectParameters, InputHapticEffectParametersVm,
-    InputHapticEffectType, InputHapticsResult, InputKeyEventPayload, InputKeyEventPayloadVm,
-    InputKeyboardState, InputKeyboardStateReplayRecord, InputKeyboardStateVm, InputMonitorEvent,
+    InputDeviceDescriptorVm, InputDeviceEvent, InputDeviceEventPayload, InputDeviceEventPayloadVm,
+    InputDeviceEventReplayRecord, InputDeviceEventVm, InputDeviceKind, InputEvent,
+    InputEventMetadata, InputEventMetadataReplayRecord, InputEventMetadataVm,
+    InputEventReplayRecord, InputEventVm, InputGamepadBatteryStatus, InputGamepadBatteryStatusVm,
+    InputGamepadButtonState, InputGamepadButtonStateVm, InputGamepadEvent,
+    InputGamepadEventPayload, InputGamepadEventPayloadVm, InputGamepadEventReplayRecord,
+    InputGamepadEventVm, InputGamepadState, InputGamepadStateReplayRecord, InputGamepadStateVm,
+    InputGamepadTouchState, InputGamepadTouchStateVm, InputHapticEffectParameters,
+    InputHapticEffectParametersVm, InputHapticEffectType, InputHapticsResult, InputKeyEvent,
+    InputKeyEventPayload, InputKeyEventPayloadVm, InputKeyEventReplayRecord, InputKeyEventVm,
+    InputKeyboardState, InputKeyboardStateReplayRecord, InputKeyboardStateVm,
+    InputMonitorChangeEvent, InputMonitorChangeEventReplayRecord, InputMonitorChangeEventVm,
+    InputMonitorConnectEvent, InputMonitorConnectEventReplayRecord, InputMonitorConnectEventVm,
+    InputMonitorDisconnectEvent, InputMonitorDisconnectEventReplayRecord,
+    InputMonitorDisconnectEventVm, InputMonitorEvent, InputMonitorEventMetadata,
+    InputMonitorEventMetadataReplayRecord, InputMonitorEventMetadataVm,
     InputMonitorEventReplayRecord, InputMonitorEventVm, InputPenState, InputPenStateVm,
-    InputPointerButtonEventPayload, InputPointerButtonEventPayloadVm, InputPointerGrabMode,
-    InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm, InputPointerState,
+    InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerButtonEventPayloadVm,
+    InputPointerButtonEventReplayRecord, InputPointerButtonEventVm, InputPointerGrabMode,
+    InputPointerMotionEvent, InputPointerMotionEventPayload, InputPointerMotionEventPayloadVm,
+    InputPointerMotionEventReplayRecord, InputPointerMotionEventVm, InputPointerState,
     InputPointerStateVm, InputRawHidReport, InputRawHidReportReplayRecord, InputRawHidReportVm,
-    InputReadMode, InputScrollEventPayload, InputScrollEventPayloadVm, InputSensorConfig,
-    InputSensorConfigVm, InputSensorDescriptor, InputSensorDescriptorVm,
-    InputSensorEffectiveConfig, InputSensorEffectiveConfigVm, InputSensorEventPayload,
-    InputSensorEventPayloadVm, InputSensorKind, InputSensorSample, InputSensorSampleVm,
-    InputTextEventPayload, InputTextEventPayloadReplayRecord, InputTextEventPayloadVm,
-    InputTextInputArea, InputTextInputAreaVm, InputTextInputType, InputTouchContactPhase,
-    InputTouchContactState, InputTouchContactStateVm, InputTouchEventPayload,
-    InputTouchEventPayloadVm, InputTouchState, InputTouchStateReplayRecord, InputTouchStateVm,
+    InputReadMode, InputScrollEvent, InputScrollEventPayload, InputScrollEventPayloadVm,
+    InputScrollEventReplayRecord, InputScrollEventVm, InputSensorConfig, InputSensorConfigVm,
+    InputSensorDescriptor, InputSensorDescriptorVm, InputSensorEffectiveConfig,
+    InputSensorEffectiveConfigVm, InputSensorEvent, InputSensorEventPayload,
+    InputSensorEventPayloadVm, InputSensorEventReplayRecord, InputSensorEventVm, InputSensorKind,
+    InputSensorSample, InputSensorSampleVm, InputTextEvent, InputTextEventPayload,
+    InputTextEventPayloadReplayRecord, InputTextEventPayloadVm, InputTextEventReplayRecord,
+    InputTextEventVm, InputTextInputArea, InputTextInputAreaVm, InputTextInputType,
+    InputTouchContactPhase, InputTouchContactState, InputTouchContactStateVm, InputTouchEvent,
+    InputTouchEventPayload, InputTouchEventPayloadVm, InputTouchEventReplayRecord,
+    InputTouchEventVm, InputTouchState, InputTouchStateReplayRecord, InputTouchStateVm,
     InputWindowTarget, InputWindowTargetVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -210,6 +222,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -217,6 +230,17 @@ fn decode_slice<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmSlice<T>> {
     VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode an array argument.
+#[allow(dead_code)]
+fn decode_array<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
 }
 
 /// Decode arguments for destack.input.device.capabilities.
@@ -371,14 +395,55 @@ fn encode_destack_input_event_monitor_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.device_kind as u8 as u64, 8);
-        let field_5 = vm::Value::bool(value.connected);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    result.map(|value| match value {
+        InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+            let tag_value = vm::Value::uint(3150676780u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+            let tag_value = vm::Value::uint(1147506405u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+            let tag_value = vm::Value::uint(1352806727u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -402,14 +467,55 @@ fn encode_destack_input_event_monitor_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputMonitorEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = value.device_id.value();
-        let field_4 = vm::Value::uint(value.device_kind as u8 as u64, 8);
-        let field_5 = vm::Value::bool(value.connected);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    result.map(|value| match value {
+        InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+            let tag_value = vm::Value::uint(3150676780u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+            let tag_value = vm::Value::uint(1147506405u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+            let tag_value = vm::Value::uint(1352806727u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    let field_3 = vm::Value::uint(value.metadata.device_kind as u8 as u64, 8);
+                    let field_4 = vm::Value::bool(value.metadata.connected);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -433,94 +539,226 @@ fn encode_destack_input_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = value.device_id.value();
-        let field_4 = {
-            let field_0 = {
-                let field_0 = vm::Value::uint(value.payload.key.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.key.backend_code as u64, 32);
-                let field_2 = vm::Value::uint(value.payload.key.backend_scan_code as u64, 32);
-                let field_3 = vm::Value::int(value.payload.key.backend_value, 64);
-                let field_4 = vm::Value::uint(value.payload.key.modifiers as u64, 32);
-                let field_5 = vm::Value::bool(value.payload.key.repeat);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-            };
-            let field_1 = {
-                let field_0 = vm::Value::float64(value.payload.pointer_motion.x);
-                let field_1 = vm::Value::float64(value.payload.pointer_motion.y);
-                let field_2 = vm::Value::uint(value.payload.pointer_motion.buttons as u64, 32);
-                let field_3 = vm::Value::uint(value.payload.pointer_motion.modifiers as u64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-            };
-            let field_2 = {
-                let field_0 = vm::Value::uint(value.payload.pointer_button.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.pointer_button.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.pointer_button.backend_value, 64);
-                let field_3 = vm::Value::float64(value.payload.pointer_button.x);
-                let field_4 = vm::Value::float64(value.payload.pointer_button.y);
-                let field_5 = vm::Value::uint(value.payload.pointer_button.modifiers as u64, 32);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-            };
-            let field_3 = {
-                let field_0 = vm::Value::float64(value.payload.scroll.wheel_x);
-                let field_1 = vm::Value::float64(value.payload.scroll.wheel_y);
-                let field_2 = vm::Value::float64(value.payload.scroll.x);
-                let field_3 = vm::Value::float64(value.payload.scroll.y);
-                let field_4 = vm::Value::uint(value.payload.scroll.modifiers as u64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-            };
-            let field_4 = {
-                let field_0 = vm::Value::uint(value.payload.touch.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.touch.contact_id as u64, 32);
-                let field_2 = vm::Value::float64(value.payload.touch.x);
-                let field_3 = vm::Value::float64(value.payload.touch.y);
-                let field_4 = vm::Value::float64(value.payload.touch.pressure);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-            };
-            let field_5 = {
-                let field_0 = vm::Value::uint(value.payload.gamepad.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.gamepad.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.gamepad.backend_value, 64);
+    result.map(|value| match value {
+        InputEventVm::InputCompositionEvent(value) => {
+            let tag_value = vm::Value::uint(1953975626u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = value.payload.text.value();
+                    let field_2 = vm::Value::int(value.payload.selection_start as i64, 32);
+                    let field_3 = vm::Value::int(value.payload.selection_end as i64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
                 context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_6 = {
-                let field_0 = value.payload.text.text.value();
-                context.allocate_aggregate(vec![field_0])
-            };
-            let field_7 = {
-                let field_0 = vm::Value::uint(value.payload.device.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.device.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.device.backend_value, 64);
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputDeviceEvent(value) => {
+            let tag_value = vm::Value::uint(1711088174u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
                 context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_8 = {
-                let field_0 = vm::Value::uint(value.payload.sensor.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.sensor.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.sensor.backend_value, 64);
-                let field_3 = vm::Value::float64(value.payload.sensor.x);
-                let field_4 = vm::Value::float64(value.payload.sensor.y);
-                let field_5 = vm::Value::float64(value.payload.sensor.z);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputGamepadEvent(value) => {
+            let tag_value = vm::Value::uint(4057440654u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_9 = {
-                let field_0 = vm::Value::uint(value.payload.composition.action as u8 as u64, 8);
-                let field_1 = value.payload.composition.text.value();
-                let field_2 = vm::Value::int(value.payload.composition.selection_start as i64, 32);
-                let field_3 = vm::Value::int(value.payload.composition.selection_end as i64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputKeyEvent(value) => {
+            let tag_value = vm::Value::uint(2680346764u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.backend_scan_code as u64, 32);
+                    let field_3 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    let field_5 = vm::Value::bool(value.payload.repeat);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9,
-            ])
-        };
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputPointerButtonEvent(value) => {
+            let tag_value = vm::Value::uint(4073494792u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_3 = vm::Value::float64(value.payload.x);
+                    let field_4 = vm::Value::float64(value.payload.y);
+                    let field_5 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputPointerMotionEvent(value) => {
+            let tag_value = vm::Value::uint(2712240874u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::float64(value.payload.x);
+                    let field_1 = vm::Value::float64(value.payload.y);
+                    let field_2 = vm::Value::uint(value.payload.buttons as u64, 32);
+                    let field_3 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputScrollEvent(value) => {
+            let tag_value = vm::Value::uint(4279710721u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::float64(value.payload.wheel_x);
+                    let field_1 = vm::Value::float64(value.payload.wheel_y);
+                    let field_2 = vm::Value::float64(value.payload.x);
+                    let field_3 = vm::Value::float64(value.payload.y);
+                    let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputSensorEvent(value) => {
+            let tag_value = vm::Value::uint(1143015131u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_3 = vm::Value::float64(value.payload.x);
+                    let field_4 = vm::Value::float64(value.payload.y);
+                    let field_5 = vm::Value::float64(value.payload.z);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputTextEvent(value) => {
+            let tag_value = vm::Value::uint(2362503160u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = value.payload.text.value();
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputTouchEvent(value) => {
+            let tag_value = vm::Value::uint(1845998728u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.contact_id as u64, 32);
+                    let field_2 = vm::Value::float64(value.payload.x);
+                    let field_3 = vm::Value::float64(value.payload.y);
+                    let field_4 = vm::Value::float64(value.payload.pressure);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -630,94 +868,226 @@ fn encode_destack_input_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<InputEventVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.sequence, 64);
-        let field_3 = value.device_id.value();
-        let field_4 = {
-            let field_0 = {
-                let field_0 = vm::Value::uint(value.payload.key.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.key.backend_code as u64, 32);
-                let field_2 = vm::Value::uint(value.payload.key.backend_scan_code as u64, 32);
-                let field_3 = vm::Value::int(value.payload.key.backend_value, 64);
-                let field_4 = vm::Value::uint(value.payload.key.modifiers as u64, 32);
-                let field_5 = vm::Value::bool(value.payload.key.repeat);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-            };
-            let field_1 = {
-                let field_0 = vm::Value::float64(value.payload.pointer_motion.x);
-                let field_1 = vm::Value::float64(value.payload.pointer_motion.y);
-                let field_2 = vm::Value::uint(value.payload.pointer_motion.buttons as u64, 32);
-                let field_3 = vm::Value::uint(value.payload.pointer_motion.modifiers as u64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
-            };
-            let field_2 = {
-                let field_0 = vm::Value::uint(value.payload.pointer_button.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.pointer_button.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.pointer_button.backend_value, 64);
-                let field_3 = vm::Value::float64(value.payload.pointer_button.x);
-                let field_4 = vm::Value::float64(value.payload.pointer_button.y);
-                let field_5 = vm::Value::uint(value.payload.pointer_button.modifiers as u64, 32);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-            };
-            let field_3 = {
-                let field_0 = vm::Value::float64(value.payload.scroll.wheel_x);
-                let field_1 = vm::Value::float64(value.payload.scroll.wheel_y);
-                let field_2 = vm::Value::float64(value.payload.scroll.x);
-                let field_3 = vm::Value::float64(value.payload.scroll.y);
-                let field_4 = vm::Value::uint(value.payload.scroll.modifiers as u64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-            };
-            let field_4 = {
-                let field_0 = vm::Value::uint(value.payload.touch.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.touch.contact_id as u64, 32);
-                let field_2 = vm::Value::float64(value.payload.touch.x);
-                let field_3 = vm::Value::float64(value.payload.touch.y);
-                let field_4 = vm::Value::float64(value.payload.touch.pressure);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
-            };
-            let field_5 = {
-                let field_0 = vm::Value::uint(value.payload.gamepad.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.gamepad.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.gamepad.backend_value, 64);
+    result.map(|value| match value {
+        InputEventVm::InputCompositionEvent(value) => {
+            let tag_value = vm::Value::uint(1953975626u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = value.payload.text.value();
+                    let field_2 = vm::Value::int(value.payload.selection_start as i64, 32);
+                    let field_3 = vm::Value::int(value.payload.selection_end as i64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
                 context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_6 = {
-                let field_0 = value.payload.text.text.value();
-                context.allocate_aggregate(vec![field_0])
-            };
-            let field_7 = {
-                let field_0 = vm::Value::uint(value.payload.device.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.device.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.device.backend_value, 64);
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputDeviceEvent(value) => {
+            let tag_value = vm::Value::uint(1711088174u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
                 context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_8 = {
-                let field_0 = vm::Value::uint(value.payload.sensor.action as u8 as u64, 8);
-                let field_1 = vm::Value::uint(value.payload.sensor.backend_code as u64, 32);
-                let field_2 = vm::Value::int(value.payload.sensor.backend_value, 64);
-                let field_3 = vm::Value::float64(value.payload.sensor.x);
-                let field_4 = vm::Value::float64(value.payload.sensor.y);
-                let field_5 = vm::Value::float64(value.payload.sensor.z);
-                context
-                    .allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputGamepadEvent(value) => {
+            let tag_value = vm::Value::uint(4057440654u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            let field_9 = {
-                let field_0 = vm::Value::uint(value.payload.composition.action as u8 as u64, 8);
-                let field_1 = value.payload.composition.text.value();
-                let field_2 = vm::Value::int(value.payload.composition.selection_start as i64, 32);
-                let field_3 = vm::Value::int(value.payload.composition.selection_end as i64, 32);
-                context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputKeyEvent(value) => {
+            let tag_value = vm::Value::uint(2680346764u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::uint(value.payload.backend_scan_code as u64, 32);
+                    let field_3 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    let field_5 = vm::Value::bool(value.payload.repeat);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
             };
-            context.allocate_aggregate(vec![
-                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-                field_9,
-            ])
-        };
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputPointerButtonEvent(value) => {
+            let tag_value = vm::Value::uint(4073494792u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_3 = vm::Value::float64(value.payload.x);
+                    let field_4 = vm::Value::float64(value.payload.y);
+                    let field_5 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputPointerMotionEvent(value) => {
+            let tag_value = vm::Value::uint(2712240874u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::float64(value.payload.x);
+                    let field_1 = vm::Value::float64(value.payload.y);
+                    let field_2 = vm::Value::uint(value.payload.buttons as u64, 32);
+                    let field_3 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputScrollEvent(value) => {
+            let tag_value = vm::Value::uint(4279710721u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::float64(value.payload.wheel_x);
+                    let field_1 = vm::Value::float64(value.payload.wheel_y);
+                    let field_2 = vm::Value::float64(value.payload.x);
+                    let field_3 = vm::Value::float64(value.payload.y);
+                    let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputSensorEvent(value) => {
+            let tag_value = vm::Value::uint(1143015131u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32);
+                    let field_2 = vm::Value::int(value.payload.backend_value, 64);
+                    let field_3 = vm::Value::float64(value.payload.x);
+                    let field_4 = vm::Value::float64(value.payload.y);
+                    let field_5 = vm::Value::float64(value.payload.z);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputTextEvent(value) => {
+            let tag_value = vm::Value::uint(2362503160u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = value.payload.text.value();
+                    context.allocate_aggregate(vec![field_0])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        InputEventVm::InputTouchEvent(value) => {
+            let tag_value = vm::Value::uint(1845998728u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+                    let field_2 = value.metadata.device_id.value();
+                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                };
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.payload.contact_id as u64, 32);
+                    let field_2 = vm::Value::float64(value.payload.x);
+                    let field_3 = vm::Value::float64(value.payload.y);
+                    let field_4 = vm::Value::float64(value.payload.pressure);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -869,45 +1239,47 @@ fn decode_destack_input_haptics_play_args(
             .boxed());
         }
     };
-    let params_value = arg_value(args, 2, "params", "InputHapticEffectParameters")?;
-    let params = {
-        if params_value.tag() != vm::ValueTag::Aggregate {
+    let parameters_value = arg_value(args, 2, "parameters", "InputHapticEffectParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "params",
+                "parameters",
                 "InputHapticEffectParameters",
             ))
             .boxed());
         }
         let slots = context
-            .aggregate_slots(params_value)
+            .aggregate_slots(parameters_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 6 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "params",
+                "parameters",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let params_duration_ms = decode_uint64(slots[0], "params_duration_ms", "durationMs")?;
-        let params_start_delay_ms =
-            decode_uint64(slots[1], "params_start_delay_ms", "startDelayMs")?;
-        let params_strong_magnitude =
-            decode_float64(slots[2], "params_strong_magnitude", "strongMagnitude")?;
-        let params_weak_magnitude =
-            decode_float64(slots[3], "params_weak_magnitude", "weakMagnitude")?;
-        let params_left_trigger = decode_float64(slots[4], "params_left_trigger", "leftTrigger")?;
-        let params_right_trigger =
-            decode_float64(slots[5], "params_right_trigger", "rightTrigger")?;
+        let parameters_duration_ms =
+            decode_uint64(slots[0], "parameters_duration_ms", "durationMs")?;
+        let parameters_start_delay_ms =
+            decode_uint64(slots[1], "parameters_start_delay_ms", "startDelayMs")?;
+        let parameters_strong_magnitude =
+            decode_float64(slots[2], "parameters_strong_magnitude", "strongMagnitude")?;
+        let parameters_weak_magnitude =
+            decode_float64(slots[3], "parameters_weak_magnitude", "weakMagnitude")?;
+        let parameters_left_trigger =
+            decode_float64(slots[4], "parameters_left_trigger", "leftTrigger")?;
+        let parameters_right_trigger =
+            decode_float64(slots[5], "parameters_right_trigger", "rightTrigger")?;
         InputHapticEffectParametersVm {
-            duration_ms: params_duration_ms,
-            start_delay_ms: params_start_delay_ms,
-            strong_magnitude: params_strong_magnitude,
-            weak_magnitude: params_weak_magnitude,
-            left_trigger: params_left_trigger,
-            right_trigger: params_right_trigger,
+            duration_ms: parameters_duration_ms,
+            start_delay_ms: parameters_start_delay_ms,
+            strong_magnitude: parameters_strong_magnitude,
+            weak_magnitude: parameters_weak_magnitude,
+            left_trigger: parameters_left_trigger,
+            right_trigger: parameters_right_trigger,
         }
     };
-    Ok((handle, effect, params))
+    Ok((handle, effect, parameters))
 }
 
 /// Encode the result for destack.input.haptics.play.
@@ -1725,16 +2097,21 @@ fn encode_destack_input_text_read_composition_result(
     result: RuntimeResult<InputCompositionEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_1 = vm::Value::uint(value.sequence, 64);
-        let field_2 = value.device_id.value();
-        let field_3 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_4 = value.text.value();
-        let field_5 = vm::Value::int(value.selection_start as i64, 32);
-        let field_6 = vm::Value::int(value.selection_end as i64, 32);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+        let field_0 = value.kind.value();
+        let field_1 = {
+            let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+            let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+            let field_2 = value.metadata.device_id.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+            let field_1 = value.payload.text.value();
+            let field_2 = vm::Value::int(value.payload.selection_start as i64, 32);
+            let field_3 = vm::Value::int(value.payload.selection_end as i64, 32);
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -1966,16 +2343,21 @@ fn encode_destack_input_text_try_read_composition_result(
     result: RuntimeResult<InputCompositionEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_1 = vm::Value::uint(value.sequence, 64);
-        let field_2 = value.device_id.value();
-        let field_3 = vm::Value::uint(value.action as u8 as u64, 8);
-        let field_4 = value.text.value();
-        let field_5 = vm::Value::int(value.selection_start as i64, 32);
-        let field_6 = vm::Value::int(value.selection_end as i64, 32);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
-        ])
+        let field_0 = value.kind.value();
+        let field_1 = {
+            let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+            let field_1 = vm::Value::uint(value.metadata.sequence, 64);
+            let field_2 = value.metadata.device_id.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8);
+            let field_1 = value.payload.text.value();
+            let field_2 = vm::Value::int(value.payload.selection_start as i64, 32);
+            let field_3 = vm::Value::int(value.payload.selection_end as i64, 32);
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
     })
 }
 
@@ -2614,7 +2996,7 @@ pub const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external
 /// Binding descriptor for destack.input.haptics.play.
 pub const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.input.haptics.play",
-    "export function hapticsPlay(handle: InputDeviceHandle, effect: InputHapticEffectType, params: InputHapticEffectParameters): Result<InputHapticsResult, PlatformError>",
+    "export function hapticsPlay(handle: InputDeviceHandle, effect: InputHapticEffectType, parameters: InputHapticEffectParameters): Result<InputHapticsResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["input.haptics"],
@@ -3843,35 +4225,76 @@ fn destack_input_event_monitor_read_replay(
         INPUT_EVENT_MONITOR_READ,
         context.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_monitor_read(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_monitor_read(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_device_kind = result_value.device_kind;
-                let result_recorded_connected = result_value.connected;
-                let result_recorded = InputMonitorEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    device_kind: result_recorded_device_kind,
-                    connected: result_recorded_connected,
+                let result_recorded = match result_value {
+                    InputMonitorEvent::InputMonitorChangeEvent(value) => {
+                        let result_recorded_input_monitor_change_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_change_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_change_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_change_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_change_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_change_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_change_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_change_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_change_event = InputMonitorChangeEventReplayRecord {
+                            kind: result_recorded_input_monitor_change_event_kind,
+                            metadata: result_recorded_input_monitor_change_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(result_recorded_input_monitor_change_event)
+                    }
+                    InputMonitorEvent::InputMonitorConnectEvent(value) => {
+                        let result_recorded_input_monitor_connect_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_connect_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_connect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_connect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_connect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_connect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_connect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_connect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_connect_event = InputMonitorConnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_connect_event_kind,
+                            metadata: result_recorded_input_monitor_connect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(result_recorded_input_monitor_connect_event)
+                    }
+                    InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
+                        let result_recorded_input_monitor_disconnect_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_disconnect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_disconnect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_disconnect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_disconnect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_disconnect_event = InputMonitorDisconnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_disconnect_event_kind,
+                            metadata: result_recorded_input_monitor_disconnect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(result_recorded_input_monitor_disconnect_event)
+                    }
                 };
                 let payload = InputEventMonitorReadReplay {
                     result: Ok(result_recorded),
@@ -3882,7 +4305,9 @@ fn destack_input_event_monitor_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventMonitorReadReplay { result }
+                    InputEventMonitorReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -3893,23 +4318,69 @@ fn destack_input_event_monitor_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_device_kind = value.device_kind;
-                    let value_native_connected = value.connected;
-                    let value_native = InputMonitorEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        device_kind: value_native_device_kind,
-                        connected: value_native_connected,
+                    let value_native = match value {
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
+                            let value_native_input_monitor_change_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_change_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_change_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_change_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_change_event_metadata_sequence,
+                                device_id: value_native_input_monitor_change_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_change_event_metadata_device_kind,
+                                connected: value_native_input_monitor_change_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_change_event = InputMonitorChangeEvent {
+                                kind: value_native_input_monitor_change_event_kind,
+                                metadata: value_native_input_monitor_change_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorChangeEvent(value_native_input_monitor_change_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
+                            let value_native_input_monitor_connect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_connect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_connect_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_connect_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_connect_event_metadata_sequence,
+                                device_id: value_native_input_monitor_connect_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_connect_event_metadata_device_kind,
+                                connected: value_native_input_monitor_connect_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_connect_event = InputMonitorConnectEvent {
+                                kind: value_native_input_monitor_connect_event_kind,
+                                metadata: value_native_input_monitor_connect_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorConnectEvent(value_native_input_monitor_connect_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
+                            let value_native_input_monitor_disconnect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_disconnect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_disconnect_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_disconnect_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_disconnect_event_metadata_sequence,
+                                device_id: value_native_input_monitor_disconnect_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_disconnect_event_metadata_device_kind,
+                                connected: value_native_input_monitor_disconnect_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_disconnect_event = InputMonitorDisconnectEvent {
+                                kind: value_native_input_monitor_disconnect_event_kind,
+                                metadata: value_native_input_monitor_disconnect_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorDisconnectEvent(value_native_input_monitor_disconnect_event)
+                        }
                     };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -3931,35 +4402,76 @@ fn destack_input_event_monitor_try_read_replay(
         INPUT_EVENT_MONITOR_TRY_READ,
         context.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_monitor_try_read(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_monitor_try_read(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_monitor_try_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_monitor_try_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_device_kind = result_value.device_kind;
-                let result_recorded_connected = result_value.connected;
-                let result_recorded = InputMonitorEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    device_kind: result_recorded_device_kind,
-                    connected: result_recorded_connected,
+                let result_recorded = match result_value {
+                    InputMonitorEvent::InputMonitorChangeEvent(value) => {
+                        let result_recorded_input_monitor_change_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_change_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_change_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_change_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_change_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_change_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_change_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_change_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_change_event = InputMonitorChangeEventReplayRecord {
+                            kind: result_recorded_input_monitor_change_event_kind,
+                            metadata: result_recorded_input_monitor_change_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(result_recorded_input_monitor_change_event)
+                    }
+                    InputMonitorEvent::InputMonitorConnectEvent(value) => {
+                        let result_recorded_input_monitor_connect_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_connect_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_connect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_connect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_connect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_connect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_connect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_connect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_connect_event = InputMonitorConnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_connect_event_kind,
+                            metadata: result_recorded_input_monitor_connect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(result_recorded_input_monitor_connect_event)
+                    }
+                    InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
+                        let result_recorded_input_monitor_disconnect_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_disconnect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_disconnect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_disconnect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_disconnect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_disconnect_event = InputMonitorDisconnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_disconnect_event_kind,
+                            metadata: result_recorded_input_monitor_disconnect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(result_recorded_input_monitor_disconnect_event)
+                    }
                 };
                 let payload = InputEventMonitorTryReadReplay {
                     result: Ok(result_recorded),
@@ -3970,7 +4482,9 @@ fn destack_input_event_monitor_try_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventMonitorTryReadReplay { result }
+                    InputEventMonitorTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -3981,23 +4495,69 @@ fn destack_input_event_monitor_try_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_device_kind = value.device_kind;
-                    let value_native_connected = value.connected;
-                    let value_native = InputMonitorEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        device_kind: value_native_device_kind,
-                        connected: value_native_connected,
+                    let value_native = match value {
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
+                            let value_native_input_monitor_change_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_change_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_change_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_change_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_change_event_metadata_sequence,
+                                device_id: value_native_input_monitor_change_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_change_event_metadata_device_kind,
+                                connected: value_native_input_monitor_change_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_change_event = InputMonitorChangeEvent {
+                                kind: value_native_input_monitor_change_event_kind,
+                                metadata: value_native_input_monitor_change_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorChangeEvent(value_native_input_monitor_change_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
+                            let value_native_input_monitor_connect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_connect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_connect_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_connect_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_connect_event_metadata_sequence,
+                                device_id: value_native_input_monitor_connect_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_connect_event_metadata_device_kind,
+                                connected: value_native_input_monitor_connect_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_connect_event = InputMonitorConnectEvent {
+                                kind: value_native_input_monitor_connect_event_kind,
+                                metadata: value_native_input_monitor_connect_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorConnectEvent(value_native_input_monitor_connect_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
+                            let value_native_input_monitor_disconnect_event_kind = context.store_string(&value.kind);
+                            let value_native_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_monitor_disconnect_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                            let value_native_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                            let value_native_input_monitor_disconnect_event_metadata = InputMonitorEventMetadata {
+                                timestamp_ns: value_native_input_monitor_disconnect_event_metadata_timestamp_ns,
+                                sequence: value_native_input_monitor_disconnect_event_metadata_sequence,
+                                device_id: value_native_input_monitor_disconnect_event_metadata_device_id,
+                                device_kind: value_native_input_monitor_disconnect_event_metadata_device_kind,
+                                connected: value_native_input_monitor_disconnect_event_metadata_connected,
+                            };
+                            let value_native_input_monitor_disconnect_event = InputMonitorDisconnectEvent {
+                                kind: value_native_input_monitor_disconnect_event_kind,
+                                metadata: value_native_input_monitor_disconnect_event_metadata,
+                            };
+                            InputMonitorEvent::InputMonitorDisconnectEvent(value_native_input_monitor_disconnect_event)
+                        }
                     };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -4019,177 +4579,292 @@ fn destack_input_event_read_replay(
         INPUT_EVENT_READ,
         context.replay_payload_for(INPUT_EVENT_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_read(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_read(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_payload_key_action = result_value.payload.key.action;
-                let result_recorded_payload_key_backend_code =
-                    result_value.payload.key.backend_code;
-                let result_recorded_payload_key_backend_scan_code =
-                    result_value.payload.key.backend_scan_code;
-                let result_recorded_payload_key_backend_value =
-                    result_value.payload.key.backend_value;
-                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
-                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
-                let result_recorded_payload_key = InputKeyEventPayload {
-                    action: result_recorded_payload_key_action,
-                    backend_code: result_recorded_payload_key_backend_code,
-                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
-                    backend_value: result_recorded_payload_key_backend_value,
-                    modifiers: result_recorded_payload_key_modifiers,
-                    repeat: result_recorded_payload_key_repeat,
-                };
-                let result_recorded_payload_pointer_motion_x =
-                    result_value.payload.pointer_motion.x;
-                let result_recorded_payload_pointer_motion_y =
-                    result_value.payload.pointer_motion.y;
-                let result_recorded_payload_pointer_motion_buttons =
-                    result_value.payload.pointer_motion.buttons;
-                let result_recorded_payload_pointer_motion_modifiers =
-                    result_value.payload.pointer_motion.modifiers;
-                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
-                    x: result_recorded_payload_pointer_motion_x,
-                    y: result_recorded_payload_pointer_motion_y,
-                    buttons: result_recorded_payload_pointer_motion_buttons,
-                    modifiers: result_recorded_payload_pointer_motion_modifiers,
-                };
-                let result_recorded_payload_pointer_button_action =
-                    result_value.payload.pointer_button.action;
-                let result_recorded_payload_pointer_button_backend_code =
-                    result_value.payload.pointer_button.backend_code;
-                let result_recorded_payload_pointer_button_backend_value =
-                    result_value.payload.pointer_button.backend_value;
-                let result_recorded_payload_pointer_button_x =
-                    result_value.payload.pointer_button.x;
-                let result_recorded_payload_pointer_button_y =
-                    result_value.payload.pointer_button.y;
-                let result_recorded_payload_pointer_button_modifiers =
-                    result_value.payload.pointer_button.modifiers;
-                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
-                    action: result_recorded_payload_pointer_button_action,
-                    backend_code: result_recorded_payload_pointer_button_backend_code,
-                    backend_value: result_recorded_payload_pointer_button_backend_value,
-                    x: result_recorded_payload_pointer_button_x,
-                    y: result_recorded_payload_pointer_button_y,
-                    modifiers: result_recorded_payload_pointer_button_modifiers,
-                };
-                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
-                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
-                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
-                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
-                let result_recorded_payload_scroll_modifiers =
-                    result_value.payload.scroll.modifiers;
-                let result_recorded_payload_scroll = InputScrollEventPayload {
-                    wheel_x: result_recorded_payload_scroll_wheel_x,
-                    wheel_y: result_recorded_payload_scroll_wheel_y,
-                    x: result_recorded_payload_scroll_x,
-                    y: result_recorded_payload_scroll_y,
-                    modifiers: result_recorded_payload_scroll_modifiers,
-                };
-                let result_recorded_payload_touch_action = result_value.payload.touch.action;
-                let result_recorded_payload_touch_contact_id =
-                    result_value.payload.touch.contact_id;
-                let result_recorded_payload_touch_x = result_value.payload.touch.x;
-                let result_recorded_payload_touch_y = result_value.payload.touch.y;
-                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
-                let result_recorded_payload_touch = InputTouchEventPayload {
-                    action: result_recorded_payload_touch_action,
-                    contact_id: result_recorded_payload_touch_contact_id,
-                    x: result_recorded_payload_touch_x,
-                    y: result_recorded_payload_touch_y,
-                    pressure: result_recorded_payload_touch_pressure,
-                };
-                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
-                let result_recorded_payload_gamepad_backend_code =
-                    result_value.payload.gamepad.backend_code;
-                let result_recorded_payload_gamepad_backend_value =
-                    result_value.payload.gamepad.backend_value;
-                let result_recorded_payload_gamepad = InputGamepadEventPayload {
-                    action: result_recorded_payload_gamepad_action,
-                    backend_code: result_recorded_payload_gamepad_backend_code,
-                    backend_value: result_recorded_payload_gamepad_backend_value,
-                };
-                let result_recorded_payload_text_text =
-                    unsafe { result_value.payload.text.text.as_str()? }.to_string();
-                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
-                    text: result_recorded_payload_text_text,
-                };
-                let result_recorded_payload_device_action = result_value.payload.device.action;
-                let result_recorded_payload_device_backend_code =
-                    result_value.payload.device.backend_code;
-                let result_recorded_payload_device_backend_value =
-                    result_value.payload.device.backend_value;
-                let result_recorded_payload_device = InputDeviceEventPayload {
-                    action: result_recorded_payload_device_action,
-                    backend_code: result_recorded_payload_device_backend_code,
-                    backend_value: result_recorded_payload_device_backend_value,
-                };
-                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
-                let result_recorded_payload_sensor_backend_code =
-                    result_value.payload.sensor.backend_code;
-                let result_recorded_payload_sensor_backend_value =
-                    result_value.payload.sensor.backend_value;
-                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
-                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
-                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
-                let result_recorded_payload_sensor = InputSensorEventPayload {
-                    action: result_recorded_payload_sensor_action,
-                    backend_code: result_recorded_payload_sensor_backend_code,
-                    backend_value: result_recorded_payload_sensor_backend_value,
-                    x: result_recorded_payload_sensor_x,
-                    y: result_recorded_payload_sensor_y,
-                    z: result_recorded_payload_sensor_z,
-                };
-                let result_recorded_payload_composition_action =
-                    result_value.payload.composition.action;
-                let result_recorded_payload_composition_text =
-                    unsafe { result_value.payload.composition.text.as_str()? }.to_string();
-                let result_recorded_payload_composition_selection_start =
-                    result_value.payload.composition.selection_start;
-                let result_recorded_payload_composition_selection_end =
-                    result_value.payload.composition.selection_end;
-                let result_recorded_payload_composition =
-                    InputCompositionEventPayloadReplayRecord {
-                        action: result_recorded_payload_composition_action,
-                        text: result_recorded_payload_composition_text,
-                        selection_start: result_recorded_payload_composition_selection_start,
-                        selection_end: result_recorded_payload_composition_selection_end,
-                    };
-                let result_recorded_payload = InputEventPayloadReplayRecord {
-                    key: result_recorded_payload_key,
-                    pointer_motion: result_recorded_payload_pointer_motion,
-                    pointer_button: result_recorded_payload_pointer_button,
-                    scroll: result_recorded_payload_scroll,
-                    touch: result_recorded_payload_touch,
-                    gamepad: result_recorded_payload_gamepad,
-                    text: result_recorded_payload_text,
-                    device: result_recorded_payload_device,
-                    sensor: result_recorded_payload_sensor,
-                    composition: result_recorded_payload_composition,
-                };
-                let result_recorded = InputEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    payload: result_recorded_payload,
+                let result_recorded = match result_value {
+                    InputEvent::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputEventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputEvent::InputDeviceEvent(value) => {
+                        let result_recorded_input_device_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_device_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_device_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_device_event_metadata_sequence,
+                            device_id: result_recorded_input_device_event_metadata_device_id,
+                        };
+                        let result_recorded_input_device_event_payload_action = value.payload.action;
+                        let result_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_device_event_payload = InputDeviceEventPayload {
+                            action: result_recorded_input_device_event_payload_action,
+                            backend_code: result_recorded_input_device_event_payload_backend_code,
+                            backend_value: result_recorded_input_device_event_payload_backend_value,
+                        };
+                        let result_recorded_input_device_event = InputDeviceEventReplayRecord {
+                            kind: result_recorded_input_device_event_kind,
+                            metadata: result_recorded_input_device_event_metadata,
+                            payload: result_recorded_input_device_event_payload,
+                        };
+                        InputEventReplayRecord::InputDeviceEvent(result_recorded_input_device_event)
+                    }
+                    InputEvent::InputGamepadEvent(value) => {
+                        let result_recorded_input_gamepad_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_gamepad_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_gamepad_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_gamepad_event_metadata_sequence,
+                            device_id: result_recorded_input_gamepad_event_metadata_device_id,
+                        };
+                        let result_recorded_input_gamepad_event_payload_action = value.payload.action;
+                        let result_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                            action: result_recorded_input_gamepad_event_payload_action,
+                            backend_code: result_recorded_input_gamepad_event_payload_backend_code,
+                            backend_value: result_recorded_input_gamepad_event_payload_backend_value,
+                        };
+                        let result_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                            kind: result_recorded_input_gamepad_event_kind,
+                            metadata: result_recorded_input_gamepad_event_metadata,
+                            payload: result_recorded_input_gamepad_event_payload,
+                        };
+                        InputEventReplayRecord::InputGamepadEvent(result_recorded_input_gamepad_event)
+                    }
+                    InputEvent::InputKeyEvent(value) => {
+                        let result_recorded_input_key_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_key_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_key_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_key_event_metadata_sequence,
+                            device_id: result_recorded_input_key_event_metadata_device_id,
+                        };
+                        let result_recorded_input_key_event_payload_action = value.payload.action;
+                        let result_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                        let result_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                        let result_recorded_input_key_event_payload = InputKeyEventPayload {
+                            action: result_recorded_input_key_event_payload_action,
+                            backend_code: result_recorded_input_key_event_payload_backend_code,
+                            backend_scan_code: result_recorded_input_key_event_payload_backend_scan_code,
+                            backend_value: result_recorded_input_key_event_payload_backend_value,
+                            modifiers: result_recorded_input_key_event_payload_modifiers,
+                            repeat: result_recorded_input_key_event_payload_repeat,
+                        };
+                        let result_recorded_input_key_event = InputKeyEventReplayRecord {
+                            kind: result_recorded_input_key_event_kind,
+                            metadata: result_recorded_input_key_event_metadata,
+                            payload: result_recorded_input_key_event_payload,
+                        };
+                        InputEventReplayRecord::InputKeyEvent(result_recorded_input_key_event)
+                    }
+                    InputEvent::InputPointerButtonEvent(value) => {
+                        let result_recorded_input_pointer_button_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_button_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_button_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_button_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                        let result_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                            action: result_recorded_input_pointer_button_event_payload_action,
+                            backend_code: result_recorded_input_pointer_button_event_payload_backend_code,
+                            backend_value: result_recorded_input_pointer_button_event_payload_backend_value,
+                            x: result_recorded_input_pointer_button_event_payload_x,
+                            y: result_recorded_input_pointer_button_event_payload_y,
+                            modifiers: result_recorded_input_pointer_button_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                            kind: result_recorded_input_pointer_button_event_kind,
+                            metadata: result_recorded_input_pointer_button_event_metadata,
+                            payload: result_recorded_input_pointer_button_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerButtonEvent(result_recorded_input_pointer_button_event)
+                    }
+                    InputEvent::InputPointerMotionEvent(value) => {
+                        let result_recorded_input_pointer_motion_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_motion_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_motion_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_motion_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                        let result_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                            x: result_recorded_input_pointer_motion_event_payload_x,
+                            y: result_recorded_input_pointer_motion_event_payload_y,
+                            buttons: result_recorded_input_pointer_motion_event_payload_buttons,
+                            modifiers: result_recorded_input_pointer_motion_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                            kind: result_recorded_input_pointer_motion_event_kind,
+                            metadata: result_recorded_input_pointer_motion_event_metadata,
+                            payload: result_recorded_input_pointer_motion_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerMotionEvent(result_recorded_input_pointer_motion_event)
+                    }
+                    InputEvent::InputScrollEvent(value) => {
+                        let result_recorded_input_scroll_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_scroll_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_scroll_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_scroll_event_metadata_sequence,
+                            device_id: result_recorded_input_scroll_event_metadata_device_id,
+                        };
+                        let result_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                        let result_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                        let result_recorded_input_scroll_event_payload_x = value.payload.x;
+                        let result_recorded_input_scroll_event_payload_y = value.payload.y;
+                        let result_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                            wheel_x: result_recorded_input_scroll_event_payload_wheel_x,
+                            wheel_y: result_recorded_input_scroll_event_payload_wheel_y,
+                            x: result_recorded_input_scroll_event_payload_x,
+                            y: result_recorded_input_scroll_event_payload_y,
+                            modifiers: result_recorded_input_scroll_event_payload_modifiers,
+                        };
+                        let result_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                            kind: result_recorded_input_scroll_event_kind,
+                            metadata: result_recorded_input_scroll_event_metadata,
+                            payload: result_recorded_input_scroll_event_payload,
+                        };
+                        InputEventReplayRecord::InputScrollEvent(result_recorded_input_scroll_event)
+                    }
+                    InputEvent::InputSensorEvent(value) => {
+                        let result_recorded_input_sensor_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_sensor_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_sensor_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_sensor_event_metadata_sequence,
+                            device_id: result_recorded_input_sensor_event_metadata_device_id,
+                        };
+                        let result_recorded_input_sensor_event_payload_action = value.payload.action;
+                        let result_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_sensor_event_payload_x = value.payload.x;
+                        let result_recorded_input_sensor_event_payload_y = value.payload.y;
+                        let result_recorded_input_sensor_event_payload_z = value.payload.z;
+                        let result_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                            action: result_recorded_input_sensor_event_payload_action,
+                            backend_code: result_recorded_input_sensor_event_payload_backend_code,
+                            backend_value: result_recorded_input_sensor_event_payload_backend_value,
+                            x: result_recorded_input_sensor_event_payload_x,
+                            y: result_recorded_input_sensor_event_payload_y,
+                            z: result_recorded_input_sensor_event_payload_z,
+                        };
+                        let result_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                            kind: result_recorded_input_sensor_event_kind,
+                            metadata: result_recorded_input_sensor_event_metadata,
+                            payload: result_recorded_input_sensor_event_payload,
+                        };
+                        InputEventReplayRecord::InputSensorEvent(result_recorded_input_sensor_event)
+                    }
+                    InputEvent::InputTextEvent(value) => {
+                        let result_recorded_input_text_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_event_metadata_sequence,
+                            device_id: result_recorded_input_text_event_metadata_device_id,
+                        };
+                        let result_recorded_input_text_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                            text: result_recorded_input_text_event_payload_text,
+                        };
+                        let result_recorded_input_text_event = InputTextEventReplayRecord {
+                            kind: result_recorded_input_text_event_kind,
+                            metadata: result_recorded_input_text_event_metadata,
+                            payload: result_recorded_input_text_event_payload,
+                        };
+                        InputEventReplayRecord::InputTextEvent(result_recorded_input_text_event)
+                    }
+                    InputEvent::InputTouchEvent(value) => {
+                        let result_recorded_input_touch_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_touch_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_touch_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_touch_event_metadata_sequence,
+                            device_id: result_recorded_input_touch_event_metadata_device_id,
+                        };
+                        let result_recorded_input_touch_event_payload_action = value.payload.action;
+                        let result_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                        let result_recorded_input_touch_event_payload_x = value.payload.x;
+                        let result_recorded_input_touch_event_payload_y = value.payload.y;
+                        let result_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                        let result_recorded_input_touch_event_payload = InputTouchEventPayload {
+                            action: result_recorded_input_touch_event_payload_action,
+                            contact_id: result_recorded_input_touch_event_payload_contact_id,
+                            x: result_recorded_input_touch_event_payload_x,
+                            y: result_recorded_input_touch_event_payload_y,
+                            pressure: result_recorded_input_touch_event_payload_pressure,
+                        };
+                        let result_recorded_input_touch_event = InputTouchEventReplayRecord {
+                            kind: result_recorded_input_touch_event_kind,
+                            metadata: result_recorded_input_touch_event_metadata,
+                            payload: result_recorded_input_touch_event_payload,
+                        };
+                        InputEventReplayRecord::InputTouchEvent(result_recorded_input_touch_event)
+                    }
                 };
                 let payload = InputEventReadReplay {
                     result: Ok(result_recorded),
@@ -4200,7 +4875,9 @@ fn destack_input_event_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventReadReplay { result }
+                    InputEventReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -4211,155 +4888,285 @@ fn destack_input_event_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_payload_key_action = value.payload.key.action;
-                    let value_native_payload_key_backend_code = value.payload.key.backend_code;
-                    let value_native_payload_key_backend_scan_code =
-                        value.payload.key.backend_scan_code;
-                    let value_native_payload_key_backend_value = value.payload.key.backend_value;
-                    let value_native_payload_key_modifiers = value.payload.key.modifiers;
-                    let value_native_payload_key_repeat = value.payload.key.repeat;
-                    let value_native_payload_key = InputKeyEventPayload {
-                        action: value_native_payload_key_action,
-                        backend_code: value_native_payload_key_backend_code,
-                        backend_scan_code: value_native_payload_key_backend_scan_code,
-                        backend_value: value_native_payload_key_backend_value,
-                        modifiers: value_native_payload_key_modifiers,
-                        repeat: value_native_payload_key_repeat,
+                    let value_native = match value {
+                        InputEventReplayRecord::InputCompositionEvent(value) => {
+                            let value_native_input_composition_event_kind = context.store_string(&value.kind);
+                            let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_composition_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
+                                sequence: value_native_input_composition_event_metadata_sequence,
+                                device_id: value_native_input_composition_event_metadata_device_id,
+                            };
+                            let value_native_input_composition_event_payload_action = value.payload.action;
+                            let value_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let value_native_input_composition_event_payload = InputCompositionEventPayload {
+                                action: value_native_input_composition_event_payload_action,
+                                text: value_native_input_composition_event_payload_text,
+                                selection_start: value_native_input_composition_event_payload_selection_start,
+                                selection_end: value_native_input_composition_event_payload_selection_end,
+                            };
+                            let value_native_input_composition_event = InputCompositionEvent {
+                                kind: value_native_input_composition_event_kind,
+                                metadata: value_native_input_composition_event_metadata,
+                                payload: value_native_input_composition_event_payload,
+                            };
+                            InputEvent::InputCompositionEvent(value_native_input_composition_event)
+                        }
+                        InputEventReplayRecord::InputDeviceEvent(value) => {
+                            let value_native_input_device_event_kind = context.store_string(&value.kind);
+                            let value_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_device_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_device_event_metadata_timestamp_ns,
+                                sequence: value_native_input_device_event_metadata_sequence,
+                                device_id: value_native_input_device_event_metadata_device_id,
+                            };
+                            let value_native_input_device_event_payload_action = value.payload.action;
+                            let value_native_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_device_event_payload = InputDeviceEventPayload {
+                                action: value_native_input_device_event_payload_action,
+                                backend_code: value_native_input_device_event_payload_backend_code,
+                                backend_value: value_native_input_device_event_payload_backend_value,
+                            };
+                            let value_native_input_device_event = InputDeviceEvent {
+                                kind: value_native_input_device_event_kind,
+                                metadata: value_native_input_device_event_metadata,
+                                payload: value_native_input_device_event_payload,
+                            };
+                            InputEvent::InputDeviceEvent(value_native_input_device_event)
+                        }
+                        InputEventReplayRecord::InputGamepadEvent(value) => {
+                            let value_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                            let value_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_gamepad_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: value_native_input_gamepad_event_metadata_sequence,
+                                device_id: value_native_input_gamepad_event_metadata_device_id,
+                            };
+                            let value_native_input_gamepad_event_payload_action = value.payload.action;
+                            let value_native_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_gamepad_event_payload = InputGamepadEventPayload {
+                                action: value_native_input_gamepad_event_payload_action,
+                                backend_code: value_native_input_gamepad_event_payload_backend_code,
+                                backend_value: value_native_input_gamepad_event_payload_backend_value,
+                            };
+                            let value_native_input_gamepad_event = InputGamepadEvent {
+                                kind: value_native_input_gamepad_event_kind,
+                                metadata: value_native_input_gamepad_event_metadata,
+                                payload: value_native_input_gamepad_event_payload,
+                            };
+                            InputEvent::InputGamepadEvent(value_native_input_gamepad_event)
+                        }
+                        InputEventReplayRecord::InputKeyEvent(value) => {
+                            let value_native_input_key_event_kind = context.store_string(&value.kind);
+                            let value_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_key_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_key_event_metadata_timestamp_ns,
+                                sequence: value_native_input_key_event_metadata_sequence,
+                                device_id: value_native_input_key_event_metadata_device_id,
+                            };
+                            let value_native_input_key_event_payload_action = value.payload.action;
+                            let value_native_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let value_native_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_key_event_payload_repeat = value.payload.repeat;
+                            let value_native_input_key_event_payload = InputKeyEventPayload {
+                                action: value_native_input_key_event_payload_action,
+                                backend_code: value_native_input_key_event_payload_backend_code,
+                                backend_scan_code: value_native_input_key_event_payload_backend_scan_code,
+                                backend_value: value_native_input_key_event_payload_backend_value,
+                                modifiers: value_native_input_key_event_payload_modifiers,
+                                repeat: value_native_input_key_event_payload_repeat,
+                            };
+                            let value_native_input_key_event = InputKeyEvent {
+                                kind: value_native_input_key_event_kind,
+                                metadata: value_native_input_key_event_metadata,
+                                payload: value_native_input_key_event_payload,
+                            };
+                            InputEvent::InputKeyEvent(value_native_input_key_event)
+                        }
+                        InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                            let value_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_button_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: value_native_input_pointer_button_event_metadata_sequence,
+                                device_id: value_native_input_pointer_button_event_metadata_device_id,
+                            };
+                            let value_native_input_pointer_button_event_payload_action = value.payload.action;
+                            let value_native_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_pointer_button_event_payload_x = value.payload.x;
+                            let value_native_input_pointer_button_event_payload_y = value.payload.y;
+                            let value_native_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                                action: value_native_input_pointer_button_event_payload_action,
+                                backend_code: value_native_input_pointer_button_event_payload_backend_code,
+                                backend_value: value_native_input_pointer_button_event_payload_backend_value,
+                                x: value_native_input_pointer_button_event_payload_x,
+                                y: value_native_input_pointer_button_event_payload_y,
+                                modifiers: value_native_input_pointer_button_event_payload_modifiers,
+                            };
+                            let value_native_input_pointer_button_event = InputPointerButtonEvent {
+                                kind: value_native_input_pointer_button_event_kind,
+                                metadata: value_native_input_pointer_button_event_metadata,
+                                payload: value_native_input_pointer_button_event_payload,
+                            };
+                            InputEvent::InputPointerButtonEvent(value_native_input_pointer_button_event)
+                        }
+                        InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                            let value_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_motion_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: value_native_input_pointer_motion_event_metadata_sequence,
+                                device_id: value_native_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let value_native_input_pointer_motion_event_payload_x = value.payload.x;
+                            let value_native_input_pointer_motion_event_payload_y = value.payload.y;
+                            let value_native_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let value_native_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                                x: value_native_input_pointer_motion_event_payload_x,
+                                y: value_native_input_pointer_motion_event_payload_y,
+                                buttons: value_native_input_pointer_motion_event_payload_buttons,
+                                modifiers: value_native_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let value_native_input_pointer_motion_event = InputPointerMotionEvent {
+                                kind: value_native_input_pointer_motion_event_kind,
+                                metadata: value_native_input_pointer_motion_event_metadata,
+                                payload: value_native_input_pointer_motion_event_payload,
+                            };
+                            InputEvent::InputPointerMotionEvent(value_native_input_pointer_motion_event)
+                        }
+                        InputEventReplayRecord::InputScrollEvent(value) => {
+                            let value_native_input_scroll_event_kind = context.store_string(&value.kind);
+                            let value_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_scroll_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_scroll_event_metadata_timestamp_ns,
+                                sequence: value_native_input_scroll_event_metadata_sequence,
+                                device_id: value_native_input_scroll_event_metadata_device_id,
+                            };
+                            let value_native_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let value_native_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let value_native_input_scroll_event_payload_x = value.payload.x;
+                            let value_native_input_scroll_event_payload_y = value.payload.y;
+                            let value_native_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_scroll_event_payload = InputScrollEventPayload {
+                                wheel_x: value_native_input_scroll_event_payload_wheel_x,
+                                wheel_y: value_native_input_scroll_event_payload_wheel_y,
+                                x: value_native_input_scroll_event_payload_x,
+                                y: value_native_input_scroll_event_payload_y,
+                                modifiers: value_native_input_scroll_event_payload_modifiers,
+                            };
+                            let value_native_input_scroll_event = InputScrollEvent {
+                                kind: value_native_input_scroll_event_kind,
+                                metadata: value_native_input_scroll_event_metadata,
+                                payload: value_native_input_scroll_event_payload,
+                            };
+                            InputEvent::InputScrollEvent(value_native_input_scroll_event)
+                        }
+                        InputEventReplayRecord::InputSensorEvent(value) => {
+                            let value_native_input_sensor_event_kind = context.store_string(&value.kind);
+                            let value_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_sensor_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_sensor_event_metadata_timestamp_ns,
+                                sequence: value_native_input_sensor_event_metadata_sequence,
+                                device_id: value_native_input_sensor_event_metadata_device_id,
+                            };
+                            let value_native_input_sensor_event_payload_action = value.payload.action;
+                            let value_native_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_sensor_event_payload_x = value.payload.x;
+                            let value_native_input_sensor_event_payload_y = value.payload.y;
+                            let value_native_input_sensor_event_payload_z = value.payload.z;
+                            let value_native_input_sensor_event_payload = InputSensorEventPayload {
+                                action: value_native_input_sensor_event_payload_action,
+                                backend_code: value_native_input_sensor_event_payload_backend_code,
+                                backend_value: value_native_input_sensor_event_payload_backend_value,
+                                x: value_native_input_sensor_event_payload_x,
+                                y: value_native_input_sensor_event_payload_y,
+                                z: value_native_input_sensor_event_payload_z,
+                            };
+                            let value_native_input_sensor_event = InputSensorEvent {
+                                kind: value_native_input_sensor_event_kind,
+                                metadata: value_native_input_sensor_event_metadata,
+                                payload: value_native_input_sensor_event_payload,
+                            };
+                            InputEvent::InputSensorEvent(value_native_input_sensor_event)
+                        }
+                        InputEventReplayRecord::InputTextEvent(value) => {
+                            let value_native_input_text_event_kind = context.store_string(&value.kind);
+                            let value_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_text_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_text_event_metadata_timestamp_ns,
+                                sequence: value_native_input_text_event_metadata_sequence,
+                                device_id: value_native_input_text_event_metadata_device_id,
+                            };
+                            let value_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_text_event_payload = InputTextEventPayload {
+                                text: value_native_input_text_event_payload_text,
+                            };
+                            let value_native_input_text_event = InputTextEvent {
+                                kind: value_native_input_text_event_kind,
+                                metadata: value_native_input_text_event_metadata,
+                                payload: value_native_input_text_event_payload,
+                            };
+                            InputEvent::InputTextEvent(value_native_input_text_event)
+                        }
+                        InputEventReplayRecord::InputTouchEvent(value) => {
+                            let value_native_input_touch_event_kind = context.store_string(&value.kind);
+                            let value_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_touch_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_touch_event_metadata_timestamp_ns,
+                                sequence: value_native_input_touch_event_metadata_sequence,
+                                device_id: value_native_input_touch_event_metadata_device_id,
+                            };
+                            let value_native_input_touch_event_payload_action = value.payload.action;
+                            let value_native_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let value_native_input_touch_event_payload_x = value.payload.x;
+                            let value_native_input_touch_event_payload_y = value.payload.y;
+                            let value_native_input_touch_event_payload_pressure = value.payload.pressure;
+                            let value_native_input_touch_event_payload = InputTouchEventPayload {
+                                action: value_native_input_touch_event_payload_action,
+                                contact_id: value_native_input_touch_event_payload_contact_id,
+                                x: value_native_input_touch_event_payload_x,
+                                y: value_native_input_touch_event_payload_y,
+                                pressure: value_native_input_touch_event_payload_pressure,
+                            };
+                            let value_native_input_touch_event = InputTouchEvent {
+                                kind: value_native_input_touch_event_kind,
+                                metadata: value_native_input_touch_event_metadata,
+                                payload: value_native_input_touch_event_payload,
+                            };
+                            InputEvent::InputTouchEvent(value_native_input_touch_event)
+                        }
                     };
-                    let value_native_payload_pointer_motion_x = value.payload.pointer_motion.x;
-                    let value_native_payload_pointer_motion_y = value.payload.pointer_motion.y;
-                    let value_native_payload_pointer_motion_buttons =
-                        value.payload.pointer_motion.buttons;
-                    let value_native_payload_pointer_motion_modifiers =
-                        value.payload.pointer_motion.modifiers;
-                    let value_native_payload_pointer_motion = InputPointerMotionEventPayload {
-                        x: value_native_payload_pointer_motion_x,
-                        y: value_native_payload_pointer_motion_y,
-                        buttons: value_native_payload_pointer_motion_buttons,
-                        modifiers: value_native_payload_pointer_motion_modifiers,
-                    };
-                    let value_native_payload_pointer_button_action =
-                        value.payload.pointer_button.action;
-                    let value_native_payload_pointer_button_backend_code =
-                        value.payload.pointer_button.backend_code;
-                    let value_native_payload_pointer_button_backend_value =
-                        value.payload.pointer_button.backend_value;
-                    let value_native_payload_pointer_button_x = value.payload.pointer_button.x;
-                    let value_native_payload_pointer_button_y = value.payload.pointer_button.y;
-                    let value_native_payload_pointer_button_modifiers =
-                        value.payload.pointer_button.modifiers;
-                    let value_native_payload_pointer_button = InputPointerButtonEventPayload {
-                        action: value_native_payload_pointer_button_action,
-                        backend_code: value_native_payload_pointer_button_backend_code,
-                        backend_value: value_native_payload_pointer_button_backend_value,
-                        x: value_native_payload_pointer_button_x,
-                        y: value_native_payload_pointer_button_y,
-                        modifiers: value_native_payload_pointer_button_modifiers,
-                    };
-                    let value_native_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
-                    let value_native_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
-                    let value_native_payload_scroll_x = value.payload.scroll.x;
-                    let value_native_payload_scroll_y = value.payload.scroll.y;
-                    let value_native_payload_scroll_modifiers = value.payload.scroll.modifiers;
-                    let value_native_payload_scroll = InputScrollEventPayload {
-                        wheel_x: value_native_payload_scroll_wheel_x,
-                        wheel_y: value_native_payload_scroll_wheel_y,
-                        x: value_native_payload_scroll_x,
-                        y: value_native_payload_scroll_y,
-                        modifiers: value_native_payload_scroll_modifiers,
-                    };
-                    let value_native_payload_touch_action = value.payload.touch.action;
-                    let value_native_payload_touch_contact_id = value.payload.touch.contact_id;
-                    let value_native_payload_touch_x = value.payload.touch.x;
-                    let value_native_payload_touch_y = value.payload.touch.y;
-                    let value_native_payload_touch_pressure = value.payload.touch.pressure;
-                    let value_native_payload_touch = InputTouchEventPayload {
-                        action: value_native_payload_touch_action,
-                        contact_id: value_native_payload_touch_contact_id,
-                        x: value_native_payload_touch_x,
-                        y: value_native_payload_touch_y,
-                        pressure: value_native_payload_touch_pressure,
-                    };
-                    let value_native_payload_gamepad_action = value.payload.gamepad.action;
-                    let value_native_payload_gamepad_backend_code =
-                        value.payload.gamepad.backend_code;
-                    let value_native_payload_gamepad_backend_value =
-                        value.payload.gamepad.backend_value;
-                    let value_native_payload_gamepad = InputGamepadEventPayload {
-                        action: value_native_payload_gamepad_action,
-                        backend_code: value_native_payload_gamepad_backend_code,
-                        backend_value: value_native_payload_gamepad_backend_value,
-                    };
-                    let value_native_payload_text_text =
-                        context.store_string(&value.payload.text.text);
-                    let value_native_payload_text = InputTextEventPayload {
-                        text: value_native_payload_text_text,
-                    };
-                    let value_native_payload_device_action = value.payload.device.action;
-                    let value_native_payload_device_backend_code =
-                        value.payload.device.backend_code;
-                    let value_native_payload_device_backend_value =
-                        value.payload.device.backend_value;
-                    let value_native_payload_device = InputDeviceEventPayload {
-                        action: value_native_payload_device_action,
-                        backend_code: value_native_payload_device_backend_code,
-                        backend_value: value_native_payload_device_backend_value,
-                    };
-                    let value_native_payload_sensor_action = value.payload.sensor.action;
-                    let value_native_payload_sensor_backend_code =
-                        value.payload.sensor.backend_code;
-                    let value_native_payload_sensor_backend_value =
-                        value.payload.sensor.backend_value;
-                    let value_native_payload_sensor_x = value.payload.sensor.x;
-                    let value_native_payload_sensor_y = value.payload.sensor.y;
-                    let value_native_payload_sensor_z = value.payload.sensor.z;
-                    let value_native_payload_sensor = InputSensorEventPayload {
-                        action: value_native_payload_sensor_action,
-                        backend_code: value_native_payload_sensor_backend_code,
-                        backend_value: value_native_payload_sensor_backend_value,
-                        x: value_native_payload_sensor_x,
-                        y: value_native_payload_sensor_y,
-                        z: value_native_payload_sensor_z,
-                    };
-                    let value_native_payload_composition_action = value.payload.composition.action;
-                    let value_native_payload_composition_text =
-                        context.store_string(&value.payload.composition.text);
-                    let value_native_payload_composition_selection_start =
-                        value.payload.composition.selection_start;
-                    let value_native_payload_composition_selection_end =
-                        value.payload.composition.selection_end;
-                    let value_native_payload_composition = InputCompositionEventPayload {
-                        action: value_native_payload_composition_action,
-                        text: value_native_payload_composition_text,
-                        selection_start: value_native_payload_composition_selection_start,
-                        selection_end: value_native_payload_composition_selection_end,
-                    };
-                    let value_native_payload = InputEventPayload {
-                        key: value_native_payload_key,
-                        pointer_motion: value_native_payload_pointer_motion,
-                        pointer_button: value_native_payload_pointer_button,
-                        scroll: value_native_payload_scroll,
-                        touch: value_native_payload_touch,
-                        gamepad: value_native_payload_gamepad,
-                        text: value_native_payload_text,
-                        device: value_native_payload_device,
-                        sensor: value_native_payload_sensor,
-                        composition: value_native_payload_composition,
-                    };
-                    let value_native = InputEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        payload: value_native_payload,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -4382,212 +5189,296 @@ fn destack_input_event_read_batch_replay(
         INPUT_EVENT_READ_BATCH,
         context.replay_payload_for(INPUT_EVENT_READ_BATCH)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_read_batch(context, out, handle, maxevents)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_read_batch(
-                    context, out, handle, maxevents,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_read_batch(context, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_read_batch(context, out, handle, maxevents) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
                 let result_recorded_raw = unsafe { result_value.as_slice()? };
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns =
-                        result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_device_id =
-                        unsafe { result_recorded_item.device_id.as_str()? }.to_string();
-                    let result_recorded_item_recorded_payload_key_action =
-                        result_recorded_item.payload.key.action;
-                    let result_recorded_item_recorded_payload_key_backend_code =
-                        result_recorded_item.payload.key.backend_code;
-                    let result_recorded_item_recorded_payload_key_backend_scan_code =
-                        result_recorded_item.payload.key.backend_scan_code;
-                    let result_recorded_item_recorded_payload_key_backend_value =
-                        result_recorded_item.payload.key.backend_value;
-                    let result_recorded_item_recorded_payload_key_modifiers =
-                        result_recorded_item.payload.key.modifiers;
-                    let result_recorded_item_recorded_payload_key_repeat =
-                        result_recorded_item.payload.key.repeat;
-                    let result_recorded_item_recorded_payload_key = InputKeyEventPayload {
-                        action: result_recorded_item_recorded_payload_key_action,
-                        backend_code: result_recorded_item_recorded_payload_key_backend_code,
-                        backend_scan_code:
-                            result_recorded_item_recorded_payload_key_backend_scan_code,
-                        backend_value: result_recorded_item_recorded_payload_key_backend_value,
-                        modifiers: result_recorded_item_recorded_payload_key_modifiers,
-                        repeat: result_recorded_item_recorded_payload_key_repeat,
-                    };
-                    let result_recorded_item_recorded_payload_pointer_motion_x =
-                        result_recorded_item.payload.pointer_motion.x;
-                    let result_recorded_item_recorded_payload_pointer_motion_y =
-                        result_recorded_item.payload.pointer_motion.y;
-                    let result_recorded_item_recorded_payload_pointer_motion_buttons =
-                        result_recorded_item.payload.pointer_motion.buttons;
-                    let result_recorded_item_recorded_payload_pointer_motion_modifiers =
-                        result_recorded_item.payload.pointer_motion.modifiers;
-                    let result_recorded_item_recorded_payload_pointer_motion =
-                        InputPointerMotionEventPayload {
-                            x: result_recorded_item_recorded_payload_pointer_motion_x,
-                            y: result_recorded_item_recorded_payload_pointer_motion_y,
-                            buttons: result_recorded_item_recorded_payload_pointer_motion_buttons,
-                            modifiers:
-                                result_recorded_item_recorded_payload_pointer_motion_modifiers,
-                        };
-                    let result_recorded_item_recorded_payload_pointer_button_action =
-                        result_recorded_item.payload.pointer_button.action;
-                    let result_recorded_item_recorded_payload_pointer_button_backend_code =
-                        result_recorded_item.payload.pointer_button.backend_code;
-                    let result_recorded_item_recorded_payload_pointer_button_backend_value =
-                        result_recorded_item.payload.pointer_button.backend_value;
-                    let result_recorded_item_recorded_payload_pointer_button_x =
-                        result_recorded_item.payload.pointer_button.x;
-                    let result_recorded_item_recorded_payload_pointer_button_y =
-                        result_recorded_item.payload.pointer_button.y;
-                    let result_recorded_item_recorded_payload_pointer_button_modifiers =
-                        result_recorded_item.payload.pointer_button.modifiers;
-                    let result_recorded_item_recorded_payload_pointer_button =
-                        InputPointerButtonEventPayload {
-                            action: result_recorded_item_recorded_payload_pointer_button_action,
-                            backend_code:
-                                result_recorded_item_recorded_payload_pointer_button_backend_code,
-                            backend_value:
-                                result_recorded_item_recorded_payload_pointer_button_backend_value,
-                            x: result_recorded_item_recorded_payload_pointer_button_x,
-                            y: result_recorded_item_recorded_payload_pointer_button_y,
-                            modifiers:
-                                result_recorded_item_recorded_payload_pointer_button_modifiers,
-                        };
-                    let result_recorded_item_recorded_payload_scroll_wheel_x =
-                        result_recorded_item.payload.scroll.wheel_x;
-                    let result_recorded_item_recorded_payload_scroll_wheel_y =
-                        result_recorded_item.payload.scroll.wheel_y;
-                    let result_recorded_item_recorded_payload_scroll_x =
-                        result_recorded_item.payload.scroll.x;
-                    let result_recorded_item_recorded_payload_scroll_y =
-                        result_recorded_item.payload.scroll.y;
-                    let result_recorded_item_recorded_payload_scroll_modifiers =
-                        result_recorded_item.payload.scroll.modifiers;
-                    let result_recorded_item_recorded_payload_scroll = InputScrollEventPayload {
-                        wheel_x: result_recorded_item_recorded_payload_scroll_wheel_x,
-                        wheel_y: result_recorded_item_recorded_payload_scroll_wheel_y,
-                        x: result_recorded_item_recorded_payload_scroll_x,
-                        y: result_recorded_item_recorded_payload_scroll_y,
-                        modifiers: result_recorded_item_recorded_payload_scroll_modifiers,
-                    };
-                    let result_recorded_item_recorded_payload_touch_action =
-                        result_recorded_item.payload.touch.action;
-                    let result_recorded_item_recorded_payload_touch_contact_id =
-                        result_recorded_item.payload.touch.contact_id;
-                    let result_recorded_item_recorded_payload_touch_x =
-                        result_recorded_item.payload.touch.x;
-                    let result_recorded_item_recorded_payload_touch_y =
-                        result_recorded_item.payload.touch.y;
-                    let result_recorded_item_recorded_payload_touch_pressure =
-                        result_recorded_item.payload.touch.pressure;
-                    let result_recorded_item_recorded_payload_touch = InputTouchEventPayload {
-                        action: result_recorded_item_recorded_payload_touch_action,
-                        contact_id: result_recorded_item_recorded_payload_touch_contact_id,
-                        x: result_recorded_item_recorded_payload_touch_x,
-                        y: result_recorded_item_recorded_payload_touch_y,
-                        pressure: result_recorded_item_recorded_payload_touch_pressure,
-                    };
-                    let result_recorded_item_recorded_payload_gamepad_action =
-                        result_recorded_item.payload.gamepad.action;
-                    let result_recorded_item_recorded_payload_gamepad_backend_code =
-                        result_recorded_item.payload.gamepad.backend_code;
-                    let result_recorded_item_recorded_payload_gamepad_backend_value =
-                        result_recorded_item.payload.gamepad.backend_value;
-                    let result_recorded_item_recorded_payload_gamepad = InputGamepadEventPayload {
-                        action: result_recorded_item_recorded_payload_gamepad_action,
-                        backend_code: result_recorded_item_recorded_payload_gamepad_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_gamepad_backend_value,
-                    };
-                    let result_recorded_item_recorded_payload_text_text =
-                        unsafe { result_recorded_item.payload.text.text.as_str()? }.to_string();
-                    let result_recorded_item_recorded_payload_text =
-                        InputTextEventPayloadReplayRecord {
-                            text: result_recorded_item_recorded_payload_text_text,
-                        };
-                    let result_recorded_item_recorded_payload_device_action =
-                        result_recorded_item.payload.device.action;
-                    let result_recorded_item_recorded_payload_device_backend_code =
-                        result_recorded_item.payload.device.backend_code;
-                    let result_recorded_item_recorded_payload_device_backend_value =
-                        result_recorded_item.payload.device.backend_value;
-                    let result_recorded_item_recorded_payload_device = InputDeviceEventPayload {
-                        action: result_recorded_item_recorded_payload_device_action,
-                        backend_code: result_recorded_item_recorded_payload_device_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_device_backend_value,
-                    };
-                    let result_recorded_item_recorded_payload_sensor_action =
-                        result_recorded_item.payload.sensor.action;
-                    let result_recorded_item_recorded_payload_sensor_backend_code =
-                        result_recorded_item.payload.sensor.backend_code;
-                    let result_recorded_item_recorded_payload_sensor_backend_value =
-                        result_recorded_item.payload.sensor.backend_value;
-                    let result_recorded_item_recorded_payload_sensor_x =
-                        result_recorded_item.payload.sensor.x;
-                    let result_recorded_item_recorded_payload_sensor_y =
-                        result_recorded_item.payload.sensor.y;
-                    let result_recorded_item_recorded_payload_sensor_z =
-                        result_recorded_item.payload.sensor.z;
-                    let result_recorded_item_recorded_payload_sensor = InputSensorEventPayload {
-                        action: result_recorded_item_recorded_payload_sensor_action,
-                        backend_code: result_recorded_item_recorded_payload_sensor_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_sensor_backend_value,
-                        x: result_recorded_item_recorded_payload_sensor_x,
-                        y: result_recorded_item_recorded_payload_sensor_y,
-                        z: result_recorded_item_recorded_payload_sensor_z,
-                    };
-                    let result_recorded_item_recorded_payload_composition_action =
-                        result_recorded_item.payload.composition.action;
-                    let result_recorded_item_recorded_payload_composition_text =
-                        unsafe { result_recorded_item.payload.composition.text.as_str()? }
-                            .to_string();
-                    let result_recorded_item_recorded_payload_composition_selection_start =
-                        result_recorded_item.payload.composition.selection_start;
-                    let result_recorded_item_recorded_payload_composition_selection_end =
-                        result_recorded_item.payload.composition.selection_end;
-                    let result_recorded_item_recorded_payload_composition =
-                        InputCompositionEventPayloadReplayRecord {
-                            action: result_recorded_item_recorded_payload_composition_action,
-                            text: result_recorded_item_recorded_payload_composition_text,
-                            selection_start:
-                                result_recorded_item_recorded_payload_composition_selection_start,
-                            selection_end:
-                                result_recorded_item_recorded_payload_composition_selection_end,
-                        };
-                    let result_recorded_item_recorded_payload = InputEventPayloadReplayRecord {
-                        key: result_recorded_item_recorded_payload_key,
-                        pointer_motion: result_recorded_item_recorded_payload_pointer_motion,
-                        pointer_button: result_recorded_item_recorded_payload_pointer_button,
-                        scroll: result_recorded_item_recorded_payload_scroll,
-                        touch: result_recorded_item_recorded_payload_touch,
-                        gamepad: result_recorded_item_recorded_payload_gamepad,
-                        text: result_recorded_item_recorded_payload_text,
-                        device: result_recorded_item_recorded_payload_device,
-                        sensor: result_recorded_item_recorded_payload_sensor,
-                        composition: result_recorded_item_recorded_payload_composition,
-                    };
-                    let result_recorded_item_recorded = InputEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        device_id: result_recorded_item_recorded_device_id,
-                        payload: result_recorded_item_recorded_payload,
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        InputEvent::InputCompositionEvent(value) => {
+                            let result_recorded_item_recorded_input_composition_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_composition_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_composition_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_composition_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_composition_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_composition_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_composition_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let result_recorded_item_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let result_recorded_item_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                                action: result_recorded_item_recorded_input_composition_event_payload_action,
+                                text: result_recorded_item_recorded_input_composition_event_payload_text,
+                                selection_start: result_recorded_item_recorded_input_composition_event_payload_selection_start,
+                                selection_end: result_recorded_item_recorded_input_composition_event_payload_selection_end,
+                            };
+                            let result_recorded_item_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_composition_event_kind,
+                                metadata: result_recorded_item_recorded_input_composition_event_metadata,
+                                payload: result_recorded_item_recorded_input_composition_event_payload,
+                            };
+                            InputEventReplayRecord::InputCompositionEvent(result_recorded_item_recorded_input_composition_event)
+                        }
+                        InputEvent::InputDeviceEvent(value) => {
+                            let result_recorded_item_recorded_input_device_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_device_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_device_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_device_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_device_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_device_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_device_event_payload = InputDeviceEventPayload {
+                                action: result_recorded_item_recorded_input_device_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_device_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_device_event_payload_backend_value,
+                            };
+                            let result_recorded_item_recorded_input_device_event = InputDeviceEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_device_event_kind,
+                                metadata: result_recorded_item_recorded_input_device_event_metadata,
+                                payload: result_recorded_item_recorded_input_device_event_payload,
+                            };
+                            InputEventReplayRecord::InputDeviceEvent(result_recorded_item_recorded_input_device_event)
+                        }
+                        InputEvent::InputGamepadEvent(value) => {
+                            let result_recorded_item_recorded_input_gamepad_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_gamepad_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_gamepad_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                                action: result_recorded_item_recorded_input_gamepad_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_gamepad_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_gamepad_event_payload_backend_value,
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_gamepad_event_kind,
+                                metadata: result_recorded_item_recorded_input_gamepad_event_metadata,
+                                payload: result_recorded_item_recorded_input_gamepad_event_payload,
+                            };
+                            InputEventReplayRecord::InputGamepadEvent(result_recorded_item_recorded_input_gamepad_event)
+                        }
+                        InputEvent::InputKeyEvent(value) => {
+                            let result_recorded_item_recorded_input_key_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_key_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_key_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_key_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_key_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_key_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                            let result_recorded_item_recorded_input_key_event_payload = InputKeyEventPayload {
+                                action: result_recorded_item_recorded_input_key_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_key_event_payload_backend_code,
+                                backend_scan_code: result_recorded_item_recorded_input_key_event_payload_backend_scan_code,
+                                backend_value: result_recorded_item_recorded_input_key_event_payload_backend_value,
+                                modifiers: result_recorded_item_recorded_input_key_event_payload_modifiers,
+                                repeat: result_recorded_item_recorded_input_key_event_payload_repeat,
+                            };
+                            let result_recorded_item_recorded_input_key_event = InputKeyEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_key_event_kind,
+                                metadata: result_recorded_item_recorded_input_key_event_metadata,
+                                payload: result_recorded_item_recorded_input_key_event_payload,
+                            };
+                            InputEventReplayRecord::InputKeyEvent(result_recorded_item_recorded_input_key_event)
+                        }
+                        InputEvent::InputPointerButtonEvent(value) => {
+                            let result_recorded_item_recorded_input_pointer_button_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_pointer_button_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_pointer_button_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                                action: result_recorded_item_recorded_input_pointer_button_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_pointer_button_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_pointer_button_event_payload_backend_value,
+                                x: result_recorded_item_recorded_input_pointer_button_event_payload_x,
+                                y: result_recorded_item_recorded_input_pointer_button_event_payload_y,
+                                modifiers: result_recorded_item_recorded_input_pointer_button_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_pointer_button_event_kind,
+                                metadata: result_recorded_item_recorded_input_pointer_button_event_metadata,
+                                payload: result_recorded_item_recorded_input_pointer_button_event_payload,
+                            };
+                            InputEventReplayRecord::InputPointerButtonEvent(result_recorded_item_recorded_input_pointer_button_event)
+                        }
+                        InputEvent::InputPointerMotionEvent(value) => {
+                            let result_recorded_item_recorded_input_pointer_motion_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_pointer_motion_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                                x: result_recorded_item_recorded_input_pointer_motion_event_payload_x,
+                                y: result_recorded_item_recorded_input_pointer_motion_event_payload_y,
+                                buttons: result_recorded_item_recorded_input_pointer_motion_event_payload_buttons,
+                                modifiers: result_recorded_item_recorded_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_pointer_motion_event_kind,
+                                metadata: result_recorded_item_recorded_input_pointer_motion_event_metadata,
+                                payload: result_recorded_item_recorded_input_pointer_motion_event_payload,
+                            };
+                            InputEventReplayRecord::InputPointerMotionEvent(result_recorded_item_recorded_input_pointer_motion_event)
+                        }
+                        InputEvent::InputScrollEvent(value) => {
+                            let result_recorded_item_recorded_input_scroll_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_scroll_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_scroll_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_scroll_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_scroll_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let result_recorded_item_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let result_recorded_item_recorded_input_scroll_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_scroll_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                                wheel_x: result_recorded_item_recorded_input_scroll_event_payload_wheel_x,
+                                wheel_y: result_recorded_item_recorded_input_scroll_event_payload_wheel_y,
+                                x: result_recorded_item_recorded_input_scroll_event_payload_x,
+                                y: result_recorded_item_recorded_input_scroll_event_payload_y,
+                                modifiers: result_recorded_item_recorded_input_scroll_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_scroll_event_kind,
+                                metadata: result_recorded_item_recorded_input_scroll_event_metadata,
+                                payload: result_recorded_item_recorded_input_scroll_event_payload,
+                            };
+                            InputEventReplayRecord::InputScrollEvent(result_recorded_item_recorded_input_scroll_event)
+                        }
+                        InputEvent::InputSensorEvent(value) => {
+                            let result_recorded_item_recorded_input_sensor_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_sensor_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_sensor_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_sensor_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_sensor_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_sensor_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_sensor_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_sensor_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_sensor_event_payload_z = value.payload.z;
+                            let result_recorded_item_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                                action: result_recorded_item_recorded_input_sensor_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_sensor_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_sensor_event_payload_backend_value,
+                                x: result_recorded_item_recorded_input_sensor_event_payload_x,
+                                y: result_recorded_item_recorded_input_sensor_event_payload_y,
+                                z: result_recorded_item_recorded_input_sensor_event_payload_z,
+                            };
+                            let result_recorded_item_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_sensor_event_kind,
+                                metadata: result_recorded_item_recorded_input_sensor_event_metadata,
+                                payload: result_recorded_item_recorded_input_sensor_event_payload,
+                            };
+                            InputEventReplayRecord::InputSensorEvent(result_recorded_item_recorded_input_sensor_event)
+                        }
+                        InputEvent::InputTextEvent(value) => {
+                            let result_recorded_item_recorded_input_text_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_text_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_text_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_text_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_text_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_text_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                                text: result_recorded_item_recorded_input_text_event_payload_text,
+                            };
+                            let result_recorded_item_recorded_input_text_event = InputTextEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_text_event_kind,
+                                metadata: result_recorded_item_recorded_input_text_event_metadata,
+                                payload: result_recorded_item_recorded_input_text_event_payload,
+                            };
+                            InputEventReplayRecord::InputTextEvent(result_recorded_item_recorded_input_text_event)
+                        }
+                        InputEvent::InputTouchEvent(value) => {
+                            let result_recorded_item_recorded_input_touch_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_touch_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                            let result_recorded_item_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_touch_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_touch_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_touch_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_touch_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let result_recorded_item_recorded_input_touch_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_touch_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                            let result_recorded_item_recorded_input_touch_event_payload = InputTouchEventPayload {
+                                action: result_recorded_item_recorded_input_touch_event_payload_action,
+                                contact_id: result_recorded_item_recorded_input_touch_event_payload_contact_id,
+                                x: result_recorded_item_recorded_input_touch_event_payload_x,
+                                y: result_recorded_item_recorded_input_touch_event_payload_y,
+                                pressure: result_recorded_item_recorded_input_touch_event_payload_pressure,
+                            };
+                            let result_recorded_item_recorded_input_touch_event = InputTouchEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_touch_event_kind,
+                                metadata: result_recorded_item_recorded_input_touch_event_metadata,
+                                payload: result_recorded_item_recorded_input_touch_event_payload,
+                            };
+                            InputEventReplayRecord::InputTouchEvent(result_recorded_item_recorded_input_touch_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -4600,7 +5491,9 @@ fn destack_input_event_read_batch_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventReadBatchReplay { result }
+                    InputEventReadBatchReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -4613,195 +5506,288 @@ fn destack_input_event_read_batch_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_kind = value_native_item.kind;
-                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
-                        let value_native_item_native_sequence = value_native_item.sequence;
-                        let value_native_item_native_device_id =
-                            context.store_string(&value_native_item.device_id);
-                        let value_native_item_native_payload_key_action =
-                            value_native_item.payload.key.action;
-                        let value_native_item_native_payload_key_backend_code =
-                            value_native_item.payload.key.backend_code;
-                        let value_native_item_native_payload_key_backend_scan_code =
-                            value_native_item.payload.key.backend_scan_code;
-                        let value_native_item_native_payload_key_backend_value =
-                            value_native_item.payload.key.backend_value;
-                        let value_native_item_native_payload_key_modifiers =
-                            value_native_item.payload.key.modifiers;
-                        let value_native_item_native_payload_key_repeat =
-                            value_native_item.payload.key.repeat;
-                        let value_native_item_native_payload_key = InputKeyEventPayload {
-                            action: value_native_item_native_payload_key_action,
-                            backend_code: value_native_item_native_payload_key_backend_code,
-                            backend_scan_code:
-                                value_native_item_native_payload_key_backend_scan_code,
-                            backend_value: value_native_item_native_payload_key_backend_value,
-                            modifiers: value_native_item_native_payload_key_modifiers,
-                            repeat: value_native_item_native_payload_key_repeat,
-                        };
-                        let value_native_item_native_payload_pointer_motion_x =
-                            value_native_item.payload.pointer_motion.x;
-                        let value_native_item_native_payload_pointer_motion_y =
-                            value_native_item.payload.pointer_motion.y;
-                        let value_native_item_native_payload_pointer_motion_buttons =
-                            value_native_item.payload.pointer_motion.buttons;
-                        let value_native_item_native_payload_pointer_motion_modifiers =
-                            value_native_item.payload.pointer_motion.modifiers;
-                        let value_native_item_native_payload_pointer_motion =
-                            InputPointerMotionEventPayload {
-                                x: value_native_item_native_payload_pointer_motion_x,
-                                y: value_native_item_native_payload_pointer_motion_y,
-                                buttons: value_native_item_native_payload_pointer_motion_buttons,
-                                modifiers:
-                                    value_native_item_native_payload_pointer_motion_modifiers,
-                            };
-                        let value_native_item_native_payload_pointer_button_action =
-                            value_native_item.payload.pointer_button.action;
-                        let value_native_item_native_payload_pointer_button_backend_code =
-                            value_native_item.payload.pointer_button.backend_code;
-                        let value_native_item_native_payload_pointer_button_backend_value =
-                            value_native_item.payload.pointer_button.backend_value;
-                        let value_native_item_native_payload_pointer_button_x =
-                            value_native_item.payload.pointer_button.x;
-                        let value_native_item_native_payload_pointer_button_y =
-                            value_native_item.payload.pointer_button.y;
-                        let value_native_item_native_payload_pointer_button_modifiers =
-                            value_native_item.payload.pointer_button.modifiers;
-                        let value_native_item_native_payload_pointer_button =
-                            InputPointerButtonEventPayload {
-                                action: value_native_item_native_payload_pointer_button_action,
-                                backend_code:
-                                    value_native_item_native_payload_pointer_button_backend_code,
-                                backend_value:
-                                    value_native_item_native_payload_pointer_button_backend_value,
-                                x: value_native_item_native_payload_pointer_button_x,
-                                y: value_native_item_native_payload_pointer_button_y,
-                                modifiers:
-                                    value_native_item_native_payload_pointer_button_modifiers,
-                            };
-                        let value_native_item_native_payload_scroll_wheel_x =
-                            value_native_item.payload.scroll.wheel_x;
-                        let value_native_item_native_payload_scroll_wheel_y =
-                            value_native_item.payload.scroll.wheel_y;
-                        let value_native_item_native_payload_scroll_x =
-                            value_native_item.payload.scroll.x;
-                        let value_native_item_native_payload_scroll_y =
-                            value_native_item.payload.scroll.y;
-                        let value_native_item_native_payload_scroll_modifiers =
-                            value_native_item.payload.scroll.modifiers;
-                        let value_native_item_native_payload_scroll = InputScrollEventPayload {
-                            wheel_x: value_native_item_native_payload_scroll_wheel_x,
-                            wheel_y: value_native_item_native_payload_scroll_wheel_y,
-                            x: value_native_item_native_payload_scroll_x,
-                            y: value_native_item_native_payload_scroll_y,
-                            modifiers: value_native_item_native_payload_scroll_modifiers,
-                        };
-                        let value_native_item_native_payload_touch_action =
-                            value_native_item.payload.touch.action;
-                        let value_native_item_native_payload_touch_contact_id =
-                            value_native_item.payload.touch.contact_id;
-                        let value_native_item_native_payload_touch_x =
-                            value_native_item.payload.touch.x;
-                        let value_native_item_native_payload_touch_y =
-                            value_native_item.payload.touch.y;
-                        let value_native_item_native_payload_touch_pressure =
-                            value_native_item.payload.touch.pressure;
-                        let value_native_item_native_payload_touch = InputTouchEventPayload {
-                            action: value_native_item_native_payload_touch_action,
-                            contact_id: value_native_item_native_payload_touch_contact_id,
-                            x: value_native_item_native_payload_touch_x,
-                            y: value_native_item_native_payload_touch_y,
-                            pressure: value_native_item_native_payload_touch_pressure,
-                        };
-                        let value_native_item_native_payload_gamepad_action =
-                            value_native_item.payload.gamepad.action;
-                        let value_native_item_native_payload_gamepad_backend_code =
-                            value_native_item.payload.gamepad.backend_code;
-                        let value_native_item_native_payload_gamepad_backend_value =
-                            value_native_item.payload.gamepad.backend_value;
-                        let value_native_item_native_payload_gamepad = InputGamepadEventPayload {
-                            action: value_native_item_native_payload_gamepad_action,
-                            backend_code: value_native_item_native_payload_gamepad_backend_code,
-                            backend_value: value_native_item_native_payload_gamepad_backend_value,
-                        };
-                        let value_native_item_native_payload_text_text =
-                            context.store_string(&value_native_item.payload.text.text);
-                        let value_native_item_native_payload_text = InputTextEventPayload {
-                            text: value_native_item_native_payload_text_text,
-                        };
-                        let value_native_item_native_payload_device_action =
-                            value_native_item.payload.device.action;
-                        let value_native_item_native_payload_device_backend_code =
-                            value_native_item.payload.device.backend_code;
-                        let value_native_item_native_payload_device_backend_value =
-                            value_native_item.payload.device.backend_value;
-                        let value_native_item_native_payload_device = InputDeviceEventPayload {
-                            action: value_native_item_native_payload_device_action,
-                            backend_code: value_native_item_native_payload_device_backend_code,
-                            backend_value: value_native_item_native_payload_device_backend_value,
-                        };
-                        let value_native_item_native_payload_sensor_action =
-                            value_native_item.payload.sensor.action;
-                        let value_native_item_native_payload_sensor_backend_code =
-                            value_native_item.payload.sensor.backend_code;
-                        let value_native_item_native_payload_sensor_backend_value =
-                            value_native_item.payload.sensor.backend_value;
-                        let value_native_item_native_payload_sensor_x =
-                            value_native_item.payload.sensor.x;
-                        let value_native_item_native_payload_sensor_y =
-                            value_native_item.payload.sensor.y;
-                        let value_native_item_native_payload_sensor_z =
-                            value_native_item.payload.sensor.z;
-                        let value_native_item_native_payload_sensor = InputSensorEventPayload {
-                            action: value_native_item_native_payload_sensor_action,
-                            backend_code: value_native_item_native_payload_sensor_backend_code,
-                            backend_value: value_native_item_native_payload_sensor_backend_value,
-                            x: value_native_item_native_payload_sensor_x,
-                            y: value_native_item_native_payload_sensor_y,
-                            z: value_native_item_native_payload_sensor_z,
-                        };
-                        let value_native_item_native_payload_composition_action =
-                            value_native_item.payload.composition.action;
-                        let value_native_item_native_payload_composition_text =
-                            context.store_string(&value_native_item.payload.composition.text);
-                        let value_native_item_native_payload_composition_selection_start =
-                            value_native_item.payload.composition.selection_start;
-                        let value_native_item_native_payload_composition_selection_end =
-                            value_native_item.payload.composition.selection_end;
-                        let value_native_item_native_payload_composition =
-                            InputCompositionEventPayload {
-                                action: value_native_item_native_payload_composition_action,
-                                text: value_native_item_native_payload_composition_text,
-                                selection_start:
-                                    value_native_item_native_payload_composition_selection_start,
-                                selection_end:
-                                    value_native_item_native_payload_composition_selection_end,
-                            };
-                        let value_native_item_native_payload = InputEventPayload {
-                            key: value_native_item_native_payload_key,
-                            pointer_motion: value_native_item_native_payload_pointer_motion,
-                            pointer_button: value_native_item_native_payload_pointer_button,
-                            scroll: value_native_item_native_payload_scroll,
-                            touch: value_native_item_native_payload_touch,
-                            gamepad: value_native_item_native_payload_gamepad,
-                            text: value_native_item_native_payload_text,
-                            device: value_native_item_native_payload_device,
-                            sensor: value_native_item_native_payload_sensor,
-                            composition: value_native_item_native_payload_composition,
-                        };
-                        let value_native_item_native = InputEvent {
-                            kind: value_native_item_native_kind,
-                            timestamp_ns: value_native_item_native_timestamp_ns,
-                            sequence: value_native_item_native_sequence,
-                            device_id: value_native_item_native_device_id,
-                            payload: value_native_item_native_payload,
+                        let value_native_item_native = match value_native_item {
+                            InputEventReplayRecord::InputCompositionEvent(value) => {
+                                let value_native_item_native_input_composition_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_composition_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_composition_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_composition_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_composition_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_composition_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_composition_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                                let value_native_item_native_input_composition_event_payload_selection_start = value.payload.selection_start;
+                                let value_native_item_native_input_composition_event_payload_selection_end = value.payload.selection_end;
+                                let value_native_item_native_input_composition_event_payload = InputCompositionEventPayload {
+                                    action: value_native_item_native_input_composition_event_payload_action,
+                                    text: value_native_item_native_input_composition_event_payload_text,
+                                    selection_start: value_native_item_native_input_composition_event_payload_selection_start,
+                                    selection_end: value_native_item_native_input_composition_event_payload_selection_end,
+                                };
+                                let value_native_item_native_input_composition_event = InputCompositionEvent {
+                                    kind: value_native_item_native_input_composition_event_kind,
+                                    metadata: value_native_item_native_input_composition_event_metadata,
+                                    payload: value_native_item_native_input_composition_event_payload,
+                                };
+                                InputEvent::InputCompositionEvent(value_native_item_native_input_composition_event)
+                            }
+                            InputEventReplayRecord::InputDeviceEvent(value) => {
+                                let value_native_item_native_input_device_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_device_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_device_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_device_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_device_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_device_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_device_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_device_event_payload_backend_code = value.payload.backend_code;
+                                let value_native_item_native_input_device_event_payload_backend_value = value.payload.backend_value;
+                                let value_native_item_native_input_device_event_payload = InputDeviceEventPayload {
+                                    action: value_native_item_native_input_device_event_payload_action,
+                                    backend_code: value_native_item_native_input_device_event_payload_backend_code,
+                                    backend_value: value_native_item_native_input_device_event_payload_backend_value,
+                                };
+                                let value_native_item_native_input_device_event = InputDeviceEvent {
+                                    kind: value_native_item_native_input_device_event_kind,
+                                    metadata: value_native_item_native_input_device_event_metadata,
+                                    payload: value_native_item_native_input_device_event_payload,
+                                };
+                                InputEvent::InputDeviceEvent(value_native_item_native_input_device_event)
+                            }
+                            InputEventReplayRecord::InputGamepadEvent(value) => {
+                                let value_native_item_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_gamepad_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_gamepad_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_gamepad_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_gamepad_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_gamepad_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                                let value_native_item_native_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                                let value_native_item_native_input_gamepad_event_payload = InputGamepadEventPayload {
+                                    action: value_native_item_native_input_gamepad_event_payload_action,
+                                    backend_code: value_native_item_native_input_gamepad_event_payload_backend_code,
+                                    backend_value: value_native_item_native_input_gamepad_event_payload_backend_value,
+                                };
+                                let value_native_item_native_input_gamepad_event = InputGamepadEvent {
+                                    kind: value_native_item_native_input_gamepad_event_kind,
+                                    metadata: value_native_item_native_input_gamepad_event_metadata,
+                                    payload: value_native_item_native_input_gamepad_event_payload,
+                                };
+                                InputEvent::InputGamepadEvent(value_native_item_native_input_gamepad_event)
+                            }
+                            InputEventReplayRecord::InputKeyEvent(value) => {
+                                let value_native_item_native_input_key_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_key_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_key_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_key_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_key_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_key_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_key_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_key_event_payload_backend_code = value.payload.backend_code;
+                                let value_native_item_native_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                                let value_native_item_native_input_key_event_payload_backend_value = value.payload.backend_value;
+                                let value_native_item_native_input_key_event_payload_modifiers = value.payload.modifiers;
+                                let value_native_item_native_input_key_event_payload_repeat = value.payload.repeat;
+                                let value_native_item_native_input_key_event_payload = InputKeyEventPayload {
+                                    action: value_native_item_native_input_key_event_payload_action,
+                                    backend_code: value_native_item_native_input_key_event_payload_backend_code,
+                                    backend_scan_code: value_native_item_native_input_key_event_payload_backend_scan_code,
+                                    backend_value: value_native_item_native_input_key_event_payload_backend_value,
+                                    modifiers: value_native_item_native_input_key_event_payload_modifiers,
+                                    repeat: value_native_item_native_input_key_event_payload_repeat,
+                                };
+                                let value_native_item_native_input_key_event = InputKeyEvent {
+                                    kind: value_native_item_native_input_key_event_kind,
+                                    metadata: value_native_item_native_input_key_event_metadata,
+                                    payload: value_native_item_native_input_key_event_payload,
+                                };
+                                InputEvent::InputKeyEvent(value_native_item_native_input_key_event)
+                            }
+                            InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                                let value_native_item_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_pointer_button_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_pointer_button_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_pointer_button_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_pointer_button_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_pointer_button_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                                let value_native_item_native_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                                let value_native_item_native_input_pointer_button_event_payload_x = value.payload.x;
+                                let value_native_item_native_input_pointer_button_event_payload_y = value.payload.y;
+                                let value_native_item_native_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                                let value_native_item_native_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                                    action: value_native_item_native_input_pointer_button_event_payload_action,
+                                    backend_code: value_native_item_native_input_pointer_button_event_payload_backend_code,
+                                    backend_value: value_native_item_native_input_pointer_button_event_payload_backend_value,
+                                    x: value_native_item_native_input_pointer_button_event_payload_x,
+                                    y: value_native_item_native_input_pointer_button_event_payload_y,
+                                    modifiers: value_native_item_native_input_pointer_button_event_payload_modifiers,
+                                };
+                                let value_native_item_native_input_pointer_button_event = InputPointerButtonEvent {
+                                    kind: value_native_item_native_input_pointer_button_event_kind,
+                                    metadata: value_native_item_native_input_pointer_button_event_metadata,
+                                    payload: value_native_item_native_input_pointer_button_event_payload,
+                                };
+                                InputEvent::InputPointerButtonEvent(value_native_item_native_input_pointer_button_event)
+                            }
+                            InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                                let value_native_item_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_pointer_motion_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_pointer_motion_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_pointer_motion_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_pointer_motion_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_pointer_motion_event_payload_x = value.payload.x;
+                                let value_native_item_native_input_pointer_motion_event_payload_y = value.payload.y;
+                                let value_native_item_native_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                                let value_native_item_native_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                                let value_native_item_native_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                                    x: value_native_item_native_input_pointer_motion_event_payload_x,
+                                    y: value_native_item_native_input_pointer_motion_event_payload_y,
+                                    buttons: value_native_item_native_input_pointer_motion_event_payload_buttons,
+                                    modifiers: value_native_item_native_input_pointer_motion_event_payload_modifiers,
+                                };
+                                let value_native_item_native_input_pointer_motion_event = InputPointerMotionEvent {
+                                    kind: value_native_item_native_input_pointer_motion_event_kind,
+                                    metadata: value_native_item_native_input_pointer_motion_event_metadata,
+                                    payload: value_native_item_native_input_pointer_motion_event_payload,
+                                };
+                                InputEvent::InputPointerMotionEvent(value_native_item_native_input_pointer_motion_event)
+                            }
+                            InputEventReplayRecord::InputScrollEvent(value) => {
+                                let value_native_item_native_input_scroll_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_scroll_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_scroll_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_scroll_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_scroll_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                                let value_native_item_native_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                                let value_native_item_native_input_scroll_event_payload_x = value.payload.x;
+                                let value_native_item_native_input_scroll_event_payload_y = value.payload.y;
+                                let value_native_item_native_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                                let value_native_item_native_input_scroll_event_payload = InputScrollEventPayload {
+                                    wheel_x: value_native_item_native_input_scroll_event_payload_wheel_x,
+                                    wheel_y: value_native_item_native_input_scroll_event_payload_wheel_y,
+                                    x: value_native_item_native_input_scroll_event_payload_x,
+                                    y: value_native_item_native_input_scroll_event_payload_y,
+                                    modifiers: value_native_item_native_input_scroll_event_payload_modifiers,
+                                };
+                                let value_native_item_native_input_scroll_event = InputScrollEvent {
+                                    kind: value_native_item_native_input_scroll_event_kind,
+                                    metadata: value_native_item_native_input_scroll_event_metadata,
+                                    payload: value_native_item_native_input_scroll_event_payload,
+                                };
+                                InputEvent::InputScrollEvent(value_native_item_native_input_scroll_event)
+                            }
+                            InputEventReplayRecord::InputSensorEvent(value) => {
+                                let value_native_item_native_input_sensor_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_sensor_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_sensor_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_sensor_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_sensor_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_sensor_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                                let value_native_item_native_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                                let value_native_item_native_input_sensor_event_payload_x = value.payload.x;
+                                let value_native_item_native_input_sensor_event_payload_y = value.payload.y;
+                                let value_native_item_native_input_sensor_event_payload_z = value.payload.z;
+                                let value_native_item_native_input_sensor_event_payload = InputSensorEventPayload {
+                                    action: value_native_item_native_input_sensor_event_payload_action,
+                                    backend_code: value_native_item_native_input_sensor_event_payload_backend_code,
+                                    backend_value: value_native_item_native_input_sensor_event_payload_backend_value,
+                                    x: value_native_item_native_input_sensor_event_payload_x,
+                                    y: value_native_item_native_input_sensor_event_payload_y,
+                                    z: value_native_item_native_input_sensor_event_payload_z,
+                                };
+                                let value_native_item_native_input_sensor_event = InputSensorEvent {
+                                    kind: value_native_item_native_input_sensor_event_kind,
+                                    metadata: value_native_item_native_input_sensor_event_metadata,
+                                    payload: value_native_item_native_input_sensor_event_payload,
+                                };
+                                InputEvent::InputSensorEvent(value_native_item_native_input_sensor_event)
+                            }
+                            InputEventReplayRecord::InputTextEvent(value) => {
+                                let value_native_item_native_input_text_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_text_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_text_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_text_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_text_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_text_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                                let value_native_item_native_input_text_event_payload = InputTextEventPayload {
+                                    text: value_native_item_native_input_text_event_payload_text,
+                                };
+                                let value_native_item_native_input_text_event = InputTextEvent {
+                                    kind: value_native_item_native_input_text_event_kind,
+                                    metadata: value_native_item_native_input_text_event_metadata,
+                                    payload: value_native_item_native_input_text_event_payload,
+                                };
+                                InputEvent::InputTextEvent(value_native_item_native_input_text_event)
+                            }
+                            InputEventReplayRecord::InputTouchEvent(value) => {
+                                let value_native_item_native_input_touch_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let value_native_item_native_input_touch_event_metadata_sequence = value.metadata.sequence;
+                                let value_native_item_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                                let value_native_item_native_input_touch_event_metadata = InputEventMetadata {
+                                    timestamp_ns: value_native_item_native_input_touch_event_metadata_timestamp_ns,
+                                    sequence: value_native_item_native_input_touch_event_metadata_sequence,
+                                    device_id: value_native_item_native_input_touch_event_metadata_device_id,
+                                };
+                                let value_native_item_native_input_touch_event_payload_action = value.payload.action;
+                                let value_native_item_native_input_touch_event_payload_contact_id = value.payload.contact_id;
+                                let value_native_item_native_input_touch_event_payload_x = value.payload.x;
+                                let value_native_item_native_input_touch_event_payload_y = value.payload.y;
+                                let value_native_item_native_input_touch_event_payload_pressure = value.payload.pressure;
+                                let value_native_item_native_input_touch_event_payload = InputTouchEventPayload {
+                                    action: value_native_item_native_input_touch_event_payload_action,
+                                    contact_id: value_native_item_native_input_touch_event_payload_contact_id,
+                                    x: value_native_item_native_input_touch_event_payload_x,
+                                    y: value_native_item_native_input_touch_event_payload_y,
+                                    pressure: value_native_item_native_input_touch_event_payload_pressure,
+                                };
+                                let value_native_item_native_input_touch_event = InputTouchEvent {
+                                    kind: value_native_item_native_input_touch_event_kind,
+                                    metadata: value_native_item_native_input_touch_event_metadata,
+                                    payload: value_native_item_native_input_touch_event_payload,
+                                };
+                                InputEvent::InputTouchEvent(value_native_item_native_input_touch_event)
+                            }
                         };
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_array(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -4923,177 +5909,292 @@ fn destack_input_event_try_read_replay(
         INPUT_EVENT_TRY_READ,
         context.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_try_read(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_input_try_read(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_input_try_read(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_input_try_read(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_payload_key_action = result_value.payload.key.action;
-                let result_recorded_payload_key_backend_code =
-                    result_value.payload.key.backend_code;
-                let result_recorded_payload_key_backend_scan_code =
-                    result_value.payload.key.backend_scan_code;
-                let result_recorded_payload_key_backend_value =
-                    result_value.payload.key.backend_value;
-                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
-                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
-                let result_recorded_payload_key = InputKeyEventPayload {
-                    action: result_recorded_payload_key_action,
-                    backend_code: result_recorded_payload_key_backend_code,
-                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
-                    backend_value: result_recorded_payload_key_backend_value,
-                    modifiers: result_recorded_payload_key_modifiers,
-                    repeat: result_recorded_payload_key_repeat,
-                };
-                let result_recorded_payload_pointer_motion_x =
-                    result_value.payload.pointer_motion.x;
-                let result_recorded_payload_pointer_motion_y =
-                    result_value.payload.pointer_motion.y;
-                let result_recorded_payload_pointer_motion_buttons =
-                    result_value.payload.pointer_motion.buttons;
-                let result_recorded_payload_pointer_motion_modifiers =
-                    result_value.payload.pointer_motion.modifiers;
-                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
-                    x: result_recorded_payload_pointer_motion_x,
-                    y: result_recorded_payload_pointer_motion_y,
-                    buttons: result_recorded_payload_pointer_motion_buttons,
-                    modifiers: result_recorded_payload_pointer_motion_modifiers,
-                };
-                let result_recorded_payload_pointer_button_action =
-                    result_value.payload.pointer_button.action;
-                let result_recorded_payload_pointer_button_backend_code =
-                    result_value.payload.pointer_button.backend_code;
-                let result_recorded_payload_pointer_button_backend_value =
-                    result_value.payload.pointer_button.backend_value;
-                let result_recorded_payload_pointer_button_x =
-                    result_value.payload.pointer_button.x;
-                let result_recorded_payload_pointer_button_y =
-                    result_value.payload.pointer_button.y;
-                let result_recorded_payload_pointer_button_modifiers =
-                    result_value.payload.pointer_button.modifiers;
-                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
-                    action: result_recorded_payload_pointer_button_action,
-                    backend_code: result_recorded_payload_pointer_button_backend_code,
-                    backend_value: result_recorded_payload_pointer_button_backend_value,
-                    x: result_recorded_payload_pointer_button_x,
-                    y: result_recorded_payload_pointer_button_y,
-                    modifiers: result_recorded_payload_pointer_button_modifiers,
-                };
-                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
-                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
-                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
-                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
-                let result_recorded_payload_scroll_modifiers =
-                    result_value.payload.scroll.modifiers;
-                let result_recorded_payload_scroll = InputScrollEventPayload {
-                    wheel_x: result_recorded_payload_scroll_wheel_x,
-                    wheel_y: result_recorded_payload_scroll_wheel_y,
-                    x: result_recorded_payload_scroll_x,
-                    y: result_recorded_payload_scroll_y,
-                    modifiers: result_recorded_payload_scroll_modifiers,
-                };
-                let result_recorded_payload_touch_action = result_value.payload.touch.action;
-                let result_recorded_payload_touch_contact_id =
-                    result_value.payload.touch.contact_id;
-                let result_recorded_payload_touch_x = result_value.payload.touch.x;
-                let result_recorded_payload_touch_y = result_value.payload.touch.y;
-                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
-                let result_recorded_payload_touch = InputTouchEventPayload {
-                    action: result_recorded_payload_touch_action,
-                    contact_id: result_recorded_payload_touch_contact_id,
-                    x: result_recorded_payload_touch_x,
-                    y: result_recorded_payload_touch_y,
-                    pressure: result_recorded_payload_touch_pressure,
-                };
-                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
-                let result_recorded_payload_gamepad_backend_code =
-                    result_value.payload.gamepad.backend_code;
-                let result_recorded_payload_gamepad_backend_value =
-                    result_value.payload.gamepad.backend_value;
-                let result_recorded_payload_gamepad = InputGamepadEventPayload {
-                    action: result_recorded_payload_gamepad_action,
-                    backend_code: result_recorded_payload_gamepad_backend_code,
-                    backend_value: result_recorded_payload_gamepad_backend_value,
-                };
-                let result_recorded_payload_text_text =
-                    unsafe { result_value.payload.text.text.as_str()? }.to_string();
-                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
-                    text: result_recorded_payload_text_text,
-                };
-                let result_recorded_payload_device_action = result_value.payload.device.action;
-                let result_recorded_payload_device_backend_code =
-                    result_value.payload.device.backend_code;
-                let result_recorded_payload_device_backend_value =
-                    result_value.payload.device.backend_value;
-                let result_recorded_payload_device = InputDeviceEventPayload {
-                    action: result_recorded_payload_device_action,
-                    backend_code: result_recorded_payload_device_backend_code,
-                    backend_value: result_recorded_payload_device_backend_value,
-                };
-                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
-                let result_recorded_payload_sensor_backend_code =
-                    result_value.payload.sensor.backend_code;
-                let result_recorded_payload_sensor_backend_value =
-                    result_value.payload.sensor.backend_value;
-                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
-                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
-                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
-                let result_recorded_payload_sensor = InputSensorEventPayload {
-                    action: result_recorded_payload_sensor_action,
-                    backend_code: result_recorded_payload_sensor_backend_code,
-                    backend_value: result_recorded_payload_sensor_backend_value,
-                    x: result_recorded_payload_sensor_x,
-                    y: result_recorded_payload_sensor_y,
-                    z: result_recorded_payload_sensor_z,
-                };
-                let result_recorded_payload_composition_action =
-                    result_value.payload.composition.action;
-                let result_recorded_payload_composition_text =
-                    unsafe { result_value.payload.composition.text.as_str()? }.to_string();
-                let result_recorded_payload_composition_selection_start =
-                    result_value.payload.composition.selection_start;
-                let result_recorded_payload_composition_selection_end =
-                    result_value.payload.composition.selection_end;
-                let result_recorded_payload_composition =
-                    InputCompositionEventPayloadReplayRecord {
-                        action: result_recorded_payload_composition_action,
-                        text: result_recorded_payload_composition_text,
-                        selection_start: result_recorded_payload_composition_selection_start,
-                        selection_end: result_recorded_payload_composition_selection_end,
-                    };
-                let result_recorded_payload = InputEventPayloadReplayRecord {
-                    key: result_recorded_payload_key,
-                    pointer_motion: result_recorded_payload_pointer_motion,
-                    pointer_button: result_recorded_payload_pointer_button,
-                    scroll: result_recorded_payload_scroll,
-                    touch: result_recorded_payload_touch,
-                    gamepad: result_recorded_payload_gamepad,
-                    text: result_recorded_payload_text,
-                    device: result_recorded_payload_device,
-                    sensor: result_recorded_payload_sensor,
-                    composition: result_recorded_payload_composition,
-                };
-                let result_recorded = InputEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    payload: result_recorded_payload,
+                let result_recorded = match result_value {
+                    InputEvent::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputEventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputEvent::InputDeviceEvent(value) => {
+                        let result_recorded_input_device_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_device_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_device_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_device_event_metadata_sequence,
+                            device_id: result_recorded_input_device_event_metadata_device_id,
+                        };
+                        let result_recorded_input_device_event_payload_action = value.payload.action;
+                        let result_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_device_event_payload = InputDeviceEventPayload {
+                            action: result_recorded_input_device_event_payload_action,
+                            backend_code: result_recorded_input_device_event_payload_backend_code,
+                            backend_value: result_recorded_input_device_event_payload_backend_value,
+                        };
+                        let result_recorded_input_device_event = InputDeviceEventReplayRecord {
+                            kind: result_recorded_input_device_event_kind,
+                            metadata: result_recorded_input_device_event_metadata,
+                            payload: result_recorded_input_device_event_payload,
+                        };
+                        InputEventReplayRecord::InputDeviceEvent(result_recorded_input_device_event)
+                    }
+                    InputEvent::InputGamepadEvent(value) => {
+                        let result_recorded_input_gamepad_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_gamepad_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_gamepad_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_gamepad_event_metadata_sequence,
+                            device_id: result_recorded_input_gamepad_event_metadata_device_id,
+                        };
+                        let result_recorded_input_gamepad_event_payload_action = value.payload.action;
+                        let result_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                            action: result_recorded_input_gamepad_event_payload_action,
+                            backend_code: result_recorded_input_gamepad_event_payload_backend_code,
+                            backend_value: result_recorded_input_gamepad_event_payload_backend_value,
+                        };
+                        let result_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                            kind: result_recorded_input_gamepad_event_kind,
+                            metadata: result_recorded_input_gamepad_event_metadata,
+                            payload: result_recorded_input_gamepad_event_payload,
+                        };
+                        InputEventReplayRecord::InputGamepadEvent(result_recorded_input_gamepad_event)
+                    }
+                    InputEvent::InputKeyEvent(value) => {
+                        let result_recorded_input_key_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_key_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_key_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_key_event_metadata_sequence,
+                            device_id: result_recorded_input_key_event_metadata_device_id,
+                        };
+                        let result_recorded_input_key_event_payload_action = value.payload.action;
+                        let result_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                        let result_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                        let result_recorded_input_key_event_payload = InputKeyEventPayload {
+                            action: result_recorded_input_key_event_payload_action,
+                            backend_code: result_recorded_input_key_event_payload_backend_code,
+                            backend_scan_code: result_recorded_input_key_event_payload_backend_scan_code,
+                            backend_value: result_recorded_input_key_event_payload_backend_value,
+                            modifiers: result_recorded_input_key_event_payload_modifiers,
+                            repeat: result_recorded_input_key_event_payload_repeat,
+                        };
+                        let result_recorded_input_key_event = InputKeyEventReplayRecord {
+                            kind: result_recorded_input_key_event_kind,
+                            metadata: result_recorded_input_key_event_metadata,
+                            payload: result_recorded_input_key_event_payload,
+                        };
+                        InputEventReplayRecord::InputKeyEvent(result_recorded_input_key_event)
+                    }
+                    InputEvent::InputPointerButtonEvent(value) => {
+                        let result_recorded_input_pointer_button_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_button_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_button_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_button_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                        let result_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                            action: result_recorded_input_pointer_button_event_payload_action,
+                            backend_code: result_recorded_input_pointer_button_event_payload_backend_code,
+                            backend_value: result_recorded_input_pointer_button_event_payload_backend_value,
+                            x: result_recorded_input_pointer_button_event_payload_x,
+                            y: result_recorded_input_pointer_button_event_payload_y,
+                            modifiers: result_recorded_input_pointer_button_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                            kind: result_recorded_input_pointer_button_event_kind,
+                            metadata: result_recorded_input_pointer_button_event_metadata,
+                            payload: result_recorded_input_pointer_button_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerButtonEvent(result_recorded_input_pointer_button_event)
+                    }
+                    InputEvent::InputPointerMotionEvent(value) => {
+                        let result_recorded_input_pointer_motion_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_motion_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_motion_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_motion_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                        let result_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                            x: result_recorded_input_pointer_motion_event_payload_x,
+                            y: result_recorded_input_pointer_motion_event_payload_y,
+                            buttons: result_recorded_input_pointer_motion_event_payload_buttons,
+                            modifiers: result_recorded_input_pointer_motion_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                            kind: result_recorded_input_pointer_motion_event_kind,
+                            metadata: result_recorded_input_pointer_motion_event_metadata,
+                            payload: result_recorded_input_pointer_motion_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerMotionEvent(result_recorded_input_pointer_motion_event)
+                    }
+                    InputEvent::InputScrollEvent(value) => {
+                        let result_recorded_input_scroll_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_scroll_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_scroll_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_scroll_event_metadata_sequence,
+                            device_id: result_recorded_input_scroll_event_metadata_device_id,
+                        };
+                        let result_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                        let result_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                        let result_recorded_input_scroll_event_payload_x = value.payload.x;
+                        let result_recorded_input_scroll_event_payload_y = value.payload.y;
+                        let result_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                            wheel_x: result_recorded_input_scroll_event_payload_wheel_x,
+                            wheel_y: result_recorded_input_scroll_event_payload_wheel_y,
+                            x: result_recorded_input_scroll_event_payload_x,
+                            y: result_recorded_input_scroll_event_payload_y,
+                            modifiers: result_recorded_input_scroll_event_payload_modifiers,
+                        };
+                        let result_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                            kind: result_recorded_input_scroll_event_kind,
+                            metadata: result_recorded_input_scroll_event_metadata,
+                            payload: result_recorded_input_scroll_event_payload,
+                        };
+                        InputEventReplayRecord::InputScrollEvent(result_recorded_input_scroll_event)
+                    }
+                    InputEvent::InputSensorEvent(value) => {
+                        let result_recorded_input_sensor_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_sensor_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_sensor_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_sensor_event_metadata_sequence,
+                            device_id: result_recorded_input_sensor_event_metadata_device_id,
+                        };
+                        let result_recorded_input_sensor_event_payload_action = value.payload.action;
+                        let result_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_sensor_event_payload_x = value.payload.x;
+                        let result_recorded_input_sensor_event_payload_y = value.payload.y;
+                        let result_recorded_input_sensor_event_payload_z = value.payload.z;
+                        let result_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                            action: result_recorded_input_sensor_event_payload_action,
+                            backend_code: result_recorded_input_sensor_event_payload_backend_code,
+                            backend_value: result_recorded_input_sensor_event_payload_backend_value,
+                            x: result_recorded_input_sensor_event_payload_x,
+                            y: result_recorded_input_sensor_event_payload_y,
+                            z: result_recorded_input_sensor_event_payload_z,
+                        };
+                        let result_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                            kind: result_recorded_input_sensor_event_kind,
+                            metadata: result_recorded_input_sensor_event_metadata,
+                            payload: result_recorded_input_sensor_event_payload,
+                        };
+                        InputEventReplayRecord::InputSensorEvent(result_recorded_input_sensor_event)
+                    }
+                    InputEvent::InputTextEvent(value) => {
+                        let result_recorded_input_text_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_event_metadata_sequence,
+                            device_id: result_recorded_input_text_event_metadata_device_id,
+                        };
+                        let result_recorded_input_text_event_payload_text = unsafe { value.payload.text.as_str()? }.to_string();
+                        let result_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                            text: result_recorded_input_text_event_payload_text,
+                        };
+                        let result_recorded_input_text_event = InputTextEventReplayRecord {
+                            kind: result_recorded_input_text_event_kind,
+                            metadata: result_recorded_input_text_event_metadata,
+                            payload: result_recorded_input_text_event_payload,
+                        };
+                        InputEventReplayRecord::InputTextEvent(result_recorded_input_text_event)
+                    }
+                    InputEvent::InputTouchEvent(value) => {
+                        let result_recorded_input_touch_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_touch_event_metadata_device_id = unsafe { value.metadata.device_id.as_str()? }.to_string();
+                        let result_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_touch_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_touch_event_metadata_sequence,
+                            device_id: result_recorded_input_touch_event_metadata_device_id,
+                        };
+                        let result_recorded_input_touch_event_payload_action = value.payload.action;
+                        let result_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                        let result_recorded_input_touch_event_payload_x = value.payload.x;
+                        let result_recorded_input_touch_event_payload_y = value.payload.y;
+                        let result_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                        let result_recorded_input_touch_event_payload = InputTouchEventPayload {
+                            action: result_recorded_input_touch_event_payload_action,
+                            contact_id: result_recorded_input_touch_event_payload_contact_id,
+                            x: result_recorded_input_touch_event_payload_x,
+                            y: result_recorded_input_touch_event_payload_y,
+                            pressure: result_recorded_input_touch_event_payload_pressure,
+                        };
+                        let result_recorded_input_touch_event = InputTouchEventReplayRecord {
+                            kind: result_recorded_input_touch_event_kind,
+                            metadata: result_recorded_input_touch_event_metadata,
+                            payload: result_recorded_input_touch_event_payload,
+                        };
+                        InputEventReplayRecord::InputTouchEvent(result_recorded_input_touch_event)
+                    }
                 };
                 let payload = InputEventTryReadReplay {
                     result: Ok(result_recorded),
@@ -5104,7 +6205,9 @@ fn destack_input_event_try_read_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventTryReadReplay { result }
+                    InputEventTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -5115,155 +6218,285 @@ fn destack_input_event_try_read_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_payload_key_action = value.payload.key.action;
-                    let value_native_payload_key_backend_code = value.payload.key.backend_code;
-                    let value_native_payload_key_backend_scan_code =
-                        value.payload.key.backend_scan_code;
-                    let value_native_payload_key_backend_value = value.payload.key.backend_value;
-                    let value_native_payload_key_modifiers = value.payload.key.modifiers;
-                    let value_native_payload_key_repeat = value.payload.key.repeat;
-                    let value_native_payload_key = InputKeyEventPayload {
-                        action: value_native_payload_key_action,
-                        backend_code: value_native_payload_key_backend_code,
-                        backend_scan_code: value_native_payload_key_backend_scan_code,
-                        backend_value: value_native_payload_key_backend_value,
-                        modifiers: value_native_payload_key_modifiers,
-                        repeat: value_native_payload_key_repeat,
+                    let value_native = match value {
+                        InputEventReplayRecord::InputCompositionEvent(value) => {
+                            let value_native_input_composition_event_kind = context.store_string(&value.kind);
+                            let value_native_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_composition_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_composition_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_composition_event_metadata_timestamp_ns,
+                                sequence: value_native_input_composition_event_metadata_sequence,
+                                device_id: value_native_input_composition_event_metadata_device_id,
+                            };
+                            let value_native_input_composition_event_payload_action = value.payload.action;
+                            let value_native_input_composition_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let value_native_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let value_native_input_composition_event_payload = InputCompositionEventPayload {
+                                action: value_native_input_composition_event_payload_action,
+                                text: value_native_input_composition_event_payload_text,
+                                selection_start: value_native_input_composition_event_payload_selection_start,
+                                selection_end: value_native_input_composition_event_payload_selection_end,
+                            };
+                            let value_native_input_composition_event = InputCompositionEvent {
+                                kind: value_native_input_composition_event_kind,
+                                metadata: value_native_input_composition_event_metadata,
+                                payload: value_native_input_composition_event_payload,
+                            };
+                            InputEvent::InputCompositionEvent(value_native_input_composition_event)
+                        }
+                        InputEventReplayRecord::InputDeviceEvent(value) => {
+                            let value_native_input_device_event_kind = context.store_string(&value.kind);
+                            let value_native_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_device_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_device_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_device_event_metadata_timestamp_ns,
+                                sequence: value_native_input_device_event_metadata_sequence,
+                                device_id: value_native_input_device_event_metadata_device_id,
+                            };
+                            let value_native_input_device_event_payload_action = value.payload.action;
+                            let value_native_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_device_event_payload = InputDeviceEventPayload {
+                                action: value_native_input_device_event_payload_action,
+                                backend_code: value_native_input_device_event_payload_backend_code,
+                                backend_value: value_native_input_device_event_payload_backend_value,
+                            };
+                            let value_native_input_device_event = InputDeviceEvent {
+                                kind: value_native_input_device_event_kind,
+                                metadata: value_native_input_device_event_metadata,
+                                payload: value_native_input_device_event_payload,
+                            };
+                            InputEvent::InputDeviceEvent(value_native_input_device_event)
+                        }
+                        InputEventReplayRecord::InputGamepadEvent(value) => {
+                            let value_native_input_gamepad_event_kind = context.store_string(&value.kind);
+                            let value_native_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_gamepad_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_gamepad_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: value_native_input_gamepad_event_metadata_sequence,
+                                device_id: value_native_input_gamepad_event_metadata_device_id,
+                            };
+                            let value_native_input_gamepad_event_payload_action = value.payload.action;
+                            let value_native_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_gamepad_event_payload = InputGamepadEventPayload {
+                                action: value_native_input_gamepad_event_payload_action,
+                                backend_code: value_native_input_gamepad_event_payload_backend_code,
+                                backend_value: value_native_input_gamepad_event_payload_backend_value,
+                            };
+                            let value_native_input_gamepad_event = InputGamepadEvent {
+                                kind: value_native_input_gamepad_event_kind,
+                                metadata: value_native_input_gamepad_event_metadata,
+                                payload: value_native_input_gamepad_event_payload,
+                            };
+                            InputEvent::InputGamepadEvent(value_native_input_gamepad_event)
+                        }
+                        InputEventReplayRecord::InputKeyEvent(value) => {
+                            let value_native_input_key_event_kind = context.store_string(&value.kind);
+                            let value_native_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_key_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_key_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_key_event_metadata_timestamp_ns,
+                                sequence: value_native_input_key_event_metadata_sequence,
+                                device_id: value_native_input_key_event_metadata_device_id,
+                            };
+                            let value_native_input_key_event_payload_action = value.payload.action;
+                            let value_native_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let value_native_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_key_event_payload_repeat = value.payload.repeat;
+                            let value_native_input_key_event_payload = InputKeyEventPayload {
+                                action: value_native_input_key_event_payload_action,
+                                backend_code: value_native_input_key_event_payload_backend_code,
+                                backend_scan_code: value_native_input_key_event_payload_backend_scan_code,
+                                backend_value: value_native_input_key_event_payload_backend_value,
+                                modifiers: value_native_input_key_event_payload_modifiers,
+                                repeat: value_native_input_key_event_payload_repeat,
+                            };
+                            let value_native_input_key_event = InputKeyEvent {
+                                kind: value_native_input_key_event_kind,
+                                metadata: value_native_input_key_event_metadata,
+                                payload: value_native_input_key_event_payload,
+                            };
+                            InputEvent::InputKeyEvent(value_native_input_key_event)
+                        }
+                        InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                            let value_native_input_pointer_button_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_pointer_button_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_button_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: value_native_input_pointer_button_event_metadata_sequence,
+                                device_id: value_native_input_pointer_button_event_metadata_device_id,
+                            };
+                            let value_native_input_pointer_button_event_payload_action = value.payload.action;
+                            let value_native_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_pointer_button_event_payload_x = value.payload.x;
+                            let value_native_input_pointer_button_event_payload_y = value.payload.y;
+                            let value_native_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                                action: value_native_input_pointer_button_event_payload_action,
+                                backend_code: value_native_input_pointer_button_event_payload_backend_code,
+                                backend_value: value_native_input_pointer_button_event_payload_backend_value,
+                                x: value_native_input_pointer_button_event_payload_x,
+                                y: value_native_input_pointer_button_event_payload_y,
+                                modifiers: value_native_input_pointer_button_event_payload_modifiers,
+                            };
+                            let value_native_input_pointer_button_event = InputPointerButtonEvent {
+                                kind: value_native_input_pointer_button_event_kind,
+                                metadata: value_native_input_pointer_button_event_metadata,
+                                payload: value_native_input_pointer_button_event_payload,
+                            };
+                            InputEvent::InputPointerButtonEvent(value_native_input_pointer_button_event)
+                        }
+                        InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                            let value_native_input_pointer_motion_event_kind = context.store_string(&value.kind);
+                            let value_native_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_pointer_motion_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_pointer_motion_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: value_native_input_pointer_motion_event_metadata_sequence,
+                                device_id: value_native_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let value_native_input_pointer_motion_event_payload_x = value.payload.x;
+                            let value_native_input_pointer_motion_event_payload_y = value.payload.y;
+                            let value_native_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let value_native_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                                x: value_native_input_pointer_motion_event_payload_x,
+                                y: value_native_input_pointer_motion_event_payload_y,
+                                buttons: value_native_input_pointer_motion_event_payload_buttons,
+                                modifiers: value_native_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let value_native_input_pointer_motion_event = InputPointerMotionEvent {
+                                kind: value_native_input_pointer_motion_event_kind,
+                                metadata: value_native_input_pointer_motion_event_metadata,
+                                payload: value_native_input_pointer_motion_event_payload,
+                            };
+                            InputEvent::InputPointerMotionEvent(value_native_input_pointer_motion_event)
+                        }
+                        InputEventReplayRecord::InputScrollEvent(value) => {
+                            let value_native_input_scroll_event_kind = context.store_string(&value.kind);
+                            let value_native_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_scroll_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_scroll_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_scroll_event_metadata_timestamp_ns,
+                                sequence: value_native_input_scroll_event_metadata_sequence,
+                                device_id: value_native_input_scroll_event_metadata_device_id,
+                            };
+                            let value_native_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let value_native_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let value_native_input_scroll_event_payload_x = value.payload.x;
+                            let value_native_input_scroll_event_payload_y = value.payload.y;
+                            let value_native_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let value_native_input_scroll_event_payload = InputScrollEventPayload {
+                                wheel_x: value_native_input_scroll_event_payload_wheel_x,
+                                wheel_y: value_native_input_scroll_event_payload_wheel_y,
+                                x: value_native_input_scroll_event_payload_x,
+                                y: value_native_input_scroll_event_payload_y,
+                                modifiers: value_native_input_scroll_event_payload_modifiers,
+                            };
+                            let value_native_input_scroll_event = InputScrollEvent {
+                                kind: value_native_input_scroll_event_kind,
+                                metadata: value_native_input_scroll_event_metadata,
+                                payload: value_native_input_scroll_event_payload,
+                            };
+                            InputEvent::InputScrollEvent(value_native_input_scroll_event)
+                        }
+                        InputEventReplayRecord::InputSensorEvent(value) => {
+                            let value_native_input_sensor_event_kind = context.store_string(&value.kind);
+                            let value_native_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_sensor_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_sensor_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_sensor_event_metadata_timestamp_ns,
+                                sequence: value_native_input_sensor_event_metadata_sequence,
+                                device_id: value_native_input_sensor_event_metadata_device_id,
+                            };
+                            let value_native_input_sensor_event_payload_action = value.payload.action;
+                            let value_native_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let value_native_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let value_native_input_sensor_event_payload_x = value.payload.x;
+                            let value_native_input_sensor_event_payload_y = value.payload.y;
+                            let value_native_input_sensor_event_payload_z = value.payload.z;
+                            let value_native_input_sensor_event_payload = InputSensorEventPayload {
+                                action: value_native_input_sensor_event_payload_action,
+                                backend_code: value_native_input_sensor_event_payload_backend_code,
+                                backend_value: value_native_input_sensor_event_payload_backend_value,
+                                x: value_native_input_sensor_event_payload_x,
+                                y: value_native_input_sensor_event_payload_y,
+                                z: value_native_input_sensor_event_payload_z,
+                            };
+                            let value_native_input_sensor_event = InputSensorEvent {
+                                kind: value_native_input_sensor_event_kind,
+                                metadata: value_native_input_sensor_event_metadata,
+                                payload: value_native_input_sensor_event_payload,
+                            };
+                            InputEvent::InputSensorEvent(value_native_input_sensor_event)
+                        }
+                        InputEventReplayRecord::InputTextEvent(value) => {
+                            let value_native_input_text_event_kind = context.store_string(&value.kind);
+                            let value_native_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_text_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_text_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_text_event_metadata_timestamp_ns,
+                                sequence: value_native_input_text_event_metadata_sequence,
+                                device_id: value_native_input_text_event_metadata_device_id,
+                            };
+                            let value_native_input_text_event_payload_text = context.store_string(&value.payload.text);
+                            let value_native_input_text_event_payload = InputTextEventPayload {
+                                text: value_native_input_text_event_payload_text,
+                            };
+                            let value_native_input_text_event = InputTextEvent {
+                                kind: value_native_input_text_event_kind,
+                                metadata: value_native_input_text_event_metadata,
+                                payload: value_native_input_text_event_payload,
+                            };
+                            InputEvent::InputTextEvent(value_native_input_text_event)
+                        }
+                        InputEventReplayRecord::InputTouchEvent(value) => {
+                            let value_native_input_touch_event_kind = context.store_string(&value.kind);
+                            let value_native_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let value_native_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let value_native_input_touch_event_metadata_device_id = context.store_string(&value.metadata.device_id);
+                            let value_native_input_touch_event_metadata = InputEventMetadata {
+                                timestamp_ns: value_native_input_touch_event_metadata_timestamp_ns,
+                                sequence: value_native_input_touch_event_metadata_sequence,
+                                device_id: value_native_input_touch_event_metadata_device_id,
+                            };
+                            let value_native_input_touch_event_payload_action = value.payload.action;
+                            let value_native_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let value_native_input_touch_event_payload_x = value.payload.x;
+                            let value_native_input_touch_event_payload_y = value.payload.y;
+                            let value_native_input_touch_event_payload_pressure = value.payload.pressure;
+                            let value_native_input_touch_event_payload = InputTouchEventPayload {
+                                action: value_native_input_touch_event_payload_action,
+                                contact_id: value_native_input_touch_event_payload_contact_id,
+                                x: value_native_input_touch_event_payload_x,
+                                y: value_native_input_touch_event_payload_y,
+                                pressure: value_native_input_touch_event_payload_pressure,
+                            };
+                            let value_native_input_touch_event = InputTouchEvent {
+                                kind: value_native_input_touch_event_kind,
+                                metadata: value_native_input_touch_event_metadata,
+                                payload: value_native_input_touch_event_payload,
+                            };
+                            InputEvent::InputTouchEvent(value_native_input_touch_event)
+                        }
                     };
-                    let value_native_payload_pointer_motion_x = value.payload.pointer_motion.x;
-                    let value_native_payload_pointer_motion_y = value.payload.pointer_motion.y;
-                    let value_native_payload_pointer_motion_buttons =
-                        value.payload.pointer_motion.buttons;
-                    let value_native_payload_pointer_motion_modifiers =
-                        value.payload.pointer_motion.modifiers;
-                    let value_native_payload_pointer_motion = InputPointerMotionEventPayload {
-                        x: value_native_payload_pointer_motion_x,
-                        y: value_native_payload_pointer_motion_y,
-                        buttons: value_native_payload_pointer_motion_buttons,
-                        modifiers: value_native_payload_pointer_motion_modifiers,
-                    };
-                    let value_native_payload_pointer_button_action =
-                        value.payload.pointer_button.action;
-                    let value_native_payload_pointer_button_backend_code =
-                        value.payload.pointer_button.backend_code;
-                    let value_native_payload_pointer_button_backend_value =
-                        value.payload.pointer_button.backend_value;
-                    let value_native_payload_pointer_button_x = value.payload.pointer_button.x;
-                    let value_native_payload_pointer_button_y = value.payload.pointer_button.y;
-                    let value_native_payload_pointer_button_modifiers =
-                        value.payload.pointer_button.modifiers;
-                    let value_native_payload_pointer_button = InputPointerButtonEventPayload {
-                        action: value_native_payload_pointer_button_action,
-                        backend_code: value_native_payload_pointer_button_backend_code,
-                        backend_value: value_native_payload_pointer_button_backend_value,
-                        x: value_native_payload_pointer_button_x,
-                        y: value_native_payload_pointer_button_y,
-                        modifiers: value_native_payload_pointer_button_modifiers,
-                    };
-                    let value_native_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
-                    let value_native_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
-                    let value_native_payload_scroll_x = value.payload.scroll.x;
-                    let value_native_payload_scroll_y = value.payload.scroll.y;
-                    let value_native_payload_scroll_modifiers = value.payload.scroll.modifiers;
-                    let value_native_payload_scroll = InputScrollEventPayload {
-                        wheel_x: value_native_payload_scroll_wheel_x,
-                        wheel_y: value_native_payload_scroll_wheel_y,
-                        x: value_native_payload_scroll_x,
-                        y: value_native_payload_scroll_y,
-                        modifiers: value_native_payload_scroll_modifiers,
-                    };
-                    let value_native_payload_touch_action = value.payload.touch.action;
-                    let value_native_payload_touch_contact_id = value.payload.touch.contact_id;
-                    let value_native_payload_touch_x = value.payload.touch.x;
-                    let value_native_payload_touch_y = value.payload.touch.y;
-                    let value_native_payload_touch_pressure = value.payload.touch.pressure;
-                    let value_native_payload_touch = InputTouchEventPayload {
-                        action: value_native_payload_touch_action,
-                        contact_id: value_native_payload_touch_contact_id,
-                        x: value_native_payload_touch_x,
-                        y: value_native_payload_touch_y,
-                        pressure: value_native_payload_touch_pressure,
-                    };
-                    let value_native_payload_gamepad_action = value.payload.gamepad.action;
-                    let value_native_payload_gamepad_backend_code =
-                        value.payload.gamepad.backend_code;
-                    let value_native_payload_gamepad_backend_value =
-                        value.payload.gamepad.backend_value;
-                    let value_native_payload_gamepad = InputGamepadEventPayload {
-                        action: value_native_payload_gamepad_action,
-                        backend_code: value_native_payload_gamepad_backend_code,
-                        backend_value: value_native_payload_gamepad_backend_value,
-                    };
-                    let value_native_payload_text_text =
-                        context.store_string(&value.payload.text.text);
-                    let value_native_payload_text = InputTextEventPayload {
-                        text: value_native_payload_text_text,
-                    };
-                    let value_native_payload_device_action = value.payload.device.action;
-                    let value_native_payload_device_backend_code =
-                        value.payload.device.backend_code;
-                    let value_native_payload_device_backend_value =
-                        value.payload.device.backend_value;
-                    let value_native_payload_device = InputDeviceEventPayload {
-                        action: value_native_payload_device_action,
-                        backend_code: value_native_payload_device_backend_code,
-                        backend_value: value_native_payload_device_backend_value,
-                    };
-                    let value_native_payload_sensor_action = value.payload.sensor.action;
-                    let value_native_payload_sensor_backend_code =
-                        value.payload.sensor.backend_code;
-                    let value_native_payload_sensor_backend_value =
-                        value.payload.sensor.backend_value;
-                    let value_native_payload_sensor_x = value.payload.sensor.x;
-                    let value_native_payload_sensor_y = value.payload.sensor.y;
-                    let value_native_payload_sensor_z = value.payload.sensor.z;
-                    let value_native_payload_sensor = InputSensorEventPayload {
-                        action: value_native_payload_sensor_action,
-                        backend_code: value_native_payload_sensor_backend_code,
-                        backend_value: value_native_payload_sensor_backend_value,
-                        x: value_native_payload_sensor_x,
-                        y: value_native_payload_sensor_y,
-                        z: value_native_payload_sensor_z,
-                    };
-                    let value_native_payload_composition_action = value.payload.composition.action;
-                    let value_native_payload_composition_text =
-                        context.store_string(&value.payload.composition.text);
-                    let value_native_payload_composition_selection_start =
-                        value.payload.composition.selection_start;
-                    let value_native_payload_composition_selection_end =
-                        value.payload.composition.selection_end;
-                    let value_native_payload_composition = InputCompositionEventPayload {
-                        action: value_native_payload_composition_action,
-                        text: value_native_payload_composition_text,
-                        selection_start: value_native_payload_composition_selection_start,
-                        selection_end: value_native_payload_composition_selection_end,
-                    };
-                    let value_native_payload = InputEventPayload {
-                        key: value_native_payload_key,
-                        pointer_motion: value_native_payload_pointer_motion,
-                        pointer_button: value_native_payload_pointer_button,
-                        scroll: value_native_payload_scroll,
-                        touch: value_native_payload_touch,
-                        gamepad: value_native_payload_gamepad,
-                        text: value_native_payload_text,
-                        device: value_native_payload_device,
-                        sensor: value_native_payload_sensor,
-                        composition: value_native_payload_composition,
-                    };
-                    let value_native = InputEvent {
-                        kind: value_native_kind,
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        payload: value_native_payload,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -5661,20 +6894,22 @@ fn destack_input_haptics_play_replay(
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
-    params: InputHapticEffectParameters,
+    parameters: InputHapticEffectParameters,
 ) -> RuntimeResult<()> {
-    let _ = (&handle, &effect, &params);
+    let _ = (&handle, &effect, &parameters);
 
     context.replay().run_binding_with_policy(
         INPUT_HAPTICS_PLAY,
         context.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_input_haptics_play(context, out, handle, effect, params)
+                platform_native::destack_input_haptics_play(
+                    context, out, handle, effect, parameters,
+                )
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_input_haptics_play(
-                    context, out, handle, effect, params,
+                    context, out, handle, effect, parameters,
                 )
             },
         },
@@ -7282,22 +8517,31 @@ fn destack_input_text_read_composition_replay(
                     }
                     *out
                 };
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
-                let result_recorded_selection_start = result_value.selection_start;
-                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
+                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
+                let result_recorded_metadata_sequence = result_value.metadata.sequence;
+                let result_recorded_metadata_device_id =
+                    unsafe { result_value.metadata.device_id.as_str()? }.to_string();
+                let result_recorded_metadata = InputEventMetadataReplayRecord {
+                    timestamp_ns: result_recorded_metadata_timestamp_ns,
+                    sequence: result_recorded_metadata_sequence,
+                    device_id: result_recorded_metadata_device_id,
+                };
+                let result_recorded_payload_action = result_value.payload.action;
+                let result_recorded_payload_text =
+                    unsafe { result_value.payload.text.as_str()? }.to_string();
+                let result_recorded_payload_selection_start = result_value.payload.selection_start;
+                let result_recorded_payload_selection_end = result_value.payload.selection_end;
+                let result_recorded_payload = InputCompositionEventPayloadReplayRecord {
+                    action: result_recorded_payload_action,
+                    text: result_recorded_payload_text,
+                    selection_start: result_recorded_payload_selection_start,
+                    selection_end: result_recorded_payload_selection_end,
+                };
                 let result_recorded = InputCompositionEventReplayRecord {
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    text: result_recorded_text,
-                    selection_start: result_recorded_selection_start,
-                    selection_end: result_recorded_selection_end,
+                    kind: result_recorded_kind,
+                    metadata: result_recorded_metadata,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputTextReadCompositionReplay {
                     result: Ok(result_recorded),
@@ -7319,21 +8563,30 @@ fn destack_input_text_read_composition_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_text = context.store_string(&value.text);
-                    let value_native_selection_start = value.selection_start;
-                    let value_native_selection_end = value.selection_end;
+                    let value_native_kind = context.store_string(&value.kind);
+                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                    let value_native_metadata_sequence = value.metadata.sequence;
+                    let value_native_metadata_device_id =
+                        context.store_string(&value.metadata.device_id);
+                    let value_native_metadata = InputEventMetadata {
+                        timestamp_ns: value_native_metadata_timestamp_ns,
+                        sequence: value_native_metadata_sequence,
+                        device_id: value_native_metadata_device_id,
+                    };
+                    let value_native_payload_action = value.payload.action;
+                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_selection_start = value.payload.selection_start;
+                    let value_native_payload_selection_end = value.payload.selection_end;
+                    let value_native_payload = InputCompositionEventPayload {
+                        action: value_native_payload_action,
+                        text: value_native_payload_text,
+                        selection_start: value_native_payload_selection_start,
+                        selection_end: value_native_payload_selection_end,
+                    };
                     let value_native = InputCompositionEvent {
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        action: value_native_action,
-                        text: value_native_text,
-                        selection_start: value_native_selection_start,
-                        selection_end: value_native_selection_end,
+                        kind: value_native_kind,
+                        metadata: value_native_metadata,
+                        payload: value_native_payload,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -7529,22 +8782,31 @@ fn destack_input_text_try_read_composition_replay(
                     }
                     *out
                 };
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_action = result_value.action;
-                let result_recorded_text = unsafe { result_value.text.as_str()? }.to_string();
-                let result_recorded_selection_start = result_value.selection_start;
-                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded_kind = unsafe { result_value.kind.as_str()? }.to_string();
+                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
+                let result_recorded_metadata_sequence = result_value.metadata.sequence;
+                let result_recorded_metadata_device_id =
+                    unsafe { result_value.metadata.device_id.as_str()? }.to_string();
+                let result_recorded_metadata = InputEventMetadataReplayRecord {
+                    timestamp_ns: result_recorded_metadata_timestamp_ns,
+                    sequence: result_recorded_metadata_sequence,
+                    device_id: result_recorded_metadata_device_id,
+                };
+                let result_recorded_payload_action = result_value.payload.action;
+                let result_recorded_payload_text =
+                    unsafe { result_value.payload.text.as_str()? }.to_string();
+                let result_recorded_payload_selection_start = result_value.payload.selection_start;
+                let result_recorded_payload_selection_end = result_value.payload.selection_end;
+                let result_recorded_payload = InputCompositionEventPayloadReplayRecord {
+                    action: result_recorded_payload_action,
+                    text: result_recorded_payload_text,
+                    selection_start: result_recorded_payload_selection_start,
+                    selection_end: result_recorded_payload_selection_end,
+                };
                 let result_recorded = InputCompositionEventReplayRecord {
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    text: result_recorded_text,
-                    selection_start: result_recorded_selection_start,
-                    selection_end: result_recorded_selection_end,
+                    kind: result_recorded_kind,
+                    metadata: result_recorded_metadata,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputTextTryReadCompositionReplay {
                     result: Ok(result_recorded),
@@ -7566,21 +8828,30 @@ fn destack_input_text_try_read_composition_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native_sequence = value.sequence;
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_action = value.action;
-                    let value_native_text = context.store_string(&value.text);
-                    let value_native_selection_start = value.selection_start;
-                    let value_native_selection_end = value.selection_end;
+                    let value_native_kind = context.store_string(&value.kind);
+                    let value_native_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                    let value_native_metadata_sequence = value.metadata.sequence;
+                    let value_native_metadata_device_id =
+                        context.store_string(&value.metadata.device_id);
+                    let value_native_metadata = InputEventMetadata {
+                        timestamp_ns: value_native_metadata_timestamp_ns,
+                        sequence: value_native_metadata_sequence,
+                        device_id: value_native_metadata_device_id,
+                    };
+                    let value_native_payload_action = value.payload.action;
+                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_selection_start = value.payload.selection_start;
+                    let value_native_payload_selection_end = value.payload.selection_end;
+                    let value_native_payload = InputCompositionEventPayload {
+                        action: value_native_payload_action,
+                        text: value_native_payload_text,
+                        selection_start: value_native_payload_selection_start,
+                        selection_end: value_native_payload_selection_end,
+                    };
                     let value_native = InputCompositionEvent {
-                        timestamp_ns: value_native_timestamp_ns,
-                        sequence: value_native_sequence,
-                        device_id: value_native_device_id,
-                        action: value_native_action,
-                        text: value_native_text,
-                        selection_start: value_native_selection_start,
-                        selection_end: value_native_selection_end,
+                        kind: value_native_kind,
+                        metadata: value_native_metadata,
+                        payload: value_native_payload,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -7996,16 +9267,16 @@ pub unsafe extern "C" fn destack_input_haptics_play(
     out: *mut InputHapticsResult,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
-    params: InputHapticEffectParameters,
+    parameters: InputHapticEffectParameters,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &effect, &params);
+        let _ = (&out, &handle, &effect, &parameters);
 
         let world = context.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
-        destack_input_haptics_play_replay(context, world, out, handle, effect, params)
+        destack_input_haptics_play_replay(context, world, out, handle, effect, parameters)
     })
 }
 
@@ -9343,34 +10614,95 @@ fn destack_input_event_monitor_read_vm_replay(
         INPUT_EVENT_MONITOR_READ,
         runtime.replay_payload_for(INPUT_EVENT_MONITOR_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_monitor_read(runtime, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_monitor_read(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_input_monitor_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_read(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputMonitorEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_device_kind = result_value.device_kind;
-                let result_recorded_connected = result_value.connected;
-                let result_recorded = InputMonitorEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    device_kind: result_recorded_device_kind,
-                    connected: result_recorded_connected,
+                let result_recorded = match result_value {
+                    InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+                        let result_recorded_input_monitor_change_event_kind = {
+                            let result_recorded_input_monitor_change_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_change_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_change_event_metadata_device_id = {
+                            let result_recorded_input_monitor_change_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_change_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_change_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_change_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_change_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_change_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_change_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_change_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_change_event = InputMonitorChangeEventReplayRecord {
+                            kind: result_recorded_input_monitor_change_event_kind,
+                            metadata: result_recorded_input_monitor_change_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(result_recorded_input_monitor_change_event)
+                    }
+                    InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+                        let result_recorded_input_monitor_connect_event_kind = {
+                            let result_recorded_input_monitor_connect_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_connect_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_connect_event_metadata_device_id = {
+                            let result_recorded_input_monitor_connect_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_connect_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_connect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_connect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_connect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_connect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_connect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_connect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_connect_event = InputMonitorConnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_connect_event_kind,
+                            metadata: result_recorded_input_monitor_connect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(result_recorded_input_monitor_connect_event)
+                    }
+                    InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+                        let result_recorded_input_monitor_disconnect_event_kind = {
+                            let result_recorded_input_monitor_disconnect_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_disconnect_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_id = {
+                            let result_recorded_input_monitor_disconnect_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_disconnect_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_disconnect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_disconnect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_disconnect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_disconnect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_disconnect_event = InputMonitorDisconnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_disconnect_event_kind,
+                            metadata: result_recorded_input_monitor_disconnect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(result_recorded_input_monitor_disconnect_event)
+                    }
                 };
                 let payload = InputEventMonitorReadReplay {
                     result: Ok(result_recorded),
@@ -9381,7 +10713,9 @@ fn destack_input_event_monitor_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventMonitorReadReplay { result }
+                    InputEventMonitorReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -9393,20 +10727,73 @@ fn destack_input_event_monitor_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_device_kind = value.device_kind;
-                    let vm_result_connected = value.connected;
-                    let vm_result = InputMonitorEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        device_kind: vm_result_device_kind,
-                        connected: vm_result_connected,
+                    let vm_result = match value {
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
+                            let vm_result_input_monitor_change_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_change_event_kind = vm::StringHandle::new(vm_result_input_monitor_change_event_kind_value);
+                            let vm_result_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_change_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_change_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_change_event_metadata_device_id_value);
+                            let vm_result_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_change_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_change_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_change_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_change_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_change_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_change_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_change_event = InputMonitorChangeEventVm {
+                                kind: vm_result_input_monitor_change_event_kind,
+                                metadata: vm_result_input_monitor_change_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorChangeEvent(vm_result_input_monitor_change_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
+                            let vm_result_input_monitor_connect_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_connect_event_kind = vm::StringHandle::new(vm_result_input_monitor_connect_event_kind_value);
+                            let vm_result_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_connect_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_connect_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_connect_event_metadata_device_id_value);
+                            let vm_result_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_connect_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_connect_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_connect_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_connect_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_connect_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_connect_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_connect_event = InputMonitorConnectEventVm {
+                                kind: vm_result_input_monitor_connect_event_kind,
+                                metadata: vm_result_input_monitor_connect_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorConnectEvent(vm_result_input_monitor_connect_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
+                            let vm_result_input_monitor_disconnect_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_disconnect_event_kind = vm::StringHandle::new(vm_result_input_monitor_disconnect_event_kind_value);
+                            let vm_result_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_disconnect_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_disconnect_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_disconnect_event_metadata_device_id_value);
+                            let vm_result_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_disconnect_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_disconnect_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_disconnect_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_disconnect_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_disconnect_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_disconnect_event = InputMonitorDisconnectEventVm {
+                                kind: vm_result_input_monitor_disconnect_event_kind,
+                                metadata: vm_result_input_monitor_disconnect_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorDisconnectEvent(vm_result_input_monitor_disconnect_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -9429,36 +10816,95 @@ fn destack_input_event_monitor_try_read_vm_replay(
         INPUT_EVENT_MONITOR_TRY_READ,
         runtime.replay_payload_for(INPUT_EVENT_MONITOR_TRY_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_input_monitor_try_read(runtime, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_monitor_try_read(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_input_monitor_try_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_monitor_try_read(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputMonitorEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_device_kind = result_value.device_kind;
-                let result_recorded_connected = result_value.connected;
-                let result_recorded = InputMonitorEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    device_kind: result_recorded_device_kind,
-                    connected: result_recorded_connected,
+                let result_recorded = match result_value {
+                    InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+                        let result_recorded_input_monitor_change_event_kind = {
+                            let result_recorded_input_monitor_change_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_change_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_change_event_metadata_device_id = {
+                            let result_recorded_input_monitor_change_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_change_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_change_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_change_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_change_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_change_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_change_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_change_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_change_event = InputMonitorChangeEventReplayRecord {
+                            kind: result_recorded_input_monitor_change_event_kind,
+                            metadata: result_recorded_input_monitor_change_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(result_recorded_input_monitor_change_event)
+                    }
+                    InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+                        let result_recorded_input_monitor_connect_event_kind = {
+                            let result_recorded_input_monitor_connect_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_connect_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_connect_event_metadata_device_id = {
+                            let result_recorded_input_monitor_connect_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_connect_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_connect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_connect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_connect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_connect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_connect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_connect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_connect_event = InputMonitorConnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_connect_event_kind,
+                            metadata: result_recorded_input_monitor_connect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(result_recorded_input_monitor_connect_event)
+                    }
+                    InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+                        let result_recorded_input_monitor_disconnect_event_kind = {
+                            let result_recorded_input_monitor_disconnect_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_disconnect_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_id = {
+                            let result_recorded_input_monitor_disconnect_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_monitor_disconnect_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                        let result_recorded_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                        let result_recorded_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_monitor_disconnect_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_monitor_disconnect_event_metadata_sequence,
+                            device_id: result_recorded_input_monitor_disconnect_event_metadata_device_id,
+                            device_kind: result_recorded_input_monitor_disconnect_event_metadata_device_kind,
+                            connected: result_recorded_input_monitor_disconnect_event_metadata_connected,
+                        };
+                        let result_recorded_input_monitor_disconnect_event = InputMonitorDisconnectEventReplayRecord {
+                            kind: result_recorded_input_monitor_disconnect_event_kind,
+                            metadata: result_recorded_input_monitor_disconnect_event_metadata,
+                        };
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(result_recorded_input_monitor_disconnect_event)
+                    }
                 };
                 let payload = InputEventMonitorTryReadReplay {
                     result: Ok(result_recorded),
@@ -9469,7 +10915,9 @@ fn destack_input_event_monitor_try_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventMonitorTryReadReplay { result }
+                    InputEventMonitorTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -9481,20 +10929,73 @@ fn destack_input_event_monitor_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_device_kind = value.device_kind;
-                    let vm_result_connected = value.connected;
-                    let vm_result = InputMonitorEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        device_kind: vm_result_device_kind,
-                        connected: vm_result_connected,
+                    let vm_result = match value {
+                        InputMonitorEventReplayRecord::InputMonitorChangeEvent(value) => {
+                            let vm_result_input_monitor_change_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_change_event_kind = vm::StringHandle::new(vm_result_input_monitor_change_event_kind_value);
+                            let vm_result_input_monitor_change_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_change_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_change_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_change_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_change_event_metadata_device_id_value);
+                            let vm_result_input_monitor_change_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_change_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_change_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_change_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_change_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_change_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_change_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_change_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_change_event = InputMonitorChangeEventVm {
+                                kind: vm_result_input_monitor_change_event_kind,
+                                metadata: vm_result_input_monitor_change_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorChangeEvent(vm_result_input_monitor_change_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorConnectEvent(value) => {
+                            let vm_result_input_monitor_connect_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_connect_event_kind = vm::StringHandle::new(vm_result_input_monitor_connect_event_kind_value);
+                            let vm_result_input_monitor_connect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_connect_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_connect_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_connect_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_connect_event_metadata_device_id_value);
+                            let vm_result_input_monitor_connect_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_connect_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_connect_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_connect_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_connect_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_connect_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_connect_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_connect_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_connect_event = InputMonitorConnectEventVm {
+                                kind: vm_result_input_monitor_connect_event_kind,
+                                metadata: vm_result_input_monitor_connect_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorConnectEvent(vm_result_input_monitor_connect_event)
+                        }
+                        InputMonitorEventReplayRecord::InputMonitorDisconnectEvent(value) => {
+                            let vm_result_input_monitor_disconnect_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_monitor_disconnect_event_kind = vm::StringHandle::new(vm_result_input_monitor_disconnect_event_kind_value);
+                            let vm_result_input_monitor_disconnect_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_monitor_disconnect_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_monitor_disconnect_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_monitor_disconnect_event_metadata_device_id = vm::StringHandle::new(vm_result_input_monitor_disconnect_event_metadata_device_id_value);
+                            let vm_result_input_monitor_disconnect_event_metadata_device_kind = value.metadata.device_kind;
+                            let vm_result_input_monitor_disconnect_event_metadata_connected = value.metadata.connected;
+                            let vm_result_input_monitor_disconnect_event_metadata = InputMonitorEventMetadataVm {
+                                timestamp_ns: vm_result_input_monitor_disconnect_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_monitor_disconnect_event_metadata_sequence,
+                                device_id: vm_result_input_monitor_disconnect_event_metadata_device_id,
+                                device_kind: vm_result_input_monitor_disconnect_event_metadata_device_kind,
+                                connected: vm_result_input_monitor_disconnect_event_metadata_connected,
+                            };
+                            let vm_result_input_monitor_disconnect_event = InputMonitorDisconnectEventVm {
+                                kind: vm_result_input_monitor_disconnect_event_kind,
+                                metadata: vm_result_input_monitor_disconnect_event_metadata,
+                            };
+                            InputMonitorEventVm::InputMonitorDisconnectEvent(vm_result_input_monitor_disconnect_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -9517,186 +11018,359 @@ fn destack_input_event_read_vm_replay(
         INPUT_EVENT_READ,
         runtime.replay_payload_for(INPUT_EVENT_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_read(runtime, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_read(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_input_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_read(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_payload_key_action = result_value.payload.key.action;
-                let result_recorded_payload_key_backend_code =
-                    result_value.payload.key.backend_code;
-                let result_recorded_payload_key_backend_scan_code =
-                    result_value.payload.key.backend_scan_code;
-                let result_recorded_payload_key_backend_value =
-                    result_value.payload.key.backend_value;
-                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
-                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
-                let result_recorded_payload_key = InputKeyEventPayload {
-                    action: result_recorded_payload_key_action,
-                    backend_code: result_recorded_payload_key_backend_code,
-                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
-                    backend_value: result_recorded_payload_key_backend_value,
-                    modifiers: result_recorded_payload_key_modifiers,
-                    repeat: result_recorded_payload_key_repeat,
-                };
-                let result_recorded_payload_pointer_motion_x =
-                    result_value.payload.pointer_motion.x;
-                let result_recorded_payload_pointer_motion_y =
-                    result_value.payload.pointer_motion.y;
-                let result_recorded_payload_pointer_motion_buttons =
-                    result_value.payload.pointer_motion.buttons;
-                let result_recorded_payload_pointer_motion_modifiers =
-                    result_value.payload.pointer_motion.modifiers;
-                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
-                    x: result_recorded_payload_pointer_motion_x,
-                    y: result_recorded_payload_pointer_motion_y,
-                    buttons: result_recorded_payload_pointer_motion_buttons,
-                    modifiers: result_recorded_payload_pointer_motion_modifiers,
-                };
-                let result_recorded_payload_pointer_button_action =
-                    result_value.payload.pointer_button.action;
-                let result_recorded_payload_pointer_button_backend_code =
-                    result_value.payload.pointer_button.backend_code;
-                let result_recorded_payload_pointer_button_backend_value =
-                    result_value.payload.pointer_button.backend_value;
-                let result_recorded_payload_pointer_button_x =
-                    result_value.payload.pointer_button.x;
-                let result_recorded_payload_pointer_button_y =
-                    result_value.payload.pointer_button.y;
-                let result_recorded_payload_pointer_button_modifiers =
-                    result_value.payload.pointer_button.modifiers;
-                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
-                    action: result_recorded_payload_pointer_button_action,
-                    backend_code: result_recorded_payload_pointer_button_backend_code,
-                    backend_value: result_recorded_payload_pointer_button_backend_value,
-                    x: result_recorded_payload_pointer_button_x,
-                    y: result_recorded_payload_pointer_button_y,
-                    modifiers: result_recorded_payload_pointer_button_modifiers,
-                };
-                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
-                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
-                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
-                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
-                let result_recorded_payload_scroll_modifiers =
-                    result_value.payload.scroll.modifiers;
-                let result_recorded_payload_scroll = InputScrollEventPayload {
-                    wheel_x: result_recorded_payload_scroll_wheel_x,
-                    wheel_y: result_recorded_payload_scroll_wheel_y,
-                    x: result_recorded_payload_scroll_x,
-                    y: result_recorded_payload_scroll_y,
-                    modifiers: result_recorded_payload_scroll_modifiers,
-                };
-                let result_recorded_payload_touch_action = result_value.payload.touch.action;
-                let result_recorded_payload_touch_contact_id =
-                    result_value.payload.touch.contact_id;
-                let result_recorded_payload_touch_x = result_value.payload.touch.x;
-                let result_recorded_payload_touch_y = result_value.payload.touch.y;
-                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
-                let result_recorded_payload_touch = InputTouchEventPayload {
-                    action: result_recorded_payload_touch_action,
-                    contact_id: result_recorded_payload_touch_contact_id,
-                    x: result_recorded_payload_touch_x,
-                    y: result_recorded_payload_touch_y,
-                    pressure: result_recorded_payload_touch_pressure,
-                };
-                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
-                let result_recorded_payload_gamepad_backend_code =
-                    result_value.payload.gamepad.backend_code;
-                let result_recorded_payload_gamepad_backend_value =
-                    result_value.payload.gamepad.backend_value;
-                let result_recorded_payload_gamepad = InputGamepadEventPayload {
-                    action: result_recorded_payload_gamepad_action,
-                    backend_code: result_recorded_payload_gamepad_backend_code,
-                    backend_value: result_recorded_payload_gamepad_backend_value,
-                };
-                let result_recorded_payload_text_text = {
-                    let result_recorded_payload_text_text_ref = context
-                        .string_ref(result_value.payload.text.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_text_text_ref.as_str().to_string()
-                };
-                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
-                    text: result_recorded_payload_text_text,
-                };
-                let result_recorded_payload_device_action = result_value.payload.device.action;
-                let result_recorded_payload_device_backend_code =
-                    result_value.payload.device.backend_code;
-                let result_recorded_payload_device_backend_value =
-                    result_value.payload.device.backend_value;
-                let result_recorded_payload_device = InputDeviceEventPayload {
-                    action: result_recorded_payload_device_action,
-                    backend_code: result_recorded_payload_device_backend_code,
-                    backend_value: result_recorded_payload_device_backend_value,
-                };
-                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
-                let result_recorded_payload_sensor_backend_code =
-                    result_value.payload.sensor.backend_code;
-                let result_recorded_payload_sensor_backend_value =
-                    result_value.payload.sensor.backend_value;
-                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
-                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
-                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
-                let result_recorded_payload_sensor = InputSensorEventPayload {
-                    action: result_recorded_payload_sensor_action,
-                    backend_code: result_recorded_payload_sensor_backend_code,
-                    backend_value: result_recorded_payload_sensor_backend_value,
-                    x: result_recorded_payload_sensor_x,
-                    y: result_recorded_payload_sensor_y,
-                    z: result_recorded_payload_sensor_z,
-                };
-                let result_recorded_payload_composition_action =
-                    result_value.payload.composition.action;
-                let result_recorded_payload_composition_text = {
-                    let result_recorded_payload_composition_text_ref = context
-                        .string_ref(result_value.payload.composition.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_composition_text_ref
-                        .as_str()
-                        .to_string()
-                };
-                let result_recorded_payload_composition_selection_start =
-                    result_value.payload.composition.selection_start;
-                let result_recorded_payload_composition_selection_end =
-                    result_value.payload.composition.selection_end;
-                let result_recorded_payload_composition =
-                    InputCompositionEventPayloadReplayRecord {
-                        action: result_recorded_payload_composition_action,
-                        text: result_recorded_payload_composition_text,
-                        selection_start: result_recorded_payload_composition_selection_start,
-                        selection_end: result_recorded_payload_composition_selection_end,
-                    };
-                let result_recorded_payload = InputEventPayloadReplayRecord {
-                    key: result_recorded_payload_key,
-                    pointer_motion: result_recorded_payload_pointer_motion,
-                    pointer_button: result_recorded_payload_pointer_button,
-                    scroll: result_recorded_payload_scroll,
-                    touch: result_recorded_payload_touch,
-                    gamepad: result_recorded_payload_gamepad,
-                    text: result_recorded_payload_text,
-                    device: result_recorded_payload_device,
-                    sensor: result_recorded_payload_sensor,
-                    composition: result_recorded_payload_composition,
-                };
-                let result_recorded = InputEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    payload: result_recorded_payload,
+                let result_recorded = match result_value {
+                    InputEventVm::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = {
+                            let result_recorded_input_composition_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = {
+                            let result_recorded_input_composition_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = {
+                            let result_recorded_input_composition_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputEventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputEventVm::InputDeviceEvent(value) => {
+                        let result_recorded_input_device_event_kind = {
+                            let result_recorded_input_device_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_device_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_device_event_metadata_device_id = {
+                            let result_recorded_input_device_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_device_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_device_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_device_event_metadata_sequence,
+                            device_id: result_recorded_input_device_event_metadata_device_id,
+                        };
+                        let result_recorded_input_device_event_payload_action = value.payload.action;
+                        let result_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_device_event_payload = InputDeviceEventPayload {
+                            action: result_recorded_input_device_event_payload_action,
+                            backend_code: result_recorded_input_device_event_payload_backend_code,
+                            backend_value: result_recorded_input_device_event_payload_backend_value,
+                        };
+                        let result_recorded_input_device_event = InputDeviceEventReplayRecord {
+                            kind: result_recorded_input_device_event_kind,
+                            metadata: result_recorded_input_device_event_metadata,
+                            payload: result_recorded_input_device_event_payload,
+                        };
+                        InputEventReplayRecord::InputDeviceEvent(result_recorded_input_device_event)
+                    }
+                    InputEventVm::InputGamepadEvent(value) => {
+                        let result_recorded_input_gamepad_event_kind = {
+                            let result_recorded_input_gamepad_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_gamepad_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_gamepad_event_metadata_device_id = {
+                            let result_recorded_input_gamepad_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_gamepad_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_gamepad_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_gamepad_event_metadata_sequence,
+                            device_id: result_recorded_input_gamepad_event_metadata_device_id,
+                        };
+                        let result_recorded_input_gamepad_event_payload_action = value.payload.action;
+                        let result_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                            action: result_recorded_input_gamepad_event_payload_action,
+                            backend_code: result_recorded_input_gamepad_event_payload_backend_code,
+                            backend_value: result_recorded_input_gamepad_event_payload_backend_value,
+                        };
+                        let result_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                            kind: result_recorded_input_gamepad_event_kind,
+                            metadata: result_recorded_input_gamepad_event_metadata,
+                            payload: result_recorded_input_gamepad_event_payload,
+                        };
+                        InputEventReplayRecord::InputGamepadEvent(result_recorded_input_gamepad_event)
+                    }
+                    InputEventVm::InputKeyEvent(value) => {
+                        let result_recorded_input_key_event_kind = {
+                            let result_recorded_input_key_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_key_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_key_event_metadata_device_id = {
+                            let result_recorded_input_key_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_key_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_key_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_key_event_metadata_sequence,
+                            device_id: result_recorded_input_key_event_metadata_device_id,
+                        };
+                        let result_recorded_input_key_event_payload_action = value.payload.action;
+                        let result_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                        let result_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                        let result_recorded_input_key_event_payload = InputKeyEventPayload {
+                            action: result_recorded_input_key_event_payload_action,
+                            backend_code: result_recorded_input_key_event_payload_backend_code,
+                            backend_scan_code: result_recorded_input_key_event_payload_backend_scan_code,
+                            backend_value: result_recorded_input_key_event_payload_backend_value,
+                            modifiers: result_recorded_input_key_event_payload_modifiers,
+                            repeat: result_recorded_input_key_event_payload_repeat,
+                        };
+                        let result_recorded_input_key_event = InputKeyEventReplayRecord {
+                            kind: result_recorded_input_key_event_kind,
+                            metadata: result_recorded_input_key_event_metadata,
+                            payload: result_recorded_input_key_event_payload,
+                        };
+                        InputEventReplayRecord::InputKeyEvent(result_recorded_input_key_event)
+                    }
+                    InputEventVm::InputPointerButtonEvent(value) => {
+                        let result_recorded_input_pointer_button_event_kind = {
+                            let result_recorded_input_pointer_button_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_button_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_button_event_metadata_device_id = {
+                            let result_recorded_input_pointer_button_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_button_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_button_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_button_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                        let result_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                            action: result_recorded_input_pointer_button_event_payload_action,
+                            backend_code: result_recorded_input_pointer_button_event_payload_backend_code,
+                            backend_value: result_recorded_input_pointer_button_event_payload_backend_value,
+                            x: result_recorded_input_pointer_button_event_payload_x,
+                            y: result_recorded_input_pointer_button_event_payload_y,
+                            modifiers: result_recorded_input_pointer_button_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                            kind: result_recorded_input_pointer_button_event_kind,
+                            metadata: result_recorded_input_pointer_button_event_metadata,
+                            payload: result_recorded_input_pointer_button_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerButtonEvent(result_recorded_input_pointer_button_event)
+                    }
+                    InputEventVm::InputPointerMotionEvent(value) => {
+                        let result_recorded_input_pointer_motion_event_kind = {
+                            let result_recorded_input_pointer_motion_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_motion_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_motion_event_metadata_device_id = {
+                            let result_recorded_input_pointer_motion_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_motion_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_motion_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_motion_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                        let result_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                            x: result_recorded_input_pointer_motion_event_payload_x,
+                            y: result_recorded_input_pointer_motion_event_payload_y,
+                            buttons: result_recorded_input_pointer_motion_event_payload_buttons,
+                            modifiers: result_recorded_input_pointer_motion_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                            kind: result_recorded_input_pointer_motion_event_kind,
+                            metadata: result_recorded_input_pointer_motion_event_metadata,
+                            payload: result_recorded_input_pointer_motion_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerMotionEvent(result_recorded_input_pointer_motion_event)
+                    }
+                    InputEventVm::InputScrollEvent(value) => {
+                        let result_recorded_input_scroll_event_kind = {
+                            let result_recorded_input_scroll_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_scroll_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_scroll_event_metadata_device_id = {
+                            let result_recorded_input_scroll_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_scroll_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_scroll_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_scroll_event_metadata_sequence,
+                            device_id: result_recorded_input_scroll_event_metadata_device_id,
+                        };
+                        let result_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                        let result_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                        let result_recorded_input_scroll_event_payload_x = value.payload.x;
+                        let result_recorded_input_scroll_event_payload_y = value.payload.y;
+                        let result_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                            wheel_x: result_recorded_input_scroll_event_payload_wheel_x,
+                            wheel_y: result_recorded_input_scroll_event_payload_wheel_y,
+                            x: result_recorded_input_scroll_event_payload_x,
+                            y: result_recorded_input_scroll_event_payload_y,
+                            modifiers: result_recorded_input_scroll_event_payload_modifiers,
+                        };
+                        let result_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                            kind: result_recorded_input_scroll_event_kind,
+                            metadata: result_recorded_input_scroll_event_metadata,
+                            payload: result_recorded_input_scroll_event_payload,
+                        };
+                        InputEventReplayRecord::InputScrollEvent(result_recorded_input_scroll_event)
+                    }
+                    InputEventVm::InputSensorEvent(value) => {
+                        let result_recorded_input_sensor_event_kind = {
+                            let result_recorded_input_sensor_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_sensor_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_sensor_event_metadata_device_id = {
+                            let result_recorded_input_sensor_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_sensor_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_sensor_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_sensor_event_metadata_sequence,
+                            device_id: result_recorded_input_sensor_event_metadata_device_id,
+                        };
+                        let result_recorded_input_sensor_event_payload_action = value.payload.action;
+                        let result_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_sensor_event_payload_x = value.payload.x;
+                        let result_recorded_input_sensor_event_payload_y = value.payload.y;
+                        let result_recorded_input_sensor_event_payload_z = value.payload.z;
+                        let result_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                            action: result_recorded_input_sensor_event_payload_action,
+                            backend_code: result_recorded_input_sensor_event_payload_backend_code,
+                            backend_value: result_recorded_input_sensor_event_payload_backend_value,
+                            x: result_recorded_input_sensor_event_payload_x,
+                            y: result_recorded_input_sensor_event_payload_y,
+                            z: result_recorded_input_sensor_event_payload_z,
+                        };
+                        let result_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                            kind: result_recorded_input_sensor_event_kind,
+                            metadata: result_recorded_input_sensor_event_metadata,
+                            payload: result_recorded_input_sensor_event_payload,
+                        };
+                        InputEventReplayRecord::InputSensorEvent(result_recorded_input_sensor_event)
+                    }
+                    InputEventVm::InputTextEvent(value) => {
+                        let result_recorded_input_text_event_kind = {
+                            let result_recorded_input_text_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_event_metadata_device_id = {
+                            let result_recorded_input_text_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_event_metadata_sequence,
+                            device_id: result_recorded_input_text_event_metadata_device_id,
+                        };
+                        let result_recorded_input_text_event_payload_text = {
+                            let result_recorded_input_text_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                            text: result_recorded_input_text_event_payload_text,
+                        };
+                        let result_recorded_input_text_event = InputTextEventReplayRecord {
+                            kind: result_recorded_input_text_event_kind,
+                            metadata: result_recorded_input_text_event_metadata,
+                            payload: result_recorded_input_text_event_payload,
+                        };
+                        InputEventReplayRecord::InputTextEvent(result_recorded_input_text_event)
+                    }
+                    InputEventVm::InputTouchEvent(value) => {
+                        let result_recorded_input_touch_event_kind = {
+                            let result_recorded_input_touch_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_touch_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_touch_event_metadata_device_id = {
+                            let result_recorded_input_touch_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_touch_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_touch_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_touch_event_metadata_sequence,
+                            device_id: result_recorded_input_touch_event_metadata_device_id,
+                        };
+                        let result_recorded_input_touch_event_payload_action = value.payload.action;
+                        let result_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                        let result_recorded_input_touch_event_payload_x = value.payload.x;
+                        let result_recorded_input_touch_event_payload_y = value.payload.y;
+                        let result_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                        let result_recorded_input_touch_event_payload = InputTouchEventPayload {
+                            action: result_recorded_input_touch_event_payload_action,
+                            contact_id: result_recorded_input_touch_event_payload_contact_id,
+                            x: result_recorded_input_touch_event_payload_x,
+                            y: result_recorded_input_touch_event_payload_y,
+                            pressure: result_recorded_input_touch_event_payload_pressure,
+                        };
+                        let result_recorded_input_touch_event = InputTouchEventReplayRecord {
+                            kind: result_recorded_input_touch_event_kind,
+                            metadata: result_recorded_input_touch_event_metadata,
+                            payload: result_recorded_input_touch_event_payload,
+                        };
+                        InputEventReplayRecord::InputTouchEvent(result_recorded_input_touch_event)
+                    }
                 };
                 let payload = InputEventReadReplay {
                     result: Ok(result_recorded),
@@ -9707,7 +11381,9 @@ fn destack_input_event_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventReadReplay { result }
+                    InputEventReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -9719,151 +11395,305 @@ fn destack_input_event_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_payload_key_action = value.payload.key.action;
-                    let vm_result_payload_key_backend_code = value.payload.key.backend_code;
-                    let vm_result_payload_key_backend_scan_code =
-                        value.payload.key.backend_scan_code;
-                    let vm_result_payload_key_backend_value = value.payload.key.backend_value;
-                    let vm_result_payload_key_modifiers = value.payload.key.modifiers;
-                    let vm_result_payload_key_repeat = value.payload.key.repeat;
-                    let vm_result_payload_key = InputKeyEventPayloadVm {
-                        action: vm_result_payload_key_action,
-                        backend_code: vm_result_payload_key_backend_code,
-                        backend_scan_code: vm_result_payload_key_backend_scan_code,
-                        backend_value: vm_result_payload_key_backend_value,
-                        modifiers: vm_result_payload_key_modifiers,
-                        repeat: vm_result_payload_key_repeat,
-                    };
-                    let vm_result_payload_pointer_motion_x = value.payload.pointer_motion.x;
-                    let vm_result_payload_pointer_motion_y = value.payload.pointer_motion.y;
-                    let vm_result_payload_pointer_motion_buttons =
-                        value.payload.pointer_motion.buttons;
-                    let vm_result_payload_pointer_motion_modifiers =
-                        value.payload.pointer_motion.modifiers;
-                    let vm_result_payload_pointer_motion = InputPointerMotionEventPayloadVm {
-                        x: vm_result_payload_pointer_motion_x,
-                        y: vm_result_payload_pointer_motion_y,
-                        buttons: vm_result_payload_pointer_motion_buttons,
-                        modifiers: vm_result_payload_pointer_motion_modifiers,
-                    };
-                    let vm_result_payload_pointer_button_action =
-                        value.payload.pointer_button.action;
-                    let vm_result_payload_pointer_button_backend_code =
-                        value.payload.pointer_button.backend_code;
-                    let vm_result_payload_pointer_button_backend_value =
-                        value.payload.pointer_button.backend_value;
-                    let vm_result_payload_pointer_button_x = value.payload.pointer_button.x;
-                    let vm_result_payload_pointer_button_y = value.payload.pointer_button.y;
-                    let vm_result_payload_pointer_button_modifiers =
-                        value.payload.pointer_button.modifiers;
-                    let vm_result_payload_pointer_button = InputPointerButtonEventPayloadVm {
-                        action: vm_result_payload_pointer_button_action,
-                        backend_code: vm_result_payload_pointer_button_backend_code,
-                        backend_value: vm_result_payload_pointer_button_backend_value,
-                        x: vm_result_payload_pointer_button_x,
-                        y: vm_result_payload_pointer_button_y,
-                        modifiers: vm_result_payload_pointer_button_modifiers,
-                    };
-                    let vm_result_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
-                    let vm_result_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
-                    let vm_result_payload_scroll_x = value.payload.scroll.x;
-                    let vm_result_payload_scroll_y = value.payload.scroll.y;
-                    let vm_result_payload_scroll_modifiers = value.payload.scroll.modifiers;
-                    let vm_result_payload_scroll = InputScrollEventPayloadVm {
-                        wheel_x: vm_result_payload_scroll_wheel_x,
-                        wheel_y: vm_result_payload_scroll_wheel_y,
-                        x: vm_result_payload_scroll_x,
-                        y: vm_result_payload_scroll_y,
-                        modifiers: vm_result_payload_scroll_modifiers,
-                    };
-                    let vm_result_payload_touch_action = value.payload.touch.action;
-                    let vm_result_payload_touch_contact_id = value.payload.touch.contact_id;
-                    let vm_result_payload_touch_x = value.payload.touch.x;
-                    let vm_result_payload_touch_y = value.payload.touch.y;
-                    let vm_result_payload_touch_pressure = value.payload.touch.pressure;
-                    let vm_result_payload_touch = InputTouchEventPayloadVm {
-                        action: vm_result_payload_touch_action,
-                        contact_id: vm_result_payload_touch_contact_id,
-                        x: vm_result_payload_touch_x,
-                        y: vm_result_payload_touch_y,
-                        pressure: vm_result_payload_touch_pressure,
-                    };
-                    let vm_result_payload_gamepad_action = value.payload.gamepad.action;
-                    let vm_result_payload_gamepad_backend_code = value.payload.gamepad.backend_code;
-                    let vm_result_payload_gamepad_backend_value =
-                        value.payload.gamepad.backend_value;
-                    let vm_result_payload_gamepad = InputGamepadEventPayloadVm {
-                        action: vm_result_payload_gamepad_action,
-                        backend_code: vm_result_payload_gamepad_backend_code,
-                        backend_value: vm_result_payload_gamepad_backend_value,
-                    };
-                    let vm_result_payload_text_text_value =
-                        context.intern_string(value.payload.text.text.as_str());
-                    let vm_result_payload_text_text =
-                        vm::StringHandle::new(vm_result_payload_text_text_value);
-                    let vm_result_payload_text = InputTextEventPayloadVm {
-                        text: vm_result_payload_text_text,
-                    };
-                    let vm_result_payload_device_action = value.payload.device.action;
-                    let vm_result_payload_device_backend_code = value.payload.device.backend_code;
-                    let vm_result_payload_device_backend_value = value.payload.device.backend_value;
-                    let vm_result_payload_device = InputDeviceEventPayloadVm {
-                        action: vm_result_payload_device_action,
-                        backend_code: vm_result_payload_device_backend_code,
-                        backend_value: vm_result_payload_device_backend_value,
-                    };
-                    let vm_result_payload_sensor_action = value.payload.sensor.action;
-                    let vm_result_payload_sensor_backend_code = value.payload.sensor.backend_code;
-                    let vm_result_payload_sensor_backend_value = value.payload.sensor.backend_value;
-                    let vm_result_payload_sensor_x = value.payload.sensor.x;
-                    let vm_result_payload_sensor_y = value.payload.sensor.y;
-                    let vm_result_payload_sensor_z = value.payload.sensor.z;
-                    let vm_result_payload_sensor = InputSensorEventPayloadVm {
-                        action: vm_result_payload_sensor_action,
-                        backend_code: vm_result_payload_sensor_backend_code,
-                        backend_value: vm_result_payload_sensor_backend_value,
-                        x: vm_result_payload_sensor_x,
-                        y: vm_result_payload_sensor_y,
-                        z: vm_result_payload_sensor_z,
-                    };
-                    let vm_result_payload_composition_action = value.payload.composition.action;
-                    let vm_result_payload_composition_text_value =
-                        context.intern_string(value.payload.composition.text.as_str());
-                    let vm_result_payload_composition_text =
-                        vm::StringHandle::new(vm_result_payload_composition_text_value);
-                    let vm_result_payload_composition_selection_start =
-                        value.payload.composition.selection_start;
-                    let vm_result_payload_composition_selection_end =
-                        value.payload.composition.selection_end;
-                    let vm_result_payload_composition = InputCompositionEventPayloadVm {
-                        action: vm_result_payload_composition_action,
-                        text: vm_result_payload_composition_text,
-                        selection_start: vm_result_payload_composition_selection_start,
-                        selection_end: vm_result_payload_composition_selection_end,
-                    };
-                    let vm_result_payload = InputEventPayloadVm {
-                        key: vm_result_payload_key,
-                        pointer_motion: vm_result_payload_pointer_motion,
-                        pointer_button: vm_result_payload_pointer_button,
-                        scroll: vm_result_payload_scroll,
-                        touch: vm_result_payload_touch,
-                        gamepad: vm_result_payload_gamepad,
-                        text: vm_result_payload_text,
-                        device: vm_result_payload_device,
-                        sensor: vm_result_payload_sensor,
-                        composition: vm_result_payload_composition,
-                    };
-                    let vm_result = InputEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        payload: vm_result_payload,
+                    let vm_result = match value {
+                        InputEventReplayRecord::InputCompositionEvent(value) => {
+                            let vm_result_input_composition_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_composition_event_kind = vm::StringHandle::new(vm_result_input_composition_event_kind_value);
+                            let vm_result_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_composition_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_composition_event_metadata_device_id = vm::StringHandle::new(vm_result_input_composition_event_metadata_device_id_value);
+                            let vm_result_input_composition_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_composition_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_composition_event_metadata_sequence,
+                                device_id: vm_result_input_composition_event_metadata_device_id,
+                            };
+                            let vm_result_input_composition_event_payload_action = value.payload.action;
+                            let vm_result_input_composition_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                            let vm_result_input_composition_event_payload_text = vm::StringHandle::new(vm_result_input_composition_event_payload_text_value);
+                            let vm_result_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let vm_result_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let vm_result_input_composition_event_payload = InputCompositionEventPayloadVm {
+                                action: vm_result_input_composition_event_payload_action,
+                                text: vm_result_input_composition_event_payload_text,
+                                selection_start: vm_result_input_composition_event_payload_selection_start,
+                                selection_end: vm_result_input_composition_event_payload_selection_end,
+                            };
+                            let vm_result_input_composition_event = InputCompositionEventVm {
+                                kind: vm_result_input_composition_event_kind,
+                                metadata: vm_result_input_composition_event_metadata,
+                                payload: vm_result_input_composition_event_payload,
+                            };
+                            InputEventVm::InputCompositionEvent(vm_result_input_composition_event)
+                        }
+                        InputEventReplayRecord::InputDeviceEvent(value) => {
+                            let vm_result_input_device_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_device_event_kind = vm::StringHandle::new(vm_result_input_device_event_kind_value);
+                            let vm_result_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_device_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_device_event_metadata_device_id = vm::StringHandle::new(vm_result_input_device_event_metadata_device_id_value);
+                            let vm_result_input_device_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_device_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_device_event_metadata_sequence,
+                                device_id: vm_result_input_device_event_metadata_device_id,
+                            };
+                            let vm_result_input_device_event_payload_action = value.payload.action;
+                            let vm_result_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_device_event_payload = InputDeviceEventPayloadVm {
+                                action: vm_result_input_device_event_payload_action,
+                                backend_code: vm_result_input_device_event_payload_backend_code,
+                                backend_value: vm_result_input_device_event_payload_backend_value,
+                            };
+                            let vm_result_input_device_event = InputDeviceEventVm {
+                                kind: vm_result_input_device_event_kind,
+                                metadata: vm_result_input_device_event_metadata,
+                                payload: vm_result_input_device_event_payload,
+                            };
+                            InputEventVm::InputDeviceEvent(vm_result_input_device_event)
+                        }
+                        InputEventReplayRecord::InputGamepadEvent(value) => {
+                            let vm_result_input_gamepad_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_gamepad_event_kind = vm::StringHandle::new(vm_result_input_gamepad_event_kind_value);
+                            let vm_result_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_gamepad_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_gamepad_event_metadata_device_id = vm::StringHandle::new(vm_result_input_gamepad_event_metadata_device_id_value);
+                            let vm_result_input_gamepad_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_gamepad_event_metadata_sequence,
+                                device_id: vm_result_input_gamepad_event_metadata_device_id,
+                            };
+                            let vm_result_input_gamepad_event_payload_action = value.payload.action;
+                            let vm_result_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_gamepad_event_payload = InputGamepadEventPayloadVm {
+                                action: vm_result_input_gamepad_event_payload_action,
+                                backend_code: vm_result_input_gamepad_event_payload_backend_code,
+                                backend_value: vm_result_input_gamepad_event_payload_backend_value,
+                            };
+                            let vm_result_input_gamepad_event = InputGamepadEventVm {
+                                kind: vm_result_input_gamepad_event_kind,
+                                metadata: vm_result_input_gamepad_event_metadata,
+                                payload: vm_result_input_gamepad_event_payload,
+                            };
+                            InputEventVm::InputGamepadEvent(vm_result_input_gamepad_event)
+                        }
+                        InputEventReplayRecord::InputKeyEvent(value) => {
+                            let vm_result_input_key_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_key_event_kind = vm::StringHandle::new(vm_result_input_key_event_kind_value);
+                            let vm_result_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_key_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_key_event_metadata_device_id = vm::StringHandle::new(vm_result_input_key_event_metadata_device_id_value);
+                            let vm_result_input_key_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_key_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_key_event_metadata_sequence,
+                                device_id: vm_result_input_key_event_metadata_device_id,
+                            };
+                            let vm_result_input_key_event_payload_action = value.payload.action;
+                            let vm_result_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let vm_result_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_key_event_payload_repeat = value.payload.repeat;
+                            let vm_result_input_key_event_payload = InputKeyEventPayloadVm {
+                                action: vm_result_input_key_event_payload_action,
+                                backend_code: vm_result_input_key_event_payload_backend_code,
+                                backend_scan_code: vm_result_input_key_event_payload_backend_scan_code,
+                                backend_value: vm_result_input_key_event_payload_backend_value,
+                                modifiers: vm_result_input_key_event_payload_modifiers,
+                                repeat: vm_result_input_key_event_payload_repeat,
+                            };
+                            let vm_result_input_key_event = InputKeyEventVm {
+                                kind: vm_result_input_key_event_kind,
+                                metadata: vm_result_input_key_event_metadata,
+                                payload: vm_result_input_key_event_payload,
+                            };
+                            InputEventVm::InputKeyEvent(vm_result_input_key_event)
+                        }
+                        InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                            let vm_result_input_pointer_button_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_pointer_button_event_kind = vm::StringHandle::new(vm_result_input_pointer_button_event_kind_value);
+                            let vm_result_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_pointer_button_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_pointer_button_event_metadata_device_id = vm::StringHandle::new(vm_result_input_pointer_button_event_metadata_device_id_value);
+                            let vm_result_input_pointer_button_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_pointer_button_event_metadata_sequence,
+                                device_id: vm_result_input_pointer_button_event_metadata_device_id,
+                            };
+                            let vm_result_input_pointer_button_event_payload_action = value.payload.action;
+                            let vm_result_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_pointer_button_event_payload_x = value.payload.x;
+                            let vm_result_input_pointer_button_event_payload_y = value.payload.y;
+                            let vm_result_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_pointer_button_event_payload = InputPointerButtonEventPayloadVm {
+                                action: vm_result_input_pointer_button_event_payload_action,
+                                backend_code: vm_result_input_pointer_button_event_payload_backend_code,
+                                backend_value: vm_result_input_pointer_button_event_payload_backend_value,
+                                x: vm_result_input_pointer_button_event_payload_x,
+                                y: vm_result_input_pointer_button_event_payload_y,
+                                modifiers: vm_result_input_pointer_button_event_payload_modifiers,
+                            };
+                            let vm_result_input_pointer_button_event = InputPointerButtonEventVm {
+                                kind: vm_result_input_pointer_button_event_kind,
+                                metadata: vm_result_input_pointer_button_event_metadata,
+                                payload: vm_result_input_pointer_button_event_payload,
+                            };
+                            InputEventVm::InputPointerButtonEvent(vm_result_input_pointer_button_event)
+                        }
+                        InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                            let vm_result_input_pointer_motion_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_pointer_motion_event_kind = vm::StringHandle::new(vm_result_input_pointer_motion_event_kind_value);
+                            let vm_result_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_pointer_motion_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_pointer_motion_event_metadata_device_id = vm::StringHandle::new(vm_result_input_pointer_motion_event_metadata_device_id_value);
+                            let vm_result_input_pointer_motion_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_pointer_motion_event_metadata_sequence,
+                                device_id: vm_result_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let vm_result_input_pointer_motion_event_payload_x = value.payload.x;
+                            let vm_result_input_pointer_motion_event_payload_y = value.payload.y;
+                            let vm_result_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let vm_result_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
+                                x: vm_result_input_pointer_motion_event_payload_x,
+                                y: vm_result_input_pointer_motion_event_payload_y,
+                                buttons: vm_result_input_pointer_motion_event_payload_buttons,
+                                modifiers: vm_result_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let vm_result_input_pointer_motion_event = InputPointerMotionEventVm {
+                                kind: vm_result_input_pointer_motion_event_kind,
+                                metadata: vm_result_input_pointer_motion_event_metadata,
+                                payload: vm_result_input_pointer_motion_event_payload,
+                            };
+                            InputEventVm::InputPointerMotionEvent(vm_result_input_pointer_motion_event)
+                        }
+                        InputEventReplayRecord::InputScrollEvent(value) => {
+                            let vm_result_input_scroll_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_scroll_event_kind = vm::StringHandle::new(vm_result_input_scroll_event_kind_value);
+                            let vm_result_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_scroll_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_scroll_event_metadata_device_id = vm::StringHandle::new(vm_result_input_scroll_event_metadata_device_id_value);
+                            let vm_result_input_scroll_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_scroll_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_scroll_event_metadata_sequence,
+                                device_id: vm_result_input_scroll_event_metadata_device_id,
+                            };
+                            let vm_result_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let vm_result_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let vm_result_input_scroll_event_payload_x = value.payload.x;
+                            let vm_result_input_scroll_event_payload_y = value.payload.y;
+                            let vm_result_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_scroll_event_payload = InputScrollEventPayloadVm {
+                                wheel_x: vm_result_input_scroll_event_payload_wheel_x,
+                                wheel_y: vm_result_input_scroll_event_payload_wheel_y,
+                                x: vm_result_input_scroll_event_payload_x,
+                                y: vm_result_input_scroll_event_payload_y,
+                                modifiers: vm_result_input_scroll_event_payload_modifiers,
+                            };
+                            let vm_result_input_scroll_event = InputScrollEventVm {
+                                kind: vm_result_input_scroll_event_kind,
+                                metadata: vm_result_input_scroll_event_metadata,
+                                payload: vm_result_input_scroll_event_payload,
+                            };
+                            InputEventVm::InputScrollEvent(vm_result_input_scroll_event)
+                        }
+                        InputEventReplayRecord::InputSensorEvent(value) => {
+                            let vm_result_input_sensor_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_sensor_event_kind = vm::StringHandle::new(vm_result_input_sensor_event_kind_value);
+                            let vm_result_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_sensor_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_sensor_event_metadata_device_id = vm::StringHandle::new(vm_result_input_sensor_event_metadata_device_id_value);
+                            let vm_result_input_sensor_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_sensor_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_sensor_event_metadata_sequence,
+                                device_id: vm_result_input_sensor_event_metadata_device_id,
+                            };
+                            let vm_result_input_sensor_event_payload_action = value.payload.action;
+                            let vm_result_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_sensor_event_payload_x = value.payload.x;
+                            let vm_result_input_sensor_event_payload_y = value.payload.y;
+                            let vm_result_input_sensor_event_payload_z = value.payload.z;
+                            let vm_result_input_sensor_event_payload = InputSensorEventPayloadVm {
+                                action: vm_result_input_sensor_event_payload_action,
+                                backend_code: vm_result_input_sensor_event_payload_backend_code,
+                                backend_value: vm_result_input_sensor_event_payload_backend_value,
+                                x: vm_result_input_sensor_event_payload_x,
+                                y: vm_result_input_sensor_event_payload_y,
+                                z: vm_result_input_sensor_event_payload_z,
+                            };
+                            let vm_result_input_sensor_event = InputSensorEventVm {
+                                kind: vm_result_input_sensor_event_kind,
+                                metadata: vm_result_input_sensor_event_metadata,
+                                payload: vm_result_input_sensor_event_payload,
+                            };
+                            InputEventVm::InputSensorEvent(vm_result_input_sensor_event)
+                        }
+                        InputEventReplayRecord::InputTextEvent(value) => {
+                            let vm_result_input_text_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_text_event_kind = vm::StringHandle::new(vm_result_input_text_event_kind_value);
+                            let vm_result_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_text_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_text_event_metadata_device_id = vm::StringHandle::new(vm_result_input_text_event_metadata_device_id_value);
+                            let vm_result_input_text_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_text_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_text_event_metadata_sequence,
+                                device_id: vm_result_input_text_event_metadata_device_id,
+                            };
+                            let vm_result_input_text_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                            let vm_result_input_text_event_payload_text = vm::StringHandle::new(vm_result_input_text_event_payload_text_value);
+                            let vm_result_input_text_event_payload = InputTextEventPayloadVm {
+                                text: vm_result_input_text_event_payload_text,
+                            };
+                            let vm_result_input_text_event = InputTextEventVm {
+                                kind: vm_result_input_text_event_kind,
+                                metadata: vm_result_input_text_event_metadata,
+                                payload: vm_result_input_text_event_payload,
+                            };
+                            InputEventVm::InputTextEvent(vm_result_input_text_event)
+                        }
+                        InputEventReplayRecord::InputTouchEvent(value) => {
+                            let vm_result_input_touch_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_touch_event_kind = vm::StringHandle::new(vm_result_input_touch_event_kind_value);
+                            let vm_result_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_touch_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_touch_event_metadata_device_id = vm::StringHandle::new(vm_result_input_touch_event_metadata_device_id_value);
+                            let vm_result_input_touch_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_touch_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_touch_event_metadata_sequence,
+                                device_id: vm_result_input_touch_event_metadata_device_id,
+                            };
+                            let vm_result_input_touch_event_payload_action = value.payload.action;
+                            let vm_result_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let vm_result_input_touch_event_payload_x = value.payload.x;
+                            let vm_result_input_touch_event_payload_y = value.payload.y;
+                            let vm_result_input_touch_event_payload_pressure = value.payload.pressure;
+                            let vm_result_input_touch_event_payload = InputTouchEventPayloadVm {
+                                action: vm_result_input_touch_event_payload_action,
+                                contact_id: vm_result_input_touch_event_payload_contact_id,
+                                x: vm_result_input_touch_event_payload_x,
+                                y: vm_result_input_touch_event_payload_y,
+                                pressure: vm_result_input_touch_event_payload_pressure,
+                            };
+                            let vm_result_input_touch_event = InputTouchEventVm {
+                                kind: vm_result_input_touch_event_kind,
+                                metadata: vm_result_input_touch_event_metadata,
+                                payload: vm_result_input_touch_event_payload,
+                            };
+                            InputEventVm::InputTouchEvent(vm_result_input_touch_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -9900,340 +11730,350 @@ fn destack_input_event_read_batch_vm_replay(
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 5 fields")).boxed()); }
-                        let result_recorded_item_kind_raw = decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => InputEventKind::Key, 2u8 => InputEventKind::PointerMotion, 3u8 => InputEventKind::PointerButton, 4u8 => InputEventKind::Scroll, 5u8 => InputEventKind::Touch, 6u8 => InputEventKind::Gamepad, 7u8 => InputEventKind::Text, 8u8 => InputEventKind::Device, 9u8 => InputEventKind::Sensor, 10u8 => InputEventKind::Composition , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown InputEventKind value")).boxed()), };
-                        let result_recorded_item_timestamp_ns = decode_uint64(slots[1], "result_recorded_item_timestamp_ns", "timestampNs")?;
-                        let result_recorded_item_sequence = decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
-                        let result_recorded_item_device_id = decode_string(slots[3], "result_recorded_item_device_id", "deviceId")?;
-                        let result_recorded_item_payload = {
-                            if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload", "payload")).boxed()); }
-                            let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 10 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload", "expected 10 fields")).boxed()); }
-                            let result_recorded_item_payload_key = {
-                                if slots[0].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_key", "key")).boxed()); }
-                                let slots = context.aggregate_slots(slots[0]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_key", "expected 6 fields")).boxed()); }
-                                let result_recorded_item_payload_key_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_key_action_raw", "action")?;
-                                let result_recorded_item_payload_key_action = match result_recorded_item_payload_key_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_key_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_key_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_key_backend_code", "backendCode")?;
-                                let result_recorded_item_payload_key_backend_scan_code = decode_uint32(slots[2], "result_recorded_item_payload_key_backend_scan_code", "backendScanCode")?;
-                                let result_recorded_item_payload_key_backend_value = decode_int64(slots[3], "result_recorded_item_payload_key_backend_value", "backendValue")?;
-                                let result_recorded_item_payload_key_modifiers = decode_uint32(slots[4], "result_recorded_item_payload_key_modifiers", "modifiers")?;
-                                let result_recorded_item_payload_key_repeat = decode_bool(slots[5], "result_recorded_item_payload_key_repeat", "repeat")?;
-                                InputKeyEventPayloadVm {
-                                    action: result_recorded_item_payload_key_action,
-                                    backend_code: result_recorded_item_payload_key_backend_code,
-                                    backend_scan_code: result_recorded_item_payload_key_backend_scan_code,
-                                    backend_value: result_recorded_item_payload_key_backend_value,
-                                    modifiers: result_recorded_item_payload_key_modifiers,
-                                    repeat: result_recorded_item_payload_key_repeat,
-                                }
+                    let result_recorded_item = <InputEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
+                    let result_recorded_item_recorded = match result_recorded_item {
+                        InputEventVm::InputCompositionEvent(value) => {
+                            let result_recorded_item_recorded_input_composition_event_kind = {
+                                let result_recorded_item_recorded_input_composition_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_composition_event_kind_ref.as_str().to_string()
                             };
-                            let result_recorded_item_payload_pointer_motion = {
-                                if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_pointer_motion", "pointerMotion")).boxed()); }
-                                let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_motion", "expected 4 fields")).boxed()); }
-                                let result_recorded_item_payload_pointer_motion_x = decode_float64(slots[0], "result_recorded_item_payload_pointer_motion_x", "x")?;
-                                let result_recorded_item_payload_pointer_motion_y = decode_float64(slots[1], "result_recorded_item_payload_pointer_motion_y", "y")?;
-                                let result_recorded_item_payload_pointer_motion_buttons = decode_uint32(slots[2], "result_recorded_item_payload_pointer_motion_buttons", "buttons")?;
-                                let result_recorded_item_payload_pointer_motion_modifiers = decode_uint32(slots[3], "result_recorded_item_payload_pointer_motion_modifiers", "modifiers")?;
-                                InputPointerMotionEventPayloadVm {
-                                    x: result_recorded_item_payload_pointer_motion_x,
-                                    y: result_recorded_item_payload_pointer_motion_y,
-                                    buttons: result_recorded_item_payload_pointer_motion_buttons,
-                                    modifiers: result_recorded_item_payload_pointer_motion_modifiers,
-                                }
+                            let result_recorded_item_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_composition_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_composition_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_composition_event_metadata_device_id_ref.as_str().to_string()
                             };
-                            let result_recorded_item_payload_pointer_button = {
-                                if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_pointer_button", "pointerButton")).boxed()); }
-                                let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_button", "expected 6 fields")).boxed()); }
-                                let result_recorded_item_payload_pointer_button_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_pointer_button_action_raw", "action")?;
-                                let result_recorded_item_payload_pointer_button_action = match result_recorded_item_payload_pointer_button_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_pointer_button_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_pointer_button_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_pointer_button_backend_code", "backendCode")?;
-                                let result_recorded_item_payload_pointer_button_backend_value = decode_int64(slots[2], "result_recorded_item_payload_pointer_button_backend_value", "backendValue")?;
-                                let result_recorded_item_payload_pointer_button_x = decode_float64(slots[3], "result_recorded_item_payload_pointer_button_x", "x")?;
-                                let result_recorded_item_payload_pointer_button_y = decode_float64(slots[4], "result_recorded_item_payload_pointer_button_y", "y")?;
-                                let result_recorded_item_payload_pointer_button_modifiers = decode_uint32(slots[5], "result_recorded_item_payload_pointer_button_modifiers", "modifiers")?;
-                                InputPointerButtonEventPayloadVm {
-                                    action: result_recorded_item_payload_pointer_button_action,
-                                    backend_code: result_recorded_item_payload_pointer_button_backend_code,
-                                    backend_value: result_recorded_item_payload_pointer_button_backend_value,
-                                    x: result_recorded_item_payload_pointer_button_x,
-                                    y: result_recorded_item_payload_pointer_button_y,
-                                    modifiers: result_recorded_item_payload_pointer_button_modifiers,
-                                }
+                            let result_recorded_item_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_composition_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_composition_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_composition_event_metadata_device_id,
                             };
-                            let result_recorded_item_payload_scroll = {
-                                if slots[3].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_scroll", "scroll")).boxed()); }
-                                let slots = context.aggregate_slots(slots[3]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_scroll", "expected 5 fields")).boxed()); }
-                                let result_recorded_item_payload_scroll_wheel_x = decode_float64(slots[0], "result_recorded_item_payload_scroll_wheel_x", "wheelX")?;
-                                let result_recorded_item_payload_scroll_wheel_y = decode_float64(slots[1], "result_recorded_item_payload_scroll_wheel_y", "wheelY")?;
-                                let result_recorded_item_payload_scroll_x = decode_float64(slots[2], "result_recorded_item_payload_scroll_x", "x")?;
-                                let result_recorded_item_payload_scroll_y = decode_float64(slots[3], "result_recorded_item_payload_scroll_y", "y")?;
-                                let result_recorded_item_payload_scroll_modifiers = decode_uint32(slots[4], "result_recorded_item_payload_scroll_modifiers", "modifiers")?;
-                                InputScrollEventPayloadVm {
-                                    wheel_x: result_recorded_item_payload_scroll_wheel_x,
-                                    wheel_y: result_recorded_item_payload_scroll_wheel_y,
-                                    x: result_recorded_item_payload_scroll_x,
-                                    y: result_recorded_item_payload_scroll_y,
-                                    modifiers: result_recorded_item_payload_scroll_modifiers,
-                                }
+                            let result_recorded_item_recorded_input_composition_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_composition_event_payload_text = {
+                                let result_recorded_item_recorded_input_composition_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_composition_event_payload_text_ref.as_str().to_string()
                             };
-                            let result_recorded_item_payload_touch = {
-                                if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_touch", "touch")).boxed()); }
-                                let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_touch", "expected 5 fields")).boxed()); }
-                                let result_recorded_item_payload_touch_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_touch_action_raw", "action")?;
-                                let result_recorded_item_payload_touch_action = match result_recorded_item_payload_touch_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_touch_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_touch_contact_id = decode_uint32(slots[1], "result_recorded_item_payload_touch_contact_id", "contactId")?;
-                                let result_recorded_item_payload_touch_x = decode_float64(slots[2], "result_recorded_item_payload_touch_x", "x")?;
-                                let result_recorded_item_payload_touch_y = decode_float64(slots[3], "result_recorded_item_payload_touch_y", "y")?;
-                                let result_recorded_item_payload_touch_pressure = decode_float64(slots[4], "result_recorded_item_payload_touch_pressure", "pressure")?;
-                                InputTouchEventPayloadVm {
-                                    action: result_recorded_item_payload_touch_action,
-                                    contact_id: result_recorded_item_payload_touch_contact_id,
-                                    x: result_recorded_item_payload_touch_x,
-                                    y: result_recorded_item_payload_touch_y,
-                                    pressure: result_recorded_item_payload_touch_pressure,
-                                }
+                            let result_recorded_item_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let result_recorded_item_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let result_recorded_item_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                                action: result_recorded_item_recorded_input_composition_event_payload_action,
+                                text: result_recorded_item_recorded_input_composition_event_payload_text,
+                                selection_start: result_recorded_item_recorded_input_composition_event_payload_selection_start,
+                                selection_end: result_recorded_item_recorded_input_composition_event_payload_selection_end,
                             };
-                            let result_recorded_item_payload_gamepad = {
-                                if slots[5].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_gamepad", "gamepad")).boxed()); }
-                                let slots = context.aggregate_slots(slots[5]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_gamepad", "expected 3 fields")).boxed()); }
-                                let result_recorded_item_payload_gamepad_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_gamepad_action_raw", "action")?;
-                                let result_recorded_item_payload_gamepad_action = match result_recorded_item_payload_gamepad_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_gamepad_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_gamepad_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_gamepad_backend_code", "backendCode")?;
-                                let result_recorded_item_payload_gamepad_backend_value = decode_int64(slots[2], "result_recorded_item_payload_gamepad_backend_value", "backendValue")?;
-                                InputGamepadEventPayloadVm {
-                                    action: result_recorded_item_payload_gamepad_action,
-                                    backend_code: result_recorded_item_payload_gamepad_backend_code,
-                                    backend_value: result_recorded_item_payload_gamepad_backend_value,
-                                }
+                            let result_recorded_item_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_composition_event_kind,
+                                metadata: result_recorded_item_recorded_input_composition_event_metadata,
+                                payload: result_recorded_item_recorded_input_composition_event_payload,
                             };
-                            let result_recorded_item_payload_text = {
-                                if slots[6].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_text", "text")).boxed()); }
-                                let slots = context.aggregate_slots(slots[6]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_text", "expected 1 fields")).boxed()); }
-                                let result_recorded_item_payload_text_text = decode_string(slots[0], "result_recorded_item_payload_text_text", "text")?;
-                                InputTextEventPayloadVm {
-                                    text: result_recorded_item_payload_text_text,
-                                }
-                            };
-                            let result_recorded_item_payload_device = {
-                                if slots[7].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_device", "device")).boxed()); }
-                                let slots = context.aggregate_slots(slots[7]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_device", "expected 3 fields")).boxed()); }
-                                let result_recorded_item_payload_device_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_device_action_raw", "action")?;
-                                let result_recorded_item_payload_device_action = match result_recorded_item_payload_device_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_device_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_device_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_device_backend_code", "backendCode")?;
-                                let result_recorded_item_payload_device_backend_value = decode_int64(slots[2], "result_recorded_item_payload_device_backend_value", "backendValue")?;
-                                InputDeviceEventPayloadVm {
-                                    action: result_recorded_item_payload_device_action,
-                                    backend_code: result_recorded_item_payload_device_backend_code,
-                                    backend_value: result_recorded_item_payload_device_backend_value,
-                                }
-                            };
-                            let result_recorded_item_payload_sensor = {
-                                if slots[8].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_sensor", "sensor")).boxed()); }
-                                let slots = context.aggregate_slots(slots[8]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_sensor", "expected 6 fields")).boxed()); }
-                                let result_recorded_item_payload_sensor_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_sensor_action_raw", "action")?;
-                                let result_recorded_item_payload_sensor_action = match result_recorded_item_payload_sensor_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_sensor_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_sensor_backend_code = decode_uint32(slots[1], "result_recorded_item_payload_sensor_backend_code", "backendCode")?;
-                                let result_recorded_item_payload_sensor_backend_value = decode_int64(slots[2], "result_recorded_item_payload_sensor_backend_value", "backendValue")?;
-                                let result_recorded_item_payload_sensor_x = decode_float64(slots[3], "result_recorded_item_payload_sensor_x", "x")?;
-                                let result_recorded_item_payload_sensor_y = decode_float64(slots[4], "result_recorded_item_payload_sensor_y", "y")?;
-                                let result_recorded_item_payload_sensor_z = decode_float64(slots[5], "result_recorded_item_payload_sensor_z", "z")?;
-                                InputSensorEventPayloadVm {
-                                    action: result_recorded_item_payload_sensor_action,
-                                    backend_code: result_recorded_item_payload_sensor_backend_code,
-                                    backend_value: result_recorded_item_payload_sensor_backend_value,
-                                    x: result_recorded_item_payload_sensor_x,
-                                    y: result_recorded_item_payload_sensor_y,
-                                    z: result_recorded_item_payload_sensor_z,
-                                }
-                            };
-                            let result_recorded_item_payload_composition = {
-                                if slots[9].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_composition", "composition")).boxed()); }
-                                let slots = context.aggregate_slots(slots[9]).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_composition", "expected 4 fields")).boxed()); }
-                                let result_recorded_item_payload_composition_action_raw = decode_uint8(slots[0], "result_recorded_item_payload_composition_action_raw", "action")?;
-                                let result_recorded_item_payload_composition_action = match result_recorded_item_payload_composition_action_raw { 1u8 => InputEventAction::Press, 2u8 => InputEventAction::Release, 3u8 => InputEventAction::Repeat, 4u8 => InputEventAction::Move, 5u8 => InputEventAction::Scroll, 6u8 => InputEventAction::Axis, 7u8 => InputEventAction::Text, 8u8 => InputEventAction::Connect, 9u8 => InputEventAction::Disconnect, 10u8 => InputEventAction::Cancel, 11u8 => InputEventAction::Begin, 12u8 => InputEventAction::Update, 13u8 => InputEventAction::Commit, 14u8 => InputEventAction::End , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_composition_action", "unknown InputEventAction value")).boxed()), };
-                                let result_recorded_item_payload_composition_text = decode_string(slots[1], "result_recorded_item_payload_composition_text", "text")?;
-                                let result_recorded_item_payload_composition_selection_start = decode_int32(slots[2], "result_recorded_item_payload_composition_selection_start", "selectionStart")?;
-                                let result_recorded_item_payload_composition_selection_end = decode_int32(slots[3], "result_recorded_item_payload_composition_selection_end", "selectionEnd")?;
-                                InputCompositionEventPayloadVm {
-                                    action: result_recorded_item_payload_composition_action,
-                                    text: result_recorded_item_payload_composition_text,
-                                    selection_start: result_recorded_item_payload_composition_selection_start,
-                                    selection_end: result_recorded_item_payload_composition_selection_end,
-                                }
-                            };
-                            InputEventPayloadVm {
-                                key: result_recorded_item_payload_key,
-                                pointer_motion: result_recorded_item_payload_pointer_motion,
-                                pointer_button: result_recorded_item_payload_pointer_button,
-                                scroll: result_recorded_item_payload_scroll,
-                                touch: result_recorded_item_payload_touch,
-                                gamepad: result_recorded_item_payload_gamepad,
-                                text: result_recorded_item_payload_text,
-                                device: result_recorded_item_payload_device,
-                                sensor: result_recorded_item_payload_sensor,
-                                composition: result_recorded_item_payload_composition,
-                            }
-                        };
-                        InputEventVm {
-                            kind: result_recorded_item_kind,
-                            timestamp_ns: result_recorded_item_timestamp_ns,
-                            sequence: result_recorded_item_sequence,
-                            device_id: result_recorded_item_device_id,
-                            payload: result_recorded_item_payload,
+                            InputEventReplayRecord::InputCompositionEvent(result_recorded_item_recorded_input_composition_event)
                         }
-                    };
-                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
-                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
-                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
-                    let result_recorded_item_recorded_device_id = {
-                        let result_recorded_item_recorded_device_id_ref = context.string_ref(result_recorded_item.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_device_id_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_payload_key_action = result_recorded_item.payload.key.action;
-                    let result_recorded_item_recorded_payload_key_backend_code = result_recorded_item.payload.key.backend_code;
-                    let result_recorded_item_recorded_payload_key_backend_scan_code = result_recorded_item.payload.key.backend_scan_code;
-                    let result_recorded_item_recorded_payload_key_backend_value = result_recorded_item.payload.key.backend_value;
-                    let result_recorded_item_recorded_payload_key_modifiers = result_recorded_item.payload.key.modifiers;
-                    let result_recorded_item_recorded_payload_key_repeat = result_recorded_item.payload.key.repeat;
-                    let result_recorded_item_recorded_payload_key = InputKeyEventPayload {
-                        action: result_recorded_item_recorded_payload_key_action,
-                        backend_code: result_recorded_item_recorded_payload_key_backend_code,
-                        backend_scan_code: result_recorded_item_recorded_payload_key_backend_scan_code,
-                        backend_value: result_recorded_item_recorded_payload_key_backend_value,
-                        modifiers: result_recorded_item_recorded_payload_key_modifiers,
-                        repeat: result_recorded_item_recorded_payload_key_repeat,
-                    };
-                    let result_recorded_item_recorded_payload_pointer_motion_x = result_recorded_item.payload.pointer_motion.x;
-                    let result_recorded_item_recorded_payload_pointer_motion_y = result_recorded_item.payload.pointer_motion.y;
-                    let result_recorded_item_recorded_payload_pointer_motion_buttons = result_recorded_item.payload.pointer_motion.buttons;
-                    let result_recorded_item_recorded_payload_pointer_motion_modifiers = result_recorded_item.payload.pointer_motion.modifiers;
-                    let result_recorded_item_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
-                        x: result_recorded_item_recorded_payload_pointer_motion_x,
-                        y: result_recorded_item_recorded_payload_pointer_motion_y,
-                        buttons: result_recorded_item_recorded_payload_pointer_motion_buttons,
-                        modifiers: result_recorded_item_recorded_payload_pointer_motion_modifiers,
-                    };
-                    let result_recorded_item_recorded_payload_pointer_button_action = result_recorded_item.payload.pointer_button.action;
-                    let result_recorded_item_recorded_payload_pointer_button_backend_code = result_recorded_item.payload.pointer_button.backend_code;
-                    let result_recorded_item_recorded_payload_pointer_button_backend_value = result_recorded_item.payload.pointer_button.backend_value;
-                    let result_recorded_item_recorded_payload_pointer_button_x = result_recorded_item.payload.pointer_button.x;
-                    let result_recorded_item_recorded_payload_pointer_button_y = result_recorded_item.payload.pointer_button.y;
-                    let result_recorded_item_recorded_payload_pointer_button_modifiers = result_recorded_item.payload.pointer_button.modifiers;
-                    let result_recorded_item_recorded_payload_pointer_button = InputPointerButtonEventPayload {
-                        action: result_recorded_item_recorded_payload_pointer_button_action,
-                        backend_code: result_recorded_item_recorded_payload_pointer_button_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_pointer_button_backend_value,
-                        x: result_recorded_item_recorded_payload_pointer_button_x,
-                        y: result_recorded_item_recorded_payload_pointer_button_y,
-                        modifiers: result_recorded_item_recorded_payload_pointer_button_modifiers,
-                    };
-                    let result_recorded_item_recorded_payload_scroll_wheel_x = result_recorded_item.payload.scroll.wheel_x;
-                    let result_recorded_item_recorded_payload_scroll_wheel_y = result_recorded_item.payload.scroll.wheel_y;
-                    let result_recorded_item_recorded_payload_scroll_x = result_recorded_item.payload.scroll.x;
-                    let result_recorded_item_recorded_payload_scroll_y = result_recorded_item.payload.scroll.y;
-                    let result_recorded_item_recorded_payload_scroll_modifiers = result_recorded_item.payload.scroll.modifiers;
-                    let result_recorded_item_recorded_payload_scroll = InputScrollEventPayload {
-                        wheel_x: result_recorded_item_recorded_payload_scroll_wheel_x,
-                        wheel_y: result_recorded_item_recorded_payload_scroll_wheel_y,
-                        x: result_recorded_item_recorded_payload_scroll_x,
-                        y: result_recorded_item_recorded_payload_scroll_y,
-                        modifiers: result_recorded_item_recorded_payload_scroll_modifiers,
-                    };
-                    let result_recorded_item_recorded_payload_touch_action = result_recorded_item.payload.touch.action;
-                    let result_recorded_item_recorded_payload_touch_contact_id = result_recorded_item.payload.touch.contact_id;
-                    let result_recorded_item_recorded_payload_touch_x = result_recorded_item.payload.touch.x;
-                    let result_recorded_item_recorded_payload_touch_y = result_recorded_item.payload.touch.y;
-                    let result_recorded_item_recorded_payload_touch_pressure = result_recorded_item.payload.touch.pressure;
-                    let result_recorded_item_recorded_payload_touch = InputTouchEventPayload {
-                        action: result_recorded_item_recorded_payload_touch_action,
-                        contact_id: result_recorded_item_recorded_payload_touch_contact_id,
-                        x: result_recorded_item_recorded_payload_touch_x,
-                        y: result_recorded_item_recorded_payload_touch_y,
-                        pressure: result_recorded_item_recorded_payload_touch_pressure,
-                    };
-                    let result_recorded_item_recorded_payload_gamepad_action = result_recorded_item.payload.gamepad.action;
-                    let result_recorded_item_recorded_payload_gamepad_backend_code = result_recorded_item.payload.gamepad.backend_code;
-                    let result_recorded_item_recorded_payload_gamepad_backend_value = result_recorded_item.payload.gamepad.backend_value;
-                    let result_recorded_item_recorded_payload_gamepad = InputGamepadEventPayload {
-                        action: result_recorded_item_recorded_payload_gamepad_action,
-                        backend_code: result_recorded_item_recorded_payload_gamepad_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_gamepad_backend_value,
-                    };
-                    let result_recorded_item_recorded_payload_text_text = {
-                        let result_recorded_item_recorded_payload_text_text_ref = context.string_ref(result_recorded_item.payload.text.text).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_payload_text_text_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_payload_text = InputTextEventPayloadReplayRecord {
-                        text: result_recorded_item_recorded_payload_text_text,
-                    };
-                    let result_recorded_item_recorded_payload_device_action = result_recorded_item.payload.device.action;
-                    let result_recorded_item_recorded_payload_device_backend_code = result_recorded_item.payload.device.backend_code;
-                    let result_recorded_item_recorded_payload_device_backend_value = result_recorded_item.payload.device.backend_value;
-                    let result_recorded_item_recorded_payload_device = InputDeviceEventPayload {
-                        action: result_recorded_item_recorded_payload_device_action,
-                        backend_code: result_recorded_item_recorded_payload_device_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_device_backend_value,
-                    };
-                    let result_recorded_item_recorded_payload_sensor_action = result_recorded_item.payload.sensor.action;
-                    let result_recorded_item_recorded_payload_sensor_backend_code = result_recorded_item.payload.sensor.backend_code;
-                    let result_recorded_item_recorded_payload_sensor_backend_value = result_recorded_item.payload.sensor.backend_value;
-                    let result_recorded_item_recorded_payload_sensor_x = result_recorded_item.payload.sensor.x;
-                    let result_recorded_item_recorded_payload_sensor_y = result_recorded_item.payload.sensor.y;
-                    let result_recorded_item_recorded_payload_sensor_z = result_recorded_item.payload.sensor.z;
-                    let result_recorded_item_recorded_payload_sensor = InputSensorEventPayload {
-                        action: result_recorded_item_recorded_payload_sensor_action,
-                        backend_code: result_recorded_item_recorded_payload_sensor_backend_code,
-                        backend_value: result_recorded_item_recorded_payload_sensor_backend_value,
-                        x: result_recorded_item_recorded_payload_sensor_x,
-                        y: result_recorded_item_recorded_payload_sensor_y,
-                        z: result_recorded_item_recorded_payload_sensor_z,
-                    };
-                    let result_recorded_item_recorded_payload_composition_action = result_recorded_item.payload.composition.action;
-                    let result_recorded_item_recorded_payload_composition_text = {
-                        let result_recorded_item_recorded_payload_composition_text_ref = context.string_ref(result_recorded_item.payload.composition.text).map_err(|error| RuntimeError::from(error).boxed())?;
-                        result_recorded_item_recorded_payload_composition_text_ref.as_str().to_string()
-                    };
-                    let result_recorded_item_recorded_payload_composition_selection_start = result_recorded_item.payload.composition.selection_start;
-                    let result_recorded_item_recorded_payload_composition_selection_end = result_recorded_item.payload.composition.selection_end;
-                    let result_recorded_item_recorded_payload_composition = InputCompositionEventPayloadReplayRecord {
-                        action: result_recorded_item_recorded_payload_composition_action,
-                        text: result_recorded_item_recorded_payload_composition_text,
-                        selection_start: result_recorded_item_recorded_payload_composition_selection_start,
-                        selection_end: result_recorded_item_recorded_payload_composition_selection_end,
-                    };
-                    let result_recorded_item_recorded_payload = InputEventPayloadReplayRecord {
-                        key: result_recorded_item_recorded_payload_key,
-                        pointer_motion: result_recorded_item_recorded_payload_pointer_motion,
-                        pointer_button: result_recorded_item_recorded_payload_pointer_button,
-                        scroll: result_recorded_item_recorded_payload_scroll,
-                        touch: result_recorded_item_recorded_payload_touch,
-                        gamepad: result_recorded_item_recorded_payload_gamepad,
-                        text: result_recorded_item_recorded_payload_text,
-                        device: result_recorded_item_recorded_payload_device,
-                        sensor: result_recorded_item_recorded_payload_sensor,
-                        composition: result_recorded_item_recorded_payload_composition,
-                    };
-                    let result_recorded_item_recorded = InputEventReplayRecord {
-                        kind: result_recorded_item_recorded_kind,
-                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
-                        sequence: result_recorded_item_recorded_sequence,
-                        device_id: result_recorded_item_recorded_device_id,
-                        payload: result_recorded_item_recorded_payload,
+                        InputEventVm::InputDeviceEvent(value) => {
+                            let result_recorded_item_recorded_input_device_event_kind = {
+                                let result_recorded_item_recorded_input_device_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_device_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_device_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_device_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_device_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_device_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_device_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_device_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_device_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_device_event_payload = InputDeviceEventPayload {
+                                action: result_recorded_item_recorded_input_device_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_device_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_device_event_payload_backend_value,
+                            };
+                            let result_recorded_item_recorded_input_device_event = InputDeviceEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_device_event_kind,
+                                metadata: result_recorded_item_recorded_input_device_event_metadata,
+                                payload: result_recorded_item_recorded_input_device_event_payload,
+                            };
+                            InputEventReplayRecord::InputDeviceEvent(result_recorded_item_recorded_input_device_event)
+                        }
+                        InputEventVm::InputGamepadEvent(value) => {
+                            let result_recorded_item_recorded_input_gamepad_event_kind = {
+                                let result_recorded_item_recorded_input_gamepad_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_gamepad_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_gamepad_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_gamepad_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_gamepad_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_gamepad_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_gamepad_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                                action: result_recorded_item_recorded_input_gamepad_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_gamepad_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_gamepad_event_payload_backend_value,
+                            };
+                            let result_recorded_item_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_gamepad_event_kind,
+                                metadata: result_recorded_item_recorded_input_gamepad_event_metadata,
+                                payload: result_recorded_item_recorded_input_gamepad_event_payload,
+                            };
+                            InputEventReplayRecord::InputGamepadEvent(result_recorded_item_recorded_input_gamepad_event)
+                        }
+                        InputEventVm::InputKeyEvent(value) => {
+                            let result_recorded_item_recorded_input_key_event_kind = {
+                                let result_recorded_item_recorded_input_key_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_key_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_key_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_key_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_key_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_key_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_key_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_key_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_key_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let result_recorded_item_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                            let result_recorded_item_recorded_input_key_event_payload = InputKeyEventPayload {
+                                action: result_recorded_item_recorded_input_key_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_key_event_payload_backend_code,
+                                backend_scan_code: result_recorded_item_recorded_input_key_event_payload_backend_scan_code,
+                                backend_value: result_recorded_item_recorded_input_key_event_payload_backend_value,
+                                modifiers: result_recorded_item_recorded_input_key_event_payload_modifiers,
+                                repeat: result_recorded_item_recorded_input_key_event_payload_repeat,
+                            };
+                            let result_recorded_item_recorded_input_key_event = InputKeyEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_key_event_kind,
+                                metadata: result_recorded_item_recorded_input_key_event_metadata,
+                                payload: result_recorded_item_recorded_input_key_event_payload,
+                            };
+                            InputEventReplayRecord::InputKeyEvent(result_recorded_item_recorded_input_key_event)
+                        }
+                        InputEventVm::InputPointerButtonEvent(value) => {
+                            let result_recorded_item_recorded_input_pointer_button_event_kind = {
+                                let result_recorded_item_recorded_input_pointer_button_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_pointer_button_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_pointer_button_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_pointer_button_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_pointer_button_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_pointer_button_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                                action: result_recorded_item_recorded_input_pointer_button_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_pointer_button_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_pointer_button_event_payload_backend_value,
+                                x: result_recorded_item_recorded_input_pointer_button_event_payload_x,
+                                y: result_recorded_item_recorded_input_pointer_button_event_payload_y,
+                                modifiers: result_recorded_item_recorded_input_pointer_button_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_pointer_button_event_kind,
+                                metadata: result_recorded_item_recorded_input_pointer_button_event_metadata,
+                                payload: result_recorded_item_recorded_input_pointer_button_event_payload,
+                            };
+                            InputEventReplayRecord::InputPointerButtonEvent(result_recorded_item_recorded_input_pointer_button_event)
+                        }
+                        InputEventVm::InputPointerMotionEvent(value) => {
+                            let result_recorded_item_recorded_input_pointer_motion_event_kind = {
+                                let result_recorded_item_recorded_input_pointer_motion_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_pointer_motion_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_pointer_motion_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                                x: result_recorded_item_recorded_input_pointer_motion_event_payload_x,
+                                y: result_recorded_item_recorded_input_pointer_motion_event_payload_y,
+                                buttons: result_recorded_item_recorded_input_pointer_motion_event_payload_buttons,
+                                modifiers: result_recorded_item_recorded_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_pointer_motion_event_kind,
+                                metadata: result_recorded_item_recorded_input_pointer_motion_event_metadata,
+                                payload: result_recorded_item_recorded_input_pointer_motion_event_payload,
+                            };
+                            InputEventReplayRecord::InputPointerMotionEvent(result_recorded_item_recorded_input_pointer_motion_event)
+                        }
+                        InputEventVm::InputScrollEvent(value) => {
+                            let result_recorded_item_recorded_input_scroll_event_kind = {
+                                let result_recorded_item_recorded_input_scroll_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_scroll_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_scroll_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_scroll_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_scroll_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_scroll_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_scroll_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_scroll_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let result_recorded_item_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let result_recorded_item_recorded_input_scroll_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_scroll_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let result_recorded_item_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                                wheel_x: result_recorded_item_recorded_input_scroll_event_payload_wheel_x,
+                                wheel_y: result_recorded_item_recorded_input_scroll_event_payload_wheel_y,
+                                x: result_recorded_item_recorded_input_scroll_event_payload_x,
+                                y: result_recorded_item_recorded_input_scroll_event_payload_y,
+                                modifiers: result_recorded_item_recorded_input_scroll_event_payload_modifiers,
+                            };
+                            let result_recorded_item_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_scroll_event_kind,
+                                metadata: result_recorded_item_recorded_input_scroll_event_metadata,
+                                payload: result_recorded_item_recorded_input_scroll_event_payload,
+                            };
+                            InputEventReplayRecord::InputScrollEvent(result_recorded_item_recorded_input_scroll_event)
+                        }
+                        InputEventVm::InputSensorEvent(value) => {
+                            let result_recorded_item_recorded_input_sensor_event_kind = {
+                                let result_recorded_item_recorded_input_sensor_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_sensor_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_sensor_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_sensor_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_sensor_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_sensor_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_sensor_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_sensor_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_sensor_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let result_recorded_item_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let result_recorded_item_recorded_input_sensor_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_sensor_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_sensor_event_payload_z = value.payload.z;
+                            let result_recorded_item_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                                action: result_recorded_item_recorded_input_sensor_event_payload_action,
+                                backend_code: result_recorded_item_recorded_input_sensor_event_payload_backend_code,
+                                backend_value: result_recorded_item_recorded_input_sensor_event_payload_backend_value,
+                                x: result_recorded_item_recorded_input_sensor_event_payload_x,
+                                y: result_recorded_item_recorded_input_sensor_event_payload_y,
+                                z: result_recorded_item_recorded_input_sensor_event_payload_z,
+                            };
+                            let result_recorded_item_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_sensor_event_kind,
+                                metadata: result_recorded_item_recorded_input_sensor_event_metadata,
+                                payload: result_recorded_item_recorded_input_sensor_event_payload,
+                            };
+                            InputEventReplayRecord::InputSensorEvent(result_recorded_item_recorded_input_sensor_event)
+                        }
+                        InputEventVm::InputTextEvent(value) => {
+                            let result_recorded_item_recorded_input_text_event_kind = {
+                                let result_recorded_item_recorded_input_text_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_text_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_text_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_text_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_text_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_text_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_text_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_text_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_text_event_payload_text = {
+                                let result_recorded_item_recorded_input_text_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_text_event_payload_text_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                                text: result_recorded_item_recorded_input_text_event_payload_text,
+                            };
+                            let result_recorded_item_recorded_input_text_event = InputTextEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_text_event_kind,
+                                metadata: result_recorded_item_recorded_input_text_event_metadata,
+                                payload: result_recorded_item_recorded_input_text_event_payload,
+                            };
+                            InputEventReplayRecord::InputTextEvent(result_recorded_item_recorded_input_text_event)
+                        }
+                        InputEventVm::InputTouchEvent(value) => {
+                            let result_recorded_item_recorded_input_touch_event_kind = {
+                                let result_recorded_item_recorded_input_touch_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_touch_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let result_recorded_item_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let result_recorded_item_recorded_input_touch_event_metadata_device_id = {
+                                let result_recorded_item_recorded_input_touch_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_input_touch_event_metadata_device_id_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                                timestamp_ns: result_recorded_item_recorded_input_touch_event_metadata_timestamp_ns,
+                                sequence: result_recorded_item_recorded_input_touch_event_metadata_sequence,
+                                device_id: result_recorded_item_recorded_input_touch_event_metadata_device_id,
+                            };
+                            let result_recorded_item_recorded_input_touch_event_payload_action = value.payload.action;
+                            let result_recorded_item_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let result_recorded_item_recorded_input_touch_event_payload_x = value.payload.x;
+                            let result_recorded_item_recorded_input_touch_event_payload_y = value.payload.y;
+                            let result_recorded_item_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                            let result_recorded_item_recorded_input_touch_event_payload = InputTouchEventPayload {
+                                action: result_recorded_item_recorded_input_touch_event_payload_action,
+                                contact_id: result_recorded_item_recorded_input_touch_event_payload_contact_id,
+                                x: result_recorded_item_recorded_input_touch_event_payload_x,
+                                y: result_recorded_item_recorded_input_touch_event_payload_y,
+                                pressure: result_recorded_item_recorded_input_touch_event_payload_pressure,
+                            };
+                            let result_recorded_item_recorded_input_touch_event = InputTouchEventReplayRecord {
+                                kind: result_recorded_item_recorded_input_touch_event_kind,
+                                metadata: result_recorded_item_recorded_input_touch_event_metadata,
+                                payload: result_recorded_item_recorded_input_touch_event_payload,
+                            };
+                            InputEventReplayRecord::InputTouchEvent(result_recorded_item_recorded_input_touch_event)
+                        }
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -10263,139 +12103,307 @@ fn destack_input_event_read_batch_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
-                        let vm_result_item_value_kind = vm_result_item.kind;
-                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
-                        let vm_result_item_value_sequence = vm_result_item.sequence;
-                        let vm_result_item_value_device_id_value = context.intern_string(vm_result_item.device_id.as_str());
-                        let vm_result_item_value_device_id = vm::StringHandle::new(vm_result_item_value_device_id_value);
-                        let vm_result_item_value_payload_key_action = vm_result_item.payload.key.action;
-                        let vm_result_item_value_payload_key_backend_code = vm_result_item.payload.key.backend_code;
-                        let vm_result_item_value_payload_key_backend_scan_code = vm_result_item.payload.key.backend_scan_code;
-                        let vm_result_item_value_payload_key_backend_value = vm_result_item.payload.key.backend_value;
-                        let vm_result_item_value_payload_key_modifiers = vm_result_item.payload.key.modifiers;
-                        let vm_result_item_value_payload_key_repeat = vm_result_item.payload.key.repeat;
-                        let vm_result_item_value_payload_key = InputKeyEventPayloadVm {
-                            action: vm_result_item_value_payload_key_action,
-                            backend_code: vm_result_item_value_payload_key_backend_code,
-                            backend_scan_code: vm_result_item_value_payload_key_backend_scan_code,
-                            backend_value: vm_result_item_value_payload_key_backend_value,
-                            modifiers: vm_result_item_value_payload_key_modifiers,
-                            repeat: vm_result_item_value_payload_key_repeat,
+                        let vm_result_item_value = match vm_result_item {
+                            InputEventReplayRecord::InputCompositionEvent(value) => {
+                                let vm_result_item_value_input_composition_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_composition_event_kind = vm::StringHandle::new(vm_result_item_value_input_composition_event_kind_value);
+                                let vm_result_item_value_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_composition_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_composition_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_composition_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_composition_event_metadata_device_id_value);
+                                let vm_result_item_value_input_composition_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_composition_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_composition_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_composition_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_composition_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_composition_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                                let vm_result_item_value_input_composition_event_payload_text = vm::StringHandle::new(vm_result_item_value_input_composition_event_payload_text_value);
+                                let vm_result_item_value_input_composition_event_payload_selection_start = value.payload.selection_start;
+                                let vm_result_item_value_input_composition_event_payload_selection_end = value.payload.selection_end;
+                                let vm_result_item_value_input_composition_event_payload = InputCompositionEventPayloadVm {
+                                    action: vm_result_item_value_input_composition_event_payload_action,
+                                    text: vm_result_item_value_input_composition_event_payload_text,
+                                    selection_start: vm_result_item_value_input_composition_event_payload_selection_start,
+                                    selection_end: vm_result_item_value_input_composition_event_payload_selection_end,
+                                };
+                                let vm_result_item_value_input_composition_event = InputCompositionEventVm {
+                                    kind: vm_result_item_value_input_composition_event_kind,
+                                    metadata: vm_result_item_value_input_composition_event_metadata,
+                                    payload: vm_result_item_value_input_composition_event_payload,
+                                };
+                                InputEventVm::InputCompositionEvent(vm_result_item_value_input_composition_event)
+                            }
+                            InputEventReplayRecord::InputDeviceEvent(value) => {
+                                let vm_result_item_value_input_device_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_device_event_kind = vm::StringHandle::new(vm_result_item_value_input_device_event_kind_value);
+                                let vm_result_item_value_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_device_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_device_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_device_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_device_event_metadata_device_id_value);
+                                let vm_result_item_value_input_device_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_device_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_device_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_device_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_device_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_device_event_payload_backend_code = value.payload.backend_code;
+                                let vm_result_item_value_input_device_event_payload_backend_value = value.payload.backend_value;
+                                let vm_result_item_value_input_device_event_payload = InputDeviceEventPayloadVm {
+                                    action: vm_result_item_value_input_device_event_payload_action,
+                                    backend_code: vm_result_item_value_input_device_event_payload_backend_code,
+                                    backend_value: vm_result_item_value_input_device_event_payload_backend_value,
+                                };
+                                let vm_result_item_value_input_device_event = InputDeviceEventVm {
+                                    kind: vm_result_item_value_input_device_event_kind,
+                                    metadata: vm_result_item_value_input_device_event_metadata,
+                                    payload: vm_result_item_value_input_device_event_payload,
+                                };
+                                InputEventVm::InputDeviceEvent(vm_result_item_value_input_device_event)
+                            }
+                            InputEventReplayRecord::InputGamepadEvent(value) => {
+                                let vm_result_item_value_input_gamepad_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_gamepad_event_kind = vm::StringHandle::new(vm_result_item_value_input_gamepad_event_kind_value);
+                                let vm_result_item_value_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_gamepad_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_gamepad_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_gamepad_event_metadata_device_id_value);
+                                let vm_result_item_value_input_gamepad_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_gamepad_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_gamepad_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_gamepad_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_gamepad_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                                let vm_result_item_value_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                                let vm_result_item_value_input_gamepad_event_payload = InputGamepadEventPayloadVm {
+                                    action: vm_result_item_value_input_gamepad_event_payload_action,
+                                    backend_code: vm_result_item_value_input_gamepad_event_payload_backend_code,
+                                    backend_value: vm_result_item_value_input_gamepad_event_payload_backend_value,
+                                };
+                                let vm_result_item_value_input_gamepad_event = InputGamepadEventVm {
+                                    kind: vm_result_item_value_input_gamepad_event_kind,
+                                    metadata: vm_result_item_value_input_gamepad_event_metadata,
+                                    payload: vm_result_item_value_input_gamepad_event_payload,
+                                };
+                                InputEventVm::InputGamepadEvent(vm_result_item_value_input_gamepad_event)
+                            }
+                            InputEventReplayRecord::InputKeyEvent(value) => {
+                                let vm_result_item_value_input_key_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_key_event_kind = vm::StringHandle::new(vm_result_item_value_input_key_event_kind_value);
+                                let vm_result_item_value_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_key_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_key_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_key_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_key_event_metadata_device_id_value);
+                                let vm_result_item_value_input_key_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_key_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_key_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_key_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_key_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_key_event_payload_backend_code = value.payload.backend_code;
+                                let vm_result_item_value_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                                let vm_result_item_value_input_key_event_payload_backend_value = value.payload.backend_value;
+                                let vm_result_item_value_input_key_event_payload_modifiers = value.payload.modifiers;
+                                let vm_result_item_value_input_key_event_payload_repeat = value.payload.repeat;
+                                let vm_result_item_value_input_key_event_payload = InputKeyEventPayloadVm {
+                                    action: vm_result_item_value_input_key_event_payload_action,
+                                    backend_code: vm_result_item_value_input_key_event_payload_backend_code,
+                                    backend_scan_code: vm_result_item_value_input_key_event_payload_backend_scan_code,
+                                    backend_value: vm_result_item_value_input_key_event_payload_backend_value,
+                                    modifiers: vm_result_item_value_input_key_event_payload_modifiers,
+                                    repeat: vm_result_item_value_input_key_event_payload_repeat,
+                                };
+                                let vm_result_item_value_input_key_event = InputKeyEventVm {
+                                    kind: vm_result_item_value_input_key_event_kind,
+                                    metadata: vm_result_item_value_input_key_event_metadata,
+                                    payload: vm_result_item_value_input_key_event_payload,
+                                };
+                                InputEventVm::InputKeyEvent(vm_result_item_value_input_key_event)
+                            }
+                            InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                                let vm_result_item_value_input_pointer_button_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_pointer_button_event_kind = vm::StringHandle::new(vm_result_item_value_input_pointer_button_event_kind_value);
+                                let vm_result_item_value_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_pointer_button_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_pointer_button_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_pointer_button_event_metadata_device_id_value);
+                                let vm_result_item_value_input_pointer_button_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_pointer_button_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_pointer_button_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_pointer_button_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_pointer_button_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                                let vm_result_item_value_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                                let vm_result_item_value_input_pointer_button_event_payload_x = value.payload.x;
+                                let vm_result_item_value_input_pointer_button_event_payload_y = value.payload.y;
+                                let vm_result_item_value_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                                let vm_result_item_value_input_pointer_button_event_payload = InputPointerButtonEventPayloadVm {
+                                    action: vm_result_item_value_input_pointer_button_event_payload_action,
+                                    backend_code: vm_result_item_value_input_pointer_button_event_payload_backend_code,
+                                    backend_value: vm_result_item_value_input_pointer_button_event_payload_backend_value,
+                                    x: vm_result_item_value_input_pointer_button_event_payload_x,
+                                    y: vm_result_item_value_input_pointer_button_event_payload_y,
+                                    modifiers: vm_result_item_value_input_pointer_button_event_payload_modifiers,
+                                };
+                                let vm_result_item_value_input_pointer_button_event = InputPointerButtonEventVm {
+                                    kind: vm_result_item_value_input_pointer_button_event_kind,
+                                    metadata: vm_result_item_value_input_pointer_button_event_metadata,
+                                    payload: vm_result_item_value_input_pointer_button_event_payload,
+                                };
+                                InputEventVm::InputPointerButtonEvent(vm_result_item_value_input_pointer_button_event)
+                            }
+                            InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                                let vm_result_item_value_input_pointer_motion_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_pointer_motion_event_kind = vm::StringHandle::new(vm_result_item_value_input_pointer_motion_event_kind_value);
+                                let vm_result_item_value_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_pointer_motion_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_pointer_motion_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_pointer_motion_event_metadata_device_id_value);
+                                let vm_result_item_value_input_pointer_motion_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_pointer_motion_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_pointer_motion_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_pointer_motion_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_pointer_motion_event_payload_x = value.payload.x;
+                                let vm_result_item_value_input_pointer_motion_event_payload_y = value.payload.y;
+                                let vm_result_item_value_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                                let vm_result_item_value_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                                let vm_result_item_value_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
+                                    x: vm_result_item_value_input_pointer_motion_event_payload_x,
+                                    y: vm_result_item_value_input_pointer_motion_event_payload_y,
+                                    buttons: vm_result_item_value_input_pointer_motion_event_payload_buttons,
+                                    modifiers: vm_result_item_value_input_pointer_motion_event_payload_modifiers,
+                                };
+                                let vm_result_item_value_input_pointer_motion_event = InputPointerMotionEventVm {
+                                    kind: vm_result_item_value_input_pointer_motion_event_kind,
+                                    metadata: vm_result_item_value_input_pointer_motion_event_metadata,
+                                    payload: vm_result_item_value_input_pointer_motion_event_payload,
+                                };
+                                InputEventVm::InputPointerMotionEvent(vm_result_item_value_input_pointer_motion_event)
+                            }
+                            InputEventReplayRecord::InputScrollEvent(value) => {
+                                let vm_result_item_value_input_scroll_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_scroll_event_kind = vm::StringHandle::new(vm_result_item_value_input_scroll_event_kind_value);
+                                let vm_result_item_value_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_scroll_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_scroll_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_scroll_event_metadata_device_id_value);
+                                let vm_result_item_value_input_scroll_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_scroll_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_scroll_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_scroll_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                                let vm_result_item_value_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                                let vm_result_item_value_input_scroll_event_payload_x = value.payload.x;
+                                let vm_result_item_value_input_scroll_event_payload_y = value.payload.y;
+                                let vm_result_item_value_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                                let vm_result_item_value_input_scroll_event_payload = InputScrollEventPayloadVm {
+                                    wheel_x: vm_result_item_value_input_scroll_event_payload_wheel_x,
+                                    wheel_y: vm_result_item_value_input_scroll_event_payload_wheel_y,
+                                    x: vm_result_item_value_input_scroll_event_payload_x,
+                                    y: vm_result_item_value_input_scroll_event_payload_y,
+                                    modifiers: vm_result_item_value_input_scroll_event_payload_modifiers,
+                                };
+                                let vm_result_item_value_input_scroll_event = InputScrollEventVm {
+                                    kind: vm_result_item_value_input_scroll_event_kind,
+                                    metadata: vm_result_item_value_input_scroll_event_metadata,
+                                    payload: vm_result_item_value_input_scroll_event_payload,
+                                };
+                                InputEventVm::InputScrollEvent(vm_result_item_value_input_scroll_event)
+                            }
+                            InputEventReplayRecord::InputSensorEvent(value) => {
+                                let vm_result_item_value_input_sensor_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_sensor_event_kind = vm::StringHandle::new(vm_result_item_value_input_sensor_event_kind_value);
+                                let vm_result_item_value_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_sensor_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_sensor_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_sensor_event_metadata_device_id_value);
+                                let vm_result_item_value_input_sensor_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_sensor_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_sensor_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_sensor_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_sensor_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                                let vm_result_item_value_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                                let vm_result_item_value_input_sensor_event_payload_x = value.payload.x;
+                                let vm_result_item_value_input_sensor_event_payload_y = value.payload.y;
+                                let vm_result_item_value_input_sensor_event_payload_z = value.payload.z;
+                                let vm_result_item_value_input_sensor_event_payload = InputSensorEventPayloadVm {
+                                    action: vm_result_item_value_input_sensor_event_payload_action,
+                                    backend_code: vm_result_item_value_input_sensor_event_payload_backend_code,
+                                    backend_value: vm_result_item_value_input_sensor_event_payload_backend_value,
+                                    x: vm_result_item_value_input_sensor_event_payload_x,
+                                    y: vm_result_item_value_input_sensor_event_payload_y,
+                                    z: vm_result_item_value_input_sensor_event_payload_z,
+                                };
+                                let vm_result_item_value_input_sensor_event = InputSensorEventVm {
+                                    kind: vm_result_item_value_input_sensor_event_kind,
+                                    metadata: vm_result_item_value_input_sensor_event_metadata,
+                                    payload: vm_result_item_value_input_sensor_event_payload,
+                                };
+                                InputEventVm::InputSensorEvent(vm_result_item_value_input_sensor_event)
+                            }
+                            InputEventReplayRecord::InputTextEvent(value) => {
+                                let vm_result_item_value_input_text_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_text_event_kind = vm::StringHandle::new(vm_result_item_value_input_text_event_kind_value);
+                                let vm_result_item_value_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_text_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_text_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_text_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_text_event_metadata_device_id_value);
+                                let vm_result_item_value_input_text_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_text_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_text_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_text_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_text_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                                let vm_result_item_value_input_text_event_payload_text = vm::StringHandle::new(vm_result_item_value_input_text_event_payload_text_value);
+                                let vm_result_item_value_input_text_event_payload = InputTextEventPayloadVm {
+                                    text: vm_result_item_value_input_text_event_payload_text,
+                                };
+                                let vm_result_item_value_input_text_event = InputTextEventVm {
+                                    kind: vm_result_item_value_input_text_event_kind,
+                                    metadata: vm_result_item_value_input_text_event_metadata,
+                                    payload: vm_result_item_value_input_text_event_payload,
+                                };
+                                InputEventVm::InputTextEvent(vm_result_item_value_input_text_event)
+                            }
+                            InputEventReplayRecord::InputTouchEvent(value) => {
+                                let vm_result_item_value_input_touch_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_input_touch_event_kind = vm::StringHandle::new(vm_result_item_value_input_touch_event_kind_value);
+                                let vm_result_item_value_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                                let vm_result_item_value_input_touch_event_metadata_sequence = value.metadata.sequence;
+                                let vm_result_item_value_input_touch_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                                let vm_result_item_value_input_touch_event_metadata_device_id = vm::StringHandle::new(vm_result_item_value_input_touch_event_metadata_device_id_value);
+                                let vm_result_item_value_input_touch_event_metadata = InputEventMetadataVm {
+                                    timestamp_ns: vm_result_item_value_input_touch_event_metadata_timestamp_ns,
+                                    sequence: vm_result_item_value_input_touch_event_metadata_sequence,
+                                    device_id: vm_result_item_value_input_touch_event_metadata_device_id,
+                                };
+                                let vm_result_item_value_input_touch_event_payload_action = value.payload.action;
+                                let vm_result_item_value_input_touch_event_payload_contact_id = value.payload.contact_id;
+                                let vm_result_item_value_input_touch_event_payload_x = value.payload.x;
+                                let vm_result_item_value_input_touch_event_payload_y = value.payload.y;
+                                let vm_result_item_value_input_touch_event_payload_pressure = value.payload.pressure;
+                                let vm_result_item_value_input_touch_event_payload = InputTouchEventPayloadVm {
+                                    action: vm_result_item_value_input_touch_event_payload_action,
+                                    contact_id: vm_result_item_value_input_touch_event_payload_contact_id,
+                                    x: vm_result_item_value_input_touch_event_payload_x,
+                                    y: vm_result_item_value_input_touch_event_payload_y,
+                                    pressure: vm_result_item_value_input_touch_event_payload_pressure,
+                                };
+                                let vm_result_item_value_input_touch_event = InputTouchEventVm {
+                                    kind: vm_result_item_value_input_touch_event_kind,
+                                    metadata: vm_result_item_value_input_touch_event_metadata,
+                                    payload: vm_result_item_value_input_touch_event_payload,
+                                };
+                                InputEventVm::InputTouchEvent(vm_result_item_value_input_touch_event)
+                            }
                         };
-                        let vm_result_item_value_payload_pointer_motion_x = vm_result_item.payload.pointer_motion.x;
-                        let vm_result_item_value_payload_pointer_motion_y = vm_result_item.payload.pointer_motion.y;
-                        let vm_result_item_value_payload_pointer_motion_buttons = vm_result_item.payload.pointer_motion.buttons;
-                        let vm_result_item_value_payload_pointer_motion_modifiers = vm_result_item.payload.pointer_motion.modifiers;
-                        let vm_result_item_value_payload_pointer_motion = InputPointerMotionEventPayloadVm {
-                            x: vm_result_item_value_payload_pointer_motion_x,
-                            y: vm_result_item_value_payload_pointer_motion_y,
-                            buttons: vm_result_item_value_payload_pointer_motion_buttons,
-                            modifiers: vm_result_item_value_payload_pointer_motion_modifiers,
-                        };
-                        let vm_result_item_value_payload_pointer_button_action = vm_result_item.payload.pointer_button.action;
-                        let vm_result_item_value_payload_pointer_button_backend_code = vm_result_item.payload.pointer_button.backend_code;
-                        let vm_result_item_value_payload_pointer_button_backend_value = vm_result_item.payload.pointer_button.backend_value;
-                        let vm_result_item_value_payload_pointer_button_x = vm_result_item.payload.pointer_button.x;
-                        let vm_result_item_value_payload_pointer_button_y = vm_result_item.payload.pointer_button.y;
-                        let vm_result_item_value_payload_pointer_button_modifiers = vm_result_item.payload.pointer_button.modifiers;
-                        let vm_result_item_value_payload_pointer_button = InputPointerButtonEventPayloadVm {
-                            action: vm_result_item_value_payload_pointer_button_action,
-                            backend_code: vm_result_item_value_payload_pointer_button_backend_code,
-                            backend_value: vm_result_item_value_payload_pointer_button_backend_value,
-                            x: vm_result_item_value_payload_pointer_button_x,
-                            y: vm_result_item_value_payload_pointer_button_y,
-                            modifiers: vm_result_item_value_payload_pointer_button_modifiers,
-                        };
-                        let vm_result_item_value_payload_scroll_wheel_x = vm_result_item.payload.scroll.wheel_x;
-                        let vm_result_item_value_payload_scroll_wheel_y = vm_result_item.payload.scroll.wheel_y;
-                        let vm_result_item_value_payload_scroll_x = vm_result_item.payload.scroll.x;
-                        let vm_result_item_value_payload_scroll_y = vm_result_item.payload.scroll.y;
-                        let vm_result_item_value_payload_scroll_modifiers = vm_result_item.payload.scroll.modifiers;
-                        let vm_result_item_value_payload_scroll = InputScrollEventPayloadVm {
-                            wheel_x: vm_result_item_value_payload_scroll_wheel_x,
-                            wheel_y: vm_result_item_value_payload_scroll_wheel_y,
-                            x: vm_result_item_value_payload_scroll_x,
-                            y: vm_result_item_value_payload_scroll_y,
-                            modifiers: vm_result_item_value_payload_scroll_modifiers,
-                        };
-                        let vm_result_item_value_payload_touch_action = vm_result_item.payload.touch.action;
-                        let vm_result_item_value_payload_touch_contact_id = vm_result_item.payload.touch.contact_id;
-                        let vm_result_item_value_payload_touch_x = vm_result_item.payload.touch.x;
-                        let vm_result_item_value_payload_touch_y = vm_result_item.payload.touch.y;
-                        let vm_result_item_value_payload_touch_pressure = vm_result_item.payload.touch.pressure;
-                        let vm_result_item_value_payload_touch = InputTouchEventPayloadVm {
-                            action: vm_result_item_value_payload_touch_action,
-                            contact_id: vm_result_item_value_payload_touch_contact_id,
-                            x: vm_result_item_value_payload_touch_x,
-                            y: vm_result_item_value_payload_touch_y,
-                            pressure: vm_result_item_value_payload_touch_pressure,
-                        };
-                        let vm_result_item_value_payload_gamepad_action = vm_result_item.payload.gamepad.action;
-                        let vm_result_item_value_payload_gamepad_backend_code = vm_result_item.payload.gamepad.backend_code;
-                        let vm_result_item_value_payload_gamepad_backend_value = vm_result_item.payload.gamepad.backend_value;
-                        let vm_result_item_value_payload_gamepad = InputGamepadEventPayloadVm {
-                            action: vm_result_item_value_payload_gamepad_action,
-                            backend_code: vm_result_item_value_payload_gamepad_backend_code,
-                            backend_value: vm_result_item_value_payload_gamepad_backend_value,
-                        };
-                        let vm_result_item_value_payload_text_text_value = context.intern_string(vm_result_item.payload.text.text.as_str());
-                        let vm_result_item_value_payload_text_text = vm::StringHandle::new(vm_result_item_value_payload_text_text_value);
-                        let vm_result_item_value_payload_text = InputTextEventPayloadVm {
-                            text: vm_result_item_value_payload_text_text,
-                        };
-                        let vm_result_item_value_payload_device_action = vm_result_item.payload.device.action;
-                        let vm_result_item_value_payload_device_backend_code = vm_result_item.payload.device.backend_code;
-                        let vm_result_item_value_payload_device_backend_value = vm_result_item.payload.device.backend_value;
-                        let vm_result_item_value_payload_device = InputDeviceEventPayloadVm {
-                            action: vm_result_item_value_payload_device_action,
-                            backend_code: vm_result_item_value_payload_device_backend_code,
-                            backend_value: vm_result_item_value_payload_device_backend_value,
-                        };
-                        let vm_result_item_value_payload_sensor_action = vm_result_item.payload.sensor.action;
-                        let vm_result_item_value_payload_sensor_backend_code = vm_result_item.payload.sensor.backend_code;
-                        let vm_result_item_value_payload_sensor_backend_value = vm_result_item.payload.sensor.backend_value;
-                        let vm_result_item_value_payload_sensor_x = vm_result_item.payload.sensor.x;
-                        let vm_result_item_value_payload_sensor_y = vm_result_item.payload.sensor.y;
-                        let vm_result_item_value_payload_sensor_z = vm_result_item.payload.sensor.z;
-                        let vm_result_item_value_payload_sensor = InputSensorEventPayloadVm {
-                            action: vm_result_item_value_payload_sensor_action,
-                            backend_code: vm_result_item_value_payload_sensor_backend_code,
-                            backend_value: vm_result_item_value_payload_sensor_backend_value,
-                            x: vm_result_item_value_payload_sensor_x,
-                            y: vm_result_item_value_payload_sensor_y,
-                            z: vm_result_item_value_payload_sensor_z,
-                        };
-                        let vm_result_item_value_payload_composition_action = vm_result_item.payload.composition.action;
-                        let vm_result_item_value_payload_composition_text_value = context.intern_string(vm_result_item.payload.composition.text.as_str());
-                        let vm_result_item_value_payload_composition_text = vm::StringHandle::new(vm_result_item_value_payload_composition_text_value);
-                        let vm_result_item_value_payload_composition_selection_start = vm_result_item.payload.composition.selection_start;
-                        let vm_result_item_value_payload_composition_selection_end = vm_result_item.payload.composition.selection_end;
-                        let vm_result_item_value_payload_composition = InputCompositionEventPayloadVm {
-                            action: vm_result_item_value_payload_composition_action,
-                            text: vm_result_item_value_payload_composition_text,
-                            selection_start: vm_result_item_value_payload_composition_selection_start,
-                            selection_end: vm_result_item_value_payload_composition_selection_end,
-                        };
-                        let vm_result_item_value_payload = InputEventPayloadVm {
-                            key: vm_result_item_value_payload_key,
-                            pointer_motion: vm_result_item_value_payload_pointer_motion,
-                            pointer_button: vm_result_item_value_payload_pointer_button,
-                            scroll: vm_result_item_value_payload_scroll,
-                            touch: vm_result_item_value_payload_touch,
-                            gamepad: vm_result_item_value_payload_gamepad,
-                            text: vm_result_item_value_payload_text,
-                            device: vm_result_item_value_payload_device,
-                            sensor: vm_result_item_value_payload_sensor,
-                            composition: vm_result_item_value_payload_composition,
-                        };
-                        let vm_result_item_value = InputEventVm {
-                            kind: vm_result_item_value_kind,
-                            timestamp_ns: vm_result_item_value_timestamp_ns,
-                            sequence: vm_result_item_value_sequence,
-                            device_id: vm_result_item_value_device_id,
-                            payload: vm_result_item_value_payload,
-                        };
-                        let vm_result_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64); let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64); let field_3 = vm_result_item_value.device_id.value(); let field_4 = { let field_0 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.key.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.key.backend_code as u64, 32); let field_2 = vm::Value::uint(vm_result_item_value.payload.key.backend_scan_code as u64, 32); let field_3 = vm::Value::int(vm_result_item_value.payload.key.backend_value, 64); let field_4 = vm::Value::uint(vm_result_item_value.payload.key.modifiers as u64, 32); let field_5 = vm::Value::bool(vm_result_item_value.payload.key.repeat); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_1 = { let field_0 = vm::Value::float64(vm_result_item_value.payload.pointer_motion.x); let field_1 = vm::Value::float64(vm_result_item_value.payload.pointer_motion.y); let field_2 = vm::Value::uint(vm_result_item_value.payload.pointer_motion.buttons as u64, 32); let field_3 = vm::Value::uint(vm_result_item_value.payload.pointer_motion.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.pointer_button.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.pointer_button.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.pointer_button.backend_value, 64); let field_3 = vm::Value::float64(vm_result_item_value.payload.pointer_button.x); let field_4 = vm::Value::float64(vm_result_item_value.payload.pointer_button.y); let field_5 = vm::Value::uint(vm_result_item_value.payload.pointer_button.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_3 = { let field_0 = vm::Value::float64(vm_result_item_value.payload.scroll.wheel_x); let field_1 = vm::Value::float64(vm_result_item_value.payload.scroll.wheel_y); let field_2 = vm::Value::float64(vm_result_item_value.payload.scroll.x); let field_3 = vm::Value::float64(vm_result_item_value.payload.scroll.y); let field_4 = vm::Value::uint(vm_result_item_value.payload.scroll.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; let field_4 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.touch.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.touch.contact_id as u64, 32); let field_2 = vm::Value::float64(vm_result_item_value.payload.touch.x); let field_3 = vm::Value::float64(vm_result_item_value.payload.touch.y); let field_4 = vm::Value::float64(vm_result_item_value.payload.touch.pressure); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; let field_5 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.gamepad.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.gamepad.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.gamepad.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_6 = { let field_0 = vm_result_item_value.payload.text.text.value(); context.allocate_aggregate(vec![field_0]) }; let field_7 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.device.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.device.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.device.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_8 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.sensor.action as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.payload.sensor.backend_code as u64, 32); let field_2 = vm::Value::int(vm_result_item_value.payload.sensor.backend_value, 64); let field_3 = vm::Value::float64(vm_result_item_value.payload.sensor.x); let field_4 = vm::Value::float64(vm_result_item_value.payload.sensor.y); let field_5 = vm::Value::float64(vm_result_item_value.payload.sensor.z); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; let field_9 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.composition.action as u8 as u64, 8); let field_1 = vm_result_item_value.payload.composition.text.value(); let field_2 = vm::Value::int(vm_result_item_value.payload.composition.selection_start as i64, 32); let field_3 = vm::Value::int(vm_result_item_value.payload.composition.selection_end as i64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        let vm_result_item_value_encoded = match vm_result_item_value { InputEventVm::InputCompositionEvent(value) => { let tag_value = vm::Value::uint(1953975626u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = value.payload.text.value(); let field_2 = vm::Value::int(value.payload.selection_start as i64, 32); let field_3 = vm::Value::int(value.payload.selection_end as i64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputDeviceEvent(value) => { let tag_value = vm::Value::uint(1711088174u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32); let field_2 = vm::Value::int(value.payload.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputGamepadEvent(value) => { let tag_value = vm::Value::uint(4057440654u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32); let field_2 = vm::Value::int(value.payload.backend_value, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputKeyEvent(value) => { let tag_value = vm::Value::uint(2680346764u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32); let field_2 = vm::Value::uint(value.payload.backend_scan_code as u64, 32); let field_3 = vm::Value::int(value.payload.backend_value, 64); let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32); let field_5 = vm::Value::bool(value.payload.repeat); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputPointerButtonEvent(value) => { let tag_value = vm::Value::uint(4073494792u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32); let field_2 = vm::Value::int(value.payload.backend_value, 64); let field_3 = vm::Value::float64(value.payload.x); let field_4 = vm::Value::float64(value.payload.y); let field_5 = vm::Value::uint(value.payload.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputPointerMotionEvent(value) => { let tag_value = vm::Value::uint(2712240874u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::float64(value.payload.x); let field_1 = vm::Value::float64(value.payload.y); let field_2 = vm::Value::uint(value.payload.buttons as u64, 32); let field_3 = vm::Value::uint(value.payload.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputScrollEvent(value) => { let tag_value = vm::Value::uint(4279710721u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::float64(value.payload.wheel_x); let field_1 = vm::Value::float64(value.payload.wheel_y); let field_2 = vm::Value::float64(value.payload.x); let field_3 = vm::Value::float64(value.payload.y); let field_4 = vm::Value::uint(value.payload.modifiers as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputSensorEvent(value) => { let tag_value = vm::Value::uint(1143015131u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.backend_code as u64, 32); let field_2 = vm::Value::int(value.payload.backend_value, 64); let field_3 = vm::Value::float64(value.payload.x); let field_4 = vm::Value::float64(value.payload.y); let field_5 = vm::Value::float64(value.payload.z); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputTextEvent(value) => { let tag_value = vm::Value::uint(2362503160u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = value.payload.text.value(); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, InputEventVm::InputTouchEvent(value) => { let tag_value = vm::Value::uint(1845998728u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_1 = vm::Value::uint(value.metadata.sequence, 64); let field_2 = value.metadata.device_id.value(); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.action as u8 as u64, 8); let field_1 = vm::Value::uint(value.payload.contact_id as u64, 32); let field_2 = vm::Value::float64(value.payload.x); let field_3 = vm::Value::float64(value.payload.y); let field_4 = vm::Value::float64(value.payload.pressure); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -10527,186 +12535,359 @@ fn destack_input_event_try_read_vm_replay(
         INPUT_EVENT_TRY_READ,
         runtime.replay_payload_for(INPUT_EVENT_TRY_READ)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_input_try_read(runtime, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_input_try_read(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_input_try_read(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_input_try_read(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_payload_key_action = result_value.payload.key.action;
-                let result_recorded_payload_key_backend_code =
-                    result_value.payload.key.backend_code;
-                let result_recorded_payload_key_backend_scan_code =
-                    result_value.payload.key.backend_scan_code;
-                let result_recorded_payload_key_backend_value =
-                    result_value.payload.key.backend_value;
-                let result_recorded_payload_key_modifiers = result_value.payload.key.modifiers;
-                let result_recorded_payload_key_repeat = result_value.payload.key.repeat;
-                let result_recorded_payload_key = InputKeyEventPayload {
-                    action: result_recorded_payload_key_action,
-                    backend_code: result_recorded_payload_key_backend_code,
-                    backend_scan_code: result_recorded_payload_key_backend_scan_code,
-                    backend_value: result_recorded_payload_key_backend_value,
-                    modifiers: result_recorded_payload_key_modifiers,
-                    repeat: result_recorded_payload_key_repeat,
-                };
-                let result_recorded_payload_pointer_motion_x =
-                    result_value.payload.pointer_motion.x;
-                let result_recorded_payload_pointer_motion_y =
-                    result_value.payload.pointer_motion.y;
-                let result_recorded_payload_pointer_motion_buttons =
-                    result_value.payload.pointer_motion.buttons;
-                let result_recorded_payload_pointer_motion_modifiers =
-                    result_value.payload.pointer_motion.modifiers;
-                let result_recorded_payload_pointer_motion = InputPointerMotionEventPayload {
-                    x: result_recorded_payload_pointer_motion_x,
-                    y: result_recorded_payload_pointer_motion_y,
-                    buttons: result_recorded_payload_pointer_motion_buttons,
-                    modifiers: result_recorded_payload_pointer_motion_modifiers,
-                };
-                let result_recorded_payload_pointer_button_action =
-                    result_value.payload.pointer_button.action;
-                let result_recorded_payload_pointer_button_backend_code =
-                    result_value.payload.pointer_button.backend_code;
-                let result_recorded_payload_pointer_button_backend_value =
-                    result_value.payload.pointer_button.backend_value;
-                let result_recorded_payload_pointer_button_x =
-                    result_value.payload.pointer_button.x;
-                let result_recorded_payload_pointer_button_y =
-                    result_value.payload.pointer_button.y;
-                let result_recorded_payload_pointer_button_modifiers =
-                    result_value.payload.pointer_button.modifiers;
-                let result_recorded_payload_pointer_button = InputPointerButtonEventPayload {
-                    action: result_recorded_payload_pointer_button_action,
-                    backend_code: result_recorded_payload_pointer_button_backend_code,
-                    backend_value: result_recorded_payload_pointer_button_backend_value,
-                    x: result_recorded_payload_pointer_button_x,
-                    y: result_recorded_payload_pointer_button_y,
-                    modifiers: result_recorded_payload_pointer_button_modifiers,
-                };
-                let result_recorded_payload_scroll_wheel_x = result_value.payload.scroll.wheel_x;
-                let result_recorded_payload_scroll_wheel_y = result_value.payload.scroll.wheel_y;
-                let result_recorded_payload_scroll_x = result_value.payload.scroll.x;
-                let result_recorded_payload_scroll_y = result_value.payload.scroll.y;
-                let result_recorded_payload_scroll_modifiers =
-                    result_value.payload.scroll.modifiers;
-                let result_recorded_payload_scroll = InputScrollEventPayload {
-                    wheel_x: result_recorded_payload_scroll_wheel_x,
-                    wheel_y: result_recorded_payload_scroll_wheel_y,
-                    x: result_recorded_payload_scroll_x,
-                    y: result_recorded_payload_scroll_y,
-                    modifiers: result_recorded_payload_scroll_modifiers,
-                };
-                let result_recorded_payload_touch_action = result_value.payload.touch.action;
-                let result_recorded_payload_touch_contact_id =
-                    result_value.payload.touch.contact_id;
-                let result_recorded_payload_touch_x = result_value.payload.touch.x;
-                let result_recorded_payload_touch_y = result_value.payload.touch.y;
-                let result_recorded_payload_touch_pressure = result_value.payload.touch.pressure;
-                let result_recorded_payload_touch = InputTouchEventPayload {
-                    action: result_recorded_payload_touch_action,
-                    contact_id: result_recorded_payload_touch_contact_id,
-                    x: result_recorded_payload_touch_x,
-                    y: result_recorded_payload_touch_y,
-                    pressure: result_recorded_payload_touch_pressure,
-                };
-                let result_recorded_payload_gamepad_action = result_value.payload.gamepad.action;
-                let result_recorded_payload_gamepad_backend_code =
-                    result_value.payload.gamepad.backend_code;
-                let result_recorded_payload_gamepad_backend_value =
-                    result_value.payload.gamepad.backend_value;
-                let result_recorded_payload_gamepad = InputGamepadEventPayload {
-                    action: result_recorded_payload_gamepad_action,
-                    backend_code: result_recorded_payload_gamepad_backend_code,
-                    backend_value: result_recorded_payload_gamepad_backend_value,
-                };
-                let result_recorded_payload_text_text = {
-                    let result_recorded_payload_text_text_ref = context
-                        .string_ref(result_value.payload.text.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_text_text_ref.as_str().to_string()
-                };
-                let result_recorded_payload_text = InputTextEventPayloadReplayRecord {
-                    text: result_recorded_payload_text_text,
-                };
-                let result_recorded_payload_device_action = result_value.payload.device.action;
-                let result_recorded_payload_device_backend_code =
-                    result_value.payload.device.backend_code;
-                let result_recorded_payload_device_backend_value =
-                    result_value.payload.device.backend_value;
-                let result_recorded_payload_device = InputDeviceEventPayload {
-                    action: result_recorded_payload_device_action,
-                    backend_code: result_recorded_payload_device_backend_code,
-                    backend_value: result_recorded_payload_device_backend_value,
-                };
-                let result_recorded_payload_sensor_action = result_value.payload.sensor.action;
-                let result_recorded_payload_sensor_backend_code =
-                    result_value.payload.sensor.backend_code;
-                let result_recorded_payload_sensor_backend_value =
-                    result_value.payload.sensor.backend_value;
-                let result_recorded_payload_sensor_x = result_value.payload.sensor.x;
-                let result_recorded_payload_sensor_y = result_value.payload.sensor.y;
-                let result_recorded_payload_sensor_z = result_value.payload.sensor.z;
-                let result_recorded_payload_sensor = InputSensorEventPayload {
-                    action: result_recorded_payload_sensor_action,
-                    backend_code: result_recorded_payload_sensor_backend_code,
-                    backend_value: result_recorded_payload_sensor_backend_value,
-                    x: result_recorded_payload_sensor_x,
-                    y: result_recorded_payload_sensor_y,
-                    z: result_recorded_payload_sensor_z,
-                };
-                let result_recorded_payload_composition_action =
-                    result_value.payload.composition.action;
-                let result_recorded_payload_composition_text = {
-                    let result_recorded_payload_composition_text_ref = context
-                        .string_ref(result_value.payload.composition.text)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_payload_composition_text_ref
-                        .as_str()
-                        .to_string()
-                };
-                let result_recorded_payload_composition_selection_start =
-                    result_value.payload.composition.selection_start;
-                let result_recorded_payload_composition_selection_end =
-                    result_value.payload.composition.selection_end;
-                let result_recorded_payload_composition =
-                    InputCompositionEventPayloadReplayRecord {
-                        action: result_recorded_payload_composition_action,
-                        text: result_recorded_payload_composition_text,
-                        selection_start: result_recorded_payload_composition_selection_start,
-                        selection_end: result_recorded_payload_composition_selection_end,
-                    };
-                let result_recorded_payload = InputEventPayloadReplayRecord {
-                    key: result_recorded_payload_key,
-                    pointer_motion: result_recorded_payload_pointer_motion,
-                    pointer_button: result_recorded_payload_pointer_button,
-                    scroll: result_recorded_payload_scroll,
-                    touch: result_recorded_payload_touch,
-                    gamepad: result_recorded_payload_gamepad,
-                    text: result_recorded_payload_text,
-                    device: result_recorded_payload_device,
-                    sensor: result_recorded_payload_sensor,
-                    composition: result_recorded_payload_composition,
-                };
-                let result_recorded = InputEventReplayRecord {
-                    kind: result_recorded_kind,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    payload: result_recorded_payload,
+                let result_recorded = match result_value {
+                    InputEventVm::InputCompositionEvent(value) => {
+                        let result_recorded_input_composition_event_kind = {
+                            let result_recorded_input_composition_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_composition_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_composition_event_metadata_device_id = {
+                            let result_recorded_input_composition_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_composition_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_composition_event_metadata_sequence,
+                            device_id: result_recorded_input_composition_event_metadata_device_id,
+                        };
+                        let result_recorded_input_composition_event_payload_action = value.payload.action;
+                        let result_recorded_input_composition_event_payload_text = {
+                            let result_recorded_input_composition_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_composition_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_composition_event_payload_selection_start = value.payload.selection_start;
+                        let result_recorded_input_composition_event_payload_selection_end = value.payload.selection_end;
+                        let result_recorded_input_composition_event_payload = InputCompositionEventPayloadReplayRecord {
+                            action: result_recorded_input_composition_event_payload_action,
+                            text: result_recorded_input_composition_event_payload_text,
+                            selection_start: result_recorded_input_composition_event_payload_selection_start,
+                            selection_end: result_recorded_input_composition_event_payload_selection_end,
+                        };
+                        let result_recorded_input_composition_event = InputCompositionEventReplayRecord {
+                            kind: result_recorded_input_composition_event_kind,
+                            metadata: result_recorded_input_composition_event_metadata,
+                            payload: result_recorded_input_composition_event_payload,
+                        };
+                        InputEventReplayRecord::InputCompositionEvent(result_recorded_input_composition_event)
+                    }
+                    InputEventVm::InputDeviceEvent(value) => {
+                        let result_recorded_input_device_event_kind = {
+                            let result_recorded_input_device_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_device_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_device_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_device_event_metadata_device_id = {
+                            let result_recorded_input_device_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_device_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_device_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_device_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_device_event_metadata_sequence,
+                            device_id: result_recorded_input_device_event_metadata_device_id,
+                        };
+                        let result_recorded_input_device_event_payload_action = value.payload.action;
+                        let result_recorded_input_device_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_device_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_device_event_payload = InputDeviceEventPayload {
+                            action: result_recorded_input_device_event_payload_action,
+                            backend_code: result_recorded_input_device_event_payload_backend_code,
+                            backend_value: result_recorded_input_device_event_payload_backend_value,
+                        };
+                        let result_recorded_input_device_event = InputDeviceEventReplayRecord {
+                            kind: result_recorded_input_device_event_kind,
+                            metadata: result_recorded_input_device_event_metadata,
+                            payload: result_recorded_input_device_event_payload,
+                        };
+                        InputEventReplayRecord::InputDeviceEvent(result_recorded_input_device_event)
+                    }
+                    InputEventVm::InputGamepadEvent(value) => {
+                        let result_recorded_input_gamepad_event_kind = {
+                            let result_recorded_input_gamepad_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_gamepad_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_gamepad_event_metadata_device_id = {
+                            let result_recorded_input_gamepad_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_gamepad_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_gamepad_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_gamepad_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_gamepad_event_metadata_sequence,
+                            device_id: result_recorded_input_gamepad_event_metadata_device_id,
+                        };
+                        let result_recorded_input_gamepad_event_payload_action = value.payload.action;
+                        let result_recorded_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_gamepad_event_payload = InputGamepadEventPayload {
+                            action: result_recorded_input_gamepad_event_payload_action,
+                            backend_code: result_recorded_input_gamepad_event_payload_backend_code,
+                            backend_value: result_recorded_input_gamepad_event_payload_backend_value,
+                        };
+                        let result_recorded_input_gamepad_event = InputGamepadEventReplayRecord {
+                            kind: result_recorded_input_gamepad_event_kind,
+                            metadata: result_recorded_input_gamepad_event_metadata,
+                            payload: result_recorded_input_gamepad_event_payload,
+                        };
+                        InputEventReplayRecord::InputGamepadEvent(result_recorded_input_gamepad_event)
+                    }
+                    InputEventVm::InputKeyEvent(value) => {
+                        let result_recorded_input_key_event_kind = {
+                            let result_recorded_input_key_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_key_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_key_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_key_event_metadata_device_id = {
+                            let result_recorded_input_key_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_key_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_key_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_key_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_key_event_metadata_sequence,
+                            device_id: result_recorded_input_key_event_metadata_device_id,
+                        };
+                        let result_recorded_input_key_event_payload_action = value.payload.action;
+                        let result_recorded_input_key_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                        let result_recorded_input_key_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_key_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_key_event_payload_repeat = value.payload.repeat;
+                        let result_recorded_input_key_event_payload = InputKeyEventPayload {
+                            action: result_recorded_input_key_event_payload_action,
+                            backend_code: result_recorded_input_key_event_payload_backend_code,
+                            backend_scan_code: result_recorded_input_key_event_payload_backend_scan_code,
+                            backend_value: result_recorded_input_key_event_payload_backend_value,
+                            modifiers: result_recorded_input_key_event_payload_modifiers,
+                            repeat: result_recorded_input_key_event_payload_repeat,
+                        };
+                        let result_recorded_input_key_event = InputKeyEventReplayRecord {
+                            kind: result_recorded_input_key_event_kind,
+                            metadata: result_recorded_input_key_event_metadata,
+                            payload: result_recorded_input_key_event_payload,
+                        };
+                        InputEventReplayRecord::InputKeyEvent(result_recorded_input_key_event)
+                    }
+                    InputEventVm::InputPointerButtonEvent(value) => {
+                        let result_recorded_input_pointer_button_event_kind = {
+                            let result_recorded_input_pointer_button_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_button_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_button_event_metadata_device_id = {
+                            let result_recorded_input_pointer_button_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_button_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_button_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_button_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_button_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_button_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_button_event_payload_action = value.payload.action;
+                        let result_recorded_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_pointer_button_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_button_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_button_event_payload = InputPointerButtonEventPayload {
+                            action: result_recorded_input_pointer_button_event_payload_action,
+                            backend_code: result_recorded_input_pointer_button_event_payload_backend_code,
+                            backend_value: result_recorded_input_pointer_button_event_payload_backend_value,
+                            x: result_recorded_input_pointer_button_event_payload_x,
+                            y: result_recorded_input_pointer_button_event_payload_y,
+                            modifiers: result_recorded_input_pointer_button_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_button_event = InputPointerButtonEventReplayRecord {
+                            kind: result_recorded_input_pointer_button_event_kind,
+                            metadata: result_recorded_input_pointer_button_event_metadata,
+                            payload: result_recorded_input_pointer_button_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerButtonEvent(result_recorded_input_pointer_button_event)
+                    }
+                    InputEventVm::InputPointerMotionEvent(value) => {
+                        let result_recorded_input_pointer_motion_event_kind = {
+                            let result_recorded_input_pointer_motion_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_motion_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_pointer_motion_event_metadata_device_id = {
+                            let result_recorded_input_pointer_motion_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_pointer_motion_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_pointer_motion_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_pointer_motion_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_pointer_motion_event_metadata_sequence,
+                            device_id: result_recorded_input_pointer_motion_event_metadata_device_id,
+                        };
+                        let result_recorded_input_pointer_motion_event_payload_x = value.payload.x;
+                        let result_recorded_input_pointer_motion_event_payload_y = value.payload.y;
+                        let result_recorded_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                        let result_recorded_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_pointer_motion_event_payload = InputPointerMotionEventPayload {
+                            x: result_recorded_input_pointer_motion_event_payload_x,
+                            y: result_recorded_input_pointer_motion_event_payload_y,
+                            buttons: result_recorded_input_pointer_motion_event_payload_buttons,
+                            modifiers: result_recorded_input_pointer_motion_event_payload_modifiers,
+                        };
+                        let result_recorded_input_pointer_motion_event = InputPointerMotionEventReplayRecord {
+                            kind: result_recorded_input_pointer_motion_event_kind,
+                            metadata: result_recorded_input_pointer_motion_event_metadata,
+                            payload: result_recorded_input_pointer_motion_event_payload,
+                        };
+                        InputEventReplayRecord::InputPointerMotionEvent(result_recorded_input_pointer_motion_event)
+                    }
+                    InputEventVm::InputScrollEvent(value) => {
+                        let result_recorded_input_scroll_event_kind = {
+                            let result_recorded_input_scroll_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_scroll_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_scroll_event_metadata_device_id = {
+                            let result_recorded_input_scroll_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_scroll_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_scroll_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_scroll_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_scroll_event_metadata_sequence,
+                            device_id: result_recorded_input_scroll_event_metadata_device_id,
+                        };
+                        let result_recorded_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                        let result_recorded_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                        let result_recorded_input_scroll_event_payload_x = value.payload.x;
+                        let result_recorded_input_scroll_event_payload_y = value.payload.y;
+                        let result_recorded_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                        let result_recorded_input_scroll_event_payload = InputScrollEventPayload {
+                            wheel_x: result_recorded_input_scroll_event_payload_wheel_x,
+                            wheel_y: result_recorded_input_scroll_event_payload_wheel_y,
+                            x: result_recorded_input_scroll_event_payload_x,
+                            y: result_recorded_input_scroll_event_payload_y,
+                            modifiers: result_recorded_input_scroll_event_payload_modifiers,
+                        };
+                        let result_recorded_input_scroll_event = InputScrollEventReplayRecord {
+                            kind: result_recorded_input_scroll_event_kind,
+                            metadata: result_recorded_input_scroll_event_metadata,
+                            payload: result_recorded_input_scroll_event_payload,
+                        };
+                        InputEventReplayRecord::InputScrollEvent(result_recorded_input_scroll_event)
+                    }
+                    InputEventVm::InputSensorEvent(value) => {
+                        let result_recorded_input_sensor_event_kind = {
+                            let result_recorded_input_sensor_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_sensor_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_sensor_event_metadata_device_id = {
+                            let result_recorded_input_sensor_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_sensor_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_sensor_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_sensor_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_sensor_event_metadata_sequence,
+                            device_id: result_recorded_input_sensor_event_metadata_device_id,
+                        };
+                        let result_recorded_input_sensor_event_payload_action = value.payload.action;
+                        let result_recorded_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                        let result_recorded_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                        let result_recorded_input_sensor_event_payload_x = value.payload.x;
+                        let result_recorded_input_sensor_event_payload_y = value.payload.y;
+                        let result_recorded_input_sensor_event_payload_z = value.payload.z;
+                        let result_recorded_input_sensor_event_payload = InputSensorEventPayload {
+                            action: result_recorded_input_sensor_event_payload_action,
+                            backend_code: result_recorded_input_sensor_event_payload_backend_code,
+                            backend_value: result_recorded_input_sensor_event_payload_backend_value,
+                            x: result_recorded_input_sensor_event_payload_x,
+                            y: result_recorded_input_sensor_event_payload_y,
+                            z: result_recorded_input_sensor_event_payload_z,
+                        };
+                        let result_recorded_input_sensor_event = InputSensorEventReplayRecord {
+                            kind: result_recorded_input_sensor_event_kind,
+                            metadata: result_recorded_input_sensor_event_metadata,
+                            payload: result_recorded_input_sensor_event_payload,
+                        };
+                        InputEventReplayRecord::InputSensorEvent(result_recorded_input_sensor_event)
+                    }
+                    InputEventVm::InputTextEvent(value) => {
+                        let result_recorded_input_text_event_kind = {
+                            let result_recorded_input_text_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_text_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_text_event_metadata_device_id = {
+                            let result_recorded_input_text_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_text_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_text_event_metadata_sequence,
+                            device_id: result_recorded_input_text_event_metadata_device_id,
+                        };
+                        let result_recorded_input_text_event_payload_text = {
+                            let result_recorded_input_text_event_payload_text_ref = context.string_ref(value.payload.text).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_text_event_payload_text_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_text_event_payload = InputTextEventPayloadReplayRecord {
+                            text: result_recorded_input_text_event_payload_text,
+                        };
+                        let result_recorded_input_text_event = InputTextEventReplayRecord {
+                            kind: result_recorded_input_text_event_kind,
+                            metadata: result_recorded_input_text_event_metadata,
+                            payload: result_recorded_input_text_event_payload,
+                        };
+                        InputEventReplayRecord::InputTextEvent(result_recorded_input_text_event)
+                    }
+                    InputEventVm::InputTouchEvent(value) => {
+                        let result_recorded_input_touch_event_kind = {
+                            let result_recorded_input_touch_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_touch_event_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                        let result_recorded_input_touch_event_metadata_sequence = value.metadata.sequence;
+                        let result_recorded_input_touch_event_metadata_device_id = {
+                            let result_recorded_input_touch_event_metadata_device_id_ref = context.string_ref(value.metadata.device_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_input_touch_event_metadata_device_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_input_touch_event_metadata = InputEventMetadataReplayRecord {
+                            timestamp_ns: result_recorded_input_touch_event_metadata_timestamp_ns,
+                            sequence: result_recorded_input_touch_event_metadata_sequence,
+                            device_id: result_recorded_input_touch_event_metadata_device_id,
+                        };
+                        let result_recorded_input_touch_event_payload_action = value.payload.action;
+                        let result_recorded_input_touch_event_payload_contact_id = value.payload.contact_id;
+                        let result_recorded_input_touch_event_payload_x = value.payload.x;
+                        let result_recorded_input_touch_event_payload_y = value.payload.y;
+                        let result_recorded_input_touch_event_payload_pressure = value.payload.pressure;
+                        let result_recorded_input_touch_event_payload = InputTouchEventPayload {
+                            action: result_recorded_input_touch_event_payload_action,
+                            contact_id: result_recorded_input_touch_event_payload_contact_id,
+                            x: result_recorded_input_touch_event_payload_x,
+                            y: result_recorded_input_touch_event_payload_y,
+                            pressure: result_recorded_input_touch_event_payload_pressure,
+                        };
+                        let result_recorded_input_touch_event = InputTouchEventReplayRecord {
+                            kind: result_recorded_input_touch_event_kind,
+                            metadata: result_recorded_input_touch_event_metadata,
+                            payload: result_recorded_input_touch_event_payload,
+                        };
+                        InputEventReplayRecord::InputTouchEvent(result_recorded_input_touch_event)
+                    }
                 };
                 let payload = InputEventTryReadReplay {
                     result: Ok(result_recorded),
@@ -10717,7 +12898,9 @@ fn destack_input_event_try_read_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    InputEventTryReadReplay { result }
+                    InputEventTryReadReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10729,151 +12912,305 @@ fn destack_input_event_try_read_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_payload_key_action = value.payload.key.action;
-                    let vm_result_payload_key_backend_code = value.payload.key.backend_code;
-                    let vm_result_payload_key_backend_scan_code =
-                        value.payload.key.backend_scan_code;
-                    let vm_result_payload_key_backend_value = value.payload.key.backend_value;
-                    let vm_result_payload_key_modifiers = value.payload.key.modifiers;
-                    let vm_result_payload_key_repeat = value.payload.key.repeat;
-                    let vm_result_payload_key = InputKeyEventPayloadVm {
-                        action: vm_result_payload_key_action,
-                        backend_code: vm_result_payload_key_backend_code,
-                        backend_scan_code: vm_result_payload_key_backend_scan_code,
-                        backend_value: vm_result_payload_key_backend_value,
-                        modifiers: vm_result_payload_key_modifiers,
-                        repeat: vm_result_payload_key_repeat,
-                    };
-                    let vm_result_payload_pointer_motion_x = value.payload.pointer_motion.x;
-                    let vm_result_payload_pointer_motion_y = value.payload.pointer_motion.y;
-                    let vm_result_payload_pointer_motion_buttons =
-                        value.payload.pointer_motion.buttons;
-                    let vm_result_payload_pointer_motion_modifiers =
-                        value.payload.pointer_motion.modifiers;
-                    let vm_result_payload_pointer_motion = InputPointerMotionEventPayloadVm {
-                        x: vm_result_payload_pointer_motion_x,
-                        y: vm_result_payload_pointer_motion_y,
-                        buttons: vm_result_payload_pointer_motion_buttons,
-                        modifiers: vm_result_payload_pointer_motion_modifiers,
-                    };
-                    let vm_result_payload_pointer_button_action =
-                        value.payload.pointer_button.action;
-                    let vm_result_payload_pointer_button_backend_code =
-                        value.payload.pointer_button.backend_code;
-                    let vm_result_payload_pointer_button_backend_value =
-                        value.payload.pointer_button.backend_value;
-                    let vm_result_payload_pointer_button_x = value.payload.pointer_button.x;
-                    let vm_result_payload_pointer_button_y = value.payload.pointer_button.y;
-                    let vm_result_payload_pointer_button_modifiers =
-                        value.payload.pointer_button.modifiers;
-                    let vm_result_payload_pointer_button = InputPointerButtonEventPayloadVm {
-                        action: vm_result_payload_pointer_button_action,
-                        backend_code: vm_result_payload_pointer_button_backend_code,
-                        backend_value: vm_result_payload_pointer_button_backend_value,
-                        x: vm_result_payload_pointer_button_x,
-                        y: vm_result_payload_pointer_button_y,
-                        modifiers: vm_result_payload_pointer_button_modifiers,
-                    };
-                    let vm_result_payload_scroll_wheel_x = value.payload.scroll.wheel_x;
-                    let vm_result_payload_scroll_wheel_y = value.payload.scroll.wheel_y;
-                    let vm_result_payload_scroll_x = value.payload.scroll.x;
-                    let vm_result_payload_scroll_y = value.payload.scroll.y;
-                    let vm_result_payload_scroll_modifiers = value.payload.scroll.modifiers;
-                    let vm_result_payload_scroll = InputScrollEventPayloadVm {
-                        wheel_x: vm_result_payload_scroll_wheel_x,
-                        wheel_y: vm_result_payload_scroll_wheel_y,
-                        x: vm_result_payload_scroll_x,
-                        y: vm_result_payload_scroll_y,
-                        modifiers: vm_result_payload_scroll_modifiers,
-                    };
-                    let vm_result_payload_touch_action = value.payload.touch.action;
-                    let vm_result_payload_touch_contact_id = value.payload.touch.contact_id;
-                    let vm_result_payload_touch_x = value.payload.touch.x;
-                    let vm_result_payload_touch_y = value.payload.touch.y;
-                    let vm_result_payload_touch_pressure = value.payload.touch.pressure;
-                    let vm_result_payload_touch = InputTouchEventPayloadVm {
-                        action: vm_result_payload_touch_action,
-                        contact_id: vm_result_payload_touch_contact_id,
-                        x: vm_result_payload_touch_x,
-                        y: vm_result_payload_touch_y,
-                        pressure: vm_result_payload_touch_pressure,
-                    };
-                    let vm_result_payload_gamepad_action = value.payload.gamepad.action;
-                    let vm_result_payload_gamepad_backend_code = value.payload.gamepad.backend_code;
-                    let vm_result_payload_gamepad_backend_value =
-                        value.payload.gamepad.backend_value;
-                    let vm_result_payload_gamepad = InputGamepadEventPayloadVm {
-                        action: vm_result_payload_gamepad_action,
-                        backend_code: vm_result_payload_gamepad_backend_code,
-                        backend_value: vm_result_payload_gamepad_backend_value,
-                    };
-                    let vm_result_payload_text_text_value =
-                        context.intern_string(value.payload.text.text.as_str());
-                    let vm_result_payload_text_text =
-                        vm::StringHandle::new(vm_result_payload_text_text_value);
-                    let vm_result_payload_text = InputTextEventPayloadVm {
-                        text: vm_result_payload_text_text,
-                    };
-                    let vm_result_payload_device_action = value.payload.device.action;
-                    let vm_result_payload_device_backend_code = value.payload.device.backend_code;
-                    let vm_result_payload_device_backend_value = value.payload.device.backend_value;
-                    let vm_result_payload_device = InputDeviceEventPayloadVm {
-                        action: vm_result_payload_device_action,
-                        backend_code: vm_result_payload_device_backend_code,
-                        backend_value: vm_result_payload_device_backend_value,
-                    };
-                    let vm_result_payload_sensor_action = value.payload.sensor.action;
-                    let vm_result_payload_sensor_backend_code = value.payload.sensor.backend_code;
-                    let vm_result_payload_sensor_backend_value = value.payload.sensor.backend_value;
-                    let vm_result_payload_sensor_x = value.payload.sensor.x;
-                    let vm_result_payload_sensor_y = value.payload.sensor.y;
-                    let vm_result_payload_sensor_z = value.payload.sensor.z;
-                    let vm_result_payload_sensor = InputSensorEventPayloadVm {
-                        action: vm_result_payload_sensor_action,
-                        backend_code: vm_result_payload_sensor_backend_code,
-                        backend_value: vm_result_payload_sensor_backend_value,
-                        x: vm_result_payload_sensor_x,
-                        y: vm_result_payload_sensor_y,
-                        z: vm_result_payload_sensor_z,
-                    };
-                    let vm_result_payload_composition_action = value.payload.composition.action;
-                    let vm_result_payload_composition_text_value =
-                        context.intern_string(value.payload.composition.text.as_str());
-                    let vm_result_payload_composition_text =
-                        vm::StringHandle::new(vm_result_payload_composition_text_value);
-                    let vm_result_payload_composition_selection_start =
-                        value.payload.composition.selection_start;
-                    let vm_result_payload_composition_selection_end =
-                        value.payload.composition.selection_end;
-                    let vm_result_payload_composition = InputCompositionEventPayloadVm {
-                        action: vm_result_payload_composition_action,
-                        text: vm_result_payload_composition_text,
-                        selection_start: vm_result_payload_composition_selection_start,
-                        selection_end: vm_result_payload_composition_selection_end,
-                    };
-                    let vm_result_payload = InputEventPayloadVm {
-                        key: vm_result_payload_key,
-                        pointer_motion: vm_result_payload_pointer_motion,
-                        pointer_button: vm_result_payload_pointer_button,
-                        scroll: vm_result_payload_scroll,
-                        touch: vm_result_payload_touch,
-                        gamepad: vm_result_payload_gamepad,
-                        text: vm_result_payload_text,
-                        device: vm_result_payload_device,
-                        sensor: vm_result_payload_sensor,
-                        composition: vm_result_payload_composition,
-                    };
-                    let vm_result = InputEventVm {
-                        kind: vm_result_kind,
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        payload: vm_result_payload,
+                    let vm_result = match value {
+                        InputEventReplayRecord::InputCompositionEvent(value) => {
+                            let vm_result_input_composition_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_composition_event_kind = vm::StringHandle::new(vm_result_input_composition_event_kind_value);
+                            let vm_result_input_composition_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_composition_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_composition_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_composition_event_metadata_device_id = vm::StringHandle::new(vm_result_input_composition_event_metadata_device_id_value);
+                            let vm_result_input_composition_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_composition_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_composition_event_metadata_sequence,
+                                device_id: vm_result_input_composition_event_metadata_device_id,
+                            };
+                            let vm_result_input_composition_event_payload_action = value.payload.action;
+                            let vm_result_input_composition_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                            let vm_result_input_composition_event_payload_text = vm::StringHandle::new(vm_result_input_composition_event_payload_text_value);
+                            let vm_result_input_composition_event_payload_selection_start = value.payload.selection_start;
+                            let vm_result_input_composition_event_payload_selection_end = value.payload.selection_end;
+                            let vm_result_input_composition_event_payload = InputCompositionEventPayloadVm {
+                                action: vm_result_input_composition_event_payload_action,
+                                text: vm_result_input_composition_event_payload_text,
+                                selection_start: vm_result_input_composition_event_payload_selection_start,
+                                selection_end: vm_result_input_composition_event_payload_selection_end,
+                            };
+                            let vm_result_input_composition_event = InputCompositionEventVm {
+                                kind: vm_result_input_composition_event_kind,
+                                metadata: vm_result_input_composition_event_metadata,
+                                payload: vm_result_input_composition_event_payload,
+                            };
+                            InputEventVm::InputCompositionEvent(vm_result_input_composition_event)
+                        }
+                        InputEventReplayRecord::InputDeviceEvent(value) => {
+                            let vm_result_input_device_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_device_event_kind = vm::StringHandle::new(vm_result_input_device_event_kind_value);
+                            let vm_result_input_device_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_device_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_device_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_device_event_metadata_device_id = vm::StringHandle::new(vm_result_input_device_event_metadata_device_id_value);
+                            let vm_result_input_device_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_device_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_device_event_metadata_sequence,
+                                device_id: vm_result_input_device_event_metadata_device_id,
+                            };
+                            let vm_result_input_device_event_payload_action = value.payload.action;
+                            let vm_result_input_device_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_device_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_device_event_payload = InputDeviceEventPayloadVm {
+                                action: vm_result_input_device_event_payload_action,
+                                backend_code: vm_result_input_device_event_payload_backend_code,
+                                backend_value: vm_result_input_device_event_payload_backend_value,
+                            };
+                            let vm_result_input_device_event = InputDeviceEventVm {
+                                kind: vm_result_input_device_event_kind,
+                                metadata: vm_result_input_device_event_metadata,
+                                payload: vm_result_input_device_event_payload,
+                            };
+                            InputEventVm::InputDeviceEvent(vm_result_input_device_event)
+                        }
+                        InputEventReplayRecord::InputGamepadEvent(value) => {
+                            let vm_result_input_gamepad_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_gamepad_event_kind = vm::StringHandle::new(vm_result_input_gamepad_event_kind_value);
+                            let vm_result_input_gamepad_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_gamepad_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_gamepad_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_gamepad_event_metadata_device_id = vm::StringHandle::new(vm_result_input_gamepad_event_metadata_device_id_value);
+                            let vm_result_input_gamepad_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_gamepad_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_gamepad_event_metadata_sequence,
+                                device_id: vm_result_input_gamepad_event_metadata_device_id,
+                            };
+                            let vm_result_input_gamepad_event_payload_action = value.payload.action;
+                            let vm_result_input_gamepad_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_gamepad_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_gamepad_event_payload = InputGamepadEventPayloadVm {
+                                action: vm_result_input_gamepad_event_payload_action,
+                                backend_code: vm_result_input_gamepad_event_payload_backend_code,
+                                backend_value: vm_result_input_gamepad_event_payload_backend_value,
+                            };
+                            let vm_result_input_gamepad_event = InputGamepadEventVm {
+                                kind: vm_result_input_gamepad_event_kind,
+                                metadata: vm_result_input_gamepad_event_metadata,
+                                payload: vm_result_input_gamepad_event_payload,
+                            };
+                            InputEventVm::InputGamepadEvent(vm_result_input_gamepad_event)
+                        }
+                        InputEventReplayRecord::InputKeyEvent(value) => {
+                            let vm_result_input_key_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_key_event_kind = vm::StringHandle::new(vm_result_input_key_event_kind_value);
+                            let vm_result_input_key_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_key_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_key_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_key_event_metadata_device_id = vm::StringHandle::new(vm_result_input_key_event_metadata_device_id_value);
+                            let vm_result_input_key_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_key_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_key_event_metadata_sequence,
+                                device_id: vm_result_input_key_event_metadata_device_id,
+                            };
+                            let vm_result_input_key_event_payload_action = value.payload.action;
+                            let vm_result_input_key_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_key_event_payload_backend_scan_code = value.payload.backend_scan_code;
+                            let vm_result_input_key_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_key_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_key_event_payload_repeat = value.payload.repeat;
+                            let vm_result_input_key_event_payload = InputKeyEventPayloadVm {
+                                action: vm_result_input_key_event_payload_action,
+                                backend_code: vm_result_input_key_event_payload_backend_code,
+                                backend_scan_code: vm_result_input_key_event_payload_backend_scan_code,
+                                backend_value: vm_result_input_key_event_payload_backend_value,
+                                modifiers: vm_result_input_key_event_payload_modifiers,
+                                repeat: vm_result_input_key_event_payload_repeat,
+                            };
+                            let vm_result_input_key_event = InputKeyEventVm {
+                                kind: vm_result_input_key_event_kind,
+                                metadata: vm_result_input_key_event_metadata,
+                                payload: vm_result_input_key_event_payload,
+                            };
+                            InputEventVm::InputKeyEvent(vm_result_input_key_event)
+                        }
+                        InputEventReplayRecord::InputPointerButtonEvent(value) => {
+                            let vm_result_input_pointer_button_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_pointer_button_event_kind = vm::StringHandle::new(vm_result_input_pointer_button_event_kind_value);
+                            let vm_result_input_pointer_button_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_pointer_button_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_pointer_button_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_pointer_button_event_metadata_device_id = vm::StringHandle::new(vm_result_input_pointer_button_event_metadata_device_id_value);
+                            let vm_result_input_pointer_button_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_pointer_button_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_pointer_button_event_metadata_sequence,
+                                device_id: vm_result_input_pointer_button_event_metadata_device_id,
+                            };
+                            let vm_result_input_pointer_button_event_payload_action = value.payload.action;
+                            let vm_result_input_pointer_button_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_pointer_button_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_pointer_button_event_payload_x = value.payload.x;
+                            let vm_result_input_pointer_button_event_payload_y = value.payload.y;
+                            let vm_result_input_pointer_button_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_pointer_button_event_payload = InputPointerButtonEventPayloadVm {
+                                action: vm_result_input_pointer_button_event_payload_action,
+                                backend_code: vm_result_input_pointer_button_event_payload_backend_code,
+                                backend_value: vm_result_input_pointer_button_event_payload_backend_value,
+                                x: vm_result_input_pointer_button_event_payload_x,
+                                y: vm_result_input_pointer_button_event_payload_y,
+                                modifiers: vm_result_input_pointer_button_event_payload_modifiers,
+                            };
+                            let vm_result_input_pointer_button_event = InputPointerButtonEventVm {
+                                kind: vm_result_input_pointer_button_event_kind,
+                                metadata: vm_result_input_pointer_button_event_metadata,
+                                payload: vm_result_input_pointer_button_event_payload,
+                            };
+                            InputEventVm::InputPointerButtonEvent(vm_result_input_pointer_button_event)
+                        }
+                        InputEventReplayRecord::InputPointerMotionEvent(value) => {
+                            let vm_result_input_pointer_motion_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_pointer_motion_event_kind = vm::StringHandle::new(vm_result_input_pointer_motion_event_kind_value);
+                            let vm_result_input_pointer_motion_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_pointer_motion_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_pointer_motion_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_pointer_motion_event_metadata_device_id = vm::StringHandle::new(vm_result_input_pointer_motion_event_metadata_device_id_value);
+                            let vm_result_input_pointer_motion_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_pointer_motion_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_pointer_motion_event_metadata_sequence,
+                                device_id: vm_result_input_pointer_motion_event_metadata_device_id,
+                            };
+                            let vm_result_input_pointer_motion_event_payload_x = value.payload.x;
+                            let vm_result_input_pointer_motion_event_payload_y = value.payload.y;
+                            let vm_result_input_pointer_motion_event_payload_buttons = value.payload.buttons;
+                            let vm_result_input_pointer_motion_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_pointer_motion_event_payload = InputPointerMotionEventPayloadVm {
+                                x: vm_result_input_pointer_motion_event_payload_x,
+                                y: vm_result_input_pointer_motion_event_payload_y,
+                                buttons: vm_result_input_pointer_motion_event_payload_buttons,
+                                modifiers: vm_result_input_pointer_motion_event_payload_modifiers,
+                            };
+                            let vm_result_input_pointer_motion_event = InputPointerMotionEventVm {
+                                kind: vm_result_input_pointer_motion_event_kind,
+                                metadata: vm_result_input_pointer_motion_event_metadata,
+                                payload: vm_result_input_pointer_motion_event_payload,
+                            };
+                            InputEventVm::InputPointerMotionEvent(vm_result_input_pointer_motion_event)
+                        }
+                        InputEventReplayRecord::InputScrollEvent(value) => {
+                            let vm_result_input_scroll_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_scroll_event_kind = vm::StringHandle::new(vm_result_input_scroll_event_kind_value);
+                            let vm_result_input_scroll_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_scroll_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_scroll_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_scroll_event_metadata_device_id = vm::StringHandle::new(vm_result_input_scroll_event_metadata_device_id_value);
+                            let vm_result_input_scroll_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_scroll_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_scroll_event_metadata_sequence,
+                                device_id: vm_result_input_scroll_event_metadata_device_id,
+                            };
+                            let vm_result_input_scroll_event_payload_wheel_x = value.payload.wheel_x;
+                            let vm_result_input_scroll_event_payload_wheel_y = value.payload.wheel_y;
+                            let vm_result_input_scroll_event_payload_x = value.payload.x;
+                            let vm_result_input_scroll_event_payload_y = value.payload.y;
+                            let vm_result_input_scroll_event_payload_modifiers = value.payload.modifiers;
+                            let vm_result_input_scroll_event_payload = InputScrollEventPayloadVm {
+                                wheel_x: vm_result_input_scroll_event_payload_wheel_x,
+                                wheel_y: vm_result_input_scroll_event_payload_wheel_y,
+                                x: vm_result_input_scroll_event_payload_x,
+                                y: vm_result_input_scroll_event_payload_y,
+                                modifiers: vm_result_input_scroll_event_payload_modifiers,
+                            };
+                            let vm_result_input_scroll_event = InputScrollEventVm {
+                                kind: vm_result_input_scroll_event_kind,
+                                metadata: vm_result_input_scroll_event_metadata,
+                                payload: vm_result_input_scroll_event_payload,
+                            };
+                            InputEventVm::InputScrollEvent(vm_result_input_scroll_event)
+                        }
+                        InputEventReplayRecord::InputSensorEvent(value) => {
+                            let vm_result_input_sensor_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_sensor_event_kind = vm::StringHandle::new(vm_result_input_sensor_event_kind_value);
+                            let vm_result_input_sensor_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_sensor_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_sensor_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_sensor_event_metadata_device_id = vm::StringHandle::new(vm_result_input_sensor_event_metadata_device_id_value);
+                            let vm_result_input_sensor_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_sensor_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_sensor_event_metadata_sequence,
+                                device_id: vm_result_input_sensor_event_metadata_device_id,
+                            };
+                            let vm_result_input_sensor_event_payload_action = value.payload.action;
+                            let vm_result_input_sensor_event_payload_backend_code = value.payload.backend_code;
+                            let vm_result_input_sensor_event_payload_backend_value = value.payload.backend_value;
+                            let vm_result_input_sensor_event_payload_x = value.payload.x;
+                            let vm_result_input_sensor_event_payload_y = value.payload.y;
+                            let vm_result_input_sensor_event_payload_z = value.payload.z;
+                            let vm_result_input_sensor_event_payload = InputSensorEventPayloadVm {
+                                action: vm_result_input_sensor_event_payload_action,
+                                backend_code: vm_result_input_sensor_event_payload_backend_code,
+                                backend_value: vm_result_input_sensor_event_payload_backend_value,
+                                x: vm_result_input_sensor_event_payload_x,
+                                y: vm_result_input_sensor_event_payload_y,
+                                z: vm_result_input_sensor_event_payload_z,
+                            };
+                            let vm_result_input_sensor_event = InputSensorEventVm {
+                                kind: vm_result_input_sensor_event_kind,
+                                metadata: vm_result_input_sensor_event_metadata,
+                                payload: vm_result_input_sensor_event_payload,
+                            };
+                            InputEventVm::InputSensorEvent(vm_result_input_sensor_event)
+                        }
+                        InputEventReplayRecord::InputTextEvent(value) => {
+                            let vm_result_input_text_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_text_event_kind = vm::StringHandle::new(vm_result_input_text_event_kind_value);
+                            let vm_result_input_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_text_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_text_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_text_event_metadata_device_id = vm::StringHandle::new(vm_result_input_text_event_metadata_device_id_value);
+                            let vm_result_input_text_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_text_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_text_event_metadata_sequence,
+                                device_id: vm_result_input_text_event_metadata_device_id,
+                            };
+                            let vm_result_input_text_event_payload_text_value = context.intern_string(value.payload.text.as_str());
+                            let vm_result_input_text_event_payload_text = vm::StringHandle::new(vm_result_input_text_event_payload_text_value);
+                            let vm_result_input_text_event_payload = InputTextEventPayloadVm {
+                                text: vm_result_input_text_event_payload_text,
+                            };
+                            let vm_result_input_text_event = InputTextEventVm {
+                                kind: vm_result_input_text_event_kind,
+                                metadata: vm_result_input_text_event_metadata,
+                                payload: vm_result_input_text_event_payload,
+                            };
+                            InputEventVm::InputTextEvent(vm_result_input_text_event)
+                        }
+                        InputEventReplayRecord::InputTouchEvent(value) => {
+                            let vm_result_input_touch_event_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_input_touch_event_kind = vm::StringHandle::new(vm_result_input_touch_event_kind_value);
+                            let vm_result_input_touch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                            let vm_result_input_touch_event_metadata_sequence = value.metadata.sequence;
+                            let vm_result_input_touch_event_metadata_device_id_value = context.intern_string(value.metadata.device_id.as_str());
+                            let vm_result_input_touch_event_metadata_device_id = vm::StringHandle::new(vm_result_input_touch_event_metadata_device_id_value);
+                            let vm_result_input_touch_event_metadata = InputEventMetadataVm {
+                                timestamp_ns: vm_result_input_touch_event_metadata_timestamp_ns,
+                                sequence: vm_result_input_touch_event_metadata_sequence,
+                                device_id: vm_result_input_touch_event_metadata_device_id,
+                            };
+                            let vm_result_input_touch_event_payload_action = value.payload.action;
+                            let vm_result_input_touch_event_payload_contact_id = value.payload.contact_id;
+                            let vm_result_input_touch_event_payload_x = value.payload.x;
+                            let vm_result_input_touch_event_payload_y = value.payload.y;
+                            let vm_result_input_touch_event_payload_pressure = value.payload.pressure;
+                            let vm_result_input_touch_event_payload = InputTouchEventPayloadVm {
+                                action: vm_result_input_touch_event_payload_action,
+                                contact_id: vm_result_input_touch_event_payload_contact_id,
+                                x: vm_result_input_touch_event_payload_x,
+                                y: vm_result_input_touch_event_payload_y,
+                                pressure: vm_result_input_touch_event_payload_pressure,
+                            };
+                            let vm_result_input_touch_event = InputTouchEventVm {
+                                kind: vm_result_input_touch_event_kind,
+                                metadata: vm_result_input_touch_event_metadata,
+                                payload: vm_result_input_touch_event_payload,
+                            };
+                            InputEventVm::InputTouchEvent(vm_result_input_touch_event)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -11402,18 +13739,18 @@ fn destack_input_haptics_play_vm_replay(
     world: RuntimeWorld,
     handle: resource::InputDeviceHandle,
     effect: InputHapticEffectType,
-    params: InputHapticEffectParametersVm,
+    parameters: InputHapticEffectParametersVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
         INPUT_HAPTICS_PLAY,
         runtime.replay_payload_for(INPUT_HAPTICS_PLAY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_input_haptics_play(runtime, context, handle, effect, params)
-            }
+            RuntimeWorld::Host => platform_vm::destack_input_haptics_play(
+                runtime, context, handle, effect, parameters,
+            ),
             RuntimeWorld::Simulation => platform_simulation_vm::destack_input_haptics_play(
-                runtime, context, handle, effect, params,
+                runtime, context, handle, effect, parameters,
             ),
         },
         |context, result| {
@@ -13007,31 +15344,44 @@ fn destack_input_text_read_composition_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputCompositionEventVm = value.clone();
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
+                let result_recorded_kind = {
+                    let result_recorded_kind_ref = context
+                        .string_ref(result_value.kind)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
+                    result_recorded_kind_ref.as_str().to_string()
                 };
-                let result_recorded_action = result_value.action;
-                let result_recorded_text = {
-                    let result_recorded_text_ref = context
-                        .string_ref(result_value.text)
+                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
+                let result_recorded_metadata_sequence = result_value.metadata.sequence;
+                let result_recorded_metadata_device_id = {
+                    let result_recorded_metadata_device_id_ref = context
+                        .string_ref(result_value.metadata.device_id)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_text_ref.as_str().to_string()
+                    result_recorded_metadata_device_id_ref.as_str().to_string()
                 };
-                let result_recorded_selection_start = result_value.selection_start;
-                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded_metadata = InputEventMetadataReplayRecord {
+                    timestamp_ns: result_recorded_metadata_timestamp_ns,
+                    sequence: result_recorded_metadata_sequence,
+                    device_id: result_recorded_metadata_device_id,
+                };
+                let result_recorded_payload_action = result_value.payload.action;
+                let result_recorded_payload_text = {
+                    let result_recorded_payload_text_ref = context
+                        .string_ref(result_value.payload.text)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_text_ref.as_str().to_string()
+                };
+                let result_recorded_payload_selection_start = result_value.payload.selection_start;
+                let result_recorded_payload_selection_end = result_value.payload.selection_end;
+                let result_recorded_payload = InputCompositionEventPayloadReplayRecord {
+                    action: result_recorded_payload_action,
+                    text: result_recorded_payload_text,
+                    selection_start: result_recorded_payload_selection_start,
+                    selection_end: result_recorded_payload_selection_end,
+                };
                 let result_recorded = InputCompositionEventReplayRecord {
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    text: result_recorded_text,
-                    selection_start: result_recorded_selection_start,
-                    selection_end: result_recorded_selection_end,
+                    kind: result_recorded_kind,
+                    metadata: result_recorded_metadata,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputTextReadCompositionReplay {
                     result: Ok(result_recorded),
@@ -13054,23 +15404,36 @@ fn destack_input_text_read_composition_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_action = value.action;
-                    let vm_result_text_value = context.intern_string(value.text.as_str());
-                    let vm_result_text = vm::StringHandle::new(vm_result_text_value);
-                    let vm_result_selection_start = value.selection_start;
-                    let vm_result_selection_end = value.selection_end;
+                    let vm_result_kind_value = context.intern_string(value.kind.as_str());
+                    let vm_result_kind = vm::StringHandle::new(vm_result_kind_value);
+                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                    let vm_result_metadata_sequence = value.metadata.sequence;
+                    let vm_result_metadata_device_id_value =
+                        context.intern_string(value.metadata.device_id.as_str());
+                    let vm_result_metadata_device_id =
+                        vm::StringHandle::new(vm_result_metadata_device_id_value);
+                    let vm_result_metadata = InputEventMetadataVm {
+                        timestamp_ns: vm_result_metadata_timestamp_ns,
+                        sequence: vm_result_metadata_sequence,
+                        device_id: vm_result_metadata_device_id,
+                    };
+                    let vm_result_payload_action = value.payload.action;
+                    let vm_result_payload_text_value =
+                        context.intern_string(value.payload.text.as_str());
+                    let vm_result_payload_text =
+                        vm::StringHandle::new(vm_result_payload_text_value);
+                    let vm_result_payload_selection_start = value.payload.selection_start;
+                    let vm_result_payload_selection_end = value.payload.selection_end;
+                    let vm_result_payload = InputCompositionEventPayloadVm {
+                        action: vm_result_payload_action,
+                        text: vm_result_payload_text,
+                        selection_start: vm_result_payload_selection_start,
+                        selection_end: vm_result_payload_selection_end,
+                    };
                     let vm_result = InputCompositionEventVm {
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        action: vm_result_action,
-                        text: vm_result_text,
-                        selection_start: vm_result_selection_start,
-                        selection_end: vm_result_selection_end,
+                        kind: vm_result_kind,
+                        metadata: vm_result_metadata,
+                        payload: vm_result_payload,
                     };
                     Ok(vm_result)
                 }
@@ -13268,31 +15631,44 @@ fn destack_input_text_try_read_composition_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: InputCompositionEventVm = value.clone();
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded_sequence = result_value.sequence;
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
+                let result_recorded_kind = {
+                    let result_recorded_kind_ref = context
+                        .string_ref(result_value.kind)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
+                    result_recorded_kind_ref.as_str().to_string()
                 };
-                let result_recorded_action = result_value.action;
-                let result_recorded_text = {
-                    let result_recorded_text_ref = context
-                        .string_ref(result_value.text)
+                let result_recorded_metadata_timestamp_ns = result_value.metadata.timestamp_ns;
+                let result_recorded_metadata_sequence = result_value.metadata.sequence;
+                let result_recorded_metadata_device_id = {
+                    let result_recorded_metadata_device_id_ref = context
+                        .string_ref(result_value.metadata.device_id)
                         .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_text_ref.as_str().to_string()
+                    result_recorded_metadata_device_id_ref.as_str().to_string()
                 };
-                let result_recorded_selection_start = result_value.selection_start;
-                let result_recorded_selection_end = result_value.selection_end;
+                let result_recorded_metadata = InputEventMetadataReplayRecord {
+                    timestamp_ns: result_recorded_metadata_timestamp_ns,
+                    sequence: result_recorded_metadata_sequence,
+                    device_id: result_recorded_metadata_device_id,
+                };
+                let result_recorded_payload_action = result_value.payload.action;
+                let result_recorded_payload_text = {
+                    let result_recorded_payload_text_ref = context
+                        .string_ref(result_value.payload.text)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_text_ref.as_str().to_string()
+                };
+                let result_recorded_payload_selection_start = result_value.payload.selection_start;
+                let result_recorded_payload_selection_end = result_value.payload.selection_end;
+                let result_recorded_payload = InputCompositionEventPayloadReplayRecord {
+                    action: result_recorded_payload_action,
+                    text: result_recorded_payload_text,
+                    selection_start: result_recorded_payload_selection_start,
+                    selection_end: result_recorded_payload_selection_end,
+                };
                 let result_recorded = InputCompositionEventReplayRecord {
-                    timestamp_ns: result_recorded_timestamp_ns,
-                    sequence: result_recorded_sequence,
-                    device_id: result_recorded_device_id,
-                    action: result_recorded_action,
-                    text: result_recorded_text,
-                    selection_start: result_recorded_selection_start,
-                    selection_end: result_recorded_selection_end,
+                    kind: result_recorded_kind,
+                    metadata: result_recorded_metadata,
+                    payload: result_recorded_payload,
                 };
                 let payload = InputTextTryReadCompositionReplay {
                     result: Ok(result_recorded),
@@ -13315,23 +15691,36 @@ fn destack_input_text_try_read_composition_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result_sequence = value.sequence;
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_action = value.action;
-                    let vm_result_text_value = context.intern_string(value.text.as_str());
-                    let vm_result_text = vm::StringHandle::new(vm_result_text_value);
-                    let vm_result_selection_start = value.selection_start;
-                    let vm_result_selection_end = value.selection_end;
+                    let vm_result_kind_value = context.intern_string(value.kind.as_str());
+                    let vm_result_kind = vm::StringHandle::new(vm_result_kind_value);
+                    let vm_result_metadata_timestamp_ns = value.metadata.timestamp_ns;
+                    let vm_result_metadata_sequence = value.metadata.sequence;
+                    let vm_result_metadata_device_id_value =
+                        context.intern_string(value.metadata.device_id.as_str());
+                    let vm_result_metadata_device_id =
+                        vm::StringHandle::new(vm_result_metadata_device_id_value);
+                    let vm_result_metadata = InputEventMetadataVm {
+                        timestamp_ns: vm_result_metadata_timestamp_ns,
+                        sequence: vm_result_metadata_sequence,
+                        device_id: vm_result_metadata_device_id,
+                    };
+                    let vm_result_payload_action = value.payload.action;
+                    let vm_result_payload_text_value =
+                        context.intern_string(value.payload.text.as_str());
+                    let vm_result_payload_text =
+                        vm::StringHandle::new(vm_result_payload_text_value);
+                    let vm_result_payload_selection_start = value.payload.selection_start;
+                    let vm_result_payload_selection_end = value.payload.selection_end;
+                    let vm_result_payload = InputCompositionEventPayloadVm {
+                        action: vm_result_payload_action,
+                        text: vm_result_payload_text,
+                        selection_start: vm_result_payload_selection_start,
+                        selection_end: vm_result_payload_selection_end,
+                    };
                     let vm_result = InputCompositionEventVm {
-                        timestamp_ns: vm_result_timestamp_ns,
-                        sequence: vm_result_sequence,
-                        device_id: vm_result_device_id,
-                        action: vm_result_action,
-                        text: vm_result_text,
-                        selection_start: vm_result_selection_start,
-                        selection_end: vm_result_selection_end,
+                        kind: vm_result_kind,
+                        metadata: vm_result_metadata,
+                        payload: vm_result_payload,
                     };
                     Ok(vm_result)
                 }
@@ -13923,13 +16312,13 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (handle, effect, params) =
+                    let (handle, effect, parameters) =
                         decode_destack_input_haptics_play_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
                     destack_input_haptics_play_vm_replay(
-                        runtime, context, world, handle, effect, params,
+                        runtime, context, world, handle, effect, parameters,
                     )
                 })
                 .map_err(Into::into)

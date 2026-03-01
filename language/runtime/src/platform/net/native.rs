@@ -1,13 +1,14 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::fs::{OsPath, PathBytesAbi, PathEncoding, core as core_fs};
+use crate::platform::fs::{OsPath, OsPathBytes, PathBytesAbi};
 use crate::platform::net::{
-    KeepAliveConfig, Linger, NetInterface, PacketCaptureOptions, PacketCaptureRecord,
-    PacketCaptureStats, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery,
-    ReverseLookupFlags, ReverseLookupName, RouteEntry, SocketAddress, SocketFamily,
-    SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol,
-    SocketRecvBatchRequest, SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo,
-    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4,
-    UdpSourceMembershipV6, UdsAddress, UdsAddressKind, host as host_net,
+    KeepAliveConfig, Linger, NetInterface, PacketBackend, PacketBackendCapabilityFlags,
+    PacketBackendDescriptor, PacketCaptureOptions, PacketCaptureRecord, PacketCaptureStats,
+    PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery, ReverseLookupFlags,
+    ReverseLookupName, RouteEntry, SocketAddress, SocketFamily, SocketMessageFlags,
+    SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol, SocketRecvBatchRequest,
+    SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry, SocketSendTo, SocketTimestampingMode,
+    SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6,
+    UdsAbstractAddress, UdsAddress, UdsPathAddress, UdsUnnamedAddress, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
@@ -1083,21 +1084,20 @@ fn resolve_port(query: ResolveQuery) -> RuntimeResult<u16> {
 
 /// Map a UDS address into the path shape expected by OS backends.
 fn uds_path(context: &BindingCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
-    match address.kind {
-        UdsAddressKind::Path => Ok(address.path),
-        UdsAddressKind::Abstract => {
-            let name = unsafe { address.abstract_name.as_slice()? };
+    match address {
+        UdsAddress::UdsPathAddress(UdsPathAddress { path, .. }) => Ok(path),
+        UdsAddress::UdsAbstractAddress(UdsAbstractAddress { abstract_name, .. }) => {
+            let name = unsafe { abstract_name.as_slice()? };
             let mut bytes = Vec::with_capacity(name.len().saturating_add(1));
             bytes.push(0);
             bytes.extend_from_slice(name);
             let bytes = PathBytesAbi(context.store_array(bytes));
-            Ok(OsPath {
-                encoding: PathEncoding::Bytes,
+            Ok(OsPath::OsPathBytes(OsPathBytes {
+                kind: context.store_string("bytes"),
                 bytes,
-                utf16: core_fs::empty_path_utf16(),
-            })
+            }))
         }
-        UdsAddressKind::Unnamed => {
+        UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress { .. }) => {
             Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
         }
     }
@@ -1253,6 +1253,79 @@ pub(crate) unsafe fn destack_net_list_interfaces(
     out: *mut NativeArray<NetInterface>,
 ) -> RuntimeResult<()> {
     unsafe { host_net::destack_net_list_interfaces(context, out) }
+}
+
+/// List host packet backends.
+pub(crate) unsafe fn destack_net_packet_backend_list(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<PacketBackendDescriptor>,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    let mut descriptors = Vec::new();
+
+    #[cfg(target_os = "linux")]
+    {
+        descriptors.push(PacketBackendDescriptor {
+            backend: PacketBackend::AfPacket,
+            name: context.store_string("af_packet"),
+            available: true,
+            priority: 100,
+            capability_flags: PacketBackendCapabilityFlags(0),
+        });
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        descriptors.push(PacketBackendDescriptor {
+            backend: PacketBackend::Bpf,
+            name: context.store_string("bpf"),
+            available: true,
+            priority: 100,
+            capability_flags: PacketBackendCapabilityFlags(0),
+        });
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        descriptors.push(PacketBackendDescriptor {
+            backend: PacketBackend::WinRawSocket,
+            name: context.store_string("win_raw_socket"),
+            available: true,
+            priority: 100,
+            capability_flags: PacketBackendCapabilityFlags(0),
+        });
+    }
+
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+    {
+        descriptors.push(PacketBackendDescriptor {
+            backend: PacketBackend::Null,
+            name: context.store_string("null"),
+            available: false,
+            priority: 0,
+            capability_flags: PacketBackendCapabilityFlags(0),
+        });
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        descriptors.push(PacketBackendDescriptor {
+            backend: PacketBackend::Null,
+            name: context.store_string("null"),
+            available: false,
+            priority: 0,
+            capability_flags: PacketBackendCapabilityFlags(0),
+        });
+    }
+
+    unsafe {
+        *out = context.store_slice(descriptors);
+    }
+
+    Ok(())
 }
 
 /// Open a packet capture or inject endpoint.

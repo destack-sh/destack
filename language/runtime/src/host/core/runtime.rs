@@ -177,7 +177,6 @@ fn filter_events(events: Vec<HostEvent>, host_options: &PlatformHostOptions) -> 
 
     for event in events {
         let is_enabled = match event {
-            HostEvent::Poller(_) => true,
             HostEvent::Lifecycle(_) => host_options.enable_lifecycle_events,
             HostEvent::Window(_) => host_options.enable_window_events,
             HostEvent::WindowFocus(_) => host_options.enable_window_events,

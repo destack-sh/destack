@@ -7,15 +7,29 @@ use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 
 use crate::platform::net::{
-    AcceptFlags, KeepAliveConfig, Linger, NetInterface, PacketCaptureOptions, PacketCaptureRecord,
-    PacketCaptureStats, PacketFanoutOptions, PacketRingOptions, PacketTimestampMode, ResolveQuery,
-    ReverseLookupFlags, ReverseLookupName, RouteEntry, SocketAddress, SocketFamily,
-    SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair, SocketProtocol,
-    SocketRecvBatchRequest, SocketRecvFrom, SocketRecvMessage, SocketSendBatchEntry,
-    SocketSendMessage, SocketSendTo, SocketShutdown, SocketTimestampingMode, SocketType,
-    UdpMessageFlags, UdpReceive, UdpSourceMembershipV4, UdpSourceMembershipV6, UdsAddress,
+    AcceptFlags, KeepAliveConfig, Linger, NetInterface, PacketBackendDescriptor,
+    PacketCaptureOptions, PacketCaptureRecord, PacketCaptureStats, PacketFanoutOptions,
+    PacketRingOptions, PacketTimestampMode, ResolveQuery, ReverseLookupFlags, ReverseLookupName,
+    RouteEntry, SocketAddress, SocketFamily, SocketMessageFlags, SocketOptionLevel,
+    SocketOptionName, SocketPair, SocketProtocol, SocketRecvBatchRequest, SocketRecvFrom,
+    SocketRecvMessage, SocketSendBatchEntry, SocketSendMessage, SocketSendTo, SocketShutdown,
+    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpSourceMembershipV4,
+    UdpSourceMembershipV6, UdsAddress,
 };
 use crate::platform::{fs, resource};
+
+/// List host packet backends.
+pub(crate) unsafe fn destack_net_packet_backend_list(
+    _context: &BindingCallContext,
+    out: *mut NativeSlice<PacketBackendDescriptor>,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.packetBackendList",
+    ))
+    .boxed())
+}
 
 /// Accept a new connection from a listener.
 ///

@@ -124,25 +124,210 @@ fn event_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: AudioEvent,
 ) -> RuntimeResult<AudioEventVm> {
-    Ok(AudioEventVm {
-        kind: value.kind,
-        timestamp_ns: value.timestamp_ns,
-        sequence: value.sequence,
-        dropped_count: value.dropped_count,
-        source: value.source,
-        backend: value.backend,
-        flags: value.flags,
-        status_flags: value.status_flags,
-        xrun_count_delta: value.xrun_count_delta,
-        device_id: if let Some(device_id) = value.device_id {
-            Some(vm::StringHandle::new(
-                context.intern_string(unsafe { device_id.as_str()? }),
+    match value {
+        AudioEvent::AudioBackendDisconnectedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            Ok(AudioEventVm::AudioBackendDisconnectedEvent(
+                crate::platform::audio::AudioBackendDisconnectedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
             ))
-        } else {
-            None
-        },
-        stream: value.stream,
-    })
+        }
+        AudioEvent::AudioBackendResetEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            Ok(AudioEventVm::AudioBackendResetEvent(
+                crate::platform::audio::AudioBackendResetEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        AudioEvent::AudioDefaultCaptureChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDefaultCaptureChangedEvent(
+                crate::platform::audio::AudioDefaultCaptureChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDefaultCaptureChangedPayloadVm {
+                        device_id,
+                    },
+                },
+            ))
+        }
+        AudioEvent::AudioDefaultLoopbackChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDefaultLoopbackChangedEvent(
+                crate::platform::audio::AudioDefaultLoopbackChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDefaultLoopbackChangedPayloadVm {
+                        device_id,
+                    },
+                },
+            ))
+        }
+        AudioEvent::AudioDefaultPlaybackChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDefaultPlaybackChangedEvent(
+                crate::platform::audio::AudioDefaultPlaybackChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDefaultPlaybackChangedPayloadVm {
+                        device_id,
+                    },
+                },
+            ))
+        }
+        AudioEvent::AudioDeviceAddedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDeviceAddedEvent(
+                crate::platform::audio::AudioDeviceAddedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDeviceAddedPayloadVm { device_id },
+                },
+            ))
+        }
+        AudioEvent::AudioDeviceFormatChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDeviceFormatChangedEvent(
+                crate::platform::audio::AudioDeviceFormatChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDeviceFormatChangedPayloadVm {
+                        device_id,
+                    },
+                },
+            ))
+        }
+        AudioEvent::AudioDeviceRemovedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDeviceRemovedEvent(
+                crate::platform::audio::AudioDeviceRemovedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDeviceRemovedPayloadVm { device_id },
+                },
+            ))
+        }
+        AudioEvent::AudioDeviceReroutedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioDeviceReroutedEvent(
+                crate::platform::audio::AudioDeviceReroutedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioDeviceReroutedPayloadVm { device_id },
+                },
+            ))
+        }
+        AudioEvent::AudioInterruptionBeganEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            Ok(AudioEventVm::AudioInterruptionBeganEvent(
+                crate::platform::audio::AudioInterruptionBeganEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        AudioEvent::AudioInterruptionEndedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            Ok(AudioEventVm::AudioInterruptionEndedEvent(
+                crate::platform::audio::AudioInterruptionEndedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        AudioEvent::AudioStreamDeviceChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioStreamDeviceChangedEvent(
+                crate::platform::audio::AudioStreamDeviceChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioStreamDeviceChangedPayloadVm {
+                        stream: event.payload.stream,
+                        status_flags: event.payload.status_flags,
+                        device_id,
+                    },
+                },
+            ))
+        }
+        AudioEvent::AudioStreamStateChangedEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            Ok(AudioEventVm::AudioStreamStateChangedEvent(
+                crate::platform::audio::AudioStreamStateChangedEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: event.payload,
+                },
+            ))
+        }
+        AudioEvent::AudioStreamXRunEvent(event) => {
+            let kind = string_to_vm(context, event.kind)?;
+            let device_id = event
+                .payload
+                .device_id
+                .map(|device_id| string_to_vm(context, device_id))
+                .transpose()?;
+            Ok(AudioEventVm::AudioStreamXRunEvent(
+                crate::platform::audio::AudioStreamXRunEventVm {
+                    kind,
+                    metadata: event.metadata,
+                    payload: crate::platform::audio::AudioStreamXRunPayloadVm {
+                        stream: event.payload.stream,
+                        status_flags: event.payload.status_flags,
+                        xrun_count_delta: event.payload.xrun_count_delta,
+                        device_id,
+                    },
+                },
+            ))
+        }
+    }
 }
 
 /// Convert one native stream snapshot payload into one vm payload.

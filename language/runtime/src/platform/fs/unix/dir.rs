@@ -478,7 +478,7 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 
             // mark end-of-directory
             unsafe {
-                *out = DirentNext { entry: None };
+                *out = DirentNext::DirentNextEnd(DirentNextEnd { kind: "end".into() });
             }
             return Ok(());
         }
@@ -518,12 +518,13 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         let name = PathBytesAbi::<NativeAbi>(context.store_array(name_bytes.to_vec()));
         *cursor = current_index.saturating_add(1);
         unsafe {
-            *out = DirentNext {
-                entry: Some(Dirent {
+            *out = DirentNext::DirentNextEntry(DirentNextEntry {
+                kind: "entry".into(),
+                entry: Dirent {
                     name: core_fs::path_ref_from_bytes(name),
                     kind,
-                }),
-            };
+                },
+            });
         }
 
         return Ok(());

@@ -517,6 +517,214 @@ pub(super) fn event_batch_len(
     }
 }
 
+/// Decode one native event row into sequence, dropped count, kind, xrun delta, and source.
+fn native_event_row(value: &AudioEvent) -> (u64, u64, AudioEventKind, u64, AudioEventSource) {
+    match value {
+        AudioEvent::AudioBackendDisconnectedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::BackendDisconnected,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioBackendResetEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::BackendReset,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDefaultCaptureChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultCaptureChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDefaultLoopbackChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultLoopbackChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDefaultPlaybackChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultPlaybackChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDeviceAddedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceAdded,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDeviceFormatChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceFormatChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDeviceRemovedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceRemoved,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioDeviceReroutedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceRerouted,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioInterruptionBeganEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::InterruptionBegan,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioInterruptionEndedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::InterruptionEnded,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioStreamDeviceChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamDeviceChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioStreamStateChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamStateChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEvent::AudioStreamXRunEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamXRun,
+            value.payload.xrun_count_delta,
+            value.metadata.source,
+        ),
+    }
+}
+
+/// Decode one VM event row into sequence, dropped count, kind, xrun delta, and source.
+fn vm_event_row(value: &AudioEventVm) -> (u64, u64, AudioEventKind, u64, AudioEventSource) {
+    match value {
+        AudioEventVm::AudioBackendDisconnectedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::BackendDisconnected,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioBackendResetEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::BackendReset,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDefaultCaptureChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultCaptureChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDefaultLoopbackChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultLoopbackChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDefaultPlaybackChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DefaultPlaybackChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDeviceAddedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceAdded,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDeviceFormatChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceFormatChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDeviceRemovedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceRemoved,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioDeviceReroutedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::DeviceRerouted,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioInterruptionBeganEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::InterruptionBegan,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioInterruptionEndedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::InterruptionEnded,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioStreamDeviceChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamDeviceChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioStreamStateChangedEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamStateChanged,
+            0,
+            value.metadata.source,
+        ),
+        AudioEventVm::AudioStreamXRunEvent(value) => (
+            value.metadata.sequence,
+            value.metadata.dropped_count,
+            AudioEventKind::StreamXRun,
+            value.payload.xrun_count_delta,
+            value.metadata.source,
+        ),
+    }
+}
+
 /// Decode one event-batch payload into sequence and dropped-count rows.
 pub(super) fn event_batch_sequence_rows(
     context: &mut AudioHarnessContext<'_>,
@@ -527,7 +735,10 @@ pub(super) fn event_batch_sequence_rows(
             let values = unsafe { value.as_slice()? };
             Ok(values
                 .iter()
-                .map(|value| (value.sequence, value.dropped_count))
+                .map(|value| {
+                    let (sequence, dropped_count, _, _, _) = native_event_row(value);
+                    (sequence, dropped_count)
+                })
                 .collect::<Vec<_>>())
         }
         HarnessValue::Vm(value) => {
@@ -536,7 +747,10 @@ pub(super) fn event_batch_sequence_rows(
             let values = value.read_values(vm_context)?;
             Ok(values
                 .iter()
-                .map(|value| (value.sequence, value.dropped_count))
+                .map(|value| {
+                    let (sequence, dropped_count, _, _, _) = vm_event_row(value);
+                    (sequence, dropped_count)
+                })
                 .collect::<Vec<_>>())
         }
     }
@@ -552,7 +766,10 @@ pub(super) fn event_batch_kind_rows(
             let values = unsafe { value.as_slice()? };
             Ok(values
                 .iter()
-                .map(|value| (value.kind, value.xrun_count_delta, value.source))
+                .map(|value| {
+                    let (_, _, kind, xrun_count_delta, source) = native_event_row(value);
+                    (kind, xrun_count_delta, source)
+                })
                 .collect::<Vec<_>>())
         }
         HarnessValue::Vm(value) => {
@@ -561,7 +778,10 @@ pub(super) fn event_batch_kind_rows(
             let values = value.read_values(vm_context)?;
             Ok(values
                 .iter()
-                .map(|value| (value.kind, value.xrun_count_delta, value.source))
+                .map(|value| {
+                    let (_, _, kind, xrun_count_delta, source) = vm_event_row(value);
+                    (kind, xrun_count_delta, source)
+                })
                 .collect::<Vec<_>>())
         }
     }

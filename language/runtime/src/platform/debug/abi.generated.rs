@@ -91,8 +91,8 @@ impl VmValueCodec for TraceLevel {
 pub struct InspectorEndpointAbi<A: BindingAbi> {
     /// The url field.
     pub url: A::String,
-    /// The pid field.
-    pub pid: u32,
+    /// The process_id field.
+    pub process_id: u32,
 }
 
 pub type InspectorEndpoint = InspectorEndpointAbi<NativeAbi>;
@@ -143,10 +143,10 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
         }
         let field_url =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_process_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
             url: field_url,
-            pid: field_pid,
+            process_id: field_process_id,
         })
     }
 
@@ -156,7 +156,7 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.process_id, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -167,6 +167,6 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
 pub struct InspectorEndpointReplayRecord {
     /// The url field.
     pub url: String,
-    /// The pid field.
-    pub pid: u32,
+    /// The process_id field.
+    pub process_id: u32,
 }

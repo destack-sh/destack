@@ -799,6 +799,22 @@ fn collect_replay_type_names(
         } => {
             names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
         }
+        BindingType::TaggedUnion {
+            name,
+            domain: type_domain,
+            variants,
+        } => {
+            let replay_name = replay_named_struct_name(name);
+            names.insert(named_type_path(
+                domain,
+                type_domain.as_str(),
+                replay_name.as_str(),
+            ));
+
+            for variant in variants {
+                collect_replay_type_names(domain, &variant.binding_type, names);
+            }
+        }
         _ => {}
     }
 }

@@ -11,7 +11,7 @@ pub use bindings_generated::*;
 mod host;
 pub mod native;
 pub(crate) mod simulation;
-mod unsupported;
 #[cfg(test)]
 mod tests;
+mod unsupported;
 pub mod vm;

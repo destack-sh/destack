@@ -20,6 +20,12 @@ builtin_lib_sources_targeted!(
     PLATFORM_PLATFORMS,
     [
         (
+            LIB_PLATFORM_AUDIO_BACKEND_DS,
+            "lib",
+            "platform/audio",
+            "backend.ds"
+        ),
+        (
             LIB_PLATFORM_AUDIO_CLOCK_DS,
             "lib",
             "platform/audio",
@@ -186,6 +192,12 @@ builtin_lib_sources_targeted!(
             "lib",
             "platform/device",
             "usb.ds"
+        ),
+        (
+            LIB_PLATFORM_DISPLAY_BACKEND_DS,
+            "lib",
+            "platform/display",
+            "backend.ds"
         ),
         (
             LIB_PLATFORM_DISPLAY_INDEX_DS,
@@ -827,6 +839,7 @@ builtin_lib_sources_targeted!(
 pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
     "platform",
     &[
+        LIB_PLATFORM_AUDIO_BACKEND_DS,
         LIB_PLATFORM_AUDIO_CLOCK_DS,
         LIB_PLATFORM_AUDIO_DEVICE_DS,
         LIB_PLATFORM_AUDIO_EVENT_DS,
@@ -855,6 +868,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_DEVICE_INDEX_DS,
         LIB_PLATFORM_DEVICE_SERIAL_DS,
         LIB_PLATFORM_DEVICE_USB_DS,
+        LIB_PLATFORM_DISPLAY_BACKEND_DS,
         LIB_PLATFORM_DISPLAY_INDEX_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_EVENT_DS,

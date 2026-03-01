@@ -13,7 +13,7 @@ use crate::platform::tty::{PtyPair, TtySize};
 use crate::runtime::BindingCallContext;
 
 /// Close one raw handle when it is valid.
-fn close_valid_handle(handle: HANDLE) {
+fn close_handle_maybe(handle: HANDLE) {
     if handle != 0 && handle != INVALID_HANDLE_VALUE {
         unsafe {
             CloseHandle(handle);
@@ -110,8 +110,8 @@ pub(crate) unsafe fn destack_tty_pty_open(
         )
     };
     if output_pipe == 0 {
-        close_valid_handle(pseudo_input_read);
-        close_valid_handle(worker_write);
+        close_handle_maybe(pseudo_input_read);
+        close_handle_maybe(worker_write);
         return Err(io_error(
             "destack.tty.pty.open",
             "CreatePipe",
@@ -135,10 +135,10 @@ pub(crate) unsafe fn destack_tty_pty_open(
         )
     };
     if status < 0 {
-        close_valid_handle(pseudo_input_read);
-        close_valid_handle(worker_write);
-        close_valid_handle(worker_read);
-        close_valid_handle(pseudo_output_write);
+        close_handle_maybe(pseudo_input_read);
+        close_handle_maybe(worker_write);
+        close_handle_maybe(worker_read);
+        close_handle_maybe(pseudo_output_write);
         return Err(conpty_error_from_hresult(
             "destack.tty.pty.open",
             "CreatePseudoConsole",
@@ -148,8 +148,8 @@ pub(crate) unsafe fn destack_tty_pty_open(
     }
 
     // close endpoints now owned by the pseudo console
-    close_valid_handle(pseudo_input_read);
-    close_valid_handle(pseudo_output_write);
+    close_handle_maybe(pseudo_input_read);
+    close_handle_maybe(pseudo_output_write);
 
     // register the controller and worker resources
     let initial_size = TtySize {

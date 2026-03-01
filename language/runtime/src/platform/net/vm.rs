@@ -3,20 +3,21 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, VmAbi};
 use crate::platform::fs::{
-    OsPath, OsPathVm, PathBytesAbi, PathEncoding, PathUtf16Abi, core as core_fs,
+    OsPath, OsPathBytes, OsPathVm, PathBytesAbi, PathUtf16Abi, core as core_fs,
 };
 use crate::platform::net::{
-    AcceptFlags, KeepAliveConfig, Linger, NetInterface, NetInterfaceVm, PacketCaptureOptionsVm,
-    PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm,
-    PacketTimestampMode, ResolveFlags, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm,
-    RouteEntry, RouteEntryVm, SocketAddress, SocketAddressVm, SocketControlBufferAbi,
-    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel,
-    SocketOptionName, SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm,
-    SocketRecvFrom, SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm,
-    SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm,
-    SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm,
-    UdpSourceMembershipV4, UdpSourceMembershipV4Vm, UdpSourceMembershipV6, UdpSourceMembershipV6Vm,
-    UdsAddress, UdsAddressKind, UdsAddressVm, host as host_net,
+    AcceptFlags, KeepAliveConfig, Linger, NetInterface, NetInterfaceVm, PacketBackendDescriptor,
+    PacketBackendDescriptorVm, PacketCaptureOptionsVm, PacketCaptureRecordVm, PacketCaptureStatsVm,
+    PacketFanoutOptionsVm, PacketRingOptionsVm, PacketTimestampMode, ResolveFlags, ResolveQueryVm,
+    ReverseLookupFlags, ReverseLookupNameVm, RouteEntry, RouteEntryVm, SocketAddress,
+    SocketAddressVm, SocketControlBufferAbi, SocketCredentials, SocketCredentialsVm, SocketFamily,
+    SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair, SocketPairVm,
+    SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFrom, SocketRecvFromVm, SocketRecvMessage,
+    SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm,
+    SocketSendTo, SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType,
+    UdpMessageFlags, UdpReceive, UdpReceiveVm, UdpSourceMembershipV4, UdpSourceMembershipV4Vm,
+    UdpSourceMembershipV6, UdpSourceMembershipV6Vm, UdsAbstractAddress, UdsAddress, UdsAddressVm,
+    UdsPathAddress, UdsUnnamedAddress, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
@@ -2351,6 +2352,27 @@ fn net_interface_array_to_vm(
     VmArray::from_values(context, &interfaces)
 }
 
+fn packet_backend_descriptor_slice_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeSlice<PacketBackendDescriptor>,
+) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
+    let values = unsafe { value.as_slice()? };
+    let mut descriptors = Vec::with_capacity(values.len());
+
+    for value in values {
+        let name = unsafe { value.name.as_str()? };
+        descriptors.push(PacketBackendDescriptorVm {
+            backend: value.backend,
+            name: vm::StringHandle::new(context.intern_string(name)),
+            available: value.available,
+            priority: value.priority,
+            capability_flags: value.capability_flags,
+        });
+    }
+
+    VmSlice::from_values(context, &descriptors)
+}
+
 fn route_entry_from_vm(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2528,24 +2550,16 @@ fn path_ref_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<OsPath> {
-    match path.encoding {
-        PathEncoding::Bytes => {
-            let bytes = path.bytes.0.read_bytes(context)?;
+    match path {
+        OsPathVm::OsPathBytes(path_bytes) => {
+            let bytes = path_bytes.bytes.0.read_bytes(context)?;
             let bytes = PathBytesAbi::<NativeAbi>(runtime.store_array(bytes));
-            Ok(OsPath {
-                encoding: PathEncoding::Bytes,
-                bytes,
-                utf16: core_fs::empty_path_utf16(),
-            })
+            Ok(core_fs::path_ref_from_bytes(bytes))
         }
-        PathEncoding::Utf16 => {
-            let units = path.utf16.0.read_values(context)?;
+        OsPathVm::OsPathUtf16(path_utf16) => {
+            let units = path_utf16.utf16.0.read_values(context)?;
             let utf16 = PathUtf16Abi::<NativeAbi>(runtime.store_array(units));
-            Ok(OsPath {
-                encoding: PathEncoding::Utf16,
-                bytes: core_fs::empty_path_bytes(),
-                utf16,
-            })
+            Ok(core_fs::path_ref_from_utf16(utf16))
         }
     }
 }
@@ -2555,33 +2569,45 @@ fn uds_address_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     address: UdsAddressVm,
 ) -> RuntimeResult<UdsAddress> {
-    let path = path_ref_from_vm(runtime, context, address.path)?;
-    let abstract_name = address.abstract_name.read_bytes(context)?;
-    let abstract_name = runtime.store_array(abstract_name);
-
-    Ok(UdsAddress {
-        kind: address.kind,
-        path,
-        abstract_name,
-    })
+    match address {
+        UdsAddressVm::UdsPathAddress(path_address) => {
+            let path = path_ref_from_vm(runtime, context, path_address.path)?;
+            Ok(UdsAddress::UdsPathAddress(UdsPathAddress {
+                kind: runtime.store_string("path"),
+                path,
+            }))
+        }
+        UdsAddressVm::UdsAbstractAddress(abstract_address) => {
+            let abstract_name = abstract_address.abstract_name.read_bytes(context)?;
+            let abstract_name = runtime.store_array(abstract_name);
+            Ok(UdsAddress::UdsAbstractAddress(UdsAbstractAddress {
+                kind: runtime.store_string("abstract"),
+                abstract_name,
+            }))
+        }
+        UdsAddressVm::UdsUnnamedAddress(_) => {
+            Ok(UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress {
+                kind: runtime.store_string("unnamed"),
+            }))
+        }
+    }
 }
 
 fn uds_path(runtime: &BindingCallContext, address: UdsAddress) -> RuntimeResult<OsPath> {
-    match address.kind {
-        UdsAddressKind::Path => Ok(address.path),
-        UdsAddressKind::Abstract => {
-            let name = unsafe { address.abstract_name.as_slice()? };
+    match address {
+        UdsAddress::UdsPathAddress(UdsPathAddress { path, .. }) => Ok(path),
+        UdsAddress::UdsAbstractAddress(UdsAbstractAddress { abstract_name, .. }) => {
+            let name = unsafe { abstract_name.as_slice()? };
             let mut bytes = Vec::with_capacity(name.len().saturating_add(1));
             bytes.push(0);
             bytes.extend_from_slice(name);
             let bytes = PathBytesAbi::<NativeAbi>(runtime.store_array(bytes));
-            Ok(OsPath {
-                encoding: PathEncoding::Bytes,
+            Ok(OsPath::OsPathBytes(OsPathBytes {
+                kind: runtime.store_string("bytes"),
                 bytes,
-                utf16: core_fs::empty_path_utf16(),
-            })
+            }))
         }
-        UdsAddressKind::Unnamed => {
+        UdsAddress::UdsUnnamedAddress(UdsUnnamedAddress { .. }) => {
             Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsConnect")).boxed())
         }
     }
@@ -2856,6 +2882,16 @@ pub(super) fn destack_net_list_interfaces(
 ) -> RuntimeResult<VmArray<NetInterfaceVm>> {
     let values = call_out(|out| unsafe { host_net::destack_net_list_interfaces(runtime, out) })?;
     net_interface_array_to_vm(context, values)
+}
+
+/// List host packet backends.
+pub(super) fn destack_net_packet_backend_list(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
+    let values =
+        call_out(|out| unsafe { host_net::destack_net_packet_backend_list(runtime, out) })?;
+    packet_backend_descriptor_slice_to_vm(context, values)
 }
 
 /// Open a packet capture or inject endpoint.

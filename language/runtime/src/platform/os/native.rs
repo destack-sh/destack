@@ -11,7 +11,7 @@ use super::credentials::{
     authenticate_credentials, contains_credentials, decode_native_bytes, decode_native_string,
     delete_credentials, normalize_optional_string, read_credentials, write_credentials,
 };
-pub(crate) use super::host::*;
+pub(crate) use super::host_impl::*;
 pub(crate) use super::info::*;
 pub(crate) use super::power::*;
 pub(crate) use super::unsupported::*;

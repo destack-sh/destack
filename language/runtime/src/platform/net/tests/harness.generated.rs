@@ -8,20 +8,22 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
     AcceptFlags, KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, NetInterface,
-    NetInterfaceFlags, NetInterfaceVm, PacketCaptureOptions, PacketCaptureOptionsVm,
-    PacketCaptureRecord, PacketCaptureRecordVm, PacketCaptureStats, PacketCaptureStatsVm,
-    PacketFanoutMode, PacketFanoutOptions, PacketFanoutOptionsVm, PacketRingOptions,
-    PacketRingOptionsVm, PacketTimestampMode, ResolveFlags, ResolveQuery, ResolveQueryVm,
-    ReverseLookupFlags, ReverseLookupName, ReverseLookupNameVm, RouteEntry, RouteEntryVm,
-    RouteKind, SocketAddress, SocketAddressVm, SocketControlBuffer, SocketControlBufferVm,
-    SocketCredentials, SocketCredentialsVm, SocketFamily, SocketMessageFlags, SocketOptionLevel,
-    SocketOptionName, SocketPair, SocketPairVm, SocketProtocol, SocketRecvBatchRequest,
-    SocketRecvBatchRequestVm, SocketRecvFrom, SocketRecvFromVm, SocketRecvMessage,
-    SocketRecvMessageVm, SocketSendBatchEntry, SocketSendBatchEntryVm, SocketSendMessage,
-    SocketSendMessageVm, SocketSendTo, SocketSendToVm, SocketShutdown, SocketTimestampingMode,
-    SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm, UdpSourceMembershipV4,
-    UdpSourceMembershipV4Vm, UdpSourceMembershipV6, UdpSourceMembershipV6Vm, UdsAddress,
-    UdsAddressKind, UdsAddressVm, native as net_native, vm as net_vm,
+    NetInterfaceFlags, NetInterfaceVm, PacketBackend, PacketBackendCapabilityFlags,
+    PacketBackendDescriptor, PacketBackendDescriptorVm, PacketBackendSelectionPolicy,
+    PacketCaptureOptions, PacketCaptureOptionsVm, PacketCaptureRecord, PacketCaptureRecordVm,
+    PacketCaptureStats, PacketCaptureStatsVm, PacketFanoutMode, PacketFanoutOptions,
+    PacketFanoutOptionsVm, PacketRingOptions, PacketRingOptionsVm, PacketTimestampMode,
+    ResolveFlags, ResolveQuery, ResolveQueryVm, ReverseLookupFlags, ReverseLookupName,
+    ReverseLookupNameVm, RouteEntry, RouteEntryVm, RouteKind, SocketAddress, SocketAddressVm,
+    SocketControlBuffer, SocketControlBufferVm, SocketCredentials, SocketCredentialsVm,
+    SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName, SocketPair,
+    SocketPairVm, SocketProtocol, SocketRecvBatchRequest, SocketRecvBatchRequestVm, SocketRecvFrom,
+    SocketRecvFromVm, SocketRecvMessage, SocketRecvMessageVm, SocketSendBatchEntry,
+    SocketSendBatchEntryVm, SocketSendMessage, SocketSendMessageVm, SocketSendTo, SocketSendToVm,
+    SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceive, UdpReceiveVm,
+    UdpSourceMembershipV4, UdpSourceMembershipV4Vm, UdpSourceMembershipV6, UdpSourceMembershipV6Vm,
+    UdsAbstractAddress, UdsAbstractAddressVm, UdsAddress, UdsAddressVm, UdsPathAddress,
+    UdsPathAddressVm, UdsUnnamedAddress, UdsUnnamedAddressVm, native as net_native, vm as net_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -1290,6 +1292,46 @@ impl<'call> NetHarnessContext<'call> {
             None => unsafe {
                 net_native::destack_net_set_write_timeout(self.call_context, handle, timeoutms)
             },
+        }
+    }
+
+    /// List host packet backends.
+    ///
+    /// Enumerate available packet backend implementations and backend-level feature flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_net_packet_backend_list(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<PacketBackendDescriptor>, VmSlice<PacketBackendDescriptorVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = net_vm::destack_net_packet_backend_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<PacketBackendDescriptor>>::uninit();
+                unsafe {
+                    net_native::destack_net_packet_backend_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
         }
     }
 

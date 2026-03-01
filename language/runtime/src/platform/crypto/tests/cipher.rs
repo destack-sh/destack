@@ -1,8 +1,9 @@
 use super::{KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, with_harness_context};
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
-    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, CryptoDigestAlgorithm,
-    CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask,
-    CryptoNamedCurve, CryptoStoreKind, CryptoStoreProvider,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters,
+    CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask, CryptoStoreKind,
+    CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -14,20 +15,18 @@ fn test_cipher_encrypt_decrypt_aes_gcm() {
         // open store and generate one aes key with encrypt and decrypt usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
-            label: context.call_context.store_string("aes"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("aes"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -85,20 +84,18 @@ fn test_cipher_streaming_respects_aead_tag_length() {
         // open store and generate one aes key with encrypt and decrypt usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
-            label: context.call_context.store_string("stream"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("stream"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -165,20 +162,18 @@ fn test_cipher_streaming_update_additional_data_roundtrip() {
         // open store and generate one aes key with encrypt and decrypt usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
-            label: context.call_context.store_string("aad-stream"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("aad-stream"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -247,20 +242,18 @@ fn test_cipher_reset_clears_stream_state() {
         // open store and generate one aes key with encrypt and decrypt usages
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
-            label: context.call_context.store_string("cipher-reset"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("cipher-reset"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -335,20 +328,18 @@ fn test_cipher_encrypt_rejects_missing_encrypt_usage() {
         // open store and generate one aes key without encrypt usage
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(KEY_USAGE_DECRYPT),
-            label: context.call_context.store_string("decrypt-only"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DECRYPT),
+                label: context.call_context.store_string("decrypt-only"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -400,20 +391,18 @@ fn test_cipher_streaming_host_secret_follows_lane_support() {
             // open one host lane and request one hardware-backed aes key
             let options = context.store_options_value(kind);
             let store = context.destack_crypto_store_open(options)?;
-            let request = CryptoKeyGenerationRequest {
-                algorithm: CryptoKeyAlgorithm::Aes,
-                named_curve: CryptoNamedCurve::Unknown,
-                modulus_bits: 0,
-                public_exponent: 0,
-                digest: CryptoDigestAlgorithm::Unknown,
-                size_bits: 256,
-                usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
-                label: context.call_context.store_string("host-stream-cipher"),
-                extractable: false,
-                residency: CryptoKeyResidency::Unknown,
-                hardware_backed: true,
-                persistent: true,
-            };
+            let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                platform_crypto::CryptoKeyGenerationRequestAes {
+                    algorithm: context.call_context.store_string("aes"),
+                    size_bits: 256,
+                    usage_mask: CryptoKeyUsageMask(KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT),
+                    label: context.call_context.store_string("host-stream-cipher"),
+                    extractable: false,
+                    residency: CryptoKeyResidency::Unknown,
+                    hardware_backed: true,
+                    persistent: true,
+                },
+            );
             let key_result =
                 context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
 

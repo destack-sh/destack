@@ -184,56 +184,6 @@ impl VmValueCodec for GpuBackend {
     }
 }
 
-/// ABI enum for GpuBindingResourceKind.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum GpuBindingResourceKind {
-    /// Undefined.
-    Undefined = 0,
-    /// UniformBuffer.
-    UniformBuffer = 1,
-    /// StorageBuffer.
-    StorageBuffer = 2,
-    /// ReadOnlyStorageBuffer.
-    ReadOnlyStorageBuffer = 3,
-    /// SampledTexture.
-    SampledTexture = 4,
-    /// StorageTexture.
-    StorageTexture = 5,
-    /// Sampler.
-    Sampler = 6,
-    /// ComparisonSampler.
-    ComparisonSampler = 7,
-}
-
-impl VmValueCodec for GpuBindingResourceKind {
-    fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        let raw = <u8 as VmValueCodec>::decode(value)?;
-        let decoded = match raw {
-            0u8 => Self::Undefined,
-            1u8 => Self::UniformBuffer,
-            2u8 => Self::StorageBuffer,
-            3u8 => Self::ReadOnlyStorageBuffer,
-            4u8 => Self::SampledTexture,
-            5u8 => Self::StorageTexture,
-            6u8 => Self::Sampler,
-            7u8 => Self::ComparisonSampler,
-            _ => {
-                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
-                    "value",
-                    "unknown GpuBindingResourceKind value",
-                ))
-                .boxed());
-            }
-        };
-        Ok(decoded)
-    }
-
-    fn encode(self) -> vm::Value {
-        <u8 as VmValueCodec>::encode(self as u8)
-    }
-}
-
 /// ABI enum for GpuBlendFactor.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1429,6 +1379,238 @@ impl VmValueCodec for GpuVertexStepMode {
     }
 }
 
+/// ABI tagged union for GpuBindGroupLayoutResource.
+pub enum GpuBindGroupLayoutResourceAbi<A: BindingAbi> {
+    /// GpuBindGroupLayoutBufferResource variant.
+    GpuBindGroupLayoutBufferResource(platform_gpu::GpuBindGroupLayoutBufferResourceAbi<A>),
+    /// GpuBindGroupLayoutSampledTextureResource variant.
+    GpuBindGroupLayoutSampledTextureResource(
+        platform_gpu::GpuBindGroupLayoutSampledTextureResourceAbi<A>,
+    ),
+    /// GpuBindGroupLayoutSamplerResource variant.
+    GpuBindGroupLayoutSamplerResource(platform_gpu::GpuBindGroupLayoutSamplerResourceAbi<A>),
+    /// GpuBindGroupLayoutStorageTextureResource variant.
+    GpuBindGroupLayoutStorageTextureResource(
+        platform_gpu::GpuBindGroupLayoutStorageTextureResourceAbi<A>,
+    ),
+}
+
+pub type GpuBindGroupLayoutResource = GpuBindGroupLayoutResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutResourceVm = GpuBindGroupLayoutResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("GpuBindGroupLayoutResourceAbi")
+            .finish()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            3882186069u32 => Self::GpuBindGroupLayoutBufferResource(<GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2019827610u32 => Self::GpuBindGroupLayoutSampledTextureResource(<GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            2111813354u32 => Self::GpuBindGroupLayoutSamplerResource(<GpuBindGroupLayoutSamplerResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            3821007978u32 => Self::GpuBindGroupLayoutStorageTextureResource(<GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::decode_with_context(context, slots[1])?),
+            _ => return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value("value", "unknown GpuBindGroupLayoutResource tag")).boxed()),
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::GpuBindGroupLayoutBufferResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3882186069u32, context)?;
+                let payload_value =
+                    <GpuBindGroupLayoutBufferResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupLayoutSampledTextureResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2019827610u32, context)?;
+                let payload_value = <GpuBindGroupLayoutSampledTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupLayoutSamplerResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2111813354u32, context)?;
+                let payload_value =
+                    <GpuBindGroupLayoutSamplerResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupLayoutStorageTextureResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(3821007978u32, context)?;
+                let payload_value = <GpuBindGroupLayoutStorageTextureResourceVm as VmAggregateCodec>::encode_with_context(value, context)?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI tagged union for GpuBindGroupResource.
+pub enum GpuBindGroupResourceAbi<A: BindingAbi> {
+    /// GpuBindGroupBufferResource variant.
+    GpuBindGroupBufferResource(platform_gpu::GpuBindGroupBufferResourceAbi<A>),
+    /// GpuBindGroupSamplerResource variant.
+    GpuBindGroupSamplerResource(platform_gpu::GpuBindGroupSamplerResourceAbi<A>),
+    /// GpuBindGroupTextureResource variant.
+    GpuBindGroupTextureResource(platform_gpu::GpuBindGroupTextureResourceAbi<A>),
+}
+
+pub type GpuBindGroupResource = GpuBindGroupResourceAbi<NativeAbi>;
+pub type GpuBindGroupResourceVm = GpuBindGroupResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("GpuBindGroupResourceAbi").finish()
+    }
+}
+
+impl Copy for GpuBindGroupResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let decoded = match tag {
+            794085965u32 => Self::GpuBindGroupBufferResource(
+                <GpuBindGroupBufferResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            228650387u32 => Self::GpuBindGroupSamplerResource(
+                <GpuBindGroupSamplerResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            2482060392u32 => Self::GpuBindGroupTextureResource(
+                <GpuBindGroupTextureResourceVm as VmAggregateCodec>::decode_with_context(
+                    context, slots[1],
+                )?,
+            ),
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown GpuBindGroupResource tag",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = match self {
+            Self::GpuBindGroupBufferResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(794085965u32, context)?;
+                let payload_value =
+                    <GpuBindGroupBufferResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupSamplerResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(228650387u32, context)?;
+                let payload_value =
+                    <GpuBindGroupSamplerResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+            Self::GpuBindGroupTextureResource(value) => {
+                let tag_value =
+                    <u32 as VmAggregateCodec>::encode_with_context(2482060392u32, context)?;
+                let payload_value =
+                    <GpuBindGroupTextureResourceVm as VmAggregateCodec>::encode_with_context(
+                        value, context,
+                    )?;
+                vec![tag_value, payload_value]
+            }
+        };
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for GpuAdapterFormatCapabilities.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2039,31 +2221,133 @@ impl VmAggregateCodec for GpuAdapterRequest {
     }
 }
 
-/// ABI struct for GpuBindGroupEntry.
+/// ABI struct for GpuBindGroupBufferResource.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuBindGroupEntry {
-    /// The binding field.
-    pub binding: u32,
-    /// The binding_array_element field.
-    pub binding_array_element: u32,
-    /// The resource_kind field.
-    pub resource_kind: GpuBindingResourceKind,
+pub struct GpuBindGroupBufferResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
     /// The buffer field.
     pub buffer: resource::GpuBufferHandle,
     /// The offset field.
     pub offset: u64,
     /// The size field.
     pub size: u64,
-    /// The texture field.
-    pub texture: resource::GpuTextureViewHandle,
-    /// The sampler field.
-    pub sampler: resource::GpuSamplerHandle,
 }
 
-pub type GpuBindGroupEntryVm = GpuBindGroupEntry;
+pub type GpuBindGroupBufferResource = GpuBindGroupBufferResourceAbi<NativeAbi>;
+pub type GpuBindGroupBufferResourceVm = GpuBindGroupBufferResourceAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuBindGroupEntry {
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupBufferResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupBufferResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupBufferResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupBufferResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupBufferResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupBufferResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupBufferResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_buffer = <resource::GpuBufferHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        let field_offset = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_size = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            buffer: field_buffer,
+            offset: field_offset,
+            size: field_size,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
+                self.buffer,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupEntry.
+#[repr(C)]
+pub struct GpuBindGroupEntryAbi<A: BindingAbi> {
+    /// The binding field.
+    pub binding: u32,
+    /// The binding_array_element field.
+    pub binding_array_element: u32,
+    /// The resource field.
+    pub resource: platform_gpu::GpuBindGroupResourceAbi<A>,
+}
+
+pub type GpuBindGroupEntry = GpuBindGroupEntryAbi<NativeAbi>;
+pub type GpuBindGroupEntryVm = GpuBindGroupEntryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupEntryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupEntryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupEntryAbi<NativeAbi> {}
+impl Clone for GpuBindGroupEntryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupEntryAbi<VmAbi> {}
+impl Clone for GpuBindGroupEntryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2078,39 +2362,22 @@ impl VmAggregateCodec for GpuBindGroupEntry {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 8 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
         let field_binding = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_binding_array_element =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_resource_kind =
-            <GpuBindingResourceKind as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_buffer = <resource::GpuBufferHandle as VmAggregateCodec>::decode_with_context(
-            context, slots[3],
-        )?;
-        let field_offset = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_size = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_texture =
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
-            )?;
-        let field_sampler = <resource::GpuSamplerHandle as VmAggregateCodec>::decode_with_context(
-            context, slots[7],
-        )?;
+        let field_resource =
+            <GpuBindGroupResourceVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             binding: field_binding,
             binding_array_element: field_binding_array_element,
-            resource_kind: field_resource_kind,
-            buffer: field_buffer,
-            offset: field_offset,
-            size: field_size,
-            texture: field_texture,
-            sampler: field_sampler,
+            resource: field_resource,
         })
     }
 
@@ -2121,22 +2388,8 @@ impl VmAggregateCodec for GpuBindGroupEntry {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.binding_array_element, context)?,
-            <GpuBindingResourceKind as VmAggregateCodec>::encode_with_context(
-                self.resource_kind,
-                context,
-            )?,
-            <resource::GpuBufferHandle as VmAggregateCodec>::encode_with_context(
-                self.buffer,
-                context,
-            )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.offset, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.size, context)?,
-            <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
-                self.texture,
-                context,
-            )?,
-            <resource::GpuSamplerHandle as VmAggregateCodec>::encode_with_context(
-                self.sampler,
+            <GpuBindGroupResourceVm as VmAggregateCodec>::encode_with_context(
+                self.resource,
                 context,
             )?,
         ];
@@ -2144,41 +2397,136 @@ impl VmAggregateCodec for GpuBindGroupEntry {
     }
 }
 
-/// ABI struct for GpuBindGroupLayoutEntry.
+/// ABI struct for GpuBindGroupLayoutBufferResource.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct GpuBindGroupLayoutEntry {
-    /// The binding field.
-    pub binding: u32,
-    /// The resource_kind field.
-    pub resource_kind: GpuBindingResourceKind,
-    /// The visibility field.
-    pub visibility: GpuShaderVisibilityMask,
-    /// The binding_array_count field.
-    pub binding_array_count: u32,
-    /// The buffer_binding_type field.
-    pub buffer_binding_type: GpuBufferBindingType,
+pub struct GpuBindGroupLayoutBufferResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The binding_type field.
+    pub binding_type: GpuBufferBindingType,
     /// The has_dynamic_offset field.
     pub has_dynamic_offset: bool,
     /// The min_binding_size field.
     pub min_binding_size: u64,
-    /// The sampler_binding_type field.
-    pub sampler_binding_type: GpuSamplerBindingType,
-    /// The texture_sample_type field.
-    pub texture_sample_type: GpuTextureSampleType,
-    /// The texture_view_dimension field.
-    pub texture_view_dimension: GpuTextureViewDimension,
-    /// The multisampled field.
-    pub multisampled: bool,
-    /// The storage_texture_access field.
-    pub storage_texture_access: GpuStorageTextureAccess,
-    /// The storage_texture_format field.
-    pub storage_texture_format: u32,
 }
 
-pub type GpuBindGroupLayoutEntryVm = GpuBindGroupLayoutEntry;
+pub type GpuBindGroupLayoutBufferResource = GpuBindGroupLayoutBufferResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutBufferResourceVm = GpuBindGroupLayoutBufferResourceAbi<VmAbi>;
 
-impl VmAggregateCodec for GpuBindGroupLayoutEntry {
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutBufferResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutBufferResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutBufferResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutBufferResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutBufferResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_binding_type =
+            <GpuBufferBindingType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_has_dynamic_offset =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_min_binding_size =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            binding_type: field_binding_type,
+            has_dynamic_offset: field_has_dynamic_offset,
+            min_binding_size: field_min_binding_size,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <GpuBufferBindingType as VmAggregateCodec>::encode_with_context(
+                self.binding_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_dynamic_offset, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.min_binding_size, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutEntry.
+#[repr(C)]
+pub struct GpuBindGroupLayoutEntryAbi<A: BindingAbi> {
+    /// The binding field.
+    pub binding: u32,
+    /// The visibility field.
+    pub visibility: GpuShaderVisibilityMask,
+    /// The binding_array_count field.
+    pub binding_array_count: u32,
+    /// The resource field.
+    pub resource: platform_gpu::GpuBindGroupLayoutResourceAbi<A>,
+}
+
+pub type GpuBindGroupLayoutEntry = GpuBindGroupLayoutEntryAbi<NativeAbi>;
+pub type GpuBindGroupLayoutEntryVm = GpuBindGroupLayoutEntryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutEntryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutEntryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutEntryAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutEntryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutEntryAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutEntryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -2193,52 +2541,27 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntry {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 13 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
         let field_binding = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_resource_kind =
-            <GpuBindingResourceKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_visibility =
-            <GpuShaderVisibilityMask as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <GpuShaderVisibilityMask as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_binding_array_count =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_buffer_binding_type =
-            <GpuBufferBindingType as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_has_dynamic_offset =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_min_binding_size =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_sampler_binding_type =
-            <GpuSamplerBindingType as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_texture_sample_type =
-            <GpuTextureSampleType as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_texture_view_dimension =
-            <GpuTextureViewDimension as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_multisampled =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_storage_texture_access =
-            <GpuStorageTextureAccess as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_storage_texture_format =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_resource =
+            <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         Ok(Self {
             binding: field_binding,
-            resource_kind: field_resource_kind,
             visibility: field_visibility,
             binding_array_count: field_binding_array_count,
-            buffer_binding_type: field_buffer_binding_type,
-            has_dynamic_offset: field_has_dynamic_offset,
-            min_binding_size: field_min_binding_size,
-            sampler_binding_type: field_sampler_binding_type,
-            texture_sample_type: field_texture_sample_type,
-            texture_view_dimension: field_texture_view_dimension,
-            multisampled: field_multisampled,
-            storage_texture_access: field_storage_texture_access,
-            storage_texture_format: field_storage_texture_format,
+            resource: field_resource,
         })
     }
 
@@ -2248,25 +2571,103 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntry {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.binding, context)?,
-            <GpuBindingResourceKind as VmAggregateCodec>::encode_with_context(
-                self.resource_kind,
-                context,
-            )?,
             <GpuShaderVisibilityMask as VmAggregateCodec>::encode_with_context(
                 self.visibility,
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.binding_array_count, context)?,
-            <GpuBufferBindingType as VmAggregateCodec>::encode_with_context(
-                self.buffer_binding_type,
+            <GpuBindGroupLayoutResourceVm as VmAggregateCodec>::encode_with_context(
+                self.resource,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.has_dynamic_offset, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.min_binding_size, context)?,
-            <GpuSamplerBindingType as VmAggregateCodec>::encode_with_context(
-                self.sampler_binding_type,
-                context,
-            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutSampledTextureResource.
+#[repr(C)]
+pub struct GpuBindGroupLayoutSampledTextureResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The texture_sample_type field.
+    pub texture_sample_type: GpuTextureSampleType,
+    /// The texture_view_dimension field.
+    pub texture_view_dimension: GpuTextureViewDimension,
+    /// The multisampled field.
+    pub multisampled: bool,
+}
+
+pub type GpuBindGroupLayoutSampledTextureResource =
+    GpuBindGroupLayoutSampledTextureResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutSampledTextureResourceVm =
+    GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutSampledTextureResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutSampledTextureResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutSampledTextureResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutSampledTextureResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutSampledTextureResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_texture_sample_type =
+            <GpuTextureSampleType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_texture_view_dimension =
+            <GpuTextureViewDimension as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_multisampled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            texture_sample_type: field_texture_sample_type,
+            texture_view_dimension: field_texture_view_dimension,
+            multisampled: field_multisampled,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <GpuTextureSampleType as VmAggregateCodec>::encode_with_context(
                 self.texture_sample_type,
                 context,
@@ -2276,11 +2677,346 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntry {
                 context,
             )?,
             <bool as VmAggregateCodec>::encode_with_context(self.multisampled, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutSamplerResource.
+#[repr(C)]
+pub struct GpuBindGroupLayoutSamplerResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The sampler_binding_type field.
+    pub sampler_binding_type: GpuSamplerBindingType,
+}
+
+pub type GpuBindGroupLayoutSamplerResource = GpuBindGroupLayoutSamplerResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutSamplerResourceVm = GpuBindGroupLayoutSamplerResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutSamplerResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutSamplerResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutSamplerResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutSamplerResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutSamplerResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sampler_binding_type =
+            <GpuSamplerBindingType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            sampler_binding_type: field_sampler_binding_type,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <GpuSamplerBindingType as VmAggregateCodec>::encode_with_context(
+                self.sampler_binding_type,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupLayoutStorageTextureResource.
+#[repr(C)]
+pub struct GpuBindGroupLayoutStorageTextureResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The storage_texture_access field.
+    pub storage_texture_access: GpuStorageTextureAccess,
+    /// The storage_texture_format field.
+    pub storage_texture_format: u32,
+    /// The texture_view_dimension field.
+    pub texture_view_dimension: GpuTextureViewDimension,
+}
+
+pub type GpuBindGroupLayoutStorageTextureResource =
+    GpuBindGroupLayoutStorageTextureResourceAbi<NativeAbi>;
+pub type GpuBindGroupLayoutStorageTextureResourceVm =
+    GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupLayoutStorageTextureResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupLayoutStorageTextureResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupLayoutStorageTextureResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupLayoutStorageTextureResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupLayoutStorageTextureResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_storage_texture_access =
+            <GpuStorageTextureAccess as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_storage_texture_format =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_texture_view_dimension =
+            <GpuTextureViewDimension as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            storage_texture_access: field_storage_texture_access,
+            storage_texture_format: field_storage_texture_format,
+            texture_view_dimension: field_texture_view_dimension,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <GpuStorageTextureAccess as VmAggregateCodec>::encode_with_context(
                 self.storage_texture_access,
                 context,
             )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.storage_texture_format, context)?,
+            <GpuTextureViewDimension as VmAggregateCodec>::encode_with_context(
+                self.texture_view_dimension,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupSamplerResource.
+#[repr(C)]
+pub struct GpuBindGroupSamplerResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The sampler field.
+    pub sampler: resource::GpuSamplerHandle,
+}
+
+pub type GpuBindGroupSamplerResource = GpuBindGroupSamplerResourceAbi<NativeAbi>;
+pub type GpuBindGroupSamplerResourceVm = GpuBindGroupSamplerResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupSamplerResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupSamplerResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupSamplerResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupSamplerResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupSamplerResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupSamplerResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupSamplerResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sampler = <resource::GpuSamplerHandle as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        Ok(Self {
+            kind: field_kind,
+            sampler: field_sampler,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <resource::GpuSamplerHandle as VmAggregateCodec>::encode_with_context(
+                self.sampler,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for GpuBindGroupTextureResource.
+#[repr(C)]
+pub struct GpuBindGroupTextureResourceAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: A::String,
+    /// The texture field.
+    pub texture: resource::GpuTextureViewHandle,
+}
+
+pub type GpuBindGroupTextureResource = GpuBindGroupTextureResourceAbi<NativeAbi>;
+pub type GpuBindGroupTextureResourceVm = GpuBindGroupTextureResourceAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for GpuBindGroupTextureResourceAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GpuBindGroupTextureResourceAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for GpuBindGroupTextureResourceAbi<NativeAbi> {}
+impl Clone for GpuBindGroupTextureResourceAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for GpuBindGroupTextureResourceAbi<VmAbi> {}
+impl Clone for GpuBindGroupTextureResourceAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "GpuBindGroupTextureResource",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_texture =
+            <resource::GpuTextureViewHandle as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            texture: field_texture,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <resource::GpuTextureViewHandle as VmAggregateCodec>::encode_with_context(
+                self.texture,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -6425,6 +7161,109 @@ pub struct GpuAdapterInfoReplayRecord {
     pub limits: GpuAdapterLimits,
 }
 
+/// Replay struct for GpuBindGroupBufferResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupBufferResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The buffer field.
+    pub buffer: resource::GpuBufferHandle,
+    /// The offset field.
+    pub offset: u64,
+    /// The size field.
+    pub size: u64,
+}
+
+/// Replay struct for GpuBindGroupEntry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupEntryReplayRecord {
+    /// The binding field.
+    pub binding: u32,
+    /// The binding_array_element field.
+    pub binding_array_element: u32,
+    /// The resource field.
+    pub resource: GpuBindGroupResourceReplayRecord,
+}
+
+/// Replay struct for GpuBindGroupLayoutBufferResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutBufferResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The binding_type field.
+    pub binding_type: GpuBufferBindingType,
+    /// The has_dynamic_offset field.
+    pub has_dynamic_offset: bool,
+    /// The min_binding_size field.
+    pub min_binding_size: u64,
+}
+
+/// Replay struct for GpuBindGroupLayoutEntry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutEntryReplayRecord {
+    /// The binding field.
+    pub binding: u32,
+    /// The visibility field.
+    pub visibility: GpuShaderVisibilityMask,
+    /// The binding_array_count field.
+    pub binding_array_count: u32,
+    /// The resource field.
+    pub resource: GpuBindGroupLayoutResourceReplayRecord,
+}
+
+/// Replay struct for GpuBindGroupLayoutSampledTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutSampledTextureResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The texture_sample_type field.
+    pub texture_sample_type: GpuTextureSampleType,
+    /// The texture_view_dimension field.
+    pub texture_view_dimension: GpuTextureViewDimension,
+    /// The multisampled field.
+    pub multisampled: bool,
+}
+
+/// Replay struct for GpuBindGroupLayoutSamplerResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutSamplerResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The sampler_binding_type field.
+    pub sampler_binding_type: GpuSamplerBindingType,
+}
+
+/// Replay struct for GpuBindGroupLayoutStorageTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupLayoutStorageTextureResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The storage_texture_access field.
+    pub storage_texture_access: GpuStorageTextureAccess,
+    /// The storage_texture_format field.
+    pub storage_texture_format: u32,
+    /// The texture_view_dimension field.
+    pub texture_view_dimension: GpuTextureViewDimension,
+}
+
+/// Replay struct for GpuBindGroupSamplerResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupSamplerResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The sampler field.
+    pub sampler: resource::GpuSamplerHandle,
+}
+
+/// Replay struct for GpuBindGroupTextureResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GpuBindGroupTextureResourceReplayRecord {
+    /// The kind field.
+    pub kind: String,
+    /// The texture field.
+    pub texture: resource::GpuTextureViewHandle,
+}
+
 /// Replay struct for GpuCapturedError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuCapturedErrorReplayRecord {
@@ -6708,4 +7547,28 @@ pub struct GpuVertexStateReplayRecord {
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
     /// The buffers field.
     pub buffers: Vec<GpuVertexBufferLayoutReplayRecord>,
+}
+
+/// Replay enum for GpuBindGroupLayoutResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GpuBindGroupLayoutResourceReplayRecord {
+    /// GpuBindGroupLayoutBufferResource variant.
+    GpuBindGroupLayoutBufferResource(GpuBindGroupLayoutBufferResourceReplayRecord),
+    /// GpuBindGroupLayoutSampledTextureResource variant.
+    GpuBindGroupLayoutSampledTextureResource(GpuBindGroupLayoutSampledTextureResourceReplayRecord),
+    /// GpuBindGroupLayoutSamplerResource variant.
+    GpuBindGroupLayoutSamplerResource(GpuBindGroupLayoutSamplerResourceReplayRecord),
+    /// GpuBindGroupLayoutStorageTextureResource variant.
+    GpuBindGroupLayoutStorageTextureResource(GpuBindGroupLayoutStorageTextureResourceReplayRecord),
+}
+
+/// Replay enum for GpuBindGroupResource.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GpuBindGroupResourceReplayRecord {
+    /// GpuBindGroupBufferResource variant.
+    GpuBindGroupBufferResource(GpuBindGroupBufferResourceReplayRecord),
+    /// GpuBindGroupSamplerResource variant.
+    GpuBindGroupSamplerResource(GpuBindGroupSamplerResourceReplayRecord),
+    /// GpuBindGroupTextureResource variant.
+    GpuBindGroupTextureResource(GpuBindGroupTextureResourceReplayRecord),
 }

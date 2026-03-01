@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use super::{KEY_USAGE_UNWRAP, KEY_USAGE_WRAP, placeholder_store_handle, with_harness_context};
+use crate::platform::crypto as platform_crypto;
 use crate::platform::crypto::{
-    CryptoCertificateQuery, CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat,
-    CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyResidency, CryptoKeyUsageMask,
-    CryptoKeyWrapAlgorithm, CryptoNamedCurve, CryptoStoreKind, CryptoStoreOptions,
-    CryptoStoreProvider,
+    CryptoCertificateQuery, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyQuery, CryptoKeyResidency, CryptoKeyUsageMask, CryptoKeyWrapAlgorithm,
+    CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -24,20 +24,18 @@ fn test_store_open_list_keys_close() {
         // open one ephemeral store and create one key
         let options = context.store_options_value(CryptoStoreKind::Ephemeral);
         let store = context.destack_crypto_store_open(options)?;
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("session-key"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("session-key"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let _key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
 
@@ -513,20 +511,18 @@ fn test_store_provider_open_generate_key() {
         let store = context.destack_crypto_store_open(options)?;
 
         // generate one key and verify provider provenance metadata
-        let request = CryptoKeyGenerationRequest {
-            algorithm: CryptoKeyAlgorithm::Aes,
-            named_curve: CryptoNamedCurve::Unknown,
-            modulus_bits: 0,
-            public_exponent: 0,
-            digest: CryptoDigestAlgorithm::Unknown,
-            size_bits: 256,
-            usage_mask: CryptoKeyUsageMask(0),
-            label: context.call_context.store_string("provider-key"),
-            extractable: true,
-            residency: CryptoKeyResidency::Unknown,
-            hardware_backed: false,
-            persistent: false,
-        };
+        let request = CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+            platform_crypto::CryptoKeyGenerationRequestAes {
+                algorithm: context.call_context.store_string("aes"),
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("provider-key"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            },
+        );
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
         let descriptor = context.destack_crypto_key_descriptor(key)?;

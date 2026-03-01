@@ -8,18 +8,7 @@ use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 use bindings::*;
 
-use crate::platform::device::{
-    BluetoothAdapterDescriptor, BluetoothDeviceDescriptor, BluetoothGattCharacteristicDescriptor,
-    BluetoothGattDescriptorDescriptor, BluetoothGattServiceDescriptor, BluetoothGattValueEvent,
-    BluetoothScanFilter, CameraColorSpace, CameraControl, CameraControlRange,
-    CameraDeviceDescriptor, CameraExposureMode, CameraFrame, CameraPixelFormat, CameraPlaneLayout,
-    CameraStabilizationMode, CameraStreamCapability, CameraStreamConfig, CameraTorchMode,
-    SerialErrorPayload, SerialEvent, SerialEventKind, SerialEventPayload, SerialFlowControl,
-    SerialParity, SerialPortConfig, SerialPortDescriptor, SerialReadReadyPayload,
-    SerialSignalsChangedPayload, SerialStopBits, SerialWriteReadyPayload,
-    UsbConfigurationDescriptor, UsbControlSetup, UsbDeviceDescriptor, UsbEndpointDescriptor,
-    UsbHotplugEvent, UsbInterfaceDescriptor, UsbIsochronousTransferResult, UsbStringDescriptor,
-};
+use crate::platform::device::*;
 use crate::platform::{fs, resource};
 
 /// List supported stream capabilities for one opened camera endpoint.

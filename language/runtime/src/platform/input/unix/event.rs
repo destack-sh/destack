@@ -18,8 +18,10 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core as core_platform;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputDeviceKind, InputEvent, InputEventAction, InputMonitorEvent, InputMonitorEventKind,
-    InputReadMode, validation as input_validation,
+    InputDeviceKind, InputEvent, InputEventAction, InputMonitorChangeEvent,
+    InputMonitorConnectEvent, InputMonitorDisconnectEvent, InputMonitorEvent,
+    InputMonitorEventKind, InputMonitorEventMetadata, InputReadMode,
+    validation as input_validation,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 #[cfg(target_os = "linux")]
@@ -517,13 +519,33 @@ fn build_unix_monitor_event(
 ) -> InputMonitorEvent {
     let kind = monitor_kind_from_action(action);
     let connected = !matches!(kind, InputMonitorEventKind::Disconnect);
-    InputMonitorEvent {
-        kind,
+    let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
         device_id: context.store_string(device_id),
         device_kind,
         connected,
+    };
+
+    match kind {
+        InputMonitorEventKind::Connect => {
+            InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
+                kind: context.store_string("connect"),
+                metadata,
+            })
+        }
+        InputMonitorEventKind::Disconnect => {
+            InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
+                kind: context.store_string("disconnect"),
+                metadata,
+            })
+        }
+        InputMonitorEventKind::Change => {
+            InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
+                kind: context.store_string("change"),
+                metadata,
+            })
+        }
     }
 }
 

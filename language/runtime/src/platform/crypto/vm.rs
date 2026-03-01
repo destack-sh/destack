@@ -11,8 +11,18 @@ use crate::platform::crypto::{
     CryptoCipherDirection, CryptoCipherOutput, CryptoCipherOutputVm, CryptoCipherParameters,
     CryptoCipherParametersVm, CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoHkdfRequestVm,
     CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor,
-    CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
-    CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm,
+    CryptoKeyDescriptorAesVm, CryptoKeyDescriptorChaCha20Vm, CryptoKeyDescriptorEcVm,
+    CryptoKeyDescriptorEd448Vm, CryptoKeyDescriptorEd25519Vm, CryptoKeyDescriptorHmacVm,
+    CryptoKeyDescriptorRsaVm, CryptoKeyDescriptorVm, CryptoKeyDescriptorX448Vm,
+    CryptoKeyDescriptorX25519Vm, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyGenerationRequestAes, CryptoKeyGenerationRequestChaCha20,
+    CryptoKeyGenerationRequestEc, CryptoKeyGenerationRequestEd448,
+    CryptoKeyGenerationRequestEd25519, CryptoKeyGenerationRequestHmac,
+    CryptoKeyGenerationRequestRsa, CryptoKeyGenerationRequestVm, CryptoKeyGenerationRequestX448,
+    CryptoKeyGenerationRequestX25519, CryptoKeyImportRequest, CryptoKeyImportRequestAes,
+    CryptoKeyImportRequestChaCha20, CryptoKeyImportRequestEc, CryptoKeyImportRequestEd448,
+    CryptoKeyImportRequestEd25519, CryptoKeyImportRequestHmac, CryptoKeyImportRequestRsa,
+    CryptoKeyImportRequestVm, CryptoKeyImportRequestX448, CryptoKeyImportRequestX25519,
     CryptoKeyListEntryVm, CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyPair, CryptoKeyPairVm,
     CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeyResidency, CryptoKeyWrapAlgorithm,
     CryptoKeyWrapParameters, CryptoKeyWrapParametersVm, CryptoMacAlgorithm, CryptoMacParametersVm,
@@ -2045,20 +2055,133 @@ fn key_generation_request_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoKeyGenerationRequestVm,
 ) -> RuntimeResult<CryptoKeyGenerationRequest> {
-    Ok(CryptoKeyGenerationRequest {
-        algorithm: request.algorithm,
-        named_curve: request.named_curve,
-        modulus_bits: request.modulus_bits,
-        public_exponent: request.public_exponent,
-        digest: request.digest,
-        size_bits: request.size_bits,
-        usage_mask: request.usage_mask,
-        label: string_from_vm(runtime, context, request.label)?,
-        extractable: request.extractable,
-        residency: request.residency,
-        hardware_backed: request.hardware_backed,
-        persistent: request.persistent,
-    })
+    match request {
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestAes(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestAes(
+                CryptoKeyGenerationRequestAes {
+                    algorithm: runtime.store_string("aes"),
+                    size_bits: request.size_bits,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestChaCha20(request) => Ok(
+            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestChaCha20(
+                CryptoKeyGenerationRequestChaCha20 {
+                    algorithm: runtime.store_string("chacha20"),
+                    size_bits: request.size_bits,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ),
+        ),
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEc(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEc(
+                CryptoKeyGenerationRequestEc {
+                    algorithm: runtime.store_string("ec"),
+                    named_curve: request.named_curve,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEd25519(request) => Ok(
+            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd25519(
+                CryptoKeyGenerationRequestEd25519 {
+                    algorithm: runtime.store_string("ed25519"),
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ),
+        ),
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestEd448(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestEd448(
+                CryptoKeyGenerationRequestEd448 {
+                    algorithm: runtime.store_string("ed448"),
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestHmac(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestHmac(
+                CryptoKeyGenerationRequestHmac {
+                    algorithm: runtime.store_string("hmac"),
+                    size_bits: request.size_bits,
+                    digest: request.digest,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestRsa(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestRsa(
+                CryptoKeyGenerationRequestRsa {
+                    algorithm: runtime.store_string("rsa"),
+                    modulus_bits: request.modulus_bits,
+                    public_exponent: request.public_exponent,
+                    digest: request.digest,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestX25519(request) => Ok(
+            CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX25519(
+                CryptoKeyGenerationRequestX25519 {
+                    algorithm: runtime.store_string("x25519"),
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ),
+        ),
+        CryptoKeyGenerationRequestVm::CryptoKeyGenerationRequestX448(request) => {
+            Ok(CryptoKeyGenerationRequest::CryptoKeyGenerationRequestX448(
+                CryptoKeyGenerationRequestX448 {
+                    algorithm: runtime.store_string("x448"),
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    hardware_backed: request.hardware_backed,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+    }
 }
 
 fn key_import_request_from_vm(
@@ -2066,19 +2189,130 @@ fn key_import_request_from_vm(
     context: &mut vm::ExternalCallContext<'_>,
     request: CryptoKeyImportRequestVm,
 ) -> RuntimeResult<CryptoKeyImportRequest> {
-    Ok(CryptoKeyImportRequest {
-        format: request.format,
-        bytes: bytes_from_vm(runtime, context, request.bytes)?,
-        algorithm: request.algorithm,
-        named_curve: request.named_curve,
-        digest: request.digest,
-        usage_mask: request.usage_mask,
-        label: string_from_vm(runtime, context, request.label)?,
-        extractable: request.extractable,
-        residency: request.residency,
-        passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
-        persistent: request.persistent,
-    })
+    match request {
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestAes(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestAes(CryptoKeyImportRequestAes {
+                algorithm: runtime.store_string("aes"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestChaCha20(request) => {
+            Ok(CryptoKeyImportRequest::CryptoKeyImportRequestChaCha20(
+                CryptoKeyImportRequestChaCha20 {
+                    algorithm: runtime.store_string("chacha20"),
+                    format: request.format,
+                    bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                    usage_mask: request.usage_mask,
+                    label: string_from_vm(runtime, context, request.label)?,
+                    extractable: request.extractable,
+                    residency: request.residency,
+                    passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                    persistent: request.persistent,
+                },
+            ))
+        }
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestEc(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestEc(CryptoKeyImportRequestEc {
+                algorithm: runtime.store_string("ec"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                named_curve: request.named_curve,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestEd25519(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestEd25519(CryptoKeyImportRequestEd25519 {
+                algorithm: runtime.store_string("ed25519"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestEd448(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestEd448(CryptoKeyImportRequestEd448 {
+                algorithm: runtime.store_string("ed448"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestHmac(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestHmac(CryptoKeyImportRequestHmac {
+                algorithm: runtime.store_string("hmac"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                digest: request.digest,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestRsa(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestRsa(CryptoKeyImportRequestRsa {
+                algorithm: runtime.store_string("rsa"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                digest: request.digest,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestX25519(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestX25519(CryptoKeyImportRequestX25519 {
+                algorithm: runtime.store_string("x25519"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+        CryptoKeyImportRequestVm::CryptoKeyImportRequestX448(request) => Ok(
+            CryptoKeyImportRequest::CryptoKeyImportRequestX448(CryptoKeyImportRequestX448 {
+                algorithm: runtime.store_string("x448"),
+                format: request.format,
+                bytes: bytes_from_vm(runtime, context, request.bytes)?,
+                usage_mask: request.usage_mask,
+                label: string_from_vm(runtime, context, request.label)?,
+                extractable: request.extractable,
+                residency: request.residency,
+                passphrase: bytes_from_vm(runtime, context, request.passphrase)?,
+                persistent: request.persistent,
+            }),
+        ),
+    }
 }
 
 fn private_key_export_request_from_vm(
@@ -2165,22 +2399,133 @@ fn key_descriptor_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: CryptoKeyDescriptor,
 ) -> RuntimeResult<CryptoKeyDescriptorVm> {
-    Ok(CryptoKeyDescriptorVm {
-        kind: value.kind,
-        algorithm: value.algorithm,
-        named_curve: value.named_curve,
-        modulus_bits: value.modulus_bits,
-        public_exponent: value.public_exponent,
-        digest: value.digest,
-        size_bits: value.size_bits,
-        usage_mask: value.usage_mask,
-        label: string_to_vm(context, value.label)?,
-        extractable: value.extractable,
-        residency: value.residency,
-        hardware_backed: value.hardware_backed,
-        persistent: value.persistent,
-        store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
-    })
+    match value {
+        CryptoKeyDescriptor::CryptoKeyDescriptorAes(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorAes(CryptoKeyDescriptorAesVm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                size_bits: value.size_bits,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorChaCha20(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorChaCha20(CryptoKeyDescriptorChaCha20Vm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                size_bits: value.size_bits,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorEc(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorEc(CryptoKeyDescriptorEcVm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                named_curve: value.named_curve,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorEd25519(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorEd25519(CryptoKeyDescriptorEd25519Vm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorEd448(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorEd448(CryptoKeyDescriptorEd448Vm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorHmac(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorHmac(CryptoKeyDescriptorHmacVm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                size_bits: value.size_bits,
+                digest: value.digest,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorRsa(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorRsa(CryptoKeyDescriptorRsaVm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                modulus_bits: value.modulus_bits,
+                public_exponent: value.public_exponent,
+                digest: value.digest,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorX25519(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorX25519(CryptoKeyDescriptorX25519Vm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+        CryptoKeyDescriptor::CryptoKeyDescriptorX448(value) => Ok(
+            CryptoKeyDescriptorVm::CryptoKeyDescriptorX448(CryptoKeyDescriptorX448Vm {
+                algorithm: string_to_vm(context, value.algorithm)?,
+                key_kind: value.key_kind,
+                usage_mask: value.usage_mask,
+                label: string_to_vm(context, value.label)?,
+                extractable: value.extractable,
+                residency: value.residency,
+                hardware_backed: value.hardware_backed,
+                persistent: value.persistent,
+                store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+            }),
+        ),
+    }
 }
 
 fn certificate_descriptor_to_vm(

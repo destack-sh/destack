@@ -7,21 +7,39 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayAddedPayload, DisplayAddedPayloadVm, DisplayDescriptor, DisplayDescriptorChangedPayload,
-    DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm, DisplayEvent, DisplayEventKind,
-    DisplayEventPayload, DisplayEventPayloadVm, DisplayEventVm, DisplayMode,
-    DisplayModeChangedPayload, DisplayModeChangedPayloadVm, DisplayModeVm, DisplayOrientation,
-    DisplayPrimaryPayload, DisplayPrimaryPayloadVm, DisplayRemovedPayload, DisplayRemovedPayloadVm,
-    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDescriptorVm,
-    WindowDisplayPayload, WindowDisplayPayloadVm, WindowEvent, WindowEventKind, WindowEventPayload,
-    WindowEventPayloadVm, WindowEventVm, WindowFocusPayload, WindowFocusPayloadVm,
-    WindowLogicalSize, WindowLogicalSizeVm, WindowMode, WindowModeOptions, WindowModeOptionsVm,
-    WindowModePayload, WindowModePayloadVm, WindowOcclusionPayload, WindowOcclusionPayloadVm,
-    WindowOptions, WindowOptionsVm, WindowPhysicalSize, WindowPhysicalSizeVm, WindowPosition,
-    WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowScaleFactorPayload,
-    WindowScaleFactorPayloadVm, WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload,
-    WindowSizePayloadVm, WindowState, WindowStateVm, WindowTheme, WindowThemePayload,
-    WindowThemePayloadVm, WindowVisibility, WindowVisibilityPayload, WindowVisibilityPayloadVm,
+    DisplayAddedEvent, DisplayAddedEventVm, DisplayAddedPayload, DisplayAddedPayloadVm,
+    DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
+    DisplayBackendDescriptorVm, DisplayBackendSelectionPolicy, DisplayDescriptor,
+    DisplayDescriptorChangedEvent, DisplayDescriptorChangedEventVm,
+    DisplayDescriptorChangedPayload, DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm,
+    DisplayEvent, DisplayEventMetadata, DisplayEventMetadataVm, DisplayEventOverflowPolicy,
+    DisplayEventQueueOptions, DisplayEventQueueOptionsVm, DisplayEventVm, DisplayMode,
+    DisplayModeChangedEvent, DisplayModeChangedEventVm, DisplayModeChangedPayload,
+    DisplayModeChangedPayloadVm, DisplayModeVm, DisplayMonitorEventOpenOptions,
+    DisplayMonitorEventOpenOptionsVm, DisplayMonitorListRequest, DisplayMonitorListRequestVm,
+    DisplayMonitorOpenOptions, DisplayMonitorOpenOptionsVm, DisplayOrientation,
+    DisplayPrimaryChangedEvent, DisplayPrimaryChangedEventVm, DisplayPrimaryPayload,
+    DisplayPrimaryPayloadVm, DisplayRemovedEvent, DisplayRemovedEventVm, DisplayRemovedPayload,
+    DisplayRemovedPayloadVm, WindowAttentionLevel, WindowCloseRequestedEvent,
+    WindowCloseRequestedEventVm, WindowCreatedEvent, WindowCreatedEventVm, WindowCursorIcon,
+    WindowCursorMode, WindowDescriptor, WindowDescriptorVm, WindowDestroyedEvent,
+    WindowDestroyedEventVm, WindowDisplayChangedEvent, WindowDisplayChangedEventVm,
+    WindowDisplayPayload, WindowDisplayPayloadVm, WindowEvent, WindowEventMetadata,
+    WindowEventMetadataVm, WindowEventOpenOptions, WindowEventOpenOptionsVm, WindowEventVm,
+    WindowFocusChangedEvent, WindowFocusChangedEventVm, WindowFocusPayload, WindowFocusPayloadVm,
+    WindowLogicalSize, WindowLogicalSizeVm, WindowMode, WindowModeChangedEvent,
+    WindowModeChangedEventVm, WindowModeOptions, WindowModeOptionsVm, WindowModePayload,
+    WindowModePayloadVm, WindowOcclusionChangedEvent, WindowOcclusionChangedEventVm,
+    WindowOcclusionPayload, WindowOcclusionPayloadVm, WindowOptions, WindowOptionsVm,
+    WindowPhysicalSize, WindowPhysicalSizeVm, WindowPosition, WindowPositionChangedEvent,
+    WindowPositionChangedEventVm, WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm,
+    WindowRefreshRequestedEvent, WindowRefreshRequestedEventVm, WindowScaleFactorChangedEvent,
+    WindowScaleFactorChangedEventVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
+    WindowSizeChangedEvent, WindowSizeChangedEventVm, WindowSizeConstraints,
+    WindowSizeConstraintsVm, WindowSizePayload, WindowSizePayloadVm, WindowState, WindowStateVm,
+    WindowTheme, WindowThemeChangedEvent, WindowThemeChangedEventVm, WindowThemePayload,
+    WindowThemePayloadVm, WindowVisibility, WindowVisibilityChangedEvent,
+    WindowVisibilityChangedEventVm, WindowVisibilityPayload, WindowVisibilityPayloadVm,
     native as display_native, vm as display_vm,
 };
 use crate::platform::{
@@ -46,6 +64,46 @@ impl<'call> DisplayHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
+    }
+
+    /// List host display backends.
+    ///
+    /// Enumerate available backend implementations and backend-level feature flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_backend_list(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<DisplayBackendDescriptor>, VmSlice<DisplayBackendDescriptorVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_backend_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<DisplayBackendDescriptor>>::uninit();
+                unsafe {
+                    display_native::destack_display_backend_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
     }
 
     /// Close one display endpoint.
@@ -312,19 +370,26 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_monitor_event_open(
         &mut self,
+        options: HarnessValue<DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm>,
     ) -> RuntimeResult<resource::DisplayEventHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    display_vm::destack_display_monitor_event_open(self.call_context, context)?;
+                let options = options.into_vm("options")?;
+                let out = display_vm::destack_display_monitor_event_open(
+                    self.call_context,
+                    context,
+                    options,
+                )?;
                 Ok(out)
             }
             None => {
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::DisplayEventHandle>::uninit();
                 unsafe {
                     display_native::destack_display_monitor_event_open(
                         self.call_context,
                         out.as_mut_ptr(),
+                        options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -541,19 +606,24 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_monitor_list(
         &mut self,
+        request: HarnessValue<DisplayMonitorListRequest, DisplayMonitorListRequestVm>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<DisplayDescriptor>, VmSlice<DisplayDescriptorVm>>>
     {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = display_vm::destack_display_monitor_list(self.call_context, context)?;
+                let request = request.into_vm("request")?;
+                let out =
+                    display_vm::destack_display_monitor_list(self.call_context, context, request)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<DisplayDescriptor>>::uninit();
                 unsafe {
                     display_native::destack_display_monitor_list(
                         self.call_context,
                         out.as_mut_ptr(),
+                        request,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -624,21 +694,30 @@ impl<'call> DisplayHarnessContext<'call> {
     pub(crate) fn destack_display_monitor_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
+        options: HarnessValue<DisplayMonitorOpenOptions, DisplayMonitorOpenOptionsVm>,
     ) -> RuntimeResult<resource::DisplayHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let id = id.into_vm("id")?;
-                let out = display_vm::destack_display_monitor_open(self.call_context, context, id)?;
+                let options = options.into_vm("options")?;
+                let out = display_vm::destack_display_monitor_open(
+                    self.call_context,
+                    context,
+                    id,
+                    options,
+                )?;
                 Ok(out)
             }
             None => {
                 let id = id.into_native("id")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::DisplayHandle>::uninit();
                 unsafe {
                     display_native::destack_display_monitor_open(
                         self.call_context,
                         out.as_mut_ptr(),
                         id,
+                        options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -666,18 +745,26 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_monitor_primary(
         &mut self,
+        request: HarnessValue<DisplayMonitorListRequest, DisplayMonitorListRequestVm>,
     ) -> RuntimeResult<Option<resource::DisplayHandle>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = display_vm::destack_display_monitor_primary(self.call_context, context)?;
+                let request = request.into_vm("request")?;
+                let out = display_vm::destack_display_monitor_primary(
+                    self.call_context,
+                    context,
+                    request,
+                )?;
                 Ok(out)
             }
             None => {
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<Option<resource::DisplayHandle>>::uninit();
                 unsafe {
                     display_native::destack_display_monitor_primary(
                         self.call_context,
                         out.as_mut_ptr(),
+                        request,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -855,19 +942,26 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_window_event_open(
         &mut self,
+        options: HarnessValue<WindowEventOpenOptions, WindowEventOpenOptionsVm>,
     ) -> RuntimeResult<resource::WindowEventHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    display_vm::destack_display_window_event_open(self.call_context, context)?;
+                let options = options.into_vm("options")?;
+                let out = display_vm::destack_display_window_event_open(
+                    self.call_context,
+                    context,
+                    options,
+                )?;
                 Ok(out)
             }
             None => {
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::WindowEventHandle>::uninit();
                 unsafe {
                     display_native::destack_display_window_event_open(
                         self.call_context,
                         out.as_mut_ptr(),
+                        options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };

@@ -7,19 +7,26 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext,
-    DirentNextReplayRecord, DirentNextVm, DirentReplayRecord, DirentVm, FdFlags, FileAdvice,
-    FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
-    NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OpenResolveFlags, OsPath,
-    OsPathReplayRecord, OsPathVm, PathEncoding, ReadWriteFlags, RenameFlags, SeekWhence,
+    AccessMode, AllocFlags, AtFlags, CopyFlags, Dirent, DirentKind, DirentNext, DirentNextEnd,
+    DirentNextEndReplayRecord, DirentNextEndVm, DirentNextEntry, DirentNextEntryReplayRecord,
+    DirentNextEntryVm, DirentNextReplayRecord, DirentNextVm, DirentReplayRecord, DirentVm, FdFlags,
+    FileAdvice, FileLockFlags, FileMode, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt,
+    MmapSyncFlags, NodeDevice, OpenFlags, OpenOptions, OpenOptionsVm, OpenResolveFlags, OsPath,
+    OsPathBytes, OsPathBytesReplayRecord, OsPathBytesVm, OsPathReplayRecord, OsPathUtf16,
+    OsPathUtf16ReplayRecord, OsPathUtf16Vm, OsPathVm, ReadWriteFlags, RenameFlags, SeekWhence,
     SpliceCursor, SpliceCursorVm, SpliceFlags, Stat, StatFs, StatFsVm, StatVm, StatusFlags, Statx,
     StatxFlags, StatxMask, StatxVm, SymlinkType, SyncFlags, WatchBatch, WatchBatchReplayRecord,
-    WatchBatchVm, WatchEvent, WatchEventKind, WatchEventReplayRecord, WatchEventVm, WatchMask,
-    WatchOptions, WatchOptionsVm, XattrFlags,
+    WatchBatchVm, WatchCreateEvent, WatchCreateEventReplayRecord, WatchCreateEventVm, WatchEvent,
+    WatchEventMetadata, WatchEventMetadataVm, WatchEventReplayRecord, WatchEventVm, WatchMask,
+    WatchMetadataEvent, WatchMetadataEventReplayRecord, WatchMetadataEventVm, WatchModifyEvent,
+    WatchModifyEventReplayRecord, WatchModifyEventVm, WatchOptions, WatchOptionsVm,
+    WatchOverflowEvent, WatchOverflowEventReplayRecord, WatchOverflowEventVm, WatchRemoveEvent,
+    WatchRemoveEventReplayRecord, WatchRemoveEventVm, WatchRenameEvent,
+    WatchRenameEventReplayRecord, WatchRenameEventVm, XattrFlags,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -170,6 +177,7 @@ fn decode_string(
 }
 
 /// Decode a slice argument.
+#[allow(dead_code)]
 fn decode_slice<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -180,6 +188,7 @@ fn decode_slice<T>(
 }
 
 /// Decode an array argument.
+#[allow(dead_code)]
 fn decode_array<T>(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
@@ -196,44 +205,7 @@ fn decode_destack_fs_attrs_access_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, AccessMode)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 1, "mode", "AccessMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "AccessMode")?;
     let mode = AccessMode(mode_inner);
@@ -260,44 +232,7 @@ fn decode_destack_fs_attrs_accessat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 2, "mode", "AccessMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "AccessMode")?;
     let mode = AccessMode(mode_inner);
@@ -323,44 +258,7 @@ fn decode_destack_fs_attrs_chmod_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -383,44 +281,7 @@ fn decode_destack_fs_attrs_chown_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u32, u32)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let uid_value = arg_value(args, 1, "uid", "uint32")?;
     let uid = decode_uint32(uid_value, "uid", "uint32")?;
     let gid_value = arg_value(args, 2, "gid", "uint32")?;
@@ -473,44 +334,7 @@ fn decode_destack_fs_attrs_fchmodat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -566,44 +390,7 @@ fn decode_destack_fs_attrs_fchownat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let uid_value = arg_value(args, 2, "uid", "uint32")?;
     let uid = decode_uint32(uid_value, "uid", "uint32")?;
     let gid_value = arg_value(args, 3, "gid", "uint32")?;
@@ -656,44 +443,7 @@ fn decode_destack_fs_attrs_lutimes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u64, u64)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
     let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
     let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
@@ -721,44 +471,7 @@ fn decode_destack_fs_attrs_utimensat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let atimens_value = arg_value(args, 2, "atimens", "uint64")?;
     let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
     let mtimens_value = arg_value(args, 3, "mtimens", "uint64")?;
@@ -785,44 +498,7 @@ fn decode_destack_fs_attrs_utimes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, u64, u64)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
     let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
     let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
@@ -890,44 +566,7 @@ fn decode_destack_fs_dir_mkdir_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -954,44 +593,7 @@ fn decode_destack_fs_dir_mkdirat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -1014,47 +616,7 @@ fn decode_destack_fs_dir_mkdtemp_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let template_value = arg_value(args, 0, "template", "OsPath")?;
-    let template = {
-        if template_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "template", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(template_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "template",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let template_encoding_raw = decode_uint8(slots[0], "template_encoding_raw", "encoding")?;
-        let template_encoding = match template_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "template_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let template_bytes_inner =
-            decode_array::<u8>(context, slots[1], "template_bytes_inner", "bytes")?;
-        let template_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(template_bytes_inner);
-        let template_utf16_inner =
-            decode_array::<u16>(context, slots[2], "template_utf16_inner", "utf16")?;
-        let template_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(template_utf16_inner);
-        OsPathVm {
-            encoding: template_encoding,
-            bytes: template_bytes,
-            utf16: template_utf16,
-        }
-    };
+    let template = <OsPathVm as VmAggregateCodec>::decode_with_context(context, template_value)?;
     Ok((template,))
 }
 
@@ -1064,11 +626,25 @@ fn encode_destack_fs_dir_mkdtemp_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.map(|value| match value {
+        OsPathVm::OsPathBytes(value) => {
+            let tag_value = vm::Value::uint(1243901586u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        OsPathVm::OsPathUtf16(value) => {
+            let tag_value = vm::Value::uint(2271740357u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -1079,44 +655,7 @@ fn decode_destack_fs_dir_opendir_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -1170,21 +709,47 @@ fn encode_destack_fs_dir_readdir_next_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DirentNextVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = match value.entry {
-            Some(value) => {
-                let field_0 = {
-                    let field_0 = vm::Value::uint(value.name.encoding as u8 as u64, 8);
-                    let field_1 = value.name.bytes.0.to_value(context);
-                    let field_2 = value.name.utf16.0.to_value(context);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.map(|value| match value {
+        DirentNextVm::DirentNextEnd(value) => {
+            let tag_value = vm::Value::uint(2090254866u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        DirentNextVm::DirentNextEntry(value) => {
+            let tag_value = vm::Value::uint(2677729269u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = {
+                    let field_0 = match value.entry.name {
+                        OsPathVm::OsPathBytes(value) => {
+                            let tag_value = vm::Value::uint(1243901586u64, 32);
+                            let payload_value = {
+                                let field_0 = value.kind.value();
+                                let field_1 = value.bytes.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            context.allocate_aggregate(vec![tag_value, payload_value])
+                        }
+                        OsPathVm::OsPathUtf16(value) => {
+                            let tag_value = vm::Value::uint(2271740357u64, 32);
+                            let payload_value = {
+                                let field_0 = value.kind.value();
+                                let field_1 = value.utf16.0.to_value(context);
+                                context.allocate_aggregate(vec![field_0, field_1])
+                            };
+                            context.allocate_aggregate(vec![tag_value, payload_value])
+                        }
+                    };
+                    let field_1 = vm::Value::uint(value.entry.kind as u8 as u64, 8);
+                    context.allocate_aggregate(vec![field_0, field_1])
                 };
-                let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
                 context.allocate_aggregate(vec![field_0, field_1])
-            }
-            None => vm::Value::VOID,
-        };
-        context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -1217,44 +782,7 @@ fn decode_destack_fs_dir_rmdir_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -1628,44 +1156,7 @@ fn decode_destack_fs_file_open_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OpenFlags, FileMode)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 1, "flags", "OpenFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
     let flags = OpenFlags(flags_inner);
@@ -1695,44 +1186,7 @@ fn decode_destack_fs_file_openat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 2, "flags", "OpenFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
     let flags = OpenFlags(flags_inner);
@@ -1762,44 +1216,7 @@ fn decode_destack_fs_file_openat2_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let how_value = arg_value(args, 2, "how", "OpenOptions")?;
     let how = {
         if how_value.tag() != vm::ValueTag::Aggregate {
@@ -2398,44 +1815,7 @@ fn decode_destack_fs_file_truncate_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileOffset)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let size_value = arg_value(args, 1, "size", "FileOffset")?;
     let size_inner = decode_int64(size_value, "size_inner", "FileOffset")?;
     let size = FileOffset(size_inner);
@@ -2704,83 +2084,9 @@ fn decode_destack_fs_path_copyfile_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm, CopyFlags)> {
     let from_value = arg_value(args, 0, "from", "OsPath")?;
-    let from = {
-        if from_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("from", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(from_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "from",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let from_encoding_raw = decode_uint8(slots[0], "from_encoding_raw", "encoding")?;
-        let from_encoding = match from_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "from_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(from_utf16_inner);
-        OsPathVm {
-            encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
-        }
-    };
+    let from = <OsPathVm as VmAggregateCodec>::decode_with_context(context, from_value)?;
     let to_value = arg_value(args, 1, "to", "OsPath")?;
-    let to = {
-        if to_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("to", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(to_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "to",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let to_encoding_raw = decode_uint8(slots[0], "to_encoding_raw", "encoding")?;
-        let to_encoding = match to_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "to_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(to_utf16_inner);
-        OsPathVm {
-            encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
-        }
-    };
+    let to = <OsPathVm as VmAggregateCodec>::decode_with_context(context, to_value)?;
     let flags_value = arg_value(args, 2, "flags", "CopyFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "CopyFlags")?;
     let flags = CopyFlags(flags_inner);
@@ -2803,93 +2109,10 @@ fn decode_destack_fs_path_link_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm)> {
     let existingpath_value = arg_value(args, 0, "existingpath", "OsPath")?;
-    let existingpath = {
-        if existingpath_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "existingpath",
-                "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(existingpath_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "existingpath",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let existingpath_encoding_raw =
-            decode_uint8(slots[0], "existingpath_encoding_raw", "encoding")?;
-        let existingpath_encoding = match existingpath_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "existingpath_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let existingpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "existingpath_bytes_inner", "bytes")?;
-        let existingpath_bytes =
-            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(existingpath_bytes_inner);
-        let existingpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "existingpath_utf16_inner", "utf16")?;
-        let existingpath_utf16 =
-            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(existingpath_utf16_inner);
-        OsPathVm {
-            encoding: existingpath_encoding,
-            bytes: existingpath_bytes,
-            utf16: existingpath_utf16,
-        }
-    };
+    let existingpath =
+        <OsPathVm as VmAggregateCodec>::decode_with_context(context, existingpath_value)?;
     let newpath_value = arg_value(args, 1, "newpath", "OsPath")?;
-    let newpath = {
-        if newpath_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "newpath", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(newpath_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "newpath",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let newpath_encoding_raw = decode_uint8(slots[0], "newpath_encoding_raw", "encoding")?;
-        let newpath_encoding = match newpath_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "newpath_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let newpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "newpath_bytes_inner", "bytes")?;
-        let newpath_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(newpath_bytes_inner);
-        let newpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "newpath_utf16_inner", "utf16")?;
-        let newpath_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(newpath_utf16_inner);
-        OsPathVm {
-            encoding: newpath_encoding,
-            bytes: newpath_bytes,
-            utf16: newpath_utf16,
-        }
-    };
+    let newpath = <OsPathVm as VmAggregateCodec>::decode_with_context(context, newpath_value)?;
     Ok((existingpath, newpath))
 }
 
@@ -2923,97 +2146,14 @@ fn decode_destack_fs_path_linkat_args(
     let existingdir_inner = resource::ResourceId(existingdir_inner_inner);
     let existingdir = resource::DirectoryHandle(existingdir_inner);
     let existingpath_value = arg_value(args, 1, "existingpath", "OsPath")?;
-    let existingpath = {
-        if existingpath_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "existingpath",
-                "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(existingpath_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "existingpath",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let existingpath_encoding_raw =
-            decode_uint8(slots[0], "existingpath_encoding_raw", "encoding")?;
-        let existingpath_encoding = match existingpath_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "existingpath_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let existingpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "existingpath_bytes_inner", "bytes")?;
-        let existingpath_bytes =
-            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(existingpath_bytes_inner);
-        let existingpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "existingpath_utf16_inner", "utf16")?;
-        let existingpath_utf16 =
-            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(existingpath_utf16_inner);
-        OsPathVm {
-            encoding: existingpath_encoding,
-            bytes: existingpath_bytes,
-            utf16: existingpath_utf16,
-        }
-    };
+    let existingpath =
+        <OsPathVm as VmAggregateCodec>::decode_with_context(context, existingpath_value)?;
     let newdir_value = arg_value(args, 2, "newdir", "DirectoryHandle")?;
     let newdir_inner_inner = decode_uint64(newdir_value, "newdir_inner_inner", "DirectoryHandle")?;
     let newdir_inner = resource::ResourceId(newdir_inner_inner);
     let newdir = resource::DirectoryHandle(newdir_inner);
     let newpath_value = arg_value(args, 3, "newpath", "OsPath")?;
-    let newpath = {
-        if newpath_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "newpath", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(newpath_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "newpath",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let newpath_encoding_raw = decode_uint8(slots[0], "newpath_encoding_raw", "encoding")?;
-        let newpath_encoding = match newpath_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "newpath_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let newpath_bytes_inner =
-            decode_array::<u8>(context, slots[1], "newpath_bytes_inner", "bytes")?;
-        let newpath_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(newpath_bytes_inner);
-        let newpath_utf16_inner =
-            decode_array::<u16>(context, slots[2], "newpath_utf16_inner", "utf16")?;
-        let newpath_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(newpath_utf16_inner);
-        OsPathVm {
-            encoding: newpath_encoding,
-            bytes: newpath_bytes,
-            utf16: newpath_utf16,
-        }
-    };
+    let newpath = <OsPathVm as VmAggregateCodec>::decode_with_context(context, newpath_value)?;
     let flags_value = arg_value(args, 4, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
@@ -3036,44 +2176,7 @@ fn decode_destack_fs_path_mkfifo_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -3100,44 +2203,7 @@ fn decode_destack_fs_path_mkfifoat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -3160,44 +2226,7 @@ fn decode_destack_fs_path_mknod_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, FileMode, NodeDevice)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -3227,44 +2256,7 @@ fn decode_destack_fs_path_mknodat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
@@ -3290,44 +2282,7 @@ fn decode_destack_fs_path_readlink_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -3337,11 +2292,25 @@ fn encode_destack_fs_path_readlink_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.map(|value| match value {
+        OsPathVm::OsPathBytes(value) => {
+            let tag_value = vm::Value::uint(1243901586u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        OsPathVm::OsPathUtf16(value) => {
+            let tag_value = vm::Value::uint(2271740357u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -3356,44 +2325,7 @@ fn decode_destack_fs_path_readlinkat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((dir, path))
 }
 
@@ -3403,11 +2335,25 @@ fn encode_destack_fs_path_readlinkat_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.map(|value| match value {
+        OsPathVm::OsPathBytes(value) => {
+            let tag_value = vm::Value::uint(1243901586u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        OsPathVm::OsPathUtf16(value) => {
+            let tag_value = vm::Value::uint(2271740357u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -3418,44 +2364,7 @@ fn decode_destack_fs_path_realpath_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -3465,11 +2374,25 @@ fn encode_destack_fs_path_realpath_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<OsPathVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.encoding as u8 as u64, 8);
-        let field_1 = value.bytes.0.to_value(context);
-        let field_2 = value.utf16.0.to_value(context);
-        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    result.map(|value| match value {
+        OsPathVm::OsPathBytes(value) => {
+            let tag_value = vm::Value::uint(1243901586u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.bytes.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
+        OsPathVm::OsPathUtf16(value) => {
+            let tag_value = vm::Value::uint(2271740357u64, 32);
+            let payload_value = {
+                let field_0 = value.kind.value();
+                let field_1 = value.utf16.0.to_value(context);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            context.allocate_aggregate(vec![tag_value, payload_value])
+        }
     })
 }
 
@@ -3480,83 +2403,9 @@ fn decode_destack_fs_path_rename_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm)> {
     let from_value = arg_value(args, 0, "from", "OsPath")?;
-    let from = {
-        if from_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("from", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(from_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "from",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let from_encoding_raw = decode_uint8(slots[0], "from_encoding_raw", "encoding")?;
-        let from_encoding = match from_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "from_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(from_utf16_inner);
-        OsPathVm {
-            encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
-        }
-    };
+    let from = <OsPathVm as VmAggregateCodec>::decode_with_context(context, from_value)?;
     let to_value = arg_value(args, 1, "to", "OsPath")?;
-    let to = {
-        if to_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("to", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(to_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "to",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let to_encoding_raw = decode_uint8(slots[0], "to_encoding_raw", "encoding")?;
-        let to_encoding = match to_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "to_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(to_utf16_inner);
-        OsPathVm {
-            encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
-        }
-    };
+    let to = <OsPathVm as VmAggregateCodec>::decode_with_context(context, to_value)?;
     Ok((from, to))
 }
 
@@ -3586,87 +2435,13 @@ fn decode_destack_fs_path_renameat_args(
     let fromdir_inner = resource::ResourceId(fromdir_inner_inner);
     let fromdir = resource::DirectoryHandle(fromdir_inner);
     let from_value = arg_value(args, 1, "from", "OsPath")?;
-    let from = {
-        if from_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("from", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(from_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "from",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let from_encoding_raw = decode_uint8(slots[0], "from_encoding_raw", "encoding")?;
-        let from_encoding = match from_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "from_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(from_utf16_inner);
-        OsPathVm {
-            encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
-        }
-    };
+    let from = <OsPathVm as VmAggregateCodec>::decode_with_context(context, from_value)?;
     let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
     let todir_inner_inner = decode_uint64(todir_value, "todir_inner_inner", "DirectoryHandle")?;
     let todir_inner = resource::ResourceId(todir_inner_inner);
     let todir = resource::DirectoryHandle(todir_inner);
     let to_value = arg_value(args, 3, "to", "OsPath")?;
-    let to = {
-        if to_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("to", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(to_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "to",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let to_encoding_raw = decode_uint8(slots[0], "to_encoding_raw", "encoding")?;
-        let to_encoding = match to_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "to_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(to_utf16_inner);
-        OsPathVm {
-            encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
-        }
-    };
+    let to = <OsPathVm as VmAggregateCodec>::decode_with_context(context, to_value)?;
     Ok((fromdir, from, todir, to))
 }
 
@@ -3697,87 +2472,13 @@ fn decode_destack_fs_path_renameat2_args(
     let fromdir_inner = resource::ResourceId(fromdir_inner_inner);
     let fromdir = resource::DirectoryHandle(fromdir_inner);
     let from_value = arg_value(args, 1, "from", "OsPath")?;
-    let from = {
-        if from_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("from", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(from_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "from",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let from_encoding_raw = decode_uint8(slots[0], "from_encoding_raw", "encoding")?;
-        let from_encoding = match from_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "from_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let from_bytes_inner = decode_array::<u8>(context, slots[1], "from_bytes_inner", "bytes")?;
-        let from_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(from_bytes_inner);
-        let from_utf16_inner = decode_array::<u16>(context, slots[2], "from_utf16_inner", "utf16")?;
-        let from_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(from_utf16_inner);
-        OsPathVm {
-            encoding: from_encoding,
-            bytes: from_bytes,
-            utf16: from_utf16,
-        }
-    };
+    let from = <OsPathVm as VmAggregateCodec>::decode_with_context(context, from_value)?;
     let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
     let todir_inner_inner = decode_uint64(todir_value, "todir_inner_inner", "DirectoryHandle")?;
     let todir_inner = resource::ResourceId(todir_inner_inner);
     let todir = resource::DirectoryHandle(todir_inner);
     let to_value = arg_value(args, 3, "to", "OsPath")?;
-    let to = {
-        if to_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("to", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(to_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "to",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let to_encoding_raw = decode_uint8(slots[0], "to_encoding_raw", "encoding")?;
-        let to_encoding = match to_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "to_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let to_bytes_inner = decode_array::<u8>(context, slots[1], "to_bytes_inner", "bytes")?;
-        let to_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(to_bytes_inner);
-        let to_utf16_inner = decode_array::<u16>(context, slots[2], "to_utf16_inner", "utf16")?;
-        let to_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(to_utf16_inner);
-        OsPathVm {
-            encoding: to_encoding,
-            bytes: to_bytes,
-            utf16: to_utf16,
-        }
-    };
+    let to = <OsPathVm as VmAggregateCodec>::decode_with_context(context, to_value)?;
     let flags_value = arg_value(args, 4, "flags", "RenameFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "RenameFlags")?;
     let flags = RenameFlags(flags_inner);
@@ -3800,86 +2501,9 @@ fn decode_destack_fs_path_symlink_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, OsPathVm, SymlinkType)> {
     let target_value = arg_value(args, 0, "target", "OsPath")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(target_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let target_encoding_raw = decode_uint8(slots[0], "target_encoding_raw", "encoding")?;
-        let target_encoding = match target_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "target_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let target_bytes_inner =
-            decode_array::<u8>(context, slots[1], "target_bytes_inner", "bytes")?;
-        let target_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(target_bytes_inner);
-        let target_utf16_inner =
-            decode_array::<u16>(context, slots[2], "target_utf16_inner", "utf16")?;
-        let target_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(target_utf16_inner);
-        OsPathVm {
-            encoding: target_encoding,
-            bytes: target_bytes,
-            utf16: target_utf16,
-        }
-    };
+    let target = <OsPathVm as VmAggregateCodec>::decode_with_context(context, target_value)?;
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let kind_value = arg_value(args, 2, "kind", "SymlinkType")?;
     let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
     let kind = match kind_raw {
@@ -3913,90 +2537,13 @@ fn decode_destack_fs_path_symlinkat_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, resource::DirectoryHandle, OsPathVm, SymlinkType)> {
     let target_value = arg_value(args, 0, "target", "OsPath")?;
-    let target = {
-        if target_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "target", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(target_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "target",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let target_encoding_raw = decode_uint8(slots[0], "target_encoding_raw", "encoding")?;
-        let target_encoding = match target_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "target_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let target_bytes_inner =
-            decode_array::<u8>(context, slots[1], "target_bytes_inner", "bytes")?;
-        let target_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(target_bytes_inner);
-        let target_utf16_inner =
-            decode_array::<u16>(context, slots[2], "target_utf16_inner", "utf16")?;
-        let target_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(target_utf16_inner);
-        OsPathVm {
-            encoding: target_encoding,
-            bytes: target_bytes,
-            utf16: target_utf16,
-        }
-    };
+    let target = <OsPathVm as VmAggregateCodec>::decode_with_context(context, target_value)?;
     let dir_value = arg_value(args, 1, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 2, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let kind_value = arg_value(args, 3, "kind", "SymlinkType")?;
     let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
     let kind = match kind_raw {
@@ -4030,44 +2577,7 @@ fn decode_destack_fs_path_unlink_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -4091,44 +2601,7 @@ fn decode_destack_fs_path_unlinkat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
@@ -4229,44 +2702,7 @@ fn decode_destack_fs_stat_lstat_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -4305,44 +2741,7 @@ fn decode_destack_fs_stat_path_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -4385,44 +2784,7 @@ fn decode_destack_fs_stat_pathat_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
@@ -4464,44 +2826,7 @@ fn decode_destack_fs_stat_pathfs_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -4540,44 +2865,7 @@ fn decode_destack_fs_stat_pathx_args(
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 2, "flags", "StatxFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "StatxFlags")?;
     let flags = StatxFlags(flags_inner);
@@ -4627,44 +2915,7 @@ fn decode_destack_fs_watch_open_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, WatchOptionsVm)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let options_value = arg_value(args, 1, "options", "WatchOptions")?;
     let options = {
         if options_value.tag() != vm::ValueTag::Aggregate {
@@ -4767,44 +3018,7 @@ fn decode_destack_fs_watch_openat_args(
     let directory_inner = resource::ResourceId(directory_inner_inner);
     let directory = resource::DirectoryHandle(directory_inner);
     let path_value = arg_value(args, 1, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let options_value = arg_value(args, 2, "options", "WatchOptions")?;
     let options = {
         if options_value.tag() != vm::ValueTag::Aggregate {
@@ -5067,44 +3281,7 @@ fn decode_destack_fs_xattr_getxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((path, name))
@@ -5126,44 +3303,7 @@ fn decode_destack_fs_xattr_getxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((path, name))
@@ -5185,44 +3325,7 @@ fn decode_destack_fs_xattr_lgetxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((path, name))
@@ -5244,44 +3347,7 @@ fn decode_destack_fs_xattr_lgetxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((path, name))
@@ -5303,44 +3369,7 @@ fn decode_destack_fs_xattr_listxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -5360,44 +3389,7 @@ fn decode_destack_fs_xattr_listxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -5417,44 +3409,7 @@ fn decode_destack_fs_xattr_llistxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -5474,44 +3429,7 @@ fn decode_destack_fs_xattr_llistxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm,)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
 }
 
@@ -5531,44 +3449,7 @@ fn decode_destack_fs_xattr_lremovexattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((path, name))
@@ -5590,44 +3471,7 @@ fn decode_destack_fs_xattr_lremovexattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((path, name))
@@ -5649,44 +3493,7 @@ fn decode_destack_fs_xattr_lsetxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle, VmSlice<u8>, XattrFlags)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
@@ -5718,44 +3525,7 @@ fn decode_destack_fs_xattr_lsetxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>, VmSlice<u8>, XattrFlags)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
@@ -5787,44 +3557,7 @@ fn decode_destack_fs_xattr_removexattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     Ok((path, name))
@@ -5846,44 +3579,7 @@ fn decode_destack_fs_xattr_removexattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     Ok((path, name))
@@ -5905,44 +3601,7 @@ fn decode_destack_fs_xattr_setxattr_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, vm::StringHandle, VmSlice<u8>, XattrFlags)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "string")?;
     let name = decode_string(name_value, "name", "string")?;
     let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
@@ -5974,44 +3633,7 @@ fn decode_destack_fs_xattr_setxattr_bytes_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(OsPathVm, VmSlice<u8>, VmSlice<u8>, XattrFlags)> {
     let path_value = arg_value(args, 0, "path", "OsPath")?;
-    let path = {
-        if path_value.tag() != vm::ValueTag::Aggregate {
-            return Err(
-                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
-            );
-        }
-        let slots = context
-            .aggregate_slots(path_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "path",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
-        let path_encoding = match path_encoding_raw {
-            1u8 => PathEncoding::Bytes,
-            2u8 => PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "path_encoding",
-                    "unknown PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
-        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
-        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
-        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
-        OsPathVm {
-            encoding: path_encoding,
-            bytes: path_bytes,
-            utf16: path_utf16,
-        }
-    };
+    let path = <OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let name_value = arg_value(args, 1, "name", "Slice<uint8>")?;
     let name = decode_slice::<u8>(context, name_value, "name", "Slice<uint8>")?;
     let argument_value_value = arg_value(args, 2, "argument_value", "Slice<uint8>")?;
@@ -10418,25 +8040,53 @@ fn destack_fs_dir_mkdtemp_replay(
                     }
                     *out
                 };
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
-                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
-                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
-                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
-                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
-                }
-                let result_recorded_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_recorded_utf16 = Vec::with_capacity(result_recorded_utf16_raw.len());
-                for result_recorded_utf16_item_value in result_recorded_utf16_raw {
-                    let result_recorded_utf16_item = *result_recorded_utf16_item_value;
-                    let result_recorded_utf16_item_recorded = result_recorded_utf16_item;
-                    result_recorded_utf16.push(result_recorded_utf16_item_recorded);
-                }
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPath::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_bytes_bytes_raw =
+                            unsafe { value.bytes.0.as_slice()? };
+                        let mut result_recorded_os_path_bytes_bytes =
+                            Vec::with_capacity(result_recorded_os_path_bytes_bytes_raw.len());
+                        for result_recorded_os_path_bytes_bytes_item_value in
+                            result_recorded_os_path_bytes_bytes_raw
+                        {
+                            let result_recorded_os_path_bytes_bytes_item =
+                                *result_recorded_os_path_bytes_bytes_item_value;
+                            let result_recorded_os_path_bytes_bytes_item_recorded =
+                                result_recorded_os_path_bytes_bytes_item;
+                            result_recorded_os_path_bytes_bytes
+                                .push(result_recorded_os_path_bytes_bytes_item_recorded);
+                        }
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPath::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_utf16_utf16_raw =
+                            unsafe { value.utf16.0.as_slice()? };
+                        let mut result_recorded_os_path_utf16_utf16 =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_raw.len());
+                        for result_recorded_os_path_utf16_utf16_item_value in
+                            result_recorded_os_path_utf16_utf16_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_item =
+                                *result_recorded_os_path_utf16_utf16_item_value;
+                            let result_recorded_os_path_utf16_utf16_item_recorded =
+                                result_recorded_os_path_utf16_utf16_item;
+                            result_recorded_os_path_utf16_utf16
+                                .push(result_recorded_os_path_utf16_utf16_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsDirMkdtempReplay {
                     result: Ok(result_recorded),
@@ -10458,31 +8108,51 @@ fn destack_fs_dir_mkdtemp_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
-                    }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                        value_native_bytes_inner,
-                    );
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                        value_native_utf16_inner,
-                    );
-                    let value_native = OsPath {
-                        encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                    let value_native = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_bytes_bytes_inner_values =
+                                Vec::with_capacity(value.bytes.len());
+                            for value_native_os_path_bytes_bytes_inner_item in value.bytes {
+                                let value_native_os_path_bytes_bytes_inner_item_native =
+                                    value_native_os_path_bytes_bytes_inner_item;
+                                value_native_os_path_bytes_bytes_inner_values
+                                    .push(value_native_os_path_bytes_bytes_inner_item_native);
+                            }
+                            let value_native_os_path_bytes_bytes_inner =
+                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                            let value_native_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_bytes_bytes_inner,
+                                );
+                            let value_native_os_path_bytes = OsPathBytes {
+                                kind: value_native_os_path_bytes_kind,
+                                bytes: value_native_os_path_bytes_bytes,
+                            };
+                            OsPath::OsPathBytes(value_native_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
+                                let value_native_os_path_utf16_utf16_inner_item_native =
+                                    value_native_os_path_utf16_utf16_inner_item;
+                                value_native_os_path_utf16_utf16_inner_values
+                                    .push(value_native_os_path_utf16_utf16_inner_item_native);
+                            }
+                            let value_native_os_path_utf16_utf16_inner =
+                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                            let value_native_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_utf16_utf16_inner,
+                                );
+                            let value_native_os_path_utf16 = OsPathUtf16 {
+                                kind: value_native_os_path_utf16_kind,
+                                utf16: value_native_os_path_utf16_utf16,
+                            };
+                            OsPath::OsPathUtf16(value_native_os_path_utf16)
+                        }
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -10569,59 +8239,50 @@ fn destack_fs_dir_readdir_replay(
         FS_DIR_READDIR,
         context.replay_payload_for(FS_DIR_READDIR)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_readdir(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_readdir(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
                 let result_recorded_raw = unsafe { result_value.as_slice()? };
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = *result_recorded_item_value;
-                    let result_recorded_item_recorded_name_encoding =
-                        result_recorded_item.name.encoding;
-                    let result_recorded_item_recorded_name_bytes_raw =
-                        unsafe { result_recorded_item.name.bytes.0.as_slice()? };
-                    let mut result_recorded_item_recorded_name_bytes =
-                        Vec::with_capacity(result_recorded_item_recorded_name_bytes_raw.len());
-                    for result_recorded_item_recorded_name_bytes_item_value in
-                        result_recorded_item_recorded_name_bytes_raw
-                    {
-                        let result_recorded_item_recorded_name_bytes_item =
-                            *result_recorded_item_recorded_name_bytes_item_value;
-                        let result_recorded_item_recorded_name_bytes_item_recorded =
-                            result_recorded_item_recorded_name_bytes_item;
-                        result_recorded_item_recorded_name_bytes
-                            .push(result_recorded_item_recorded_name_bytes_item_recorded);
-                    }
-                    let result_recorded_item_recorded_name_utf16_raw =
-                        unsafe { result_recorded_item.name.utf16.0.as_slice()? };
-                    let mut result_recorded_item_recorded_name_utf16 =
-                        Vec::with_capacity(result_recorded_item_recorded_name_utf16_raw.len());
-                    for result_recorded_item_recorded_name_utf16_item_value in
-                        result_recorded_item_recorded_name_utf16_raw
-                    {
-                        let result_recorded_item_recorded_name_utf16_item =
-                            *result_recorded_item_recorded_name_utf16_item_value;
-                        let result_recorded_item_recorded_name_utf16_item_recorded =
-                            result_recorded_item_recorded_name_utf16_item;
-                        result_recorded_item_recorded_name_utf16
-                            .push(result_recorded_item_recorded_name_utf16_item_recorded);
-                    }
-                    let result_recorded_item_recorded_name = OsPathReplayRecord {
-                        encoding: result_recorded_item_recorded_name_encoding,
-                        bytes: result_recorded_item_recorded_name_bytes,
-                        utf16: result_recorded_item_recorded_name_utf16,
+                    let result_recorded_item_recorded_name = match result_recorded_item.name {
+                        OsPath::OsPathBytes(value) => {
+                            let result_recorded_item_recorded_name_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_name_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                            let mut result_recorded_item_recorded_name_os_path_bytes_bytes = Vec::with_capacity(result_recorded_item_recorded_name_os_path_bytes_bytes_raw.len());
+                            for result_recorded_item_recorded_name_os_path_bytes_bytes_item_value in result_recorded_item_recorded_name_os_path_bytes_bytes_raw {
+                                let result_recorded_item_recorded_name_os_path_bytes_bytes_item = *result_recorded_item_recorded_name_os_path_bytes_bytes_item_value;
+                                let result_recorded_item_recorded_name_os_path_bytes_bytes_item_recorded = result_recorded_item_recorded_name_os_path_bytes_bytes_item;
+                                result_recorded_item_recorded_name_os_path_bytes_bytes.push(result_recorded_item_recorded_name_os_path_bytes_bytes_item_recorded);
+                            }
+                            let result_recorded_item_recorded_name_os_path_bytes = OsPathBytesReplayRecord {
+                                kind: result_recorded_item_recorded_name_os_path_bytes_kind,
+                                bytes: result_recorded_item_recorded_name_os_path_bytes_bytes,
+                            };
+                            OsPathReplayRecord::OsPathBytes(result_recorded_item_recorded_name_os_path_bytes)
+                        }
+                        OsPath::OsPathUtf16(value) => {
+                            let result_recorded_item_recorded_name_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_name_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                            let mut result_recorded_item_recorded_name_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_item_recorded_name_os_path_utf16_utf16_raw.len());
+                            for result_recorded_item_recorded_name_os_path_utf16_utf16_item_value in result_recorded_item_recorded_name_os_path_utf16_utf16_raw {
+                                let result_recorded_item_recorded_name_os_path_utf16_utf16_item = *result_recorded_item_recorded_name_os_path_utf16_utf16_item_value;
+                                let result_recorded_item_recorded_name_os_path_utf16_utf16_item_recorded = result_recorded_item_recorded_name_os_path_utf16_utf16_item;
+                                result_recorded_item_recorded_name_os_path_utf16_utf16.push(result_recorded_item_recorded_name_os_path_utf16_utf16_item_recorded);
+                            }
+                            let result_recorded_item_recorded_name_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                kind: result_recorded_item_recorded_name_os_path_utf16_kind,
+                                utf16: result_recorded_item_recorded_name_os_path_utf16_utf16,
+                            };
+                            OsPathReplayRecord::OsPathUtf16(result_recorded_item_recorded_name_os_path_utf16)
+                        }
                     };
                     let result_recorded_item_recorded_kind = result_recorded_item.kind;
                     let result_recorded_item_recorded = DirentReplayRecord {
@@ -10639,7 +8300,9 @@ fn destack_fs_dir_readdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsDirReaddirReplay { result }
+                    FsDirReaddirReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10652,44 +8315,37 @@ fn destack_fs_dir_readdir_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
-                        let value_native_item_native_name_encoding =
-                            value_native_item.name.encoding;
-                        let mut value_native_item_native_name_bytes_inner_values =
-                            Vec::with_capacity(value_native_item.name.bytes.len());
-                        for value_native_item_native_name_bytes_inner_item in
-                            value_native_item.name.bytes
-                        {
-                            let value_native_item_native_name_bytes_inner_item_native =
-                                value_native_item_native_name_bytes_inner_item;
-                            value_native_item_native_name_bytes_inner_values
-                                .push(value_native_item_native_name_bytes_inner_item_native);
-                        }
-                        let value_native_item_native_name_bytes_inner =
-                            context.store_array(value_native_item_native_name_bytes_inner_values);
-                        let value_native_item_native_name_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                                value_native_item_native_name_bytes_inner,
-                            );
-                        let mut value_native_item_native_name_utf16_inner_values =
-                            Vec::with_capacity(value_native_item.name.utf16.len());
-                        for value_native_item_native_name_utf16_inner_item in
-                            value_native_item.name.utf16
-                        {
-                            let value_native_item_native_name_utf16_inner_item_native =
-                                value_native_item_native_name_utf16_inner_item;
-                            value_native_item_native_name_utf16_inner_values
-                                .push(value_native_item_native_name_utf16_inner_item_native);
-                        }
-                        let value_native_item_native_name_utf16_inner =
-                            context.store_array(value_native_item_native_name_utf16_inner_values);
-                        let value_native_item_native_name_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                                value_native_item_native_name_utf16_inner,
-                            );
-                        let value_native_item_native_name = OsPath {
-                            encoding: value_native_item_native_name_encoding,
-                            bytes: value_native_item_native_name_bytes,
-                            utf16: value_native_item_native_name_utf16,
+                        let value_native_item_native_name = match value_native_item.name {
+                            OsPathReplayRecord::OsPathBytes(value) => {
+                                let value_native_item_native_name_os_path_bytes_kind = context.store_string(&value.kind);
+                                let mut value_native_item_native_name_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                for value_native_item_native_name_os_path_bytes_bytes_inner_item in value.bytes {
+                                    let value_native_item_native_name_os_path_bytes_bytes_inner_item_native = value_native_item_native_name_os_path_bytes_bytes_inner_item;
+                                    value_native_item_native_name_os_path_bytes_bytes_inner_values.push(value_native_item_native_name_os_path_bytes_bytes_inner_item_native);
+                                }
+                                let value_native_item_native_name_os_path_bytes_bytes_inner = context.store_array(value_native_item_native_name_os_path_bytes_bytes_inner_values);
+                                let value_native_item_native_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_item_native_name_os_path_bytes_bytes_inner);
+                                let value_native_item_native_name_os_path_bytes = OsPathBytes {
+                                    kind: value_native_item_native_name_os_path_bytes_kind,
+                                    bytes: value_native_item_native_name_os_path_bytes_bytes,
+                                };
+                                OsPath::OsPathBytes(value_native_item_native_name_os_path_bytes)
+                            }
+                            OsPathReplayRecord::OsPathUtf16(value) => {
+                                let value_native_item_native_name_os_path_utf16_kind = context.store_string(&value.kind);
+                                let mut value_native_item_native_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                for value_native_item_native_name_os_path_utf16_utf16_inner_item in value.utf16 {
+                                    let value_native_item_native_name_os_path_utf16_utf16_inner_item_native = value_native_item_native_name_os_path_utf16_utf16_inner_item;
+                                    value_native_item_native_name_os_path_utf16_utf16_inner_values.push(value_native_item_native_name_os_path_utf16_utf16_inner_item_native);
+                                }
+                                let value_native_item_native_name_os_path_utf16_utf16_inner = context.store_array(value_native_item_native_name_os_path_utf16_utf16_inner_values);
+                                let value_native_item_native_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_item_native_name_os_path_utf16_utf16_inner);
+                                let value_native_item_native_name_os_path_utf16 = OsPathUtf16 {
+                                    kind: value_native_item_native_name_os_path_utf16_kind,
+                                    utf16: value_native_item_native_name_os_path_utf16_utf16,
+                                };
+                                OsPath::OsPathUtf16(value_native_item_native_name_os_path_utf16)
+                            }
                         };
                         let value_native_item_native_kind = value_native_item.kind;
                         let value_native_item_native = Dirent {
@@ -10699,9 +8355,7 @@ fn destack_fs_dir_readdir_replay(
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_array(value_native_values);
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -10723,67 +8377,68 @@ fn destack_fs_dir_readdir_next_replay(
         FS_DIR_READDIR_NEXT,
         context.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_fs_readdir_next(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_fs_readdir_next(context, out, handle)
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_fs_readdir_next(context, out, handle) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_fs_readdir_next(context, out, handle) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_entry = if let Some(value) = result_value.entry {
-                    let result_recorded_entry_inner_name_encoding = value.name.encoding;
-                    let result_recorded_entry_inner_name_bytes_raw =
-                        unsafe { value.name.bytes.0.as_slice()? };
-                    let mut result_recorded_entry_inner_name_bytes =
-                        Vec::with_capacity(result_recorded_entry_inner_name_bytes_raw.len());
-                    for result_recorded_entry_inner_name_bytes_item_value in
-                        result_recorded_entry_inner_name_bytes_raw
-                    {
-                        let result_recorded_entry_inner_name_bytes_item =
-                            *result_recorded_entry_inner_name_bytes_item_value;
-                        let result_recorded_entry_inner_name_bytes_item_recorded =
-                            result_recorded_entry_inner_name_bytes_item;
-                        result_recorded_entry_inner_name_bytes
-                            .push(result_recorded_entry_inner_name_bytes_item_recorded);
+                let result_recorded = match result_value {
+                    DirentNext::DirentNextEnd(value) => {
+                        let result_recorded_dirent_next_end_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_dirent_next_end = DirentNextEndReplayRecord {
+                            kind: result_recorded_dirent_next_end_kind,
+                        };
+                        DirentNextReplayRecord::DirentNextEnd(result_recorded_dirent_next_end)
                     }
-                    let result_recorded_entry_inner_name_utf16_raw =
-                        unsafe { value.name.utf16.0.as_slice()? };
-                    let mut result_recorded_entry_inner_name_utf16 =
-                        Vec::with_capacity(result_recorded_entry_inner_name_utf16_raw.len());
-                    for result_recorded_entry_inner_name_utf16_item_value in
-                        result_recorded_entry_inner_name_utf16_raw
-                    {
-                        let result_recorded_entry_inner_name_utf16_item =
-                            *result_recorded_entry_inner_name_utf16_item_value;
-                        let result_recorded_entry_inner_name_utf16_item_recorded =
-                            result_recorded_entry_inner_name_utf16_item;
-                        result_recorded_entry_inner_name_utf16
-                            .push(result_recorded_entry_inner_name_utf16_item_recorded);
+                    DirentNext::DirentNextEntry(value) => {
+                        let result_recorded_dirent_next_entry_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_dirent_next_entry_entry_name = match value.entry.name {
+                            OsPath::OsPathBytes(value) => {
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                let mut result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes = Vec::with_capacity(result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_raw.len());
+                                for result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item_value in result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_raw {
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item = *result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item_value;
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item_recorded = result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item;
+                                    result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes.push(result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_item_recorded);
+                                }
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes = OsPathBytesReplayRecord {
+                                    kind: result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind,
+                                    bytes: result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes,
+                                };
+                                OsPathReplayRecord::OsPathBytes(result_recorded_dirent_next_entry_entry_name_os_path_bytes)
+                            }
+                            OsPath::OsPathUtf16(value) => {
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                let mut result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_raw.len());
+                                for result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item_value in result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_raw {
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item = *result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item_value;
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item_recorded = result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item;
+                                    result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16.push(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_item_recorded);
+                                }
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                    kind: result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind,
+                                    utf16: result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16,
+                                };
+                                OsPathReplayRecord::OsPathUtf16(result_recorded_dirent_next_entry_entry_name_os_path_utf16)
+                            }
+                        };
+                        let result_recorded_dirent_next_entry_entry_kind = value.entry.kind;
+                        let result_recorded_dirent_next_entry_entry = DirentReplayRecord {
+                            name: result_recorded_dirent_next_entry_entry_name,
+                            kind: result_recorded_dirent_next_entry_entry_kind,
+                        };
+                        let result_recorded_dirent_next_entry = DirentNextEntryReplayRecord {
+                            kind: result_recorded_dirent_next_entry_kind,
+                            entry: result_recorded_dirent_next_entry_entry,
+                        };
+                        DirentNextReplayRecord::DirentNextEntry(result_recorded_dirent_next_entry)
                     }
-                    let result_recorded_entry_inner_name = OsPathReplayRecord {
-                        encoding: result_recorded_entry_inner_name_encoding,
-                        bytes: result_recorded_entry_inner_name_bytes,
-                        utf16: result_recorded_entry_inner_name_utf16,
-                    };
-                    let result_recorded_entry_inner_kind = value.kind;
-                    let result_recorded_entry_inner = DirentReplayRecord {
-                        name: result_recorded_entry_inner_name,
-                        kind: result_recorded_entry_inner_kind,
-                    };
-                    Some(result_recorded_entry_inner)
-                } else {
-                    None
-                };
-                let result_recorded = DirentNextReplayRecord {
-                    entry: result_recorded_entry,
                 };
                 let payload = FsDirReaddirNextReplay {
                     result: Ok(result_recorded),
@@ -10794,7 +8449,9 @@ fn destack_fs_dir_readdir_next_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsDirReaddirNextReplay { result }
+                    FsDirReaddirNextReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -10805,56 +8462,61 @@ fn destack_fs_dir_readdir_next_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_entry = if let Some(value) = value.entry {
-                        let value_native_entry_inner_name_encoding = value.name.encoding;
-                        let mut value_native_entry_inner_name_bytes_inner_values =
-                            Vec::with_capacity(value.name.bytes.len());
-                        for value_native_entry_inner_name_bytes_inner_item in value.name.bytes {
-                            let value_native_entry_inner_name_bytes_inner_item_native =
-                                value_native_entry_inner_name_bytes_inner_item;
-                            value_native_entry_inner_name_bytes_inner_values
-                                .push(value_native_entry_inner_name_bytes_inner_item_native);
+                    let value_native = match value {
+                        DirentNextReplayRecord::DirentNextEnd(value) => {
+                            let value_native_dirent_next_end_kind = context.store_string(&value.kind);
+                            let value_native_dirent_next_end = DirentNextEnd {
+                                kind: value_native_dirent_next_end_kind,
+                            };
+                            DirentNext::DirentNextEnd(value_native_dirent_next_end)
                         }
-                        let value_native_entry_inner_name_bytes_inner =
-                            context.store_array(value_native_entry_inner_name_bytes_inner_values);
-                        let value_native_entry_inner_name_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                                value_native_entry_inner_name_bytes_inner,
-                            );
-                        let mut value_native_entry_inner_name_utf16_inner_values =
-                            Vec::with_capacity(value.name.utf16.len());
-                        for value_native_entry_inner_name_utf16_inner_item in value.name.utf16 {
-                            let value_native_entry_inner_name_utf16_inner_item_native =
-                                value_native_entry_inner_name_utf16_inner_item;
-                            value_native_entry_inner_name_utf16_inner_values
-                                .push(value_native_entry_inner_name_utf16_inner_item_native);
+                        DirentNextReplayRecord::DirentNextEntry(value) => {
+                            let value_native_dirent_next_entry_kind = context.store_string(&value.kind);
+                            let value_native_dirent_next_entry_entry_name = match value.entry.name {
+                                OsPathReplayRecord::OsPathBytes(value) => {
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_kind = context.store_string(&value.kind);
+                                    let mut value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                    for value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item in value.bytes {
+                                        let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item_native = value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item;
+                                        value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values.push(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_item_native);
+                                    }
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = context.store_array(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner_values);
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_dirent_next_entry_entry_name_os_path_bytes_bytes_inner);
+                                    let value_native_dirent_next_entry_entry_name_os_path_bytes = OsPathBytes {
+                                        kind: value_native_dirent_next_entry_entry_name_os_path_bytes_kind,
+                                        bytes: value_native_dirent_next_entry_entry_name_os_path_bytes_bytes,
+                                    };
+                                    OsPath::OsPathBytes(value_native_dirent_next_entry_entry_name_os_path_bytes)
+                                }
+                                OsPathReplayRecord::OsPathUtf16(value) => {
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_kind = context.store_string(&value.kind);
+                                    let mut value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    for value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item in value.utf16 {
+                                        let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_native = value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
+                                        value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values.push(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_native);
+                                    }
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = context.store_array(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values);
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_dirent_next_entry_entry_name_os_path_utf16_utf16_inner);
+                                    let value_native_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16 {
+                                        kind: value_native_dirent_next_entry_entry_name_os_path_utf16_kind,
+                                        utf16: value_native_dirent_next_entry_entry_name_os_path_utf16_utf16,
+                                    };
+                                    OsPath::OsPathUtf16(value_native_dirent_next_entry_entry_name_os_path_utf16)
+                                }
+                            };
+                            let value_native_dirent_next_entry_entry_kind = value.entry.kind;
+                            let value_native_dirent_next_entry_entry = Dirent {
+                                name: value_native_dirent_next_entry_entry_name,
+                                kind: value_native_dirent_next_entry_entry_kind,
+                            };
+                            let value_native_dirent_next_entry = DirentNextEntry {
+                                kind: value_native_dirent_next_entry_kind,
+                                entry: value_native_dirent_next_entry_entry,
+                            };
+                            DirentNext::DirentNextEntry(value_native_dirent_next_entry)
                         }
-                        let value_native_entry_inner_name_utf16_inner =
-                            context.store_array(value_native_entry_inner_name_utf16_inner_values);
-                        let value_native_entry_inner_name_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                                value_native_entry_inner_name_utf16_inner,
-                            );
-                        let value_native_entry_inner_name = OsPath {
-                            encoding: value_native_entry_inner_name_encoding,
-                            bytes: value_native_entry_inner_name_bytes,
-                            utf16: value_native_entry_inner_name_utf16,
-                        };
-                        let value_native_entry_inner_kind = value.kind;
-                        let value_native_entry_inner = Dirent {
-                            name: value_native_entry_inner_name,
-                            kind: value_native_entry_inner_kind,
-                        };
-                        Some(value_native_entry_inner)
-                    } else {
-                        None
                     };
-                    let value_native = DirentNext {
-                        entry: value_native_entry,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -13833,25 +11495,53 @@ fn destack_fs_path_readlink_replay(
                     }
                     *out
                 };
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
-                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
-                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
-                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
-                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
-                }
-                let result_recorded_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_recorded_utf16 = Vec::with_capacity(result_recorded_utf16_raw.len());
-                for result_recorded_utf16_item_value in result_recorded_utf16_raw {
-                    let result_recorded_utf16_item = *result_recorded_utf16_item_value;
-                    let result_recorded_utf16_item_recorded = result_recorded_utf16_item;
-                    result_recorded_utf16.push(result_recorded_utf16_item_recorded);
-                }
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPath::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_bytes_bytes_raw =
+                            unsafe { value.bytes.0.as_slice()? };
+                        let mut result_recorded_os_path_bytes_bytes =
+                            Vec::with_capacity(result_recorded_os_path_bytes_bytes_raw.len());
+                        for result_recorded_os_path_bytes_bytes_item_value in
+                            result_recorded_os_path_bytes_bytes_raw
+                        {
+                            let result_recorded_os_path_bytes_bytes_item =
+                                *result_recorded_os_path_bytes_bytes_item_value;
+                            let result_recorded_os_path_bytes_bytes_item_recorded =
+                                result_recorded_os_path_bytes_bytes_item;
+                            result_recorded_os_path_bytes_bytes
+                                .push(result_recorded_os_path_bytes_bytes_item_recorded);
+                        }
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPath::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_utf16_utf16_raw =
+                            unsafe { value.utf16.0.as_slice()? };
+                        let mut result_recorded_os_path_utf16_utf16 =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_raw.len());
+                        for result_recorded_os_path_utf16_utf16_item_value in
+                            result_recorded_os_path_utf16_utf16_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_item =
+                                *result_recorded_os_path_utf16_utf16_item_value;
+                            let result_recorded_os_path_utf16_utf16_item_recorded =
+                                result_recorded_os_path_utf16_utf16_item;
+                            result_recorded_os_path_utf16_utf16
+                                .push(result_recorded_os_path_utf16_utf16_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathReadlinkReplay {
                     result: Ok(result_recorded),
@@ -13873,31 +11563,51 @@ fn destack_fs_path_readlink_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
-                    }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                        value_native_bytes_inner,
-                    );
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                        value_native_utf16_inner,
-                    );
-                    let value_native = OsPath {
-                        encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                    let value_native = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_bytes_bytes_inner_values =
+                                Vec::with_capacity(value.bytes.len());
+                            for value_native_os_path_bytes_bytes_inner_item in value.bytes {
+                                let value_native_os_path_bytes_bytes_inner_item_native =
+                                    value_native_os_path_bytes_bytes_inner_item;
+                                value_native_os_path_bytes_bytes_inner_values
+                                    .push(value_native_os_path_bytes_bytes_inner_item_native);
+                            }
+                            let value_native_os_path_bytes_bytes_inner =
+                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                            let value_native_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_bytes_bytes_inner,
+                                );
+                            let value_native_os_path_bytes = OsPathBytes {
+                                kind: value_native_os_path_bytes_kind,
+                                bytes: value_native_os_path_bytes_bytes,
+                            };
+                            OsPath::OsPathBytes(value_native_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
+                                let value_native_os_path_utf16_utf16_inner_item_native =
+                                    value_native_os_path_utf16_utf16_inner_item;
+                                value_native_os_path_utf16_utf16_inner_values
+                                    .push(value_native_os_path_utf16_utf16_inner_item_native);
+                            }
+                            let value_native_os_path_utf16_utf16_inner =
+                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                            let value_native_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_utf16_utf16_inner,
+                                );
+                            let value_native_os_path_utf16 = OsPathUtf16 {
+                                kind: value_native_os_path_utf16_kind,
+                                utf16: value_native_os_path_utf16_utf16,
+                            };
+                            OsPath::OsPathUtf16(value_native_os_path_utf16)
+                        }
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -13939,25 +11649,53 @@ fn destack_fs_path_readlinkat_replay(
                     }
                     *out
                 };
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
-                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
-                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
-                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
-                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
-                }
-                let result_recorded_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_recorded_utf16 = Vec::with_capacity(result_recorded_utf16_raw.len());
-                for result_recorded_utf16_item_value in result_recorded_utf16_raw {
-                    let result_recorded_utf16_item = *result_recorded_utf16_item_value;
-                    let result_recorded_utf16_item_recorded = result_recorded_utf16_item;
-                    result_recorded_utf16.push(result_recorded_utf16_item_recorded);
-                }
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPath::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_bytes_bytes_raw =
+                            unsafe { value.bytes.0.as_slice()? };
+                        let mut result_recorded_os_path_bytes_bytes =
+                            Vec::with_capacity(result_recorded_os_path_bytes_bytes_raw.len());
+                        for result_recorded_os_path_bytes_bytes_item_value in
+                            result_recorded_os_path_bytes_bytes_raw
+                        {
+                            let result_recorded_os_path_bytes_bytes_item =
+                                *result_recorded_os_path_bytes_bytes_item_value;
+                            let result_recorded_os_path_bytes_bytes_item_recorded =
+                                result_recorded_os_path_bytes_bytes_item;
+                            result_recorded_os_path_bytes_bytes
+                                .push(result_recorded_os_path_bytes_bytes_item_recorded);
+                        }
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPath::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_utf16_utf16_raw =
+                            unsafe { value.utf16.0.as_slice()? };
+                        let mut result_recorded_os_path_utf16_utf16 =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_raw.len());
+                        for result_recorded_os_path_utf16_utf16_item_value in
+                            result_recorded_os_path_utf16_utf16_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_item =
+                                *result_recorded_os_path_utf16_utf16_item_value;
+                            let result_recorded_os_path_utf16_utf16_item_recorded =
+                                result_recorded_os_path_utf16_utf16_item;
+                            result_recorded_os_path_utf16_utf16
+                                .push(result_recorded_os_path_utf16_utf16_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathReadlinkatReplay {
                     result: Ok(result_recorded),
@@ -13979,31 +11717,51 @@ fn destack_fs_path_readlinkat_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
-                    }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                        value_native_bytes_inner,
-                    );
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                        value_native_utf16_inner,
-                    );
-                    let value_native = OsPath {
-                        encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                    let value_native = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_bytes_bytes_inner_values =
+                                Vec::with_capacity(value.bytes.len());
+                            for value_native_os_path_bytes_bytes_inner_item in value.bytes {
+                                let value_native_os_path_bytes_bytes_inner_item_native =
+                                    value_native_os_path_bytes_bytes_inner_item;
+                                value_native_os_path_bytes_bytes_inner_values
+                                    .push(value_native_os_path_bytes_bytes_inner_item_native);
+                            }
+                            let value_native_os_path_bytes_bytes_inner =
+                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                            let value_native_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_bytes_bytes_inner,
+                                );
+                            let value_native_os_path_bytes = OsPathBytes {
+                                kind: value_native_os_path_bytes_kind,
+                                bytes: value_native_os_path_bytes_bytes,
+                            };
+                            OsPath::OsPathBytes(value_native_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
+                                let value_native_os_path_utf16_utf16_inner_item_native =
+                                    value_native_os_path_utf16_utf16_inner_item;
+                                value_native_os_path_utf16_utf16_inner_values
+                                    .push(value_native_os_path_utf16_utf16_inner_item_native);
+                            }
+                            let value_native_os_path_utf16_utf16_inner =
+                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                            let value_native_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_utf16_utf16_inner,
+                                );
+                            let value_native_os_path_utf16 = OsPathUtf16 {
+                                kind: value_native_os_path_utf16_kind,
+                                utf16: value_native_os_path_utf16_utf16,
+                            };
+                            OsPath::OsPathUtf16(value_native_os_path_utf16)
+                        }
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -14044,25 +11802,53 @@ fn destack_fs_path_realpath_replay(
                     }
                     *out
                 };
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_raw = unsafe { result_value.bytes.0.as_slice()? };
-                let mut result_recorded_bytes = Vec::with_capacity(result_recorded_bytes_raw.len());
-                for result_recorded_bytes_item_value in result_recorded_bytes_raw {
-                    let result_recorded_bytes_item = *result_recorded_bytes_item_value;
-                    let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
-                    result_recorded_bytes.push(result_recorded_bytes_item_recorded);
-                }
-                let result_recorded_utf16_raw = unsafe { result_value.utf16.0.as_slice()? };
-                let mut result_recorded_utf16 = Vec::with_capacity(result_recorded_utf16_raw.len());
-                for result_recorded_utf16_item_value in result_recorded_utf16_raw {
-                    let result_recorded_utf16_item = *result_recorded_utf16_item_value;
-                    let result_recorded_utf16_item_recorded = result_recorded_utf16_item;
-                    result_recorded_utf16.push(result_recorded_utf16_item_recorded);
-                }
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPath::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_bytes_bytes_raw =
+                            unsafe { value.bytes.0.as_slice()? };
+                        let mut result_recorded_os_path_bytes_bytes =
+                            Vec::with_capacity(result_recorded_os_path_bytes_bytes_raw.len());
+                        for result_recorded_os_path_bytes_bytes_item_value in
+                            result_recorded_os_path_bytes_bytes_raw
+                        {
+                            let result_recorded_os_path_bytes_bytes_item =
+                                *result_recorded_os_path_bytes_bytes_item_value;
+                            let result_recorded_os_path_bytes_bytes_item_recorded =
+                                result_recorded_os_path_bytes_bytes_item;
+                            result_recorded_os_path_bytes_bytes
+                                .push(result_recorded_os_path_bytes_bytes_item_recorded);
+                        }
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPath::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind =
+                            unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_os_path_utf16_utf16_raw =
+                            unsafe { value.utf16.0.as_slice()? };
+                        let mut result_recorded_os_path_utf16_utf16 =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_raw.len());
+                        for result_recorded_os_path_utf16_utf16_item_value in
+                            result_recorded_os_path_utf16_utf16_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_item =
+                                *result_recorded_os_path_utf16_utf16_item_value;
+                            let result_recorded_os_path_utf16_utf16_item_recorded =
+                                result_recorded_os_path_utf16_utf16_item;
+                            result_recorded_os_path_utf16_utf16
+                                .push(result_recorded_os_path_utf16_utf16_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathRealpathReplay {
                     result: Ok(result_recorded),
@@ -14084,31 +11870,51 @@ fn destack_fs_path_realpath_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_encoding = value.encoding;
-                    let mut value_native_bytes_inner_values = Vec::with_capacity(value.bytes.len());
-                    for value_native_bytes_inner_item in value.bytes {
-                        let value_native_bytes_inner_item_native = value_native_bytes_inner_item;
-                        value_native_bytes_inner_values.push(value_native_bytes_inner_item_native);
-                    }
-                    let value_native_bytes_inner =
-                        context.store_array(value_native_bytes_inner_values);
-                    let value_native_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
-                        value_native_bytes_inner,
-                    );
-                    let mut value_native_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for value_native_utf16_inner_item in value.utf16 {
-                        let value_native_utf16_inner_item_native = value_native_utf16_inner_item;
-                        value_native_utf16_inner_values.push(value_native_utf16_inner_item_native);
-                    }
-                    let value_native_utf16_inner =
-                        context.store_array(value_native_utf16_inner_values);
-                    let value_native_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
-                        value_native_utf16_inner,
-                    );
-                    let value_native = OsPath {
-                        encoding: value_native_encoding,
-                        bytes: value_native_bytes,
-                        utf16: value_native_utf16,
+                    let value_native = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let value_native_os_path_bytes_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_bytes_bytes_inner_values =
+                                Vec::with_capacity(value.bytes.len());
+                            for value_native_os_path_bytes_bytes_inner_item in value.bytes {
+                                let value_native_os_path_bytes_bytes_inner_item_native =
+                                    value_native_os_path_bytes_bytes_inner_item;
+                                value_native_os_path_bytes_bytes_inner_values
+                                    .push(value_native_os_path_bytes_bytes_inner_item_native);
+                            }
+                            let value_native_os_path_bytes_bytes_inner =
+                                context.store_array(value_native_os_path_bytes_bytes_inner_values);
+                            let value_native_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_bytes_bytes_inner,
+                                );
+                            let value_native_os_path_bytes = OsPathBytes {
+                                kind: value_native_os_path_bytes_kind,
+                                bytes: value_native_os_path_bytes_bytes,
+                            };
+                            OsPath::OsPathBytes(value_native_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let value_native_os_path_utf16_kind = context.store_string(&value.kind);
+                            let mut value_native_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for value_native_os_path_utf16_utf16_inner_item in value.utf16 {
+                                let value_native_os_path_utf16_utf16_inner_item_native =
+                                    value_native_os_path_utf16_utf16_inner_item;
+                                value_native_os_path_utf16_utf16_inner_values
+                                    .push(value_native_os_path_utf16_utf16_inner_item_native);
+                            }
+                            let value_native_os_path_utf16_utf16_inner =
+                                context.store_array(value_native_os_path_utf16_utf16_inner_values);
+                            let value_native_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                    value_native_os_path_utf16_utf16_inner,
+                                );
+                            let value_native_os_path_utf16 = OsPathUtf16 {
+                                kind: value_native_os_path_utf16_kind,
+                                utf16: value_native_os_path_utf16_utf16,
+                            };
+                            OsPath::OsPathUtf16(value_native_os_path_utf16)
+                        }
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -15422,53 +13228,277 @@ fn destack_fs_watch_open_read_replay(
                 let mut result_recorded_events = Vec::with_capacity(result_recorded_events_raw.len());
                 for result_recorded_events_item_value in result_recorded_events_raw {
                     let result_recorded_events_item = *result_recorded_events_item_value;
-                    let result_recorded_events_item_recorded_kind = result_recorded_events_item.kind;
-                    let result_recorded_events_item_recorded_path_encoding = result_recorded_events_item.path.encoding;
-                    let result_recorded_events_item_recorded_path_bytes_raw = unsafe { result_recorded_events_item.path.bytes.0.as_slice()? };
-                    let mut result_recorded_events_item_recorded_path_bytes = Vec::with_capacity(result_recorded_events_item_recorded_path_bytes_raw.len());
-                    for result_recorded_events_item_recorded_path_bytes_item_value in result_recorded_events_item_recorded_path_bytes_raw {
-                        let result_recorded_events_item_recorded_path_bytes_item = *result_recorded_events_item_recorded_path_bytes_item_value;
-                        let result_recorded_events_item_recorded_path_bytes_item_recorded = result_recorded_events_item_recorded_path_bytes_item;
-                        result_recorded_events_item_recorded_path_bytes.push(result_recorded_events_item_recorded_path_bytes_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_path_utf16_raw = unsafe { result_recorded_events_item.path.utf16.0.as_slice()? };
-                    let mut result_recorded_events_item_recorded_path_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_path_utf16_raw.len());
-                    for result_recorded_events_item_recorded_path_utf16_item_value in result_recorded_events_item_recorded_path_utf16_raw {
-                        let result_recorded_events_item_recorded_path_utf16_item = *result_recorded_events_item_recorded_path_utf16_item_value;
-                        let result_recorded_events_item_recorded_path_utf16_item_recorded = result_recorded_events_item_recorded_path_utf16_item;
-                        result_recorded_events_item_recorded_path_utf16.push(result_recorded_events_item_recorded_path_utf16_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_path = OsPathReplayRecord {
-                        encoding: result_recorded_events_item_recorded_path_encoding,
-                        bytes: result_recorded_events_item_recorded_path_bytes,
-                        utf16: result_recorded_events_item_recorded_path_utf16,
-                    };
-                    let result_recorded_events_item_recorded_related_path_encoding = result_recorded_events_item.related_path.encoding;
-                    let result_recorded_events_item_recorded_related_path_bytes_raw = unsafe { result_recorded_events_item.related_path.bytes.0.as_slice()? };
-                    let mut result_recorded_events_item_recorded_related_path_bytes = Vec::with_capacity(result_recorded_events_item_recorded_related_path_bytes_raw.len());
-                    for result_recorded_events_item_recorded_related_path_bytes_item_value in result_recorded_events_item_recorded_related_path_bytes_raw {
-                        let result_recorded_events_item_recorded_related_path_bytes_item = *result_recorded_events_item_recorded_related_path_bytes_item_value;
-                        let result_recorded_events_item_recorded_related_path_bytes_item_recorded = result_recorded_events_item_recorded_related_path_bytes_item;
-                        result_recorded_events_item_recorded_related_path_bytes.push(result_recorded_events_item_recorded_related_path_bytes_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_related_path_utf16_raw = unsafe { result_recorded_events_item.related_path.utf16.0.as_slice()? };
-                    let mut result_recorded_events_item_recorded_related_path_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_related_path_utf16_raw.len());
-                    for result_recorded_events_item_recorded_related_path_utf16_item_value in result_recorded_events_item_recorded_related_path_utf16_raw {
-                        let result_recorded_events_item_recorded_related_path_utf16_item = *result_recorded_events_item_recorded_related_path_utf16_item_value;
-                        let result_recorded_events_item_recorded_related_path_utf16_item_recorded = result_recorded_events_item_recorded_related_path_utf16_item;
-                        result_recorded_events_item_recorded_related_path_utf16.push(result_recorded_events_item_recorded_related_path_utf16_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_related_path = OsPathReplayRecord {
-                        encoding: result_recorded_events_item_recorded_related_path_encoding,
-                        bytes: result_recorded_events_item_recorded_related_path_bytes,
-                        utf16: result_recorded_events_item_recorded_related_path_utf16,
-                    };
-                    let result_recorded_events_item_recorded_cookie = result_recorded_events_item.cookie;
-                    let result_recorded_events_item_recorded = WatchEventReplayRecord {
-                        kind: result_recorded_events_item_recorded_kind,
-                        path: result_recorded_events_item_recorded_path,
-                        related_path: result_recorded_events_item_recorded_related_path,
-                        cookie: result_recorded_events_item_recorded_cookie,
+                    let result_recorded_events_item_recorded = match result_recorded_events_item {
+                        WatchEvent::WatchCreateEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_create_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_create_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_create_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_create_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_create_event_path = match value.path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_create_event = WatchCreateEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_create_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_create_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_create_event_path,
+                            };
+                            WatchEventReplayRecord::WatchCreateEvent(result_recorded_events_item_recorded_watch_create_event)
+                        }
+                        WatchEvent::WatchMetadataEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_metadata_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_metadata_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_metadata_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_metadata_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_metadata_event_path = match value.path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_metadata_event = WatchMetadataEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_metadata_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_metadata_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_metadata_event_path,
+                            };
+                            WatchEventReplayRecord::WatchMetadataEvent(result_recorded_events_item_recorded_watch_metadata_event)
+                        }
+                        WatchEvent::WatchModifyEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_modify_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_modify_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_modify_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_modify_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_modify_event_path = match value.path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_modify_event = WatchModifyEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_modify_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_modify_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_modify_event_path,
+                            };
+                            WatchEventReplayRecord::WatchModifyEvent(result_recorded_events_item_recorded_watch_modify_event)
+                        }
+                        WatchEvent::WatchOverflowEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_overflow_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_overflow_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_overflow_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_overflow_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_overflow_event = WatchOverflowEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_overflow_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_overflow_event_metadata,
+                            };
+                            WatchEventReplayRecord::WatchOverflowEvent(result_recorded_events_item_recorded_watch_overflow_event)
+                        }
+                        WatchEvent::WatchRemoveEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_remove_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_remove_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_remove_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_remove_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_remove_event_path = match value.path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_remove_event = WatchRemoveEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_remove_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_remove_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_remove_event_path,
+                            };
+                            WatchEventReplayRecord::WatchRemoveEvent(result_recorded_events_item_recorded_watch_remove_event)
+                        }
+                        WatchEvent::WatchRenameEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_rename_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_events_item_recorded_watch_rename_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_rename_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_rename_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event_path = match value.path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event_related_path = match value.related_path {
+                                OsPath::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_raw = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item_value in result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item = *result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item_value;
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item_recorded = result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes.push(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes)
+                                }
+                                OsPath::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_raw = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16 = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item_value in result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item = *result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item_value;
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item_recorded = result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16.push(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event = WatchRenameEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_rename_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_rename_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_rename_event_path,
+                                related_path: result_recorded_events_item_recorded_watch_rename_event_related_path,
+                            };
+                            WatchEventReplayRecord::WatchRenameEvent(result_recorded_events_item_recorded_watch_rename_event)
+                        }
                     };
                     result_recorded_events.push(result_recorded_events_item_recorded);
                 }
@@ -15501,53 +13531,277 @@ fn destack_fs_watch_open_read_replay(
                 Ok(value) => {
                     let mut value_native_events_values = Vec::with_capacity(value.events.len());
                     for value_native_events_item in value.events {
-                        let value_native_events_item_native_kind = value_native_events_item.kind;
-                        let value_native_events_item_native_path_encoding = value_native_events_item.path.encoding;
-                        let mut value_native_events_item_native_path_bytes_inner_values = Vec::with_capacity(value_native_events_item.path.bytes.len());
-                        for value_native_events_item_native_path_bytes_inner_item in value_native_events_item.path.bytes {
-                            let value_native_events_item_native_path_bytes_inner_item_native = value_native_events_item_native_path_bytes_inner_item;
-                            value_native_events_item_native_path_bytes_inner_values.push(value_native_events_item_native_path_bytes_inner_item_native);
-                        }
-                        let value_native_events_item_native_path_bytes_inner = context.store_array(value_native_events_item_native_path_bytes_inner_values);
-                        let value_native_events_item_native_path_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_path_bytes_inner);
-                        let mut value_native_events_item_native_path_utf16_inner_values = Vec::with_capacity(value_native_events_item.path.utf16.len());
-                        for value_native_events_item_native_path_utf16_inner_item in value_native_events_item.path.utf16 {
-                            let value_native_events_item_native_path_utf16_inner_item_native = value_native_events_item_native_path_utf16_inner_item;
-                            value_native_events_item_native_path_utf16_inner_values.push(value_native_events_item_native_path_utf16_inner_item_native);
-                        }
-                        let value_native_events_item_native_path_utf16_inner = context.store_array(value_native_events_item_native_path_utf16_inner_values);
-                        let value_native_events_item_native_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_path_utf16_inner);
-                        let value_native_events_item_native_path = OsPath {
-                            encoding: value_native_events_item_native_path_encoding,
-                            bytes: value_native_events_item_native_path_bytes,
-                            utf16: value_native_events_item_native_path_utf16,
-                        };
-                        let value_native_events_item_native_related_path_encoding = value_native_events_item.related_path.encoding;
-                        let mut value_native_events_item_native_related_path_bytes_inner_values = Vec::with_capacity(value_native_events_item.related_path.bytes.len());
-                        for value_native_events_item_native_related_path_bytes_inner_item in value_native_events_item.related_path.bytes {
-                            let value_native_events_item_native_related_path_bytes_inner_item_native = value_native_events_item_native_related_path_bytes_inner_item;
-                            value_native_events_item_native_related_path_bytes_inner_values.push(value_native_events_item_native_related_path_bytes_inner_item_native);
-                        }
-                        let value_native_events_item_native_related_path_bytes_inner = context.store_array(value_native_events_item_native_related_path_bytes_inner_values);
-                        let value_native_events_item_native_related_path_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_related_path_bytes_inner);
-                        let mut value_native_events_item_native_related_path_utf16_inner_values = Vec::with_capacity(value_native_events_item.related_path.utf16.len());
-                        for value_native_events_item_native_related_path_utf16_inner_item in value_native_events_item.related_path.utf16 {
-                            let value_native_events_item_native_related_path_utf16_inner_item_native = value_native_events_item_native_related_path_utf16_inner_item;
-                            value_native_events_item_native_related_path_utf16_inner_values.push(value_native_events_item_native_related_path_utf16_inner_item_native);
-                        }
-                        let value_native_events_item_native_related_path_utf16_inner = context.store_array(value_native_events_item_native_related_path_utf16_inner_values);
-                        let value_native_events_item_native_related_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_related_path_utf16_inner);
-                        let value_native_events_item_native_related_path = OsPath {
-                            encoding: value_native_events_item_native_related_path_encoding,
-                            bytes: value_native_events_item_native_related_path_bytes,
-                            utf16: value_native_events_item_native_related_path_utf16,
-                        };
-                        let value_native_events_item_native_cookie = value_native_events_item.cookie;
-                        let value_native_events_item_native = WatchEvent {
-                            kind: value_native_events_item_native_kind,
-                            path: value_native_events_item_native_path,
-                            related_path: value_native_events_item_native_related_path,
-                            cookie: value_native_events_item_native_cookie,
+                        let value_native_events_item_native = match value_native_events_item {
+                            WatchEventReplayRecord::WatchCreateEvent(value) => {
+                                let value_native_events_item_native_watch_create_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_create_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_create_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_create_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_create_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_create_event_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_create_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_create_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_create_event_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_create_event_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_create_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_create_event_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_create_event = WatchCreateEvent {
+                                    kind: value_native_events_item_native_watch_create_event_kind,
+                                    metadata: value_native_events_item_native_watch_create_event_metadata,
+                                    path: value_native_events_item_native_watch_create_event_path,
+                                };
+                                WatchEvent::WatchCreateEvent(value_native_events_item_native_watch_create_event)
+                            }
+                            WatchEventReplayRecord::WatchMetadataEvent(value) => {
+                                let value_native_events_item_native_watch_metadata_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_metadata_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_metadata_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_metadata_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_metadata_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_metadata_event_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_metadata_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_metadata_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_metadata_event_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_metadata_event_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_metadata_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_metadata_event_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_metadata_event = WatchMetadataEvent {
+                                    kind: value_native_events_item_native_watch_metadata_event_kind,
+                                    metadata: value_native_events_item_native_watch_metadata_event_metadata,
+                                    path: value_native_events_item_native_watch_metadata_event_path,
+                                };
+                                WatchEvent::WatchMetadataEvent(value_native_events_item_native_watch_metadata_event)
+                            }
+                            WatchEventReplayRecord::WatchModifyEvent(value) => {
+                                let value_native_events_item_native_watch_modify_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_modify_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_modify_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_modify_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_modify_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_modify_event_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_modify_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_modify_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_modify_event_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_modify_event_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_modify_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_modify_event_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_modify_event = WatchModifyEvent {
+                                    kind: value_native_events_item_native_watch_modify_event_kind,
+                                    metadata: value_native_events_item_native_watch_modify_event_metadata,
+                                    path: value_native_events_item_native_watch_modify_event_path,
+                                };
+                                WatchEvent::WatchModifyEvent(value_native_events_item_native_watch_modify_event)
+                            }
+                            WatchEventReplayRecord::WatchOverflowEvent(value) => {
+                                let value_native_events_item_native_watch_overflow_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_overflow_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_overflow_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_overflow_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_overflow_event = WatchOverflowEvent {
+                                    kind: value_native_events_item_native_watch_overflow_event_kind,
+                                    metadata: value_native_events_item_native_watch_overflow_event_metadata,
+                                };
+                                WatchEvent::WatchOverflowEvent(value_native_events_item_native_watch_overflow_event)
+                            }
+                            WatchEventReplayRecord::WatchRemoveEvent(value) => {
+                                let value_native_events_item_native_watch_remove_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_remove_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_remove_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_remove_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_remove_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_remove_event_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_remove_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_remove_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_remove_event_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_remove_event_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_remove_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_remove_event_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_remove_event = WatchRemoveEvent {
+                                    kind: value_native_events_item_native_watch_remove_event_kind,
+                                    metadata: value_native_events_item_native_watch_remove_event_metadata,
+                                    path: value_native_events_item_native_watch_remove_event_path,
+                                };
+                                WatchEvent::WatchRemoveEvent(value_native_events_item_native_watch_remove_event)
+                            }
+                            WatchEventReplayRecord::WatchRenameEvent(value) => {
+                                let value_native_events_item_native_watch_rename_event_kind = context.store_string(&value.kind);
+                                let value_native_events_item_native_watch_rename_event_metadata_cookie = value.metadata.cookie;
+                                let value_native_events_item_native_watch_rename_event_metadata = WatchEventMetadata {
+                                    cookie: value_native_events_item_native_watch_rename_event_metadata_cookie,
+                                };
+                                let value_native_events_item_native_watch_rename_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_rename_event_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_rename_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_rename_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_rename_event_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_rename_event_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_rename_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_rename_event_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_rename_event_related_path = match value.related_path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values = Vec::with_capacity(value.bytes.len());
+                                        for value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item_native = value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item;
+                                            value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values.push(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner = context.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes_inner);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_bytes = OsPathBytes {
+                                            kind: value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_kind,
+                                            bytes: value_native_events_item_native_watch_rename_event_related_path_os_path_bytes_bytes,
+                                        };
+                                        OsPath::OsPathBytes(value_native_events_item_native_watch_rename_event_related_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_kind = context.store_string(&value.kind);
+                                        let mut value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_native = value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
+                                            value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values.push(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_native);
+                                        }
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner = context.store_array(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner_values);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16_inner);
+                                        let value_native_events_item_native_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16 {
+                                            kind: value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_kind,
+                                            utf16: value_native_events_item_native_watch_rename_event_related_path_os_path_utf16_utf16,
+                                        };
+                                        OsPath::OsPathUtf16(value_native_events_item_native_watch_rename_event_related_path_os_path_utf16)
+                                    }
+                                };
+                                let value_native_events_item_native_watch_rename_event = WatchRenameEvent {
+                                    kind: value_native_events_item_native_watch_rename_event_kind,
+                                    metadata: value_native_events_item_native_watch_rename_event_metadata,
+                                    path: value_native_events_item_native_watch_rename_event_path,
+                                    related_path: value_native_events_item_native_watch_rename_event_related_path,
+                                };
+                                WatchEvent::WatchRenameEvent(value_native_events_item_native_watch_rename_event)
+                            }
                         };
                         value_native_events_values.push(value_native_events_item_native);
                     }
@@ -19861,27 +18115,56 @@ fn destack_fs_dir_mkdtemp_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: OsPathVm = value.clone();
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_recorded_bytes = result_recorded_bytes_inner;
-                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_recorded_utf16_inner =
-                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                    let result_recorded_utf16_inner_item = decode_uint16(
-                        result_recorded_utf16_inner_item_value,
-                        "result_recorded_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_recorded_utf16_inner_item_recorded =
-                        result_recorded_utf16_inner_item;
-                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                }
-                let result_recorded_utf16 = result_recorded_utf16_inner;
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPathVm::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind = {
+                            let result_recorded_os_path_bytes_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_bytes_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_bytes_bytes_inner =
+                            value.bytes.0.read_bytes(context)?;
+                        let result_recorded_os_path_bytes_bytes =
+                            result_recorded_os_path_bytes_bytes_inner;
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPathVm::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind = {
+                            let result_recorded_os_path_utf16_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_utf16_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_utf16_utf16_inner_raw =
+                            value.utf16.0.raw_values(context)?;
+                        let mut result_recorded_os_path_utf16_utf16_inner =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
+                        for result_recorded_os_path_utf16_utf16_inner_item_value in
+                            result_recorded_os_path_utf16_utf16_inner_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_inner_item = decode_uint16(
+                                result_recorded_os_path_utf16_utf16_inner_item_value,
+                                "result_recorded_os_path_utf16_utf16_inner_item",
+                                "item",
+                            )?;
+                            let result_recorded_os_path_utf16_utf16_inner_item_recorded =
+                                result_recorded_os_path_utf16_utf16_inner_item;
+                            result_recorded_os_path_utf16_utf16_inner
+                                .push(result_recorded_os_path_utf16_utf16_inner_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16_utf16 =
+                            result_recorded_os_path_utf16_utf16_inner;
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsDirMkdtempReplay {
                     result: Ok(result_recorded),
@@ -19904,25 +18187,53 @@ fn destack_fs_dir_mkdtemp_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes =
-                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 =
-                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                    let vm_result = OsPathVm {
-                        encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                    let vm_result = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
+                            let vm_result_os_path_bytes_bytes_inner =
+                                VmArray::from_bytes(context, value.bytes.as_slice());
+                            let vm_result_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_bytes_bytes_inner,
+                                );
+                            let vm_result_os_path_bytes = OsPathBytesVm {
+                                kind: vm_result_os_path_bytes_kind,
+                                bytes: vm_result_os_path_bytes_bytes,
+                            };
+                            OsPathVm::OsPathBytes(vm_result_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
+                            let mut vm_result_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for vm_result_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                let vm_result_os_path_utf16_utf16_inner_item =
+                                    *vm_result_os_path_utf16_utf16_inner_item;
+                                let vm_result_os_path_utf16_utf16_inner_item_value =
+                                    vm_result_os_path_utf16_utf16_inner_item;
+                                vm_result_os_path_utf16_utf16_inner_values
+                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                            }
+                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
+                                context,
+                                &vm_result_os_path_utf16_utf16_inner_values,
+                            )?;
+                            let vm_result_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_utf16_utf16_inner,
+                                );
+                            let vm_result_os_path_utf16 = OsPathUtf16Vm {
+                                kind: vm_result_os_path_utf16_kind,
+                                utf16: vm_result_os_path_utf16_utf16,
+                            };
+                            OsPathVm::OsPathUtf16(vm_result_os_path_utf16)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -19999,10 +18310,10 @@ fn destack_fs_dir_readdir_vm_replay(
         FS_DIR_READDIR,
         runtime.replay_payload_for(FS_DIR_READDIR)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_readdir(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_fs_readdir(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir(runtime, context, handle),
             }
         },
         |context, result| {
@@ -20013,146 +18324,50 @@ fn destack_fs_dir_readdir_vm_replay(
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 2 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_name = {
-                            if slots[0].tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item_name",
-                                        "name",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(slots[0])
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_name",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_name_encoding_raw = decode_uint8(
-                                slots[0],
-                                "result_recorded_item_name_encoding_raw",
-                                "encoding",
-                            )?;
-                            let result_recorded_item_name_encoding =
-                                match result_recorded_item_name_encoding_raw {
-                                    1u8 => PathEncoding::Bytes,
-                                    2u8 => PathEncoding::Utf16,
-                                    _ => {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_item_name_encoding",
-                                                "unknown PathEncoding value",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                };
-                            let result_recorded_item_name_bytes_inner = decode_array::<u8>(
-                                context,
-                                slots[1],
-                                "result_recorded_item_name_bytes_inner",
-                                "bytes",
-                            )?;
-                            let result_recorded_item_name_bytes =
-                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                    result_recorded_item_name_bytes_inner,
-                                );
-                            let result_recorded_item_name_utf16_inner = decode_array::<u16>(
-                                context,
-                                slots[2],
-                                "result_recorded_item_name_utf16_inner",
-                                "utf16",
-                            )?;
-                            let result_recorded_item_name_utf16 =
-                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                    result_recorded_item_name_utf16_inner,
-                                );
-                            OsPathVm {
-                                encoding: result_recorded_item_name_encoding,
-                                bytes: result_recorded_item_name_bytes,
-                                utf16: result_recorded_item_name_utf16,
-                            }
-                        };
-                        let result_recorded_item_kind_raw =
-                            decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                            1u8 => DirentKind::File,
-                            2u8 => DirentKind::Directory,
-                            3u8 => DirentKind::Symlink,
-                            4u8 => DirentKind::BlockDevice,
-                            5u8 => DirentKind::CharDevice,
-                            6u8 => DirentKind::Fifo,
-                            7u8 => DirentKind::Socket,
-                            255u8 => DirentKind::Unknown,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_kind",
-                                        "unknown DirentKind value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 2 fields")).boxed()); }
+                        let result_recorded_item_name = <OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+                        let result_recorded_item_kind_raw = decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => DirentKind::File, 2u8 => DirentKind::Directory, 3u8 => DirentKind::Symlink, 4u8 => DirentKind::BlockDevice, 5u8 => DirentKind::CharDevice, 6u8 => DirentKind::Fifo, 7u8 => DirentKind::Socket, 255u8 => DirentKind::Unknown , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown DirentKind value")).boxed()), };
                         DirentVm {
                             name: result_recorded_item_name,
                             kind: result_recorded_item_kind,
                         }
                     };
-                    let result_recorded_item_recorded_name_encoding =
-                        result_recorded_item.name.encoding;
-                    let result_recorded_item_recorded_name_bytes_inner =
-                        result_recorded_item.name.bytes.0.read_bytes(context)?;
-                    let result_recorded_item_recorded_name_bytes =
-                        result_recorded_item_recorded_name_bytes_inner;
-                    let result_recorded_item_recorded_name_utf16_inner_raw =
-                        result_recorded_item.name.utf16.0.raw_values(context)?;
-                    let mut result_recorded_item_recorded_name_utf16_inner = Vec::with_capacity(
-                        result_recorded_item_recorded_name_utf16_inner_raw.len(),
-                    );
-                    for result_recorded_item_recorded_name_utf16_inner_item_value in
-                        result_recorded_item_recorded_name_utf16_inner_raw
-                    {
-                        let result_recorded_item_recorded_name_utf16_inner_item = decode_uint16(
-                            result_recorded_item_recorded_name_utf16_inner_item_value,
-                            "result_recorded_item_recorded_name_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_item_recorded_name_utf16_inner_item_recorded =
-                            result_recorded_item_recorded_name_utf16_inner_item;
-                        result_recorded_item_recorded_name_utf16_inner
-                            .push(result_recorded_item_recorded_name_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_item_recorded_name_utf16 =
-                        result_recorded_item_recorded_name_utf16_inner;
-                    let result_recorded_item_recorded_name = OsPathReplayRecord {
-                        encoding: result_recorded_item_recorded_name_encoding,
-                        bytes: result_recorded_item_recorded_name_bytes,
-                        utf16: result_recorded_item_recorded_name_utf16,
+                    let result_recorded_item_recorded_name = match result_recorded_item.name {
+                        OsPathVm::OsPathBytes(value) => {
+                            let result_recorded_item_recorded_name_os_path_bytes_kind = {
+                                let result_recorded_item_recorded_name_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_name_os_path_bytes_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_name_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                            let result_recorded_item_recorded_name_os_path_bytes_bytes = result_recorded_item_recorded_name_os_path_bytes_bytes_inner;
+                            let result_recorded_item_recorded_name_os_path_bytes = OsPathBytesReplayRecord {
+                                kind: result_recorded_item_recorded_name_os_path_bytes_kind,
+                                bytes: result_recorded_item_recorded_name_os_path_bytes_bytes,
+                            };
+                            OsPathReplayRecord::OsPathBytes(result_recorded_item_recorded_name_os_path_bytes)
+                        }
+                        OsPathVm::OsPathUtf16(value) => {
+                            let result_recorded_item_recorded_name_os_path_utf16_kind = {
+                                let result_recorded_item_recorded_name_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_item_recorded_name_os_path_utf16_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                            let mut result_recorded_item_recorded_name_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw.len());
+                            for result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_value in result_recorded_item_recorded_name_os_path_utf16_utf16_inner_raw {
+                                let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_value, "result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item", "item")?;
+                                let result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_recorded = result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item;
+                                result_recorded_item_recorded_name_os_path_utf16_utf16_inner.push(result_recorded_item_recorded_name_os_path_utf16_utf16_inner_item_recorded);
+                            }
+                            let result_recorded_item_recorded_name_os_path_utf16_utf16 = result_recorded_item_recorded_name_os_path_utf16_utf16_inner;
+                            let result_recorded_item_recorded_name_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                kind: result_recorded_item_recorded_name_os_path_utf16_kind,
+                                utf16: result_recorded_item_recorded_name_os_path_utf16_utf16,
+                            };
+                            OsPathReplayRecord::OsPathUtf16(result_recorded_item_recorded_name_os_path_utf16)
+                        }
                     };
                     let result_recorded_item_recorded_kind = result_recorded_item.kind;
                     let result_recorded_item_recorded = DirentReplayRecord {
@@ -20170,7 +18385,9 @@ fn destack_fs_dir_readdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsDirReaddirReplay { result }
+                    FsDirReaddirReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -20185,66 +18402,46 @@ fn destack_fs_dir_readdir_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
-                        let vm_result_item_value_name_encoding = vm_result_item.name.encoding;
-                        let vm_result_item_value_name_bytes_inner =
-                            VmArray::from_bytes(context, vm_result_item.name.bytes.as_slice());
-                        let vm_result_item_value_name_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                vm_result_item_value_name_bytes_inner,
-                            );
-                        let mut vm_result_item_value_name_utf16_inner_values =
-                            Vec::with_capacity(vm_result_item.name.utf16.len());
-                        for vm_result_item_value_name_utf16_inner_item in
-                            vm_result_item.name.utf16.iter()
-                        {
-                            let vm_result_item_value_name_utf16_inner_item =
-                                *vm_result_item_value_name_utf16_inner_item;
-                            let vm_result_item_value_name_utf16_inner_item_value =
-                                vm_result_item_value_name_utf16_inner_item;
-                            vm_result_item_value_name_utf16_inner_values
-                                .push(vm_result_item_value_name_utf16_inner_item_value);
-                        }
-                        let vm_result_item_value_name_utf16_inner = VmArray::from_values(
-                            context,
-                            &vm_result_item_value_name_utf16_inner_values,
-                        )?;
-                        let vm_result_item_value_name_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                vm_result_item_value_name_utf16_inner,
-                            );
-                        let vm_result_item_value_name = OsPathVm {
-                            encoding: vm_result_item_value_name_encoding,
-                            bytes: vm_result_item_value_name_bytes,
-                            utf16: vm_result_item_value_name_utf16,
+                        let vm_result_item_value_name = match vm_result_item.name {
+                            OsPathReplayRecord::OsPathBytes(value) => {
+                                let vm_result_item_value_name_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_name_os_path_bytes_kind = vm::StringHandle::new(vm_result_item_value_name_os_path_bytes_kind_value);
+                                let vm_result_item_value_name_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                let vm_result_item_value_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_item_value_name_os_path_bytes_bytes_inner);
+                                let vm_result_item_value_name_os_path_bytes = OsPathBytesVm {
+                                    kind: vm_result_item_value_name_os_path_bytes_kind,
+                                    bytes: vm_result_item_value_name_os_path_bytes_bytes,
+                                };
+                                OsPathVm::OsPathBytes(vm_result_item_value_name_os_path_bytes)
+                            }
+                            OsPathReplayRecord::OsPathUtf16(value) => {
+                                let vm_result_item_value_name_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_item_value_name_os_path_utf16_kind = vm::StringHandle::new(vm_result_item_value_name_os_path_utf16_kind_value);
+                                let mut vm_result_item_value_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                for vm_result_item_value_name_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                    let vm_result_item_value_name_os_path_utf16_utf16_inner_item = *vm_result_item_value_name_os_path_utf16_utf16_inner_item;
+                                    let vm_result_item_value_name_os_path_utf16_utf16_inner_item_value = vm_result_item_value_name_os_path_utf16_utf16_inner_item;
+                                    vm_result_item_value_name_os_path_utf16_utf16_inner_values.push(vm_result_item_value_name_os_path_utf16_utf16_inner_item_value);
+                                }
+                                let vm_result_item_value_name_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_item_value_name_os_path_utf16_utf16_inner_values)?;
+                                let vm_result_item_value_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_item_value_name_os_path_utf16_utf16_inner);
+                                let vm_result_item_value_name_os_path_utf16 = OsPathUtf16Vm {
+                                    kind: vm_result_item_value_name_os_path_utf16_kind,
+                                    utf16: vm_result_item_value_name_os_path_utf16_utf16,
+                                };
+                                OsPathVm::OsPathUtf16(vm_result_item_value_name_os_path_utf16)
+                            }
                         };
                         let vm_result_item_value_kind = vm_result_item.kind;
                         let vm_result_item_value = DirentVm {
                             name: vm_result_item_value_name,
                             kind: vm_result_item_value_kind,
                         };
-                        let vm_result_item_value_encoded = {
-                            let field_0 = {
-                                let field_0 = vm::Value::uint(
-                                    vm_result_item_value.name.encoding as u8 as u64,
-                                    8,
-                                );
-                                let field_1 = vm_result_item_value.name.bytes.0.to_value(context);
-                                let field_2 = vm_result_item_value.name.utf16.0.to_value(context);
-                                context.allocate_aggregate(vec![field_0, field_1, field_2])
-                            };
-                            let field_1 =
-                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
-                            context.allocate_aggregate(vec![field_0, field_1])
-                        };
+                        let vm_result_item_value_encoded = { let field_0 = match vm_result_item_value.name { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; let field_1 = vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8); context.allocate_aggregate(vec![field_0, field_1]) };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
-                    let vm_result: VmArray<DirentVm> = VmArray {
-                        data: vm_result_data,
-                        len: value.len() as u32,
-                        capacity: value.len() as u32,
-                        _marker: std::marker::PhantomData,
-                    };
+                    let vm_result: VmArray<DirentVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
                     Ok(vm_result)
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -20266,57 +18463,77 @@ fn destack_fs_dir_readdir_next_vm_replay(
         FS_DIR_READDIR_NEXT,
         runtime.replay_payload_for(FS_DIR_READDIR_NEXT)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_fs_readdir_next(runtime, context, handle),
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_fs_readdir_next(runtime, context, handle)
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_fs_readdir_next(runtime, context, handle),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_fs_readdir_next(runtime, context, handle),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: DirentNextVm = value.clone();
-                let result_recorded_entry = if let Some(value) = result_value.entry {
-                    let result_recorded_entry_inner_name_encoding = value.name.encoding;
-                    let result_recorded_entry_inner_name_bytes_inner =
-                        value.name.bytes.0.read_bytes(context)?;
-                    let result_recorded_entry_inner_name_bytes =
-                        result_recorded_entry_inner_name_bytes_inner;
-                    let result_recorded_entry_inner_name_utf16_inner_raw =
-                        value.name.utf16.0.raw_values(context)?;
-                    let mut result_recorded_entry_inner_name_utf16_inner =
-                        Vec::with_capacity(result_recorded_entry_inner_name_utf16_inner_raw.len());
-                    for result_recorded_entry_inner_name_utf16_inner_item_value in
-                        result_recorded_entry_inner_name_utf16_inner_raw
-                    {
-                        let result_recorded_entry_inner_name_utf16_inner_item = decode_uint16(
-                            result_recorded_entry_inner_name_utf16_inner_item_value,
-                            "result_recorded_entry_inner_name_utf16_inner_item",
-                            "item",
-                        )?;
-                        let result_recorded_entry_inner_name_utf16_inner_item_recorded =
-                            result_recorded_entry_inner_name_utf16_inner_item;
-                        result_recorded_entry_inner_name_utf16_inner
-                            .push(result_recorded_entry_inner_name_utf16_inner_item_recorded);
+                let result_recorded = match result_value {
+                    DirentNextVm::DirentNextEnd(value) => {
+                        let result_recorded_dirent_next_end_kind = {
+                            let result_recorded_dirent_next_end_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_dirent_next_end_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_dirent_next_end = DirentNextEndReplayRecord {
+                            kind: result_recorded_dirent_next_end_kind,
+                        };
+                        DirentNextReplayRecord::DirentNextEnd(result_recorded_dirent_next_end)
                     }
-                    let result_recorded_entry_inner_name_utf16 =
-                        result_recorded_entry_inner_name_utf16_inner;
-                    let result_recorded_entry_inner_name = OsPathReplayRecord {
-                        encoding: result_recorded_entry_inner_name_encoding,
-                        bytes: result_recorded_entry_inner_name_bytes,
-                        utf16: result_recorded_entry_inner_name_utf16,
-                    };
-                    let result_recorded_entry_inner_kind = value.kind;
-                    let result_recorded_entry_inner = DirentReplayRecord {
-                        name: result_recorded_entry_inner_name,
-                        kind: result_recorded_entry_inner_kind,
-                    };
-                    Some(result_recorded_entry_inner)
-                } else {
-                    None
-                };
-                let result_recorded = DirentNextReplayRecord {
-                    entry: result_recorded_entry,
+                    DirentNextVm::DirentNextEntry(value) => {
+                        let result_recorded_dirent_next_entry_kind = {
+                            let result_recorded_dirent_next_entry_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_dirent_next_entry_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_dirent_next_entry_entry_name = match value.entry.name {
+                            OsPathVm::OsPathBytes(value) => {
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind = {
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind_ref.as_str().to_string()
+                                };
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes = result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes_inner;
+                                let result_recorded_dirent_next_entry_entry_name_os_path_bytes = OsPathBytesReplayRecord {
+                                    kind: result_recorded_dirent_next_entry_entry_name_os_path_bytes_kind,
+                                    bytes: result_recorded_dirent_next_entry_entry_name_os_path_bytes_bytes,
+                                };
+                                OsPathReplayRecord::OsPathBytes(result_recorded_dirent_next_entry_entry_name_os_path_bytes)
+                            }
+                            OsPathVm::OsPathUtf16(value) => {
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind = {
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind_ref.as_str().to_string()
+                                };
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                let mut result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw.len());
+                                for result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value in result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_raw {
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value, "result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item", "item")?;
+                                    let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_recorded = result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
+                                    result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner.push(result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_recorded);
+                                }
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16 = result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16_inner;
+                                let result_recorded_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                    kind: result_recorded_dirent_next_entry_entry_name_os_path_utf16_kind,
+                                    utf16: result_recorded_dirent_next_entry_entry_name_os_path_utf16_utf16,
+                                };
+                                OsPathReplayRecord::OsPathUtf16(result_recorded_dirent_next_entry_entry_name_os_path_utf16)
+                            }
+                        };
+                        let result_recorded_dirent_next_entry_entry_kind = value.entry.kind;
+                        let result_recorded_dirent_next_entry_entry = DirentReplayRecord {
+                            name: result_recorded_dirent_next_entry_entry_name,
+                            kind: result_recorded_dirent_next_entry_entry_kind,
+                        };
+                        let result_recorded_dirent_next_entry = DirentNextEntryReplayRecord {
+                            kind: result_recorded_dirent_next_entry_kind,
+                            entry: result_recorded_dirent_next_entry_entry,
+                        };
+                        DirentNextReplayRecord::DirentNextEntry(result_recorded_dirent_next_entry)
+                    }
                 };
                 let payload = FsDirReaddirNextReplay {
                     result: Ok(result_recorded),
@@ -20327,7 +18544,9 @@ fn destack_fs_dir_readdir_next_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    FsDirReaddirNextReplay { result }
+                    FsDirReaddirNextReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -20339,48 +18558,59 @@ fn destack_fs_dir_readdir_next_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_entry = if let Some(value) = value.entry {
-                        let vm_result_entry_inner_name_encoding = value.name.encoding;
-                        let vm_result_entry_inner_name_bytes_inner =
-                            VmArray::from_bytes(context, value.name.bytes.as_slice());
-                        let vm_result_entry_inner_name_bytes =
-                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
-                                vm_result_entry_inner_name_bytes_inner,
-                            );
-                        let mut vm_result_entry_inner_name_utf16_inner_values =
-                            Vec::with_capacity(value.name.utf16.len());
-                        for vm_result_entry_inner_name_utf16_inner_item in value.name.utf16.iter() {
-                            let vm_result_entry_inner_name_utf16_inner_item =
-                                *vm_result_entry_inner_name_utf16_inner_item;
-                            let vm_result_entry_inner_name_utf16_inner_item_value =
-                                vm_result_entry_inner_name_utf16_inner_item;
-                            vm_result_entry_inner_name_utf16_inner_values
-                                .push(vm_result_entry_inner_name_utf16_inner_item_value);
+                    let vm_result = match value {
+                        DirentNextReplayRecord::DirentNextEnd(value) => {
+                            let vm_result_dirent_next_end_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_dirent_next_end_kind = vm::StringHandle::new(vm_result_dirent_next_end_kind_value);
+                            let vm_result_dirent_next_end = DirentNextEndVm {
+                                kind: vm_result_dirent_next_end_kind,
+                            };
+                            DirentNextVm::DirentNextEnd(vm_result_dirent_next_end)
                         }
-                        let vm_result_entry_inner_name_utf16_inner = VmArray::from_values(
-                            context,
-                            &vm_result_entry_inner_name_utf16_inner_values,
-                        )?;
-                        let vm_result_entry_inner_name_utf16 =
-                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
-                                vm_result_entry_inner_name_utf16_inner,
-                            );
-                        let vm_result_entry_inner_name = OsPathVm {
-                            encoding: vm_result_entry_inner_name_encoding,
-                            bytes: vm_result_entry_inner_name_bytes,
-                            utf16: vm_result_entry_inner_name_utf16,
-                        };
-                        let vm_result_entry_inner_kind = value.kind;
-                        let vm_result_entry_inner = DirentVm {
-                            name: vm_result_entry_inner_name,
-                            kind: vm_result_entry_inner_kind,
-                        };
-                        Some(vm_result_entry_inner)
-                    } else {
-                        None
-                    };
-                    let vm_result = DirentNextVm {
-                        entry: vm_result_entry,
+                        DirentNextReplayRecord::DirentNextEntry(value) => {
+                            let vm_result_dirent_next_entry_kind_value = context.intern_string(value.kind.as_str());
+                            let vm_result_dirent_next_entry_kind = vm::StringHandle::new(vm_result_dirent_next_entry_kind_value);
+                            let vm_result_dirent_next_entry_entry_name = match value.entry.name {
+                                OsPathReplayRecord::OsPathBytes(value) => {
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_kind = vm::StringHandle::new(vm_result_dirent_next_entry_entry_name_os_path_bytes_kind_value);
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes_inner);
+                                    let vm_result_dirent_next_entry_entry_name_os_path_bytes = OsPathBytesVm {
+                                        kind: vm_result_dirent_next_entry_entry_name_os_path_bytes_kind,
+                                        bytes: vm_result_dirent_next_entry_entry_name_os_path_bytes_bytes,
+                                    };
+                                    OsPathVm::OsPathBytes(vm_result_dirent_next_entry_entry_name_os_path_bytes)
+                                }
+                                OsPathReplayRecord::OsPathUtf16(value) => {
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_kind = vm::StringHandle::new(vm_result_dirent_next_entry_entry_name_os_path_utf16_kind_value);
+                                    let mut vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                    for vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                        let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item = *vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
+                                        let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value = vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item;
+                                        vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values.push(vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_item_value);
+                                    }
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner_values)?;
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16_inner);
+                                    let vm_result_dirent_next_entry_entry_name_os_path_utf16 = OsPathUtf16Vm {
+                                        kind: vm_result_dirent_next_entry_entry_name_os_path_utf16_kind,
+                                        utf16: vm_result_dirent_next_entry_entry_name_os_path_utf16_utf16,
+                                    };
+                                    OsPathVm::OsPathUtf16(vm_result_dirent_next_entry_entry_name_os_path_utf16)
+                                }
+                            };
+                            let vm_result_dirent_next_entry_entry_kind = value.entry.kind;
+                            let vm_result_dirent_next_entry_entry = DirentVm {
+                                name: vm_result_dirent_next_entry_entry_name,
+                                kind: vm_result_dirent_next_entry_entry_kind,
+                            };
+                            let vm_result_dirent_next_entry = DirentNextEntryVm {
+                                kind: vm_result_dirent_next_entry_kind,
+                                entry: vm_result_dirent_next_entry_entry,
+                            };
+                            DirentNextVm::DirentNextEntry(vm_result_dirent_next_entry)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -23236,27 +21466,56 @@ fn destack_fs_path_readlink_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: OsPathVm = value.clone();
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_recorded_bytes = result_recorded_bytes_inner;
-                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_recorded_utf16_inner =
-                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                    let result_recorded_utf16_inner_item = decode_uint16(
-                        result_recorded_utf16_inner_item_value,
-                        "result_recorded_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_recorded_utf16_inner_item_recorded =
-                        result_recorded_utf16_inner_item;
-                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                }
-                let result_recorded_utf16 = result_recorded_utf16_inner;
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPathVm::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind = {
+                            let result_recorded_os_path_bytes_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_bytes_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_bytes_bytes_inner =
+                            value.bytes.0.read_bytes(context)?;
+                        let result_recorded_os_path_bytes_bytes =
+                            result_recorded_os_path_bytes_bytes_inner;
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPathVm::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind = {
+                            let result_recorded_os_path_utf16_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_utf16_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_utf16_utf16_inner_raw =
+                            value.utf16.0.raw_values(context)?;
+                        let mut result_recorded_os_path_utf16_utf16_inner =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
+                        for result_recorded_os_path_utf16_utf16_inner_item_value in
+                            result_recorded_os_path_utf16_utf16_inner_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_inner_item = decode_uint16(
+                                result_recorded_os_path_utf16_utf16_inner_item_value,
+                                "result_recorded_os_path_utf16_utf16_inner_item",
+                                "item",
+                            )?;
+                            let result_recorded_os_path_utf16_utf16_inner_item_recorded =
+                                result_recorded_os_path_utf16_utf16_inner_item;
+                            result_recorded_os_path_utf16_utf16_inner
+                                .push(result_recorded_os_path_utf16_utf16_inner_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16_utf16 =
+                            result_recorded_os_path_utf16_utf16_inner;
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathReadlinkReplay {
                     result: Ok(result_recorded),
@@ -23279,25 +21538,53 @@ fn destack_fs_path_readlink_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes =
-                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 =
-                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                    let vm_result = OsPathVm {
-                        encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                    let vm_result = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
+                            let vm_result_os_path_bytes_bytes_inner =
+                                VmArray::from_bytes(context, value.bytes.as_slice());
+                            let vm_result_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_bytes_bytes_inner,
+                                );
+                            let vm_result_os_path_bytes = OsPathBytesVm {
+                                kind: vm_result_os_path_bytes_kind,
+                                bytes: vm_result_os_path_bytes_bytes,
+                            };
+                            OsPathVm::OsPathBytes(vm_result_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
+                            let mut vm_result_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for vm_result_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                let vm_result_os_path_utf16_utf16_inner_item =
+                                    *vm_result_os_path_utf16_utf16_inner_item;
+                                let vm_result_os_path_utf16_utf16_inner_item_value =
+                                    vm_result_os_path_utf16_utf16_inner_item;
+                                vm_result_os_path_utf16_utf16_inner_values
+                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                            }
+                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
+                                context,
+                                &vm_result_os_path_utf16_utf16_inner_values,
+                            )?;
+                            let vm_result_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_utf16_utf16_inner,
+                                );
+                            let vm_result_os_path_utf16 = OsPathUtf16Vm {
+                                kind: vm_result_os_path_utf16_kind,
+                                utf16: vm_result_os_path_utf16_utf16,
+                            };
+                            OsPathVm::OsPathUtf16(vm_result_os_path_utf16)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -23331,27 +21618,56 @@ fn destack_fs_path_readlinkat_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: OsPathVm = value.clone();
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_recorded_bytes = result_recorded_bytes_inner;
-                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_recorded_utf16_inner =
-                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                    let result_recorded_utf16_inner_item = decode_uint16(
-                        result_recorded_utf16_inner_item_value,
-                        "result_recorded_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_recorded_utf16_inner_item_recorded =
-                        result_recorded_utf16_inner_item;
-                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                }
-                let result_recorded_utf16 = result_recorded_utf16_inner;
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPathVm::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind = {
+                            let result_recorded_os_path_bytes_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_bytes_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_bytes_bytes_inner =
+                            value.bytes.0.read_bytes(context)?;
+                        let result_recorded_os_path_bytes_bytes =
+                            result_recorded_os_path_bytes_bytes_inner;
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPathVm::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind = {
+                            let result_recorded_os_path_utf16_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_utf16_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_utf16_utf16_inner_raw =
+                            value.utf16.0.raw_values(context)?;
+                        let mut result_recorded_os_path_utf16_utf16_inner =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
+                        for result_recorded_os_path_utf16_utf16_inner_item_value in
+                            result_recorded_os_path_utf16_utf16_inner_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_inner_item = decode_uint16(
+                                result_recorded_os_path_utf16_utf16_inner_item_value,
+                                "result_recorded_os_path_utf16_utf16_inner_item",
+                                "item",
+                            )?;
+                            let result_recorded_os_path_utf16_utf16_inner_item_recorded =
+                                result_recorded_os_path_utf16_utf16_inner_item;
+                            result_recorded_os_path_utf16_utf16_inner
+                                .push(result_recorded_os_path_utf16_utf16_inner_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16_utf16 =
+                            result_recorded_os_path_utf16_utf16_inner;
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathReadlinkatReplay {
                     result: Ok(result_recorded),
@@ -23374,25 +21690,53 @@ fn destack_fs_path_readlinkat_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes =
-                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 =
-                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                    let vm_result = OsPathVm {
-                        encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                    let vm_result = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
+                            let vm_result_os_path_bytes_bytes_inner =
+                                VmArray::from_bytes(context, value.bytes.as_slice());
+                            let vm_result_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_bytes_bytes_inner,
+                                );
+                            let vm_result_os_path_bytes = OsPathBytesVm {
+                                kind: vm_result_os_path_bytes_kind,
+                                bytes: vm_result_os_path_bytes_bytes,
+                            };
+                            OsPathVm::OsPathBytes(vm_result_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
+                            let mut vm_result_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for vm_result_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                let vm_result_os_path_utf16_utf16_inner_item =
+                                    *vm_result_os_path_utf16_utf16_inner_item;
+                                let vm_result_os_path_utf16_utf16_inner_item_value =
+                                    vm_result_os_path_utf16_utf16_inner_item;
+                                vm_result_os_path_utf16_utf16_inner_values
+                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                            }
+                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
+                                context,
+                                &vm_result_os_path_utf16_utf16_inner_values,
+                            )?;
+                            let vm_result_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_utf16_utf16_inner,
+                                );
+                            let vm_result_os_path_utf16 = OsPathUtf16Vm {
+                                kind: vm_result_os_path_utf16_kind,
+                                utf16: vm_result_os_path_utf16_utf16,
+                            };
+                            OsPathVm::OsPathUtf16(vm_result_os_path_utf16)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -23425,27 +21769,56 @@ fn destack_fs_path_realpath_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: OsPathVm = value.clone();
-                let result_recorded_encoding = result_value.encoding;
-                let result_recorded_bytes_inner = result_value.bytes.0.read_bytes(context)?;
-                let result_recorded_bytes = result_recorded_bytes_inner;
-                let result_recorded_utf16_inner_raw = result_value.utf16.0.raw_values(context)?;
-                let mut result_recorded_utf16_inner =
-                    Vec::with_capacity(result_recorded_utf16_inner_raw.len());
-                for result_recorded_utf16_inner_item_value in result_recorded_utf16_inner_raw {
-                    let result_recorded_utf16_inner_item = decode_uint16(
-                        result_recorded_utf16_inner_item_value,
-                        "result_recorded_utf16_inner_item",
-                        "item",
-                    )?;
-                    let result_recorded_utf16_inner_item_recorded =
-                        result_recorded_utf16_inner_item;
-                    result_recorded_utf16_inner.push(result_recorded_utf16_inner_item_recorded);
-                }
-                let result_recorded_utf16 = result_recorded_utf16_inner;
-                let result_recorded = OsPathReplayRecord {
-                    encoding: result_recorded_encoding,
-                    bytes: result_recorded_bytes,
-                    utf16: result_recorded_utf16,
+                let result_recorded = match result_value {
+                    OsPathVm::OsPathBytes(value) => {
+                        let result_recorded_os_path_bytes_kind = {
+                            let result_recorded_os_path_bytes_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_bytes_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_bytes_bytes_inner =
+                            value.bytes.0.read_bytes(context)?;
+                        let result_recorded_os_path_bytes_bytes =
+                            result_recorded_os_path_bytes_bytes_inner;
+                        let result_recorded_os_path_bytes = OsPathBytesReplayRecord {
+                            kind: result_recorded_os_path_bytes_kind,
+                            bytes: result_recorded_os_path_bytes_bytes,
+                        };
+                        OsPathReplayRecord::OsPathBytes(result_recorded_os_path_bytes)
+                    }
+                    OsPathVm::OsPathUtf16(value) => {
+                        let result_recorded_os_path_utf16_kind = {
+                            let result_recorded_os_path_utf16_kind_ref = context
+                                .string_ref(value.kind)
+                                .map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_os_path_utf16_kind_ref.as_str().to_string()
+                        };
+                        let result_recorded_os_path_utf16_utf16_inner_raw =
+                            value.utf16.0.raw_values(context)?;
+                        let mut result_recorded_os_path_utf16_utf16_inner =
+                            Vec::with_capacity(result_recorded_os_path_utf16_utf16_inner_raw.len());
+                        for result_recorded_os_path_utf16_utf16_inner_item_value in
+                            result_recorded_os_path_utf16_utf16_inner_raw
+                        {
+                            let result_recorded_os_path_utf16_utf16_inner_item = decode_uint16(
+                                result_recorded_os_path_utf16_utf16_inner_item_value,
+                                "result_recorded_os_path_utf16_utf16_inner_item",
+                                "item",
+                            )?;
+                            let result_recorded_os_path_utf16_utf16_inner_item_recorded =
+                                result_recorded_os_path_utf16_utf16_inner_item;
+                            result_recorded_os_path_utf16_utf16_inner
+                                .push(result_recorded_os_path_utf16_utf16_inner_item_recorded);
+                        }
+                        let result_recorded_os_path_utf16_utf16 =
+                            result_recorded_os_path_utf16_utf16_inner;
+                        let result_recorded_os_path_utf16 = OsPathUtf16ReplayRecord {
+                            kind: result_recorded_os_path_utf16_kind,
+                            utf16: result_recorded_os_path_utf16_utf16,
+                        };
+                        OsPathReplayRecord::OsPathUtf16(result_recorded_os_path_utf16)
+                    }
                 };
                 let payload = FsPathRealpathReplay {
                     result: Ok(result_recorded),
@@ -23468,25 +21841,53 @@ fn destack_fs_path_realpath_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_encoding = value.encoding;
-                    let vm_result_bytes_inner =
-                        VmArray::from_bytes(context, value.bytes.as_slice());
-                    let vm_result_bytes =
-                        platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_bytes_inner);
-                    let mut vm_result_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                    for vm_result_utf16_inner_item in value.utf16.iter() {
-                        let vm_result_utf16_inner_item = *vm_result_utf16_inner_item;
-                        let vm_result_utf16_inner_item_value = vm_result_utf16_inner_item;
-                        vm_result_utf16_inner_values.push(vm_result_utf16_inner_item_value);
-                    }
-                    let vm_result_utf16_inner =
-                        VmArray::from_values(context, &vm_result_utf16_inner_values)?;
-                    let vm_result_utf16 =
-                        platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_utf16_inner);
-                    let vm_result = OsPathVm {
-                        encoding: vm_result_encoding,
-                        bytes: vm_result_bytes,
-                        utf16: vm_result_utf16,
+                    let vm_result = match value {
+                        OsPathReplayRecord::OsPathBytes(value) => {
+                            let vm_result_os_path_bytes_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_bytes_kind =
+                                vm::StringHandle::new(vm_result_os_path_bytes_kind_value);
+                            let vm_result_os_path_bytes_bytes_inner =
+                                VmArray::from_bytes(context, value.bytes.as_slice());
+                            let vm_result_os_path_bytes_bytes =
+                                platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_bytes_bytes_inner,
+                                );
+                            let vm_result_os_path_bytes = OsPathBytesVm {
+                                kind: vm_result_os_path_bytes_kind,
+                                bytes: vm_result_os_path_bytes_bytes,
+                            };
+                            OsPathVm::OsPathBytes(vm_result_os_path_bytes)
+                        }
+                        OsPathReplayRecord::OsPathUtf16(value) => {
+                            let vm_result_os_path_utf16_kind_value =
+                                context.intern_string(value.kind.as_str());
+                            let vm_result_os_path_utf16_kind =
+                                vm::StringHandle::new(vm_result_os_path_utf16_kind_value);
+                            let mut vm_result_os_path_utf16_utf16_inner_values =
+                                Vec::with_capacity(value.utf16.len());
+                            for vm_result_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                let vm_result_os_path_utf16_utf16_inner_item =
+                                    *vm_result_os_path_utf16_utf16_inner_item;
+                                let vm_result_os_path_utf16_utf16_inner_item_value =
+                                    vm_result_os_path_utf16_utf16_inner_item;
+                                vm_result_os_path_utf16_utf16_inner_values
+                                    .push(vm_result_os_path_utf16_utf16_inner_item_value);
+                            }
+                            let vm_result_os_path_utf16_utf16_inner = VmArray::from_values(
+                                context,
+                                &vm_result_os_path_utf16_utf16_inner_values,
+                            )?;
+                            let vm_result_os_path_utf16_utf16 =
+                                platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                    vm_result_os_path_utf16_utf16_inner,
+                                );
+                            let vm_result_os_path_utf16 = OsPathUtf16Vm {
+                                kind: vm_result_os_path_utf16_kind,
+                                utf16: vm_result_os_path_utf16_utf16,
+                            };
+                            OsPathVm::OsPathUtf16(vm_result_os_path_utf16)
+                        }
                     };
                     Ok(vm_result)
                 }
@@ -24779,91 +23180,308 @@ fn destack_fs_watch_open_read_vm_replay(
                 let result_recorded_events_raw = result_value.events.raw_values(context)?;
                 let mut result_recorded_events = Vec::with_capacity(result_recorded_events_raw.len());
                 for result_recorded_events_item_value in result_recorded_events_raw {
-                    let result_recorded_events_item = {
-                        if result_recorded_events_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_events_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_events_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item", "expected 4 fields")).boxed()); }
-                        let result_recorded_events_item_kind_raw = decode_uint8(slots[0], "result_recorded_events_item_kind_raw", "kind")?;
-                        let result_recorded_events_item_kind = match result_recorded_events_item_kind_raw { 1u8 => WatchEventKind::Create, 2u8 => WatchEventKind::Remove, 3u8 => WatchEventKind::Modify, 4u8 => WatchEventKind::Rename, 5u8 => WatchEventKind::Metadata, 6u8 => WatchEventKind::Overflow , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item_kind", "unknown WatchEventKind value")).boxed()), };
-                        let result_recorded_events_item_path = {
-                            if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_events_item_path", "path")).boxed()); }
-                            let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item_path", "expected 3 fields")).boxed()); }
-                            let result_recorded_events_item_path_encoding_raw = decode_uint8(slots[0], "result_recorded_events_item_path_encoding_raw", "encoding")?;
-                            let result_recorded_events_item_path_encoding = match result_recorded_events_item_path_encoding_raw { 1u8 => PathEncoding::Bytes, 2u8 => PathEncoding::Utf16 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item_path_encoding", "unknown PathEncoding value")).boxed()), };
-                            let result_recorded_events_item_path_bytes_inner = decode_array::<u8>(context, slots[1], "result_recorded_events_item_path_bytes_inner", "bytes")?;
-                            let result_recorded_events_item_path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(result_recorded_events_item_path_bytes_inner);
-                            let result_recorded_events_item_path_utf16_inner = decode_array::<u16>(context, slots[2], "result_recorded_events_item_path_utf16_inner", "utf16")?;
-                            let result_recorded_events_item_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(result_recorded_events_item_path_utf16_inner);
-                            OsPathVm {
-                                encoding: result_recorded_events_item_path_encoding,
-                                bytes: result_recorded_events_item_path_bytes,
-                                utf16: result_recorded_events_item_path_utf16,
-                            }
-                        };
-                        let result_recorded_events_item_related_path = {
-                            if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_events_item_related_path", "relatedPath")).boxed()); }
-                            let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item_related_path", "expected 3 fields")).boxed()); }
-                            let result_recorded_events_item_related_path_encoding_raw = decode_uint8(slots[0], "result_recorded_events_item_related_path_encoding_raw", "encoding")?;
-                            let result_recorded_events_item_related_path_encoding = match result_recorded_events_item_related_path_encoding_raw { 1u8 => PathEncoding::Bytes, 2u8 => PathEncoding::Utf16 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_events_item_related_path_encoding", "unknown PathEncoding value")).boxed()), };
-                            let result_recorded_events_item_related_path_bytes_inner = decode_array::<u8>(context, slots[1], "result_recorded_events_item_related_path_bytes_inner", "bytes")?;
-                            let result_recorded_events_item_related_path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(result_recorded_events_item_related_path_bytes_inner);
-                            let result_recorded_events_item_related_path_utf16_inner = decode_array::<u16>(context, slots[2], "result_recorded_events_item_related_path_utf16_inner", "utf16")?;
-                            let result_recorded_events_item_related_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(result_recorded_events_item_related_path_utf16_inner);
-                            OsPathVm {
-                                encoding: result_recorded_events_item_related_path_encoding,
-                                bytes: result_recorded_events_item_related_path_bytes,
-                                utf16: result_recorded_events_item_related_path_utf16,
-                            }
-                        };
-                        let result_recorded_events_item_cookie = decode_uint64(slots[3], "result_recorded_events_item_cookie", "cookie")?;
-                        WatchEventVm {
-                            kind: result_recorded_events_item_kind,
-                            path: result_recorded_events_item_path,
-                            related_path: result_recorded_events_item_related_path,
-                            cookie: result_recorded_events_item_cookie,
+                    let result_recorded_events_item = <WatchEventVm as VmAggregateCodec>::decode_with_context(context, result_recorded_events_item_value)?;
+                    let result_recorded_events_item_recorded = match result_recorded_events_item {
+                        WatchEventVm::WatchCreateEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_create_event_kind = {
+                                let result_recorded_events_item_recorded_watch_create_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_create_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_create_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_create_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_create_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_create_event_path = match value.path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_create_event_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_create_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_create_event = WatchCreateEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_create_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_create_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_create_event_path,
+                            };
+                            WatchEventReplayRecord::WatchCreateEvent(result_recorded_events_item_recorded_watch_create_event)
                         }
-                    };
-                    let result_recorded_events_item_recorded_kind = result_recorded_events_item.kind;
-                    let result_recorded_events_item_recorded_path_encoding = result_recorded_events_item.path.encoding;
-                    let result_recorded_events_item_recorded_path_bytes_inner = result_recorded_events_item.path.bytes.0.read_bytes(context)?;
-                    let result_recorded_events_item_recorded_path_bytes = result_recorded_events_item_recorded_path_bytes_inner;
-                    let result_recorded_events_item_recorded_path_utf16_inner_raw = result_recorded_events_item.path.utf16.0.raw_values(context)?;
-                    let mut result_recorded_events_item_recorded_path_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_path_utf16_inner_raw.len());
-                    for result_recorded_events_item_recorded_path_utf16_inner_item_value in result_recorded_events_item_recorded_path_utf16_inner_raw {
-                        let result_recorded_events_item_recorded_path_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_path_utf16_inner_item_value, "result_recorded_events_item_recorded_path_utf16_inner_item", "item")?;
-                        let result_recorded_events_item_recorded_path_utf16_inner_item_recorded = result_recorded_events_item_recorded_path_utf16_inner_item;
-                        result_recorded_events_item_recorded_path_utf16_inner.push(result_recorded_events_item_recorded_path_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_path_utf16 = result_recorded_events_item_recorded_path_utf16_inner;
-                    let result_recorded_events_item_recorded_path = OsPathReplayRecord {
-                        encoding: result_recorded_events_item_recorded_path_encoding,
-                        bytes: result_recorded_events_item_recorded_path_bytes,
-                        utf16: result_recorded_events_item_recorded_path_utf16,
-                    };
-                    let result_recorded_events_item_recorded_related_path_encoding = result_recorded_events_item.related_path.encoding;
-                    let result_recorded_events_item_recorded_related_path_bytes_inner = result_recorded_events_item.related_path.bytes.0.read_bytes(context)?;
-                    let result_recorded_events_item_recorded_related_path_bytes = result_recorded_events_item_recorded_related_path_bytes_inner;
-                    let result_recorded_events_item_recorded_related_path_utf16_inner_raw = result_recorded_events_item.related_path.utf16.0.raw_values(context)?;
-                    let mut result_recorded_events_item_recorded_related_path_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_related_path_utf16_inner_raw.len());
-                    for result_recorded_events_item_recorded_related_path_utf16_inner_item_value in result_recorded_events_item_recorded_related_path_utf16_inner_raw {
-                        let result_recorded_events_item_recorded_related_path_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_related_path_utf16_inner_item_value, "result_recorded_events_item_recorded_related_path_utf16_inner_item", "item")?;
-                        let result_recorded_events_item_recorded_related_path_utf16_inner_item_recorded = result_recorded_events_item_recorded_related_path_utf16_inner_item;
-                        result_recorded_events_item_recorded_related_path_utf16_inner.push(result_recorded_events_item_recorded_related_path_utf16_inner_item_recorded);
-                    }
-                    let result_recorded_events_item_recorded_related_path_utf16 = result_recorded_events_item_recorded_related_path_utf16_inner;
-                    let result_recorded_events_item_recorded_related_path = OsPathReplayRecord {
-                        encoding: result_recorded_events_item_recorded_related_path_encoding,
-                        bytes: result_recorded_events_item_recorded_related_path_bytes,
-                        utf16: result_recorded_events_item_recorded_related_path_utf16,
-                    };
-                    let result_recorded_events_item_recorded_cookie = result_recorded_events_item.cookie;
-                    let result_recorded_events_item_recorded = WatchEventReplayRecord {
-                        kind: result_recorded_events_item_recorded_kind,
-                        path: result_recorded_events_item_recorded_path,
-                        related_path: result_recorded_events_item_recorded_related_path,
-                        cookie: result_recorded_events_item_recorded_cookie,
+                        WatchEventVm::WatchMetadataEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_metadata_event_kind = {
+                                let result_recorded_events_item_recorded_watch_metadata_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_metadata_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_metadata_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_metadata_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_metadata_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_metadata_event_path = match value.path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_metadata_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_metadata_event = WatchMetadataEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_metadata_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_metadata_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_metadata_event_path,
+                            };
+                            WatchEventReplayRecord::WatchMetadataEvent(result_recorded_events_item_recorded_watch_metadata_event)
+                        }
+                        WatchEventVm::WatchModifyEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_modify_event_kind = {
+                                let result_recorded_events_item_recorded_watch_modify_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_modify_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_modify_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_modify_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_modify_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_modify_event_path = match value.path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_modify_event_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_modify_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_modify_event = WatchModifyEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_modify_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_modify_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_modify_event_path,
+                            };
+                            WatchEventReplayRecord::WatchModifyEvent(result_recorded_events_item_recorded_watch_modify_event)
+                        }
+                        WatchEventVm::WatchOverflowEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_overflow_event_kind = {
+                                let result_recorded_events_item_recorded_watch_overflow_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_overflow_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_overflow_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_overflow_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_overflow_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_overflow_event = WatchOverflowEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_overflow_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_overflow_event_metadata,
+                            };
+                            WatchEventReplayRecord::WatchOverflowEvent(result_recorded_events_item_recorded_watch_overflow_event)
+                        }
+                        WatchEventVm::WatchRemoveEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_remove_event_kind = {
+                                let result_recorded_events_item_recorded_watch_remove_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_remove_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_remove_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_remove_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_remove_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_remove_event_path = match value.path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_remove_event_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_remove_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_remove_event = WatchRemoveEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_remove_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_remove_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_remove_event_path,
+                            };
+                            WatchEventReplayRecord::WatchRemoveEvent(result_recorded_events_item_recorded_watch_remove_event)
+                        }
+                        WatchEventVm::WatchRenameEvent(value) => {
+                            let result_recorded_events_item_recorded_watch_rename_event_kind = {
+                                let result_recorded_events_item_recorded_watch_rename_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                result_recorded_events_item_recorded_watch_rename_event_kind_ref.as_str().to_string()
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event_metadata_cookie = value.metadata.cookie;
+                            let result_recorded_events_item_recorded_watch_rename_event_metadata = WatchEventMetadata {
+                                cookie: result_recorded_events_item_recorded_watch_rename_event_metadata_cookie,
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event_path = match value.path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_rename_event_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_rename_event_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event_related_path = match value.related_path {
+                                OsPathVm::OsPathBytes(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind = {
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_inner = value.bytes.0.read_bytes(context)?;
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes = result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes_inner;
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes = OsPathBytesReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_kind,
+                                        bytes: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes_bytes,
+                                    };
+                                    OsPathReplayRecord::OsPathBytes(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_bytes)
+                                }
+                                OsPathVm::OsPathUtf16(value) => {
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind = {
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
+                                        result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind_ref.as_str().to_string()
+                                    };
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw = value.utf16.0.raw_values(context)?;
+                                    let mut result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw.len());
+                                    for result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value in result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_raw {
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item = decode_uint16(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value, "result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item", "item")?;
+                                        let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
+                                        result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner.push(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_recorded);
+                                    }
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16 = result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16_inner;
+                                    let result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16ReplayRecord {
+                                        kind: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_kind,
+                                        utf16: result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16_utf16,
+                                    };
+                                    OsPathReplayRecord::OsPathUtf16(result_recorded_events_item_recorded_watch_rename_event_related_path_os_path_utf16)
+                                }
+                            };
+                            let result_recorded_events_item_recorded_watch_rename_event = WatchRenameEventReplayRecord {
+                                kind: result_recorded_events_item_recorded_watch_rename_event_kind,
+                                metadata: result_recorded_events_item_recorded_watch_rename_event_metadata,
+                                path: result_recorded_events_item_recorded_watch_rename_event_path,
+                                related_path: result_recorded_events_item_recorded_watch_rename_event_related_path,
+                            };
+                            WatchEventReplayRecord::WatchRenameEvent(result_recorded_events_item_recorded_watch_rename_event)
+                        }
                     };
                     result_recorded_events.push(result_recorded_events_item_recorded);
                 }
@@ -24898,47 +23516,273 @@ fn destack_fs_watch_open_read_vm_replay(
                     let mut vm_result_events_values = Vec::with_capacity(value.events.len());
                     for vm_result_events_item in value.events.iter() {
                         let vm_result_events_item = vm_result_events_item.clone();
-                        let vm_result_events_item_value_kind = vm_result_events_item.kind;
-                        let vm_result_events_item_value_path_encoding = vm_result_events_item.path.encoding;
-                        let vm_result_events_item_value_path_bytes_inner = VmArray::from_bytes(context, vm_result_events_item.path.bytes.as_slice());
-                        let vm_result_events_item_value_path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_path_bytes_inner);
-                        let mut vm_result_events_item_value_path_utf16_inner_values = Vec::with_capacity(vm_result_events_item.path.utf16.len());
-                        for vm_result_events_item_value_path_utf16_inner_item in vm_result_events_item.path.utf16.iter() {
-                            let vm_result_events_item_value_path_utf16_inner_item = *vm_result_events_item_value_path_utf16_inner_item;
-                            let vm_result_events_item_value_path_utf16_inner_item_value = vm_result_events_item_value_path_utf16_inner_item;
-                            vm_result_events_item_value_path_utf16_inner_values.push(vm_result_events_item_value_path_utf16_inner_item_value);
-                        }
-                        let vm_result_events_item_value_path_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_path_utf16_inner_values)?;
-                        let vm_result_events_item_value_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_path_utf16_inner);
-                        let vm_result_events_item_value_path = OsPathVm {
-                            encoding: vm_result_events_item_value_path_encoding,
-                            bytes: vm_result_events_item_value_path_bytes,
-                            utf16: vm_result_events_item_value_path_utf16,
+                        let vm_result_events_item_value = match vm_result_events_item {
+                            WatchEventReplayRecord::WatchCreateEvent(value) => {
+                                let vm_result_events_item_value_watch_create_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_create_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_kind_value);
+                                let vm_result_events_item_value_watch_create_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_create_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_create_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_create_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_create_event_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_create_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_create_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_create_event_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_create_event_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_create_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_create_event_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_create_event = WatchCreateEventVm {
+                                    kind: vm_result_events_item_value_watch_create_event_kind,
+                                    metadata: vm_result_events_item_value_watch_create_event_metadata,
+                                    path: vm_result_events_item_value_watch_create_event_path,
+                                };
+                                WatchEventVm::WatchCreateEvent(vm_result_events_item_value_watch_create_event)
+                            }
+                            WatchEventReplayRecord::WatchMetadataEvent(value) => {
+                                let vm_result_events_item_value_watch_metadata_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_metadata_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_kind_value);
+                                let vm_result_events_item_value_watch_metadata_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_metadata_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_metadata_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_metadata_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_metadata_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_metadata_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_metadata_event_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_metadata_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_metadata_event_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_metadata_event = WatchMetadataEventVm {
+                                    kind: vm_result_events_item_value_watch_metadata_event_kind,
+                                    metadata: vm_result_events_item_value_watch_metadata_event_metadata,
+                                    path: vm_result_events_item_value_watch_metadata_event_path,
+                                };
+                                WatchEventVm::WatchMetadataEvent(vm_result_events_item_value_watch_metadata_event)
+                            }
+                            WatchEventReplayRecord::WatchModifyEvent(value) => {
+                                let vm_result_events_item_value_watch_modify_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_modify_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_kind_value);
+                                let vm_result_events_item_value_watch_modify_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_modify_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_modify_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_modify_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_modify_event_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_modify_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_modify_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_modify_event_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_modify_event_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_modify_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_modify_event_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_modify_event = WatchModifyEventVm {
+                                    kind: vm_result_events_item_value_watch_modify_event_kind,
+                                    metadata: vm_result_events_item_value_watch_modify_event_metadata,
+                                    path: vm_result_events_item_value_watch_modify_event_path,
+                                };
+                                WatchEventVm::WatchModifyEvent(vm_result_events_item_value_watch_modify_event)
+                            }
+                            WatchEventReplayRecord::WatchOverflowEvent(value) => {
+                                let vm_result_events_item_value_watch_overflow_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_overflow_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_overflow_event_kind_value);
+                                let vm_result_events_item_value_watch_overflow_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_overflow_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_overflow_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_overflow_event = WatchOverflowEventVm {
+                                    kind: vm_result_events_item_value_watch_overflow_event_kind,
+                                    metadata: vm_result_events_item_value_watch_overflow_event_metadata,
+                                };
+                                WatchEventVm::WatchOverflowEvent(vm_result_events_item_value_watch_overflow_event)
+                            }
+                            WatchEventReplayRecord::WatchRemoveEvent(value) => {
+                                let vm_result_events_item_value_watch_remove_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_remove_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_kind_value);
+                                let vm_result_events_item_value_watch_remove_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_remove_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_remove_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_remove_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_remove_event_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_remove_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_remove_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_remove_event_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_remove_event_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_remove_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_remove_event_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_remove_event = WatchRemoveEventVm {
+                                    kind: vm_result_events_item_value_watch_remove_event_kind,
+                                    metadata: vm_result_events_item_value_watch_remove_event_metadata,
+                                    path: vm_result_events_item_value_watch_remove_event_path,
+                                };
+                                WatchEventVm::WatchRemoveEvent(vm_result_events_item_value_watch_remove_event)
+                            }
+                            WatchEventReplayRecord::WatchRenameEvent(value) => {
+                                let vm_result_events_item_value_watch_rename_event_kind_value = context.intern_string(value.kind.as_str());
+                                let vm_result_events_item_value_watch_rename_event_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_kind_value);
+                                let vm_result_events_item_value_watch_rename_event_metadata_cookie = value.metadata.cookie;
+                                let vm_result_events_item_value_watch_rename_event_metadata = WatchEventMetadataVm {
+                                    cookie: vm_result_events_item_value_watch_rename_event_metadata_cookie,
+                                };
+                                let vm_result_events_item_value_watch_rename_event_path = match value.path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_rename_event_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_rename_event_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_rename_event_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_rename_event_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_rename_event_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_rename_event_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_rename_event_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_rename_event_related_path = match value.related_path {
+                                    OsPathReplayRecord::OsPathBytes(value) => {
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind_value);
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes_inner = VmArray::from_bytes(context, value.bytes.as_slice());
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes_inner);
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes = OsPathBytesVm {
+                                            kind: vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_kind,
+                                            bytes: vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes_bytes,
+                                        };
+                                        OsPathVm::OsPathBytes(vm_result_events_item_value_watch_rename_event_related_path_os_path_bytes)
+                                    }
+                                    OsPathReplayRecord::OsPathUtf16(value) => {
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind_value = context.intern_string(value.kind.as_str());
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind = vm::StringHandle::new(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind_value);
+                                        let mut vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
+                                        for vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item in value.utf16.iter() {
+                                            let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item = *vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
+                                            let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value = vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item;
+                                            vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values.push(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_item_value);
+                                        }
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner_values)?;
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16_inner);
+                                        let vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16 = OsPathUtf16Vm {
+                                            kind: vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_kind,
+                                            utf16: vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16_utf16,
+                                        };
+                                        OsPathVm::OsPathUtf16(vm_result_events_item_value_watch_rename_event_related_path_os_path_utf16)
+                                    }
+                                };
+                                let vm_result_events_item_value_watch_rename_event = WatchRenameEventVm {
+                                    kind: vm_result_events_item_value_watch_rename_event_kind,
+                                    metadata: vm_result_events_item_value_watch_rename_event_metadata,
+                                    path: vm_result_events_item_value_watch_rename_event_path,
+                                    related_path: vm_result_events_item_value_watch_rename_event_related_path,
+                                };
+                                WatchEventVm::WatchRenameEvent(vm_result_events_item_value_watch_rename_event)
+                            }
                         };
-                        let vm_result_events_item_value_related_path_encoding = vm_result_events_item.related_path.encoding;
-                        let vm_result_events_item_value_related_path_bytes_inner = VmArray::from_bytes(context, vm_result_events_item.related_path.bytes.as_slice());
-                        let vm_result_events_item_value_related_path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(vm_result_events_item_value_related_path_bytes_inner);
-                        let mut vm_result_events_item_value_related_path_utf16_inner_values = Vec::with_capacity(vm_result_events_item.related_path.utf16.len());
-                        for vm_result_events_item_value_related_path_utf16_inner_item in vm_result_events_item.related_path.utf16.iter() {
-                            let vm_result_events_item_value_related_path_utf16_inner_item = *vm_result_events_item_value_related_path_utf16_inner_item;
-                            let vm_result_events_item_value_related_path_utf16_inner_item_value = vm_result_events_item_value_related_path_utf16_inner_item;
-                            vm_result_events_item_value_related_path_utf16_inner_values.push(vm_result_events_item_value_related_path_utf16_inner_item_value);
-                        }
-                        let vm_result_events_item_value_related_path_utf16_inner = VmArray::from_values(context, &vm_result_events_item_value_related_path_utf16_inner_values)?;
-                        let vm_result_events_item_value_related_path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(vm_result_events_item_value_related_path_utf16_inner);
-                        let vm_result_events_item_value_related_path = OsPathVm {
-                            encoding: vm_result_events_item_value_related_path_encoding,
-                            bytes: vm_result_events_item_value_related_path_bytes,
-                            utf16: vm_result_events_item_value_related_path_utf16,
-                        };
-                        let vm_result_events_item_value_cookie = vm_result_events_item.cookie;
-                        let vm_result_events_item_value = WatchEventVm {
-                            kind: vm_result_events_item_value_kind,
-                            path: vm_result_events_item_value_path,
-                            related_path: vm_result_events_item_value_related_path,
-                            cookie: vm_result_events_item_value_cookie,
-                        };
-                        let vm_result_events_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_events_item_value.kind as u8 as u64, 8); let field_1 = { let field_0 = vm::Value::uint(vm_result_events_item_value.path.encoding as u8 as u64, 8); let field_1 = vm_result_events_item_value.path.bytes.0.to_value(context); let field_2 = vm_result_events_item_value.path.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(vm_result_events_item_value.related_path.encoding as u8 as u64, 8); let field_1 = vm_result_events_item_value.related_path.bytes.0.to_value(context); let field_2 = vm_result_events_item_value.related_path.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_3 = vm::Value::uint(vm_result_events_item_value.cookie, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) };
+                        let vm_result_events_item_value_encoded = match vm_result_events_item_value { WatchEventVm::WatchCreateEvent(value) => { let tag_value = vm::Value::uint(1939101351u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; let field_2 = match value.path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WatchEventVm::WatchMetadataEvent(value) => { let tag_value = vm::Value::uint(1600181316u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; let field_2 = match value.path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WatchEventVm::WatchModifyEvent(value) => { let tag_value = vm::Value::uint(1599471013u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; let field_2 = match value.path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WatchEventVm::WatchOverflowEvent(value) => { let tag_value = vm::Value::uint(3953550088u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WatchEventVm::WatchRemoveEvent(value) => { let tag_value = vm::Value::uint(2363373759u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; let field_2 = match value.path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WatchEventVm::WatchRenameEvent(value) => { let tag_value = vm::Value::uint(3136928519u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.cookie, 64); context.allocate_aggregate(vec![field_0]) }; let field_2 = match value.path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; let field_3 = match value.related_path { OsPathVm::OsPathBytes(value) => { let tag_value = vm::Value::uint(1243901586u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.bytes.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, OsPathVm::OsPathUtf16(value) => { let tag_value = vm::Value::uint(2271740357u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = value.utf16.0.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_events_values.push(vm_result_events_item_value_encoded);
                     }
                     let vm_result_events_data = context.allocate_raw_values(vm_result_events_values);

@@ -10,14 +10,14 @@ use bindings::*;
 
 use crate::platform::display::{
     DisplayAddedPayload, DisplayDescriptor, DisplayDescriptorChangedPayload, DisplayEvent,
-    DisplayEventKind, DisplayEventPayload, DisplayMode, DisplayModeChangedPayload,
-    DisplayOrientation, DisplayPrimaryPayload, DisplayRemovedPayload, WindowAttentionLevel,
-    WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDisplayPayload, WindowEvent,
-    WindowEventKind, WindowEventPayload, WindowFocusPayload, WindowLogicalSize, WindowMode,
-    WindowModeOptions, WindowModePayload, WindowOcclusionPayload, WindowOptions,
-    WindowPhysicalSize, WindowPosition, WindowPositionPayload, WindowScaleFactorPayload,
-    WindowSizeConstraints, WindowSizePayload, WindowState, WindowTheme, WindowThemePayload,
-    WindowVisibility, WindowVisibilityPayload,
+    DisplayMode, DisplayModeChangedPayload, DisplayMonitorEventOpenOptions,
+    DisplayMonitorListRequest, DisplayMonitorOpenOptions, DisplayOrientation,
+    DisplayPrimaryPayload, DisplayRemovedPayload, WindowAttentionLevel, WindowCursorIcon,
+    WindowCursorMode, WindowDescriptor, WindowDisplayPayload, WindowEvent, WindowEventOpenOptions,
+    WindowFocusPayload, WindowLogicalSize, WindowMode, WindowModeOptions, WindowModePayload,
+    WindowOcclusionPayload, WindowOptions, WindowPhysicalSize, WindowPosition,
+    WindowPositionPayload, WindowScaleFactorPayload, WindowSizeConstraints, WindowSizePayload,
+    WindowState, WindowTheme, WindowThemePayload, WindowVisibility, WindowVisibilityPayload,
 };
 use crate::platform::resource;
 
@@ -230,11 +230,12 @@ pub(crate) unsafe fn destack_display_monitor_event_close(
 pub(crate) unsafe fn destack_display_monitor_event_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayEventHandle,
+    options: DisplayMonitorEventOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (context, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventOpen",
@@ -395,11 +396,12 @@ pub(crate) unsafe fn destack_display_monitor_event_try_read_batch(
 pub(crate) unsafe fn destack_display_monitor_list(
     context: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (context, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.list")).boxed())
 }
@@ -458,11 +460,12 @@ pub(crate) unsafe fn destack_display_monitor_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
+    options: DisplayMonitorOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, id);
+    let _ = (context, out, id, options);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.monitor.open")).boxed())
 }
@@ -487,11 +490,12 @@ pub(crate) unsafe fn destack_display_monitor_open(
 pub(crate) unsafe fn destack_display_monitor_primary(
     context: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
+    request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (context, out, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.primary",
@@ -635,11 +639,12 @@ pub(crate) unsafe fn destack_display_window_event_close(
 pub(crate) unsafe fn destack_display_window_event_open(
     context: &BindingCallContext,
     out: *mut resource::WindowEventHandle,
+    options: WindowEventOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out);
+    let _ = (context, out, options);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.window.eventOpen",

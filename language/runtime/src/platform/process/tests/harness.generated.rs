@@ -7,14 +7,21 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionKind,
-    ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags, ProcessGroupIds, ProcessGroupIdsVm,
-    ProcessId, ProcessLimit, ProcessLimitResource, ProcessLimitVm, ProcessNamespaceKind,
-    ProcessSchedulerConfig, ProcessSchedulerConfigVm, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessSpawnOptionsVm, ProcessStdio, ProcessStdioKind, ProcessStdioVm, ProcessUnshareFlags,
-    ProcessUserIds, ProcessUserIdsVm, ProcessWaitFlags, ProcessWaitKind, ProcessWaitStatus,
-    ProcessWaitStatusVm, Signal, SignalEvent, SignalEventVm, SignalFdFlags, SignalMaskHow,
-    SyscallFilterFlags, UserId, native as process_native, vm as process_vm,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessCpuSetVm, ProcessFdAction, ProcessFdActionClose,
+    ProcessFdActionCloseVm, ProcessFdActionDup2, ProcessFdActionDup2Vm, ProcessFdActionOpen,
+    ProcessFdActionOpenVm, ProcessFdActionVm, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessGroupIdsVm, ProcessId, ProcessLimit, ProcessLimitResource,
+    ProcessLimitVm, ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerConfigVm,
+    ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessSpawnOptionsVm, ProcessStdio,
+    ProcessStdioDescriptor, ProcessStdioDescriptorVm, ProcessStdioFile, ProcessStdioFileVm,
+    ProcessStdioInherit, ProcessStdioInheritVm, ProcessStdioNull, ProcessStdioNullVm,
+    ProcessStdioPipe, ProcessStdioPipeVm, ProcessStdioVm, ProcessUnshareFlags, ProcessUserIds,
+    ProcessUserIdsVm, ProcessWaitContinuedStatus, ProcessWaitContinuedStatusVm,
+    ProcessWaitExitedStatus, ProcessWaitExitedStatusVm, ProcessWaitFlags, ProcessWaitRunningStatus,
+    ProcessWaitRunningStatusVm, ProcessWaitSignaledStatus, ProcessWaitSignaledStatusVm,
+    ProcessWaitStatus, ProcessWaitStatusVm, ProcessWaitStoppedStatus, ProcessWaitStoppedStatusVm,
+    Signal, SignalEvent, SignalEventVm, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
+    native as process_native, vm as process_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,

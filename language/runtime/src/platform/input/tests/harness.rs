@@ -164,97 +164,218 @@ pub(crate) struct InputKeyboardStateRecord {
     pub pressed_scan_code_count: usize,
 }
 
-/// Decode event action, code, and value from one native typed payload.
-fn decode_native_event_payload(
-    kind: InputEventKind,
-    value: InputEvent,
-) -> (InputEventAction, u32, i64) {
-    match kind {
-        InputEventKind::Key => (
-            value.payload.key.action,
-            value.payload.key.backend_code,
-            value.payload.key.backend_value,
-        ),
-        InputEventKind::PointerMotion => (InputEventAction::Move, 0, 0),
-        InputEventKind::PointerButton => (
-            value.payload.pointer_button.action,
-            value.payload.pointer_button.backend_code,
-            value.payload.pointer_button.backend_value,
-        ),
-        InputEventKind::Scroll => (
-            InputEventAction::Scroll,
-            0,
-            value.payload.scroll.wheel_y as i64,
-        ),
-        InputEventKind::Touch => (
-            value.payload.touch.action,
-            value.payload.touch.contact_id,
-            value.payload.touch.pressure as i64,
-        ),
-        InputEventKind::Gamepad => (
-            value.payload.gamepad.action,
-            value.payload.gamepad.backend_code,
-            value.payload.gamepad.backend_value,
-        ),
-        InputEventKind::Text => (InputEventAction::Text, 0, 0),
-        InputEventKind::Device => (
-            value.payload.device.action,
-            value.payload.device.backend_code,
-            value.payload.device.backend_value,
-        ),
-        InputEventKind::Sensor => (
-            value.payload.sensor.action,
-            value.payload.sensor.backend_code,
-            value.payload.sensor.backend_value,
-        ),
-        InputEventKind::Composition => (value.payload.composition.action, 0, 0),
+/// Decode one native input event into one normalized event record.
+fn decode_native_event(value: InputEvent) -> RuntimeResult<InputEventRecord> {
+    match value {
+        InputEvent::InputKeyEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Key,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputPointerMotionEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::PointerMotion,
+            action: InputEventAction::Move,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputPointerButtonEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::PointerButton,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputScrollEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Scroll,
+            action: InputEventAction::Scroll,
+            code: 0,
+            value: value.payload.wheel_y as i64,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputTouchEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Touch,
+            action: value.payload.action,
+            code: value.payload.contact_id,
+            value: value.payload.pressure as i64,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputGamepadEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Gamepad,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputTextEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Text,
+            action: InputEventAction::Text,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputDeviceEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Device,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputSensorEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Sensor,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEvent::InputCompositionEvent(value) => Ok(InputEventRecord {
+            device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+            kind: InputEventKind::Composition,
+            action: value.payload.action,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
     }
 }
 
-/// Decode event action, code, and value from one VM typed payload.
-fn decode_vm_event_payload(
-    kind: InputEventKind,
+/// Decode one VM input event into one normalized event record.
+fn decode_vm_event(
+    context: &mut vm::ExternalCallContext<'_>,
     value: InputEventVm,
-) -> (InputEventAction, u32, i64) {
-    match kind {
-        InputEventKind::Key => (
-            value.payload.key.action,
-            value.payload.key.backend_code,
-            value.payload.key.backend_value,
-        ),
-        InputEventKind::PointerMotion => (InputEventAction::Move, 0, 0),
-        InputEventKind::PointerButton => (
-            value.payload.pointer_button.action,
-            value.payload.pointer_button.backend_code,
-            value.payload.pointer_button.backend_value,
-        ),
-        InputEventKind::Scroll => (
-            InputEventAction::Scroll,
-            0,
-            value.payload.scroll.wheel_y as i64,
-        ),
-        InputEventKind::Touch => (
-            value.payload.touch.action,
-            value.payload.touch.contact_id,
-            value.payload.touch.pressure as i64,
-        ),
-        InputEventKind::Gamepad => (
-            value.payload.gamepad.action,
-            value.payload.gamepad.backend_code,
-            value.payload.gamepad.backend_value,
-        ),
-        InputEventKind::Text => (InputEventAction::Text, 0, 0),
-        InputEventKind::Device => (
-            value.payload.device.action,
-            value.payload.device.backend_code,
-            value.payload.device.backend_value,
-        ),
-        InputEventKind::Sensor => (
-            value.payload.sensor.action,
-            value.payload.sensor.backend_code,
-            value.payload.sensor.backend_value,
-        ),
-        InputEventKind::Composition => (value.payload.composition.action, 0, 0),
+) -> RuntimeResult<InputEventRecord> {
+    match value {
+        InputEventVm::InputKeyEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Key,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputPointerMotionEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::PointerMotion,
+            action: InputEventAction::Move,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputPointerButtonEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::PointerButton,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputScrollEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Scroll,
+            action: InputEventAction::Scroll,
+            code: 0,
+            value: value.payload.wheel_y as i64,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputTouchEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Touch,
+            action: value.payload.action,
+            code: value.payload.contact_id,
+            value: value.payload.pressure as i64,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputGamepadEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Gamepad,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputTextEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Text,
+            action: InputEventAction::Text,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputDeviceEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Device,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputSensorEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Sensor,
+            action: value.payload.action,
+            code: value.payload.backend_code,
+            value: value.payload.backend_value,
+            sequence: value.metadata.sequence,
+        }),
+        InputEventVm::InputCompositionEvent(value) => Ok(InputEventRecord {
+            device_id: context
+                .string_ref(value.metadata.device_id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string(),
+            kind: InputEventKind::Composition,
+            action: value.payload.action,
+            code: 0,
+            value: 0,
+            sequence: value.metadata.sequence,
+        }),
     }
 }
 
@@ -456,21 +577,8 @@ impl<'call> InputHarnessContext<'call> {
         value: HarnessValue<InputEvent, InputEventVm>,
     ) -> RuntimeResult<InputEventRecord> {
         match value {
-            HarnessValue::Native(value) => {
-                // decode native event strings
-                let device_id = unsafe { value.device_id.as_str()? }.to_string();
-                let (action, code, event_value) = decode_native_event_payload(value.kind, value);
-                Ok(InputEventRecord {
-                    device_id,
-                    kind: value.kind,
-                    action,
-                    code,
-                    value: event_value,
-                    sequence: value.sequence,
-                })
-            }
+            HarnessValue::Native(value) => decode_native_event(value),
             HarnessValue::Vm(value) => {
-                // decode vm event strings
                 let context = self.vm_context_mut().ok_or_else(|| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
                         "context",
@@ -478,20 +586,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let device_id = context
-                    .string_ref(value.device_id)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
-                let (action, code, event_value) = decode_vm_event_payload(value.kind, value);
-                Ok(InputEventRecord {
-                    device_id,
-                    kind: value.kind,
-                    action,
-                    code,
-                    value: event_value,
-                    sequence: value.sequence,
-                })
+                decode_vm_event(context, value)
             }
         }
     }
@@ -502,15 +597,28 @@ impl<'call> InputHarnessContext<'call> {
         value: HarnessValue<InputMonitorEvent, InputMonitorEventVm>,
     ) -> RuntimeResult<InputMonitorEventRecord> {
         match value {
-            HarnessValue::Native(value) => {
-                let device_id = unsafe { value.device_id.as_str()? }.to_string();
-                Ok(InputMonitorEventRecord {
-                    device_id,
-                    kind: value.kind,
-                    connected: value.connected,
-                    sequence: value.sequence,
-                })
-            }
+            HarnessValue::Native(value) => match value {
+                InputMonitorEvent::InputMonitorChangeEvent(value) => Ok(InputMonitorEventRecord {
+                    device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                    kind: InputMonitorEventKind::Change,
+                    connected: value.metadata.connected,
+                    sequence: value.metadata.sequence,
+                }),
+                InputMonitorEvent::InputMonitorConnectEvent(value) => Ok(InputMonitorEventRecord {
+                    device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                    kind: InputMonitorEventKind::Connect,
+                    connected: value.metadata.connected,
+                    sequence: value.metadata.sequence,
+                }),
+                InputMonitorEvent::InputMonitorDisconnectEvent(value) => {
+                    Ok(InputMonitorEventRecord {
+                        device_id: unsafe { value.metadata.device_id.as_str()? }.to_string(),
+                        kind: InputMonitorEventKind::Disconnect,
+                        connected: value.metadata.connected,
+                        sequence: value.metadata.sequence,
+                    })
+                }
+            },
             HarnessValue::Vm(value) => {
                 let context = self.vm_context_mut().ok_or_else(|| {
                     RuntimeError::from(PlatformError::invalid_argument_value(
@@ -519,17 +627,47 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let device_id = context
-                    .string_ref(value.device_id)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
-                Ok(InputMonitorEventRecord {
-                    device_id,
-                    kind: value.kind,
-                    connected: value.connected,
-                    sequence: value.sequence,
-                })
+                match value {
+                    InputMonitorEventVm::InputMonitorChangeEvent(value) => {
+                        let device_id = context
+                            .string_ref(value.metadata.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?
+                            .as_str()
+                            .to_string();
+                        Ok(InputMonitorEventRecord {
+                            device_id,
+                            kind: InputMonitorEventKind::Change,
+                            connected: value.metadata.connected,
+                            sequence: value.metadata.sequence,
+                        })
+                    }
+                    InputMonitorEventVm::InputMonitorConnectEvent(value) => {
+                        let device_id = context
+                            .string_ref(value.metadata.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?
+                            .as_str()
+                            .to_string();
+                        Ok(InputMonitorEventRecord {
+                            device_id,
+                            kind: InputMonitorEventKind::Connect,
+                            connected: value.metadata.connected,
+                            sequence: value.metadata.sequence,
+                        })
+                    }
+                    InputMonitorEventVm::InputMonitorDisconnectEvent(value) => {
+                        let device_id = context
+                            .string_ref(value.metadata.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?
+                            .as_str()
+                            .to_string();
+                        Ok(InputMonitorEventRecord {
+                            device_id,
+                            kind: InputMonitorEventKind::Disconnect,
+                            connected: value.metadata.connected,
+                            sequence: value.metadata.sequence,
+                        })
+                    }
+                }
             }
         }
     }

@@ -12,7 +12,7 @@ use destack_workspace::{Module, ModuleRegistry, ProfileId, Program};
 
 use crate::model::{
     BindingEnumValue, BindingEnumVariant, BindingField, BindingParameter, BindingReturn,
-    BindingType,
+    BindingTaggedUnionVariant, BindingType,
 };
 
 /// Canonical symbol ids used for binding type resolution.
@@ -183,26 +183,16 @@ pub(crate) fn collect_binding_params(
         .iter()
         .map(|parameter_id| {
             let name = parameter_name(*parameter_id, tree, strings);
-            let type_id = type_id_for_parameter(*parameter_id, module_id, types);
-
-            let (type_text, binding_type) = match type_id {
-                Some(type_id) => (
-                    format_local_type(type_id, types, modules, strings),
-                    binding_type_from_type_id(
-                        type_id, types, modules, strings, profile_id, symbols, domain,
-                    ),
-                ),
-                None => unsupported_binding_type(
-                    "<unevaluated>",
+            let Some(type_id) = type_id_for_parameter(*parameter_id, module_id, types) else {
+                unsupported_binding_type(
+                    "parameter",
                     "platform binding parameter is missing a type annotation",
-                ),
+                );
             };
-
-            let type_text = if type_text == "<unevaluated>" {
-                None
-            } else {
-                Some(type_text)
-            };
+            let type_text = type_text_for_signature(type_id, tree, types, modules, strings);
+            let binding_type = binding_type_from_type_id(
+                type_id, types, modules, strings, profile_id, symbols, domain,
+            );
 
             BindingParameter {
                 name,
@@ -218,7 +208,6 @@ pub(crate) fn collect_binding_return(
     declaration_id: dir::LocalNodeId<Declaration>,
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
-    tree: &dir::NodeTree,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
@@ -240,9 +229,9 @@ pub(crate) fn collect_binding_return(
     }
 
     // fall back to an untyped binding
-    let _ = (tree, modules, strings);
+    let _ = (modules, strings);
     unsupported_binding_type(
-        "<unevaluated>",
+        "return type",
         "platform binding return type is missing a type annotation",
     )
 }
@@ -327,14 +316,16 @@ fn resolve_return_type_text(
     let return_type_id = resolve_return_type_id(declaration_id, signature, module_id, types);
     let return_text = return_type_id
         .and_then(|type_id| {
-            let formatted = format_local_type(type_id, types, modules, strings);
-            if formatted != "<unevaluated>" {
+            if let Some(formatted) = type_text_for_signature(type_id, tree, types, modules, strings)
+            {
                 return Some(format!(": {formatted}"));
             }
+
             if let dir::Type::Unevaluated(expression_id) = types.get_type(type_id) {
                 return format_type_expression(*expression_id, tree, strings)
                     .map(|text| format!(": {text}"));
             }
+
             None
         })
         .or_else(|| {
@@ -357,9 +348,11 @@ fn binding_type_from_type_id(
     symbols: &BindingTypeSymbols,
     domain: &str,
 ) -> BindingType {
-    let type_text = format_local_type(type_id, types, modules, strings);
+    let type_text = type_text_for_diagnostics(type_id, types, modules, strings);
     match types.get_type(type_id) {
-        dir::Type::TypeLiteral { value } => binding_type_from_literal(value, type_text.as_str()),
+        dir::Type::TypeLiteral { value } => {
+            binding_type_from_literal(value, type_text.as_str(), strings)
+        }
         dir::Type::Union { elements } => {
             if elements
                 .iter()
@@ -388,7 +381,7 @@ fn binding_type_from_type_id(
             elements,
             is_readonly: _,
         } => binding_type_from_tuple(
-            &type_text, elements, types, modules, strings, profile_id, symbols, domain,
+            type_id, elements, types, modules, strings, profile_id, symbols, domain,
         ),
         dir::Type::Reference {
             symbol,
@@ -506,11 +499,35 @@ fn is_result_type_id(
 }
 
 /// Map a literal type into a binding type.
-fn binding_type_from_literal(value: &TypeLiteral, type_text: &str) -> BindingType {
+fn binding_type_from_literal(
+    value: &TypeLiteral,
+    type_text: &str,
+    strings: &StringPool,
+) -> BindingType {
     match value {
         TypeLiteral::Void => BindingType::Void,
+        TypeLiteral::ScalarLiteral(literal) => binding_type_from_scalar_literal(literal, strings),
         TypeLiteral::Primitive(primitive) => binding_type_from_primitive(*primitive, type_text),
         _ => unsupported_binding_type(type_text, "unsupported literal type"),
+    }
+}
+
+/// Map a scalar literal type into a binding type.
+fn binding_type_from_scalar_literal(
+    literal: &dir::ScalarLiteral,
+    _strings: &StringPool,
+) -> BindingType {
+    match literal {
+        dir::ScalarLiteral::Boolean(_) => BindingType::Bool,
+        dir::ScalarLiteral::String(_) => BindingType::String,
+        dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => {
+            if *value < 0 {
+                BindingType::Int(64)
+            } else {
+                BindingType::UInt(64)
+            }
+        }
+        _ => unsupported_binding_type("<scalar literal>", "unsupported scalar literal type"),
     }
 }
 
@@ -667,6 +684,18 @@ fn binding_type_from_symbol(
 
             // use lowered alias type info when available
             let inner = if let Some(alias_target) = alias_target {
+                if let dir::Type::Union { elements } = types.get_type(alias_target) {
+                    if !elements
+                        .iter()
+                        .all(|element| is_string_literal_type(*element, &types))
+                        && unwrap_optional_union_type(elements, &types).is_none()
+                    {
+                        return binding_type_from_tagged_union_alias(
+                            name, elements, &types, modules, strings, profile_id, symbols, domain,
+                        );
+                    }
+                }
+
                 if let dir::Type::Object { fields, .. } = types.get_type(alias_target) {
                     return binding_type_from_object_type(
                         name.clone(),
@@ -718,6 +747,69 @@ fn binding_type_from_symbol(
             }
         }
         _ => unsupported_binding_type(&name, "unsupported binding declaration"),
+    }
+}
+
+/// Resolve a union type-alias into one tagged union binding type.
+fn binding_type_from_tagged_union_alias(
+    name: String,
+    elements: &[dir::LocalTypeId],
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: String,
+) -> BindingType {
+    let mut variants = Vec::with_capacity(elements.len());
+    let mut variant_names = BTreeMap::<String, ()>::new();
+    for element in elements {
+        let element_binding = binding_type_from_type_id(
+            *element,
+            types,
+            modules,
+            strings,
+            profile_id,
+            symbols,
+            domain.as_str(),
+        );
+        let variant_name =
+            binding_tagged_union_variant_name(&element_binding).unwrap_or_else(|| {
+                let type_text = type_text_for_diagnostics(*element, types, modules, strings);
+                unsupported_binding_type(
+                    type_text.as_str(),
+                    "tagged union branches must reference named binding types",
+                )
+            });
+
+        if variant_names.insert(variant_name.clone(), ()).is_some() {
+            unsupported_binding_type(
+                name.as_str(),
+                "tagged union variants must have unique names",
+            );
+        }
+
+        variants.push(BindingTaggedUnionVariant {
+            name: variant_name,
+            binding_type: element_binding,
+        });
+    }
+
+    BindingType::TaggedUnion {
+        name,
+        domain,
+        variants,
+    }
+}
+
+/// Resolve one tagged union variant name from one branch binding type.
+fn binding_tagged_union_variant_name(binding_type: &BindingType) -> Option<String> {
+    match binding_type {
+        BindingType::Newtype { name, .. }
+        | BindingType::Struct { name, .. }
+        | BindingType::Enum { name, .. }
+        | BindingType::TaggedUnion { name, .. } => Some(name.clone()),
+        _ => None,
     }
 }
 
@@ -843,7 +935,7 @@ fn binding_type_from_object_type(
 
 /// Resolve tuple elements into a binding struct type.
 fn binding_type_from_tuple(
-    type_text: &str,
+    type_id: dir::LocalTypeId,
     elements: &[dir::TypeElement],
     types: &dir::TypeTable,
     modules: &ModuleRegistry,
@@ -852,12 +944,13 @@ fn binding_type_from_tuple(
     symbols: &BindingTypeSymbols,
     domain: &str,
 ) -> BindingType {
-    let name = tuple_struct_name(type_text, elements.len());
+    let type_text = type_text_for_diagnostics(type_id, types, modules, strings);
+    let name = tuple_struct_name(Some(type_text.as_str()), elements.len());
     let mut fields = Vec::with_capacity(elements.len());
     for (index, element) in elements.iter().enumerate() {
         if element.is_optional || element.is_rest || element.is_readonly {
             unsupported_binding_type(
-                type_text,
+                &type_text,
                 "tuple elements cannot be optional, rest, or readonly in platform bindings",
             );
         }
@@ -1013,8 +1106,11 @@ fn binding_type_from_enum(
     }
 }
 
-fn tuple_struct_name(type_text: &str, arity: usize) -> String {
-    if type_text.is_empty() || type_text == "<unevaluated>" {
+fn tuple_struct_name(type_text: Option<&str>, arity: usize) -> String {
+    let Some(type_text) = type_text else {
+        return format!("Tuple{arity}");
+    };
+    if type_text.is_empty() {
         return format!("Tuple{arity}");
     }
     let hash = fnv1a_64(type_text.as_bytes());
@@ -1386,9 +1482,106 @@ fn format_parameter_declared(
         local_id: parameter_id.into(),
     };
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, modules, strings);
-        format!("{name}: {type_text}")
+        if let Some(type_text) = type_text_for_signature(type_id, dir_tree, types, modules, strings)
+        {
+            return format!("{name}: {type_text}");
+        }
     } else {
-        name
+        return name;
+    }
+
+    name
+}
+
+/// Format one type for signature output without generator sentinel placeholders.
+fn type_text_for_signature(
+    type_id: dir::LocalTypeId,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> Option<String> {
+    if let dir::Type::Unevaluated(expression_id) = types.get_type(type_id) {
+        return format_type_expression(*expression_id, tree, strings);
+    }
+
+    Some(format_type_checked(type_id, types, modules, strings))
+}
+
+/// Format one type for diagnostics with explicit unresolved labeling.
+fn type_text_for_diagnostics(
+    type_id: dir::LocalTypeId,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    if matches!(types.get_type(type_id), dir::Type::Unevaluated(_)) {
+        return format!("<type {type_id:?}>");
+    }
+
+    format_type_checked(type_id, types, modules, strings)
+}
+
+/// Format one non-unevaluated type and reject formatter placeholders.
+fn format_type_checked(
+    type_id: dir::LocalTypeId,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    let formatted = format_local_type(type_id, types, modules, strings);
+    if formatted == "<unevaluated>" {
+        panic!(
+            "internal generator bug: format_local_type returned unevaluated for type {type_id:?}"
+        );
+    }
+
+    formatted
+}
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroU32;
+
+    use destack_base::StringPool;
+    use destack_dir as dir;
+
+    use crate::model::BindingType;
+
+    use super::binding_type_from_scalar_literal;
+
+    /// Lower scalar string literals to string binding types.
+    #[test]
+    fn test_binding_type_from_scalar_literal_string() {
+        let strings = StringPool::new();
+        let literal = dir::ScalarLiteral::String(destack_base::StringId(
+            NonZeroU32::new(1).expect("nonzero"),
+        ));
+        let binding_type = binding_type_from_scalar_literal(&literal, &strings);
+
+        assert_eq!(binding_type, BindingType::String);
+    }
+
+    /// Lower scalar boolean literals to boolean binding types.
+    #[test]
+    fn test_binding_type_from_scalar_literal_boolean() {
+        let strings = StringPool::new();
+        let literal = dir::ScalarLiteral::Boolean(true);
+        let binding_type = binding_type_from_scalar_literal(&literal, &strings);
+
+        assert_eq!(binding_type, BindingType::Bool);
+    }
+
+    /// Lower scalar integer literals to signed and unsigned binding types.
+    #[test]
+    fn test_binding_type_from_scalar_literal_integer_sign() {
+        let strings = StringPool::new();
+        let positive = dir::ScalarLiteral::Integer(5);
+        let negative = dir::ScalarLiteral::Integer(-5);
+        let positive_type = binding_type_from_scalar_literal(&positive, &strings);
+        let negative_type = binding_type_from_scalar_literal(&negative, &strings);
+
+        assert_eq!(positive_type, BindingType::UInt(64));
+        assert_eq!(negative_type, BindingType::Int(64));
     }
 }

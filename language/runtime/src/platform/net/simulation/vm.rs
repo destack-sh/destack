@@ -2,18 +2,29 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
-    AcceptFlags, KeepAliveConfigVm, LingerVm, NetInterfaceVm, PacketCaptureOptionsVm,
-    PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm, PacketRingOptionsVm,
-    PacketTimestampMode, ResolveQueryVm, ReverseLookupFlags, ReverseLookupNameVm, RouteEntryVm,
-    SocketAddressVm, SocketFamily, SocketMessageFlags, SocketOptionLevel, SocketOptionName,
-    SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm, SocketRecvFromVm, SocketRecvMessageVm,
-    SocketSendBatchEntryVm, SocketSendMessageVm, SocketSendToVm, SocketShutdown,
-    SocketTimestampingMode, SocketType, UdpMessageFlags, UdpReceiveVm, UdpSourceMembershipV4Vm,
-    UdpSourceMembershipV6Vm, UdsAddressVm,
+    AcceptFlags, KeepAliveConfigVm, LingerVm, NetInterfaceVm, PacketBackendDescriptorVm,
+    PacketCaptureOptionsVm, PacketCaptureRecordVm, PacketCaptureStatsVm, PacketFanoutOptionsVm,
+    PacketRingOptionsVm, PacketTimestampMode, ResolveQueryVm, ReverseLookupFlags,
+    ReverseLookupNameVm, RouteEntryVm, SocketAddressVm, SocketFamily, SocketMessageFlags,
+    SocketOptionLevel, SocketOptionName, SocketPairVm, SocketProtocol, SocketRecvBatchRequestVm,
+    SocketRecvFromVm, SocketRecvMessageVm, SocketSendBatchEntryVm, SocketSendMessageVm,
+    SocketSendToVm, SocketShutdown, SocketTimestampingMode, SocketType, UdpMessageFlags,
+    UdpReceiveVm, UdpSourceMembershipV4Vm, UdpSourceMembershipV6Vm, UdsAddressVm,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
+
+/// List host packet backends.
+pub(crate) fn destack_net_packet_backend_list(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmSlice<PacketBackendDescriptorVm>> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.net.raw.packetBackendList",
+    ))
+    .boxed())
+}
 
 /// Accept a new connection from a listener.
 ///
