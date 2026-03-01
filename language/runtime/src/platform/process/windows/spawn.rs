@@ -29,12 +29,11 @@ use windows_sys::Win32::System::Threading::{
 
 use crate::platform::fs::core as core_fs;
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
-    SyscallFilterFlags, UserId,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessStdioInherit, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags, ProcessWaitStatus,
+    Signal, SignalEvent, SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
 
@@ -288,8 +287,8 @@ fn resolve_spawn_stdio_handle(
     descriptor: ProcessStdio,
 ) -> RuntimeResult<HANDLE> {
     let is_input = index == 0;
-    match descriptor.kind {
-        ProcessStdioKind::Inherit => {
+    match descriptor {
+        ProcessStdio::ProcessStdioInherit(_) => {
             let standard = match index {
                 0 => STD_INPUT_HANDLE,
                 1 => STD_OUTPUT_HANDLE,
@@ -299,17 +298,17 @@ fn resolve_spawn_stdio_handle(
             let source = unsafe { GetStdHandle(standard) };
             duplicate_handle_for_child(source, "stdio.inherit")
         }
-        ProcessStdioKind::Null => open_null_stdio_handle(is_input),
-        ProcessStdioKind::Pipe => {
-            let pipe_handle = resolve_pipe_handle(context, descriptor.pipe)?;
+        ProcessStdio::ProcessStdioNull(_) => open_null_stdio_handle(is_input),
+        ProcessStdio::ProcessStdioPipe(descriptor_pipe) => {
+            let pipe_handle = resolve_pipe_handle(context, descriptor_pipe.pipe)?;
             duplicate_handle_for_child(pipe_handle, "stdio.pipe")
         }
-        ProcessStdioKind::File => {
-            let file_handle = resolve_file_handle(context, descriptor.file)?;
+        ProcessStdio::ProcessStdioFile(descriptor_file) => {
+            let file_handle = resolve_file_handle(context, descriptor_file.file)?;
             duplicate_handle_for_child(file_handle, "stdio.file")
         }
-        ProcessStdioKind::Descriptor => {
-            let raw = unsafe { libc::get_osfhandle(descriptor.descriptor) };
+        ProcessStdio::ProcessStdioDescriptor(descriptor_fd) => {
+            let raw = unsafe { libc::get_osfhandle(descriptor_fd.descriptor) };
             if raw == -1 {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "stdio.descriptor",
@@ -340,24 +339,15 @@ fn resolve_spawn_stdio_handles(
     }
 
     let defaults = [
-        ProcessStdio {
-            kind: ProcessStdioKind::Inherit,
-            descriptor: 0,
-            file: resource::FileHandle(ResourceId(0)),
-            pipe: resource::PipeHandle(ResourceId(0)),
-        },
-        ProcessStdio {
-            kind: ProcessStdioKind::Inherit,
-            descriptor: 0,
-            file: resource::FileHandle(ResourceId(0)),
-            pipe: resource::PipeHandle(ResourceId(0)),
-        },
-        ProcessStdio {
-            kind: ProcessStdioKind::Inherit,
-            descriptor: 0,
-            file: resource::FileHandle(ResourceId(0)),
-            pipe: resource::PipeHandle(ResourceId(0)),
-        },
+        ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
+            kind: context.store_string("inherit"),
+        }),
+        ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
+            kind: context.store_string("inherit"),
+        }),
+        ProcessStdio::ProcessStdioInherit(ProcessStdioInherit {
+            kind: context.store_string("inherit"),
+        }),
     ];
 
     let mut resolved = [0, 0, 0];

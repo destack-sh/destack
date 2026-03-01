@@ -12,8 +12,8 @@ use windows_sys::Win32::Storage::FileSystem::{
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    DirectoryHandle, Dirent, DirentKind, DirentNext, FileMode, OsPath, PathBytes, PathUtf16,
-    WatchBatch, WatchOptions, core as core_fs,
+    DirectoryHandle, Dirent, DirentKind, DirentNext, DirentNextEnd, DirentNextEntry, FileMode,
+    OsPath, PathBytes, PathUtf16, WatchBatch, WatchOptions, core as core_fs,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind, WatchHandle};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
@@ -701,7 +701,9 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         let code = core_platform::last_error_code() as u32;
         if code == ERROR_NO_MORE_FILES || code == ERROR_FILE_NOT_FOUND {
             unsafe {
-                *out = DirentNext { entry: None };
+                *out = DirentNext::DirentNextEnd(DirentNextEnd {
+                    kind: context.store_string("end"),
+                });
             }
 
             return Ok(());
@@ -746,12 +748,13 @@ pub(crate) unsafe fn destack_fs_readdir_next(
                 let name = path_utf16_from_units(context, &data.cFileName[..name_length]);
                 *cursor = current_index.saturating_add(1);
                 unsafe {
-                    *out = DirentNext {
-                        entry: Some(Dirent {
+                    *out = DirentNext::DirentNextEntry(DirentNextEntry {
+                        kind: context.store_string("entry"),
+                        entry: Dirent {
                             name: core_fs::path_ref_from_utf16(name),
                             kind,
-                        }),
-                    };
+                        },
+                    });
                 }
 
                 return Ok(());
@@ -768,7 +771,9 @@ pub(crate) unsafe fn destack_fs_readdir_next(
         let code = core_platform::last_error_code() as u32;
         if code == ERROR_NO_MORE_FILES {
             unsafe {
-                *out = DirentNext { entry: None };
+                *out = DirentNext::DirentNextEnd(DirentNextEnd {
+                    kind: context.store_string("end"),
+                });
             }
 
             return Ok(());

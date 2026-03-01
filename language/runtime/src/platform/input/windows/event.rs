@@ -18,10 +18,11 @@ use windows_sys::Win32::System::Console::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEvent, InputDeviceEventPayload, InputEvent, InputEventAction, InputEventKind,
-    InputGamepadEventPayload, InputKeyEventPayload, InputMonitorEvent,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
-    InputScrollEventPayload, InputTextEventPayload, validation as input_validation,
+    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEventPayload, InputEvent,
+    InputEventAction, InputEventKind, InputEventMetadata, InputGamepadEventPayload,
+    InputKeyEventPayload, InputMonitorEvent, InputPointerButtonEventPayload,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEventPayload, InputTextEventPayload,
+    validation as input_validation,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, resource};
@@ -37,6 +38,15 @@ static WINDOWS_MONITOR_STREAMS: AtomicUsize = AtomicUsize::new(0);
 struct WindowsInputMonitorBinding {
     /// Next per-monitor event sequence number.
     next_sequence: u64,
+}
+
+/// Set one sequence number on one monitor event union value.
+fn set_monitor_event_sequence(event: &mut InputMonitorEvent, sequence: u64) {
+    match event {
+        InputMonitorEvent::InputMonitorChangeEvent(value) => value.metadata.sequence = sequence,
+        InputMonitorEvent::InputMonitorConnectEvent(value) => value.metadata.sequence = sequence,
+        InputMonitorEvent::InputMonitorDisconnectEvent(value) => value.metadata.sequence = sequence,
+    }
 }
 
 /// Finalizer payload for monitor stream ownership.
@@ -895,13 +905,18 @@ pub(super) fn build_composition_event_from_pending(
     let text = String::from_utf16_lossy(&[pending.code_unit]);
     let selection_end = text.chars().count() as i32;
     InputCompositionEvent {
-        timestamp_ns: pending.timestamp_ns,
-        sequence: 0,
-        device_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
-        action: InputEventAction::Commit,
-        text: context.store_string(&text),
-        selection_start: 0,
-        selection_end,
+        kind: context.store_string("composition"),
+        metadata: InputEventMetadata {
+            timestamp_ns: pending.timestamp_ns,
+            sequence: 0,
+            device_id: context.store_string(input_core::WINDOWS_INPUT_DEVICE_ID),
+        },
+        payload: InputCompositionEventPayload {
+            action: InputEventAction::Commit,
+            text: context.store_string(&text),
+            selection_start: 0,
+            selection_end,
+        },
     }
 }
 
@@ -936,7 +951,8 @@ pub(super) fn read_event(
             input_core::WINDOWS_INPUT_DEVICE_ID,
             payload,
         );
-        event.sequence = input_core::next_sequence(context, handle, operation)?;
+        let sequence = input_core::next_sequence(context, handle, operation)?;
+        input_core::set_input_event_sequence(&mut event, sequence);
         return Ok(event);
     }
 
@@ -1056,7 +1072,8 @@ pub(super) fn read_event(
     }
 
     // stamp one per-handle sequence number
-    event.sequence = input_core::next_sequence(context, handle, operation)?;
+    let sequence = input_core::next_sequence(context, handle, operation)?;
+    input_core::set_input_event_sequence(&mut event, sequence);
 
     Ok(event)
 }
@@ -1414,7 +1431,8 @@ pub(crate) unsafe fn destack_input_monitor_read(
     // read one monitor event from the raw-input service
     let mut event =
         raw_input::read_monitor_event(context, false, "destack.input.event.monitorRead")?;
-    event.sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorRead")?;
+    let sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorRead")?;
+    set_monitor_event_sequence(&mut event, sequence);
 
     // write event to output
     unsafe {
@@ -1458,7 +1476,8 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
     // poll one monitor event from the raw-input service
     let mut event =
         raw_input::read_monitor_event(context, true, "destack.input.event.monitorTryRead")?;
-    event.sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorTryRead")?;
+    let sequence = next_monitor_sequence(context, handle, "destack.input.event.monitorTryRead")?;
+    set_monitor_event_sequence(&mut event, sequence);
 
     // write event to output
     unsafe {
