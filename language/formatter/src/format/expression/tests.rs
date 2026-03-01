@@ -2173,6 +2173,17 @@ fn test_format_unary_minus_semicolon_guard_comment_blank_line_is_idempotent() {
     );
 }
 
+/// Inline block comments between closing delimiters and semicolons should stay on the left boundary.
+#[test]
+fn test_format_inline_block_comment_between_closing_paren_and_semicolon_is_idempotent() {
+    let source = "!(() => 3) /* foo */;";
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
 /// Declaration seams before guarded parenthesized calls should match oxfmt output.
 #[test]
 fn test_format_declare_semicolon_guard_comment_parenthesized_call_output() {
@@ -2349,6 +2360,80 @@ fn test_format_if_condition_tail_line_comment_before_empty_body_is_idempotent() 
   node.type === "TSImportType" ||
   node.type === "TSExternalModuleReference") // comment
 );"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Call-head line comments in `if` conditions should stay idempotent.
+#[test]
+fn test_format_if_condition_call_head_line_comment_is_idempotent() {
+    let source = r#"if (Boolean // comment
+(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference"));"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Nested unary condition comments should stay idempotent.
+#[test]
+fn test_format_if_condition_nested_unary_comment_is_idempotent() {
+    let source = r#"if (!(
+  // comment
+  !(node.type === "ImportExpression" ||
+    node.type === "TSImportType" ||
+    node.type === "TSExternalModuleReference")
+)); // comment"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Unary-head line comments in `if` conditions should stay idempotent.
+#[test]
+fn test_format_if_condition_unary_head_line_comment_is_idempotent() {
+    let source = r#"if (! // comment
+!(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference"
+)); // comment"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
+/// Mixed unary condition comment heads should stay idempotent.
+#[test]
+fn test_format_if_condition_mixed_unary_comment_heads_are_idempotent() {
+    let source = r#"if ( // mixed-unary-a
+!!(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference"));
+
+if (! // mixed-unary-b
+!(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference"));
+
+if (!! // mixed-unary-c
+(
+  node.type === "ImportExpression" ||
+  node.type === "TSImportType" ||
+  node.type === "TSExternalModuleReference"));"#;
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
@@ -3291,6 +3376,64 @@ type B2 =
       )
     )
   );
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Type intersections with assignment seam comments should keep stable value ownership.
+#[test]
+fn test_format_typescript_union_consistent_with_flow_comment_fixture_is_idempotent() {
+    let source = r#"
+type A3 = // dir, exp, arg, modifiers
+  & [string]
+  & [string, ExpressionNode]
+  & [string, ExpressionNode, ExpressionNode]
+  & [string, ExpressionNode, ExpressionNode, ObjectExpression]
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Leading-pipe type aliases with seam comments after equals should stay idempotent.
+#[test]
+fn test_format_typescript_union_consistent_with_flow_single_type_fixture_is_idempotent() {
+    let source = r#"
+type A6 = /*1*/
+| (
+  | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  )
+  );
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Parenthesized tuple union entries should keep one stable multiline layout.
+#[test]
+fn test_format_typescript_union_consistent_with_flow_within_tuple_fixture_is_idempotent() {
+    let source = r#"
+type D = [
+  (AAAAAAAAAAAAAAAAAAAAAA | BBBBBBBBBBBBBBBBBBBBBB | CCCCCCCCCCCCCCCCCCCCCC | DDDDDDDDDDDDDDDDDDDDDD),
+  (AAAAAAAAAAAAAAAAAAAAAA | BBBBBBBBBBBBBBBBBBBBBB | CCCCCCCCCCCCCCCCCCCCCC | DDDDDDDDDDDDDDDDDDDDDD)
+]
 "#
     .trim_start();
     assert_format_program_idempotent_with_file_type(

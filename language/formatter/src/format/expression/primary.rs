@@ -960,6 +960,10 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
+        } else if has_parenthesized_leading_inner_trivia
+            && f.context().has_prefix_annotation(expression_id)
+        {
+            write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if parent_is_postfix_continuation
             && has_parenthesized_leading_inner_trivia
             && expression_is_await_like(inner_expression)

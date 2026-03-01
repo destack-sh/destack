@@ -42,30 +42,6 @@ fn promote_owner_to_elementwise_binary_expression_ancestor(
     })
 }
 
-/// Descend transparent wrappers to the innermost owned expression.
-fn descend_owner_through_transparent_expression_wrappers(tree: &NodeTree, owner_id: u32) -> u32 {
-    let mut current_id = owner_id;
-
-    loop {
-        if tree.get_node_type(current_id) != NodeType::Expression {
-            return current_id;
-        }
-
-        let expression_id = LocalNodeId::<Expression>::new(current_id);
-        let next_id = match tree.get(expression_id) {
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                Some(expression.id)
-            }
-            _ => None,
-        };
-
-        let Some(next_id) = next_id else {
-            return current_id;
-        };
-        current_id = next_id;
-    }
-}
-
 /// Descend one owner to the terminal right operand of one elementwise binary chain.
 fn descend_owner_to_terminal_elementwise_operand(tree: &NodeTree, owner_id: u32) -> u32 {
     let mut current_id = owner_id;
@@ -90,28 +66,6 @@ fn descend_owner_to_terminal_elementwise_operand(tree: &NodeTree, owner_id: u32)
 
         current_id = right.id;
     }
-}
-
-/// Return whether comment trivia appears between one seam comment and its next non-trivia token.
-fn seam_has_intervening_comment_before_next_token(context: &CommentSeamContext<'_>) -> bool {
-    let Some(token_after_span) = context.token_after_span else {
-        return false;
-    };
-    let comment_trivia = context.tree.comment_trivia();
-    let mut trivia_index =
-        comment_trivia.partition_point(|trivia| trivia.span.end <= context.trivia.span.end);
-    while let Some(trivia) = comment_trivia.get(trivia_index).copied() {
-        if trivia.span.start >= token_after_span.span.start {
-            break;
-        }
-
-        if trivia.comment != context.trivia.comment {
-            return true;
-        }
-        trivia_index += 1;
-    }
-
-    false
 }
 
 /// Return whether two owners are in the same elementwise binary chain.
@@ -408,9 +362,6 @@ fn try_attach_comment_expression_operator_assignment_and_leading_grouping(
         seam.token_after_type,
         Some(TokenType::ElementwiseAnd | TokenType::ElementwiseOr | TokenType::ElementwiseXor)
     );
-    let token_after_is_elementwise_and = seam.token_after_is(TokenType::ElementwiseAnd);
-    let token_after_is_elementwise_or = seam.token_after_is(TokenType::ElementwiseOr);
-    let token_after_is_elementwise_xor = seam.token_after_is(TokenType::ElementwiseXor);
     let token_before_is_open_parenthesis = seam.token_before_is(TokenType::OpenParenthesis);
     let token_before_is_assign = seam.token_before_is(TokenType::Assign);
     let token_before_is_colon = seam.token_before_is(TokenType::Colon);
@@ -427,40 +378,17 @@ fn try_attach_comment_expression_operator_assignment_and_leading_grouping(
     if token_after_is_elementwise_operator
         && token_before_is_assign
         && (comment_is_star || comment_is_line)
-        && let Some(target_node) = if token_after_is_elementwise_and {
-            context
-                .token_after_span
-                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-                .or(following_owner)
-                .or_else(|| {
-                    assignment_rhs_owner_for_seam(
-                        tree,
-                        parents,
-                        context,
-                        seam,
-                        following_owner,
-                        enclosing_owner_cache,
-                    )
-                })
-        } else {
-            assignment_rhs_owner_for_seam(
-                tree,
-                parents,
-                context,
-                seam,
-                following_owner,
-                enclosing_owner_cache,
-            )
-            .or(following_owner)
-            .or(enclosing_owner)
-        }
+        && let Some(target_node) = assignment_rhs_owner_for_seam(
+            tree,
+            parents,
+            context,
+            seam,
+            following_owner,
+            enclosing_owner_cache,
+        )
+        .or(following_owner)
+        .or(enclosing_owner)
     {
-        let target_node = if token_after_is_elementwise_or || token_after_is_elementwise_xor {
-            promote_owner_to_elementwise_binary_expression_ancestor(tree, parents, target_node)
-                .unwrap_or(target_node)
-        } else {
-            target_node
-        };
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         let position = if has_trailing_newline || comment_is_multiline_star {
             AnnotationPosition::BlockPrefix
@@ -482,20 +410,11 @@ fn try_attach_comment_expression_operator_assignment_and_leading_grouping(
             })
             .or(enclosing_owner)
     {
-        let has_intervening_comment_before_next_token =
-            seam_has_intervening_comment_before_next_token(context);
-        let target_node = context
-            .token_after_span
-            .map(|token| {
-                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
-            })
-            .unwrap_or(target_node);
-        let target_node = descend_owner_through_transparent_expression_wrappers(tree, target_node);
+        let target_node =
+            promote_owner_to_elementwise_binary_expression_ancestor(tree, parents, target_node)
+                .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        let position = if comment_is_multiline_star
-            || (has_trailing_newline
-                && (comment_is_line || has_intervening_comment_before_next_token))
-        {
+        let position = if has_trailing_newline || comment_is_multiline_star {
             AnnotationPosition::BlockPrefix
         } else {
             AnnotationPosition::LinePrefix

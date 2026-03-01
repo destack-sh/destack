@@ -17,7 +17,7 @@ use super::ownership::{
     find_owner_at_or_after_token, find_owner_in_ancestor_chain, find_owner_in_candidate_ancestry,
     find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
     lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
-    normalize_owner_with_shared_end, promote_owner_by_shared_start,
+    normalize_owner_with_shared_end, promote_owner_by_shared_end, promote_owner_by_shared_start,
     promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
     promote_owner_to_parenthesized_expression_ancestor,
 };
@@ -109,6 +109,27 @@ fn is_call_or_new_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
         tree.get(expression_id),
         Expression::Call { .. } | Expression::New { .. }
     )
+}
+
+/// Return whether one owner has one unary-expression ancestor.
+fn owner_has_unary_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> bool {
+    find_owner_in_ancestor_chain(parents, owner_id, |candidate_id| {
+        if tree.get_node_type(candidate_id) != NodeType::Expression {
+            return None;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(candidate_id);
+        matches!(
+            tree.get(expression_id),
+            Expression::Unary { .. } | Expression::TypeUnary { .. }
+        )
+        .then_some(candidate_id)
+    })
+    .is_some()
 }
 
 /// Promote one owner to the nearest spread-argument ancestor.
@@ -494,6 +515,8 @@ pub(crate) fn try_attach_comment_expression(
     let token_after_is_open_bracket = seam.token_after_is(TokenType::OpenBracket);
     let token_after_is_close_brace = seam.token_after_is(TokenType::CloseBrace);
     let token_after_is_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis);
+    let token_after_is_not = seam.token_after_is(TokenType::Not);
+    let token_after_is_semicolon = seam.token_after_is(TokenType::Semicolon);
     let token_after_is_dot = seam.token_after_is(TokenType::Dot);
     let token_after_is_at = seam.token_after_is(TokenType::At);
     let token_after_is_less_than = seam.token_after_is(TokenType::LessThan);
@@ -511,6 +534,7 @@ pub(crate) fn try_attach_comment_expression(
     let token_before_is_close_brace = seam.token_before_is(TokenType::CloseBrace);
     let token_before_is_close_bracket = seam.token_before_is(TokenType::CloseBracket);
     let token_before_is_close_parenthesis = seam.token_before_is(TokenType::CloseParenthesis);
+    let token_before_is_not = seam.token_before_is(TokenType::Not);
     let token_before_is_semicolon = seam.token_before_is(TokenType::Semicolon);
     let token_before_is_spread = seam.token_before_is(TokenType::Spread);
     let token_before_is_logical_operator = matches!(
@@ -552,6 +576,51 @@ pub(crate) fn try_attach_comment_expression(
     // decorator seams belong to declaration-specific routing.
     if token_after_is_at {
         return None;
+    }
+
+    // trailing line comments between chained unary `!` heads stay on the following unary operand
+    if is_trailing_line_comment
+        && token_before_is_not
+        && token_after_is_not
+        && let Some(target_node) = following_token_owner.or(following_owner)
+    {
+        let target_node = token_after_source_span.map_or(target_node, |span| {
+            promote_owner_by_shared_start(tree, parents, target_node, span.start)
+        });
+        let target_node = if tree.get_node_type(target_node) == NodeType::Expression {
+            target_node
+        } else {
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
+                .unwrap_or(target_node)
+        };
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
+
+    // trailing line comments after unary heads before one parenthesized operand stay on the operand prefix
+    if is_trailing_line_comment
+        && token_after_is_open_parenthesis
+        && [preceding_token_owner, preceding_owner]
+            .into_iter()
+            .flatten()
+            .any(|owner| owner_has_unary_expression_ancestor(tree, parents, owner))
+        && let Some(target_node) = token_after_span
+            .and_then(|token_after_span| {
+                find_preferred_owner_starting_at(tree, token_after_span.span)
+            })
+            .or(following_token_owner)
+            .or(following_owner)
+    {
+        let target_node = token_after_source_span.map_or(target_node, |span| {
+            promote_owner_by_shared_start(tree, parents, target_node, span.start)
+        });
+        let target_node = if tree.get_node_type(target_node) == NodeType::Expression {
+            target_node
+        } else {
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
+                .unwrap_or(target_node)
+        };
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
     // line comments right after `${` stay on the interpolation expression owner
@@ -727,6 +796,26 @@ pub(crate) fn try_attach_comment_expression(
         return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
+    // comments between a closing delimiter and a trailing semicolon stay on the preceding value boundary
+    if (comment_is_line || is_inline_star_comment)
+        && token_after_is_semicolon
+        && (token_before_is_close_brace
+            || token_before_is_close_bracket
+            || token_before_is_close_parenthesis)
+        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
+    {
+        target_node = token_before_source_span.map_or(target_node, |span| {
+            promote_owner_by_shared_end(tree, parents, target_node, span.end)
+        });
+        target_node = if tree.get_node_type(target_node) == NodeType::Expression {
+            target_node
+        } else {
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
+                .unwrap_or(target_node)
+        };
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
+
     // same-line comments after no-semi guards should stay on the guarded expression
     if token_before_is_semicolon
         && token_after_is_open_parenthesis
@@ -751,14 +840,18 @@ pub(crate) fn try_attach_comment_expression(
     }
 
     // own-line comments after `(` should bind to the full expression that starts at the rhs token
-    if has_leading_newline
-        && comment_is_line
-        && token_before_is_open_parenthesis
-        && let Some(token_after_span) = token_after_span
-    {
-        let target_node = following_token_owner.or(following_owner).map(|owner| {
-            promote_owner_by_shared_start(tree, parents, owner, token_after_span.span.start)
-        });
+    if has_leading_newline && comment_is_line && token_before_is_open_parenthesis {
+        let target_node = token_after_span
+            .and_then(|token_after_span| {
+                find_preferred_owner_starting_at(tree, token_after_span.span)
+            })
+            .or(following_token_owner)
+            .or(following_owner)
+            .map(|owner| {
+                token_after_span.map_or(owner, |token_after_span| {
+                    promote_owner_by_shared_start(tree, parents, owner, token_after_span.span.start)
+                })
+            });
         if let Some(target_node) = target_node {
             // type-cast owners inside parenthesized wrappers should bind to the consuming group
             let mut target_node = target_node;
@@ -1223,6 +1316,21 @@ pub(crate) fn try_attach_comment_expression(
             AnnotationPosition::LinePostfix
         };
         return Some((Some(preceding_expression_owner), position));
+    }
+
+    // trailing line comments before nested `)` tokens stay on the inner grouped expression
+    if is_trailing_line_comment
+        && token_before_is_close_parenthesis
+        && token_after_is_close_parenthesis
+        && let Some(target_node) = preceding_token_owner.or(preceding_owner)
+    {
+        let target_node = if tree.get_node_type(target_node) == NodeType::Expression {
+            target_node
+        } else {
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
+                .unwrap_or(target_node)
+        };
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // inline comments between nested declaration wrappers should stay with the outer wrapper
