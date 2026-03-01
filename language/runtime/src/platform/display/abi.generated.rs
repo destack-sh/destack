@@ -13,6 +13,268 @@ use crate::platform::{
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+/// ABI enum for DisplayEventKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayEventKind {
+    /// Added.
+    Added = 1,
+    /// Removed.
+    Removed = 2,
+    /// PrimaryChanged.
+    PrimaryChanged = 3,
+    /// DescriptorChanged.
+    DescriptorChanged = 4,
+    /// ModeChanged.
+    ModeChanged = 5,
+}
+
+impl VmValueCodec for DisplayEventKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Added,
+            2u8 => Self::Removed,
+            3u8 => Self::PrimaryChanged,
+            4u8 => Self::DescriptorChanged,
+            5u8 => Self::ModeChanged,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for DisplayOrientation.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DisplayOrientation {
+    /// Unknown.
+    Unknown = 0,
+    /// Landscape.
+    Landscape = 1,
+    /// Portrait.
+    Portrait = 2,
+    /// LandscapeFlipped.
+    LandscapeFlipped = 3,
+    /// PortraitFlipped.
+    PortraitFlipped = 4,
+}
+
+impl VmValueCodec for DisplayOrientation {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Unknown,
+            1u8 => Self::Landscape,
+            2u8 => Self::Portrait,
+            3u8 => Self::LandscapeFlipped,
+            4u8 => Self::PortraitFlipped,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DisplayOrientation value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for WindowAttentionLevel.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WindowAttentionLevel {
+    /// Informational.
+    Informational = 1,
+    /// Critical.
+    Critical = 2,
+}
+
+impl VmValueCodec for WindowAttentionLevel {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Informational,
+            2u8 => Self::Critical,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowAttentionLevel value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for WindowCursorIcon.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WindowCursorIcon {
+    /// Default.
+    Default = 1,
+    /// Text.
+    Text = 2,
+    /// Crosshair.
+    Crosshair = 3,
+    /// Pointer.
+    Pointer = 4,
+    /// Help.
+    Help = 5,
+    /// Wait.
+    Wait = 6,
+    /// Progress.
+    Progress = 7,
+    /// Move.
+    Move = 8,
+    /// NotAllowed.
+    NotAllowed = 9,
+    /// Grab.
+    Grab = 10,
+    /// Grabbing.
+    Grabbing = 11,
+    /// EResize.
+    EResize = 12,
+    /// NResize.
+    NResize = 13,
+    /// NeResize.
+    NeResize = 14,
+    /// NwResize.
+    NwResize = 15,
+    /// SResize.
+    SResize = 16,
+    /// SeResize.
+    SeResize = 17,
+    /// SwResize.
+    SwResize = 18,
+    /// WResize.
+    WResize = 19,
+    /// EwResize.
+    EwResize = 20,
+    /// NsResize.
+    NsResize = 21,
+    /// NeswResize.
+    NeswResize = 22,
+    /// NwseResize.
+    NwseResize = 23,
+    /// ColResize.
+    ColResize = 24,
+    /// RowResize.
+    RowResize = 25,
+    /// AllScroll.
+    AllScroll = 26,
+    /// ZoomIn.
+    ZoomIn = 27,
+    /// ZoomOut.
+    ZoomOut = 28,
+}
+
+impl VmValueCodec for WindowCursorIcon {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Default,
+            2u8 => Self::Text,
+            3u8 => Self::Crosshair,
+            4u8 => Self::Pointer,
+            5u8 => Self::Help,
+            6u8 => Self::Wait,
+            7u8 => Self::Progress,
+            8u8 => Self::Move,
+            9u8 => Self::NotAllowed,
+            10u8 => Self::Grab,
+            11u8 => Self::Grabbing,
+            12u8 => Self::EResize,
+            13u8 => Self::NResize,
+            14u8 => Self::NeResize,
+            15u8 => Self::NwResize,
+            16u8 => Self::SResize,
+            17u8 => Self::SeResize,
+            18u8 => Self::SwResize,
+            19u8 => Self::WResize,
+            20u8 => Self::EwResize,
+            21u8 => Self::NsResize,
+            22u8 => Self::NeswResize,
+            23u8 => Self::NwseResize,
+            24u8 => Self::ColResize,
+            25u8 => Self::RowResize,
+            26u8 => Self::AllScroll,
+            27u8 => Self::ZoomIn,
+            28u8 => Self::ZoomOut,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowCursorIcon value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for WindowCursorMode.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WindowCursorMode {
+    /// Normal.
+    Normal = 1,
+    /// Hidden.
+    Hidden = 2,
+    /// Locked.
+    Locked = 3,
+    /// Confined.
+    Confined = 4,
+}
+
+impl VmValueCodec for WindowCursorMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Normal,
+            2u8 => Self::Hidden,
+            3u8 => Self::Locked,
+            4u8 => Self::Confined,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowCursorMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for WindowEventKind.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -37,10 +299,12 @@ pub enum WindowEventKind {
     ScaleFactorChanged = 9,
     /// RefreshRequested.
     RefreshRequested = 10,
-    /// EnterFullscreen.
-    EnterFullscreen = 11,
-    /// LeaveFullscreen.
-    LeaveFullscreen = 12,
+    /// ModeChanged.
+    ModeChanged = 11,
+    /// DisplayChanged.
+    DisplayChanged = 12,
+    /// ThemeChanged.
+    ThemeChanged = 13,
 }
 
 impl VmValueCodec for WindowEventKind {
@@ -57,8 +321,9 @@ impl VmValueCodec for WindowEventKind {
             8u8 => Self::SizeChanged,
             9u8 => Self::ScaleFactorChanged,
             10u8 => Self::RefreshRequested,
-            11u8 => Self::EnterFullscreen,
-            12u8 => Self::LeaveFullscreen,
+            11u8 => Self::ModeChanged,
+            12u8 => Self::DisplayChanged,
+            13u8 => Self::ThemeChanged,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -83,8 +348,8 @@ pub enum WindowMode {
     Windowed = 1,
     /// Borderless.
     Borderless = 2,
-    /// Fullscreen.
-    Fullscreen = 3,
+    /// ExclusiveFullscreen.
+    ExclusiveFullscreen = 3,
 }
 
 impl VmValueCodec for WindowMode {
@@ -93,11 +358,52 @@ impl VmValueCodec for WindowMode {
         let decoded = match raw {
             1u8 => Self::Windowed,
             2u8 => Self::Borderless,
-            3u8 => Self::Fullscreen,
+            3u8 => Self::ExclusiveFullscreen,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown WindowMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for WindowTheme.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum WindowTheme {
+    /// Unknown.
+    Unknown = 0,
+    /// Light.
+    Light = 1,
+    /// Dark.
+    Dark = 2,
+    /// HighContrastLight.
+    HighContrastLight = 3,
+    /// HighContrastDark.
+    HighContrastDark = 4,
+}
+
+impl VmValueCodec for WindowTheme {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Unknown,
+            1u8 => Self::Light,
+            2u8 => Self::Dark,
+            3u8 => Self::HighContrastLight,
+            4u8 => Self::HighContrastDark,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown WindowTheme value",
                 ))
                 .boxed());
             }
@@ -148,6 +454,80 @@ impl VmValueCodec for WindowVisibility {
     }
 }
 
+/// ABI struct for DisplayAddedPayload.
+#[repr(C)]
+pub struct DisplayAddedPayloadAbi<A: BindingAbi> {
+    /// The descriptor field.
+    pub descriptor: platform_display::DisplayDescriptorAbi<A>,
+}
+
+pub type DisplayAddedPayload = DisplayAddedPayloadAbi<NativeAbi>;
+pub type DisplayAddedPayloadVm = DisplayAddedPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayAddedPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayAddedPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayAddedPayloadAbi<NativeAbi> {}
+impl Clone for DisplayAddedPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayAddedPayloadAbi<VmAbi> {}
+impl Clone for DisplayAddedPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayAddedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_descriptor =
+            <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            descriptor: field_descriptor,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for DisplayDescriptor.
 #[repr(C)]
 pub struct DisplayDescriptorAbi<A: BindingAbi> {
@@ -155,12 +535,38 @@ pub struct DisplayDescriptorAbi<A: BindingAbi> {
     pub id: A::String,
     /// The name field.
     pub name: A::String,
+    /// The primary field.
+    pub primary: bool,
+    /// The x field.
+    pub x: i32,
+    /// The y field.
+    pub y: i32,
+    /// The width_px field.
+    pub width_px: u32,
+    /// The height_px field.
+    pub height_px: u32,
+    /// The work_area_x field.
+    pub work_area_x: i32,
+    /// The work_area_y field.
+    pub work_area_y: i32,
+    /// The work_area_width_px field.
+    pub work_area_width_px: u32,
+    /// The work_area_height_px field.
+    pub work_area_height_px: u32,
     /// The width_mm field.
     pub width_mm: u32,
     /// The height_mm field.
     pub height_mm: u32,
-    /// The primary field.
-    pub primary: bool,
+    /// The scale_factor_milli field.
+    pub scale_factor_milli: u32,
+    /// The orientation field.
+    pub orientation: DisplayOrientation,
+    /// The is_builtin field.
+    pub is_builtin: bool,
+    /// The supports_variable_refresh field.
+    pub supports_variable_refresh: bool,
+    /// The supports_hdr field.
+    pub supports_hdr: bool,
 }
 
 pub type DisplayDescriptor = DisplayDescriptorAbi<NativeAbi>;
@@ -202,10 +608,10 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        if slots.len() != 18 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 5 fields",
+                "expected 18 fields",
             ))
             .boxed());
         }
@@ -213,15 +619,47 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_width_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_height_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_width_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_height_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_work_area_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_work_area_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_work_area_width_px =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_work_area_height_px =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_width_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_height_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_scale_factor_milli =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_orientation =
+            <DisplayOrientation as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_is_builtin = <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_supports_variable_refresh =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_supports_hdr =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
         Ok(Self {
             id: field_id,
             name: field_name,
+            primary: field_primary,
+            x: field_x,
+            y: field_y,
+            width_px: field_width_px,
+            height_px: field_height_px,
+            work_area_x: field_work_area_x,
+            work_area_y: field_work_area_y,
+            work_area_width_px: field_work_area_width_px,
+            work_area_height_px: field_work_area_height_px,
             width_mm: field_width_mm,
             height_mm: field_height_mm,
-            primary: field_primary,
+            scale_factor_milli: field_scale_factor_milli,
+            orientation: field_orientation,
+            is_builtin: field_is_builtin,
+            supports_variable_refresh: field_supports_variable_refresh,
+            supports_hdr: field_supports_hdr,
         })
     }
 
@@ -232,9 +670,315 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.width_px, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.height_px, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.work_area_x, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.work_area_y, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.work_area_width_px, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.work_area_height_px, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.width_mm, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height_mm, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?,
+            <DisplayOrientation as VmAggregateCodec>::encode_with_context(
+                self.orientation,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_builtin, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_variable_refresh,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_hdr, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayDescriptorChangedPayload.
+#[repr(C)]
+pub struct DisplayDescriptorChangedPayloadAbi<A: BindingAbi> {
+    /// The descriptor field.
+    pub descriptor: platform_display::DisplayDescriptorAbi<A>,
+    /// The changed_mask field.
+    pub changed_mask: u32,
+}
+
+pub type DisplayDescriptorChangedPayload = DisplayDescriptorChangedPayloadAbi<NativeAbi>;
+pub type DisplayDescriptorChangedPayloadVm = DisplayDescriptorChangedPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayDescriptorChangedPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayDescriptorChangedPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayDescriptorChangedPayloadAbi<NativeAbi> {}
+impl Clone for DisplayDescriptorChangedPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayDescriptorChangedPayloadAbi<VmAbi> {}
+impl Clone for DisplayDescriptorChangedPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayDescriptorChangedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_descriptor =
+            <DisplayDescriptorVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_changed_mask = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            descriptor: field_descriptor,
+            changed_mask: field_changed_mask,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <DisplayDescriptorVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.changed_mask, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayEvent.
+#[repr(C)]
+pub struct DisplayEventAbi<A: BindingAbi> {
+    /// The display_id field.
+    pub display_id: Option<A::String>,
+    /// The kind field.
+    pub kind: DisplayEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The payload field.
+    pub payload: platform_display::DisplayEventPayloadAbi<A>,
+}
+
+pub type DisplayEvent = DisplayEventAbi<NativeAbi>;
+pub type DisplayEventVm = DisplayEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayEventAbi<NativeAbi> {}
+impl Clone for DisplayEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayEventAbi<VmAbi> {}
+impl Clone for DisplayEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_display_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind =
+            <DisplayEventKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_payload =
+            <DisplayEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            display_id: field_display_id,
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.display_id,
+                context,
+            )?,
+            <DisplayEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <DisplayEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayEventPayload.
+#[repr(C)]
+pub struct DisplayEventPayloadAbi<A: BindingAbi> {
+    /// The added field.
+    pub added: platform_display::DisplayAddedPayloadAbi<A>,
+    /// The removed field.
+    pub removed: platform_display::DisplayRemovedPayloadAbi<A>,
+    /// The primary field.
+    pub primary: platform_display::DisplayPrimaryPayloadAbi<A>,
+    /// The descriptor field.
+    pub descriptor: platform_display::DisplayDescriptorChangedPayloadAbi<A>,
+    /// The mode field.
+    pub mode: DisplayModeChangedPayload,
+}
+
+pub type DisplayEventPayload = DisplayEventPayloadAbi<NativeAbi>;
+pub type DisplayEventPayloadVm = DisplayEventPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayEventPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayEventPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayEventPayloadAbi<NativeAbi> {}
+impl Clone for DisplayEventPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayEventPayloadAbi<VmAbi> {}
+impl Clone for DisplayEventPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayEventPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayEventPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_added =
+            <DisplayAddedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_removed =
+            <DisplayRemovedPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_primary =
+            <DisplayPrimaryPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_descriptor =
+            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_mode = <DisplayModeChangedPayloadVm as VmAggregateCodec>::decode_with_context(
+            context, slots[4],
+        )?;
+        Ok(Self {
+            added: field_added,
+            removed: field_removed,
+            primary: field_primary,
+            descriptor: field_descriptor,
+            mode: field_mode,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <DisplayAddedPayloadVm as VmAggregateCodec>::encode_with_context(self.added, context)?,
+            <DisplayRemovedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.removed,
+                context,
+            )?,
+            <DisplayPrimaryPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.primary,
+                context,
+            )?,
+            <DisplayDescriptorChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.descriptor,
+                context,
+            )?,
+            <DisplayModeChangedPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.mode, context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -252,6 +996,8 @@ pub struct DisplayMode {
     pub refresh_milli_hz: u32,
     /// The format field.
     pub format: u32,
+    /// The bit_depth field.
+    pub bit_depth: u16,
 }
 
 pub type DisplayModeVm = DisplayMode;
@@ -271,10 +1017,10 @@ impl VmAggregateCodec for DisplayMode {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -283,11 +1029,13 @@ impl VmAggregateCodec for DisplayMode {
         let field_refresh_milli_hz =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_format = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_bit_depth = <u16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         Ok(Self {
             width: field_width,
             height: field_height,
             refresh_milli_hz: field_refresh_milli_hz,
             format: field_format,
+            bit_depth: field_bit_depth,
         })
     }
 
@@ -300,7 +1048,194 @@ impl VmAggregateCodec for DisplayMode {
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.refresh_milli_hz, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <u16 as VmAggregateCodec>::encode_with_context(self.bit_depth, context)?,
         ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayModeChangedPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DisplayModeChangedPayload {
+    /// The mode field.
+    pub mode: DisplayMode,
+}
+
+pub type DisplayModeChangedPayloadVm = DisplayModeChangedPayload;
+
+impl VmAggregateCodec for DisplayModeChangedPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayModeChangedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_mode =
+            <DisplayModeVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { mode: field_mode })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<DisplayModeVm as VmAggregateCodec>::encode_with_context(
+            self.mode, context,
+        )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayPrimaryPayload.
+#[repr(C)]
+pub struct DisplayPrimaryPayloadAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: Option<A::String>,
+}
+
+pub type DisplayPrimaryPayload = DisplayPrimaryPayloadAbi<NativeAbi>;
+pub type DisplayPrimaryPayloadVm = DisplayPrimaryPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayPrimaryPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayPrimaryPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayPrimaryPayloadAbi<NativeAbi> {}
+impl Clone for DisplayPrimaryPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayPrimaryPayloadAbi<VmAbi> {}
+impl Clone for DisplayPrimaryPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayPrimaryPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { id: field_id })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.id, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DisplayRemovedPayload.
+#[repr(C)]
+pub struct DisplayRemovedPayloadAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+}
+
+pub type DisplayRemovedPayload = DisplayRemovedPayloadAbi<NativeAbi>;
+pub type DisplayRemovedPayloadVm = DisplayRemovedPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DisplayRemovedPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DisplayRemovedPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DisplayRemovedPayloadAbi<NativeAbi> {}
+impl Clone for DisplayRemovedPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DisplayRemovedPayloadAbi<VmAbi> {}
+impl Clone for DisplayRemovedPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DisplayRemovedPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { id: field_id })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.id, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -312,16 +1247,18 @@ pub struct WindowDescriptorAbi<A: BindingAbi> {
     pub id: A::String,
     /// The title field.
     pub title: A::String,
-    /// The display_id field.
-    pub display_id: A::String,
     /// The mode field.
-    pub mode: WindowMode,
+    pub mode: WindowModeOptions,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
     /// The resizable field.
     pub resizable: bool,
     /// The decorated field.
     pub decorated: bool,
     /// The transparent field.
     pub transparent: bool,
+    /// The always_on_top field.
+    pub always_on_top: bool,
 }
 
 pub type WindowDescriptor = WindowDescriptorAbi<NativeAbi>;
@@ -363,10 +1300,10 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 7 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
@@ -374,20 +1311,26 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_title =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_display_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_mode = <WindowMode as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
         let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             id: field_id,
             title: field_title,
-            display_id: field_display_id,
             mode: field_mode,
+            display: field_display,
             resizable: field_resizable,
             decorated: field_decorated,
             transparent: field_transparent,
+            always_on_top: field_always_on_top,
         })
     }
 
@@ -398,11 +1341,70 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         let slots = vec![
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.display_id, context)?,
-            <WindowMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowDisplayPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowDisplayPayload {
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
+}
+
+pub type WindowDisplayPayloadVm = WindowDisplayPayload;
+
+impl VmAggregateCodec for WindowDisplayPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowDisplayPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        Ok(Self {
+            display: field_display,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -499,6 +1501,12 @@ pub struct WindowEventPayload {
     pub size: WindowSizePayload,
     /// The scale_factor field.
     pub scale_factor: WindowScaleFactorPayload,
+    /// The mode field.
+    pub mode: WindowModePayload,
+    /// The display field.
+    pub display: WindowDisplayPayload,
+    /// The theme field.
+    pub theme: WindowThemePayload,
 }
 
 pub type WindowEventPayloadVm = WindowEventPayload;
@@ -518,10 +1526,10 @@ impl VmAggregateCodec for WindowEventPayload {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 6 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -541,6 +1549,12 @@ impl VmAggregateCodec for WindowEventPayload {
             <WindowScaleFactorPayloadVm as VmAggregateCodec>::decode_with_context(
                 context, slots[5],
             )?;
+        let field_mode =
+            <WindowModePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_display =
+            <WindowDisplayPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_theme =
+            <WindowThemePayloadVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
             focus: field_focus,
             visibility: field_visibility,
@@ -548,6 +1562,9 @@ impl VmAggregateCodec for WindowEventPayload {
             position: field_position,
             size: field_size,
             scale_factor: field_scale_factor,
+            mode: field_mode,
+            display: field_display,
+            theme: field_theme,
         })
     }
 
@@ -574,6 +1591,12 @@ impl VmAggregateCodec for WindowEventPayload {
                 self.scale_factor,
                 context,
             )?,
+            <WindowModePayloadVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <WindowDisplayPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
+            <WindowThemePayloadVm as VmAggregateCodec>::encode_with_context(self.theme, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -625,6 +1648,177 @@ impl VmAggregateCodec for WindowFocusPayload {
             self.focused,
             context,
         )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowLogicalSize.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowLogicalSize {
+    /// The width field.
+    pub width: f64,
+    /// The height field.
+    pub height: f64,
+}
+
+pub type WindowLogicalSizeVm = WindowLogicalSize;
+
+impl VmAggregateCodec for WindowLogicalSize {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowLogicalSize",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            width: field_width,
+            height: field_height,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowModeOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowModeOptions {
+    /// The mode field.
+    pub mode: WindowMode,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
+    /// The display_mode field.
+    pub display_mode: Option<DisplayMode>,
+}
+
+pub type WindowModeOptionsVm = WindowModeOptions;
+
+impl VmAggregateCodec for WindowModeOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModeOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_mode = <WindowMode as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_display_mode =
+            <Option<DisplayModeVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            mode: field_mode,
+            display: field_display,
+            display_mode: field_display_mode,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <WindowMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
+            <Option<DisplayModeVm> as VmAggregateCodec>::encode_with_context(
+                self.display_mode,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowModePayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowModePayload {
+    /// The mode field.
+    pub mode: WindowModeOptions,
+}
+
+pub type WindowModePayloadVm = WindowModePayload;
+
+impl VmAggregateCodec for WindowModePayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowModePayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { mode: field_mode })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+        ];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -682,20 +1876,18 @@ impl VmAggregateCodec for WindowOcclusionPayload {
 /// ABI struct for WindowOptions.
 #[repr(C)]
 pub struct WindowOptionsAbi<A: BindingAbi> {
-    /// The width field.
-    pub width: u32,
-    /// The height field.
-    pub height: u32,
-    /// The x field.
-    pub x: i32,
-    /// The y field.
-    pub y: i32,
-    /// The flags field.
-    pub flags: u64,
     /// The title field.
     pub title: A::String,
+    /// The size_logical field.
+    pub size_logical: WindowLogicalSize,
+    /// The position field.
+    pub position: Option<WindowPosition>,
+    /// The constraints field.
+    pub constraints: Option<WindowSizeConstraints>,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
     /// The mode field.
-    pub mode: WindowMode,
+    pub mode: WindowModeOptions,
     /// The visibility field.
     pub visibility: WindowVisibility,
     /// The resizable field.
@@ -704,6 +1896,10 @@ pub struct WindowOptionsAbi<A: BindingAbi> {
     pub decorated: bool,
     /// The transparent field.
     pub transparent: bool,
+    /// The focus_on_show field.
+    pub focus_on_show: bool,
+    /// The always_on_top field.
+    pub always_on_top: bool,
 }
 
 pub type WindowOptions = WindowOptionsAbi<NativeAbi>;
@@ -745,39 +1941,127 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 11 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_flags = <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_title =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_mode = <WindowMode as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_position =
+            <Option<WindowPositionVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_constraints =
+            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[3],
+            )?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_mode =
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_transparent =
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_focus_on_show =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         Ok(Self {
-            width: field_width,
-            height: field_height,
-            x: field_x,
-            y: field_y,
-            flags: field_flags,
             title: field_title,
+            size_logical: field_size_logical,
+            position: field_position,
+            constraints: field_constraints,
+            display: field_display,
             mode: field_mode,
             visibility: field_visibility,
             resizable: field_resizable,
             decorated: field_decorated,
             transparent: field_transparent,
+            focus_on_show: field_focus_on_show,
+            always_on_top: field_always_on_top,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_logical,
+                context,
+            )?,
+            <Option<WindowPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?,
+            <Option<WindowSizeConstraintsVm> as VmAggregateCodec>::encode_with_context(
+                self.constraints,
+                context,
+            )?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
+            <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
+            <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.focus_on_show, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowPhysicalSize.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowPhysicalSize {
+    /// The width field.
+    pub width: u32,
+    /// The height field.
+    pub height: u32,
+}
+
+pub type WindowPhysicalSizeVm = WindowPhysicalSize;
+
+impl VmAggregateCodec for WindowPhysicalSize {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPhysicalSize",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            width: field_width,
+            height: field_height,
         })
     }
 
@@ -788,33 +2072,24 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
         let slots = vec![
             <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
-            <WindowMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
-            <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.resizable, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.decorated, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.transparent, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
 }
 
-/// ABI struct for WindowPositionPayload.
+/// ABI struct for WindowPosition.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct WindowPositionPayload {
+pub struct WindowPosition {
     /// The x field.
     pub x: i32,
     /// The y field.
     pub y: i32,
 }
 
-pub type WindowPositionPayloadVm = WindowPositionPayload;
+pub type WindowPositionVm = WindowPosition;
 
-impl VmAggregateCodec for WindowPositionPayload {
+impl VmAggregateCodec for WindowPosition {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -822,7 +2097,7 @@ impl VmAggregateCodec for WindowPositionPayload {
         if value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
                 "value",
-                "WindowPositionPayload",
+                "WindowPosition",
             ))
             .boxed());
         }
@@ -852,6 +2127,57 @@ impl VmAggregateCodec for WindowPositionPayload {
             <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
             <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
         ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowPositionPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowPositionPayload {
+    /// The position field.
+    pub position: WindowPosition,
+}
+
+pub type WindowPositionPayloadVm = WindowPositionPayload;
+
+impl VmAggregateCodec for WindowPositionPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowPositionPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_position =
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            position: field_position,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<WindowPositionVm as VmAggregateCodec>::encode_with_context(
+            self.position,
+            context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -907,14 +2233,76 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
     }
 }
 
+/// ABI struct for WindowSizeConstraints.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowSizeConstraints {
+    /// The min field.
+    pub min: Option<WindowLogicalSize>,
+    /// The max field.
+    pub max: Option<WindowLogicalSize>,
+}
+
+pub type WindowSizeConstraintsVm = WindowSizeConstraints;
+
+impl VmAggregateCodec for WindowSizeConstraints {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowSizeConstraints",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_min = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_max = <Option<WindowLogicalSizeVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        Ok(Self {
+            min: field_min,
+            max: field_max,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+                self.min, context,
+            )?,
+            <Option<WindowLogicalSizeVm> as VmAggregateCodec>::encode_with_context(
+                self.max, context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for WindowSizePayload.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowSizePayload {
-    /// The width field.
-    pub width: u32,
-    /// The height field.
-    pub height: u32,
+    /// The size_logical field.
+    pub size_logical: WindowLogicalSize,
+    /// The size_physical field.
+    pub size_physical: WindowPhysicalSize,
 }
 
 pub type WindowSizePayloadVm = WindowSizePayload;
@@ -941,11 +2329,13 @@ impl VmAggregateCodec for WindowSizePayload {
             ))
             .boxed());
         }
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_size_physical =
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         Ok(Self {
-            width: field_width,
-            height: field_height,
+            size_logical: field_size_logical,
+            size_physical: field_size_physical,
         })
     }
 
@@ -954,8 +2344,14 @@ impl VmAggregateCodec for WindowSizePayload {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_logical,
+                context,
+            )?,
+            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_physical,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -965,22 +2361,26 @@ impl VmAggregateCodec for WindowSizePayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowState {
-    /// The x field.
-    pub x: i32,
-    /// The y field.
-    pub y: i32,
-    /// The width field.
-    pub width: u32,
-    /// The height field.
-    pub height: u32,
+    /// The position field.
+    pub position: WindowPosition,
+    /// The size_logical field.
+    pub size_logical: WindowLogicalSize,
+    /// The size_physical field.
+    pub size_physical: WindowPhysicalSize,
     /// The scale_factor_milli field.
     pub scale_factor_milli: u32,
     /// The visibility field.
     pub visibility: WindowVisibility,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
     /// The focused field.
     pub focused: bool,
     /// The occluded field.
     pub occluded: bool,
+    /// The theme field.
+    pub theme: WindowTheme,
+    /// The always_on_top field.
+    pub always_on_top: bool,
 }
 
 pub type WindowStateVm = WindowState;
@@ -1000,32 +2400,44 @@ impl VmAggregateCodec for WindowState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 8 fields",
+                "expected 10 fields",
             ))
             .boxed());
         }
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_position =
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_size_logical =
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_size_physical =
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_display =
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_occluded = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_theme =
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_always_on_top =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         Ok(Self {
-            x: field_x,
-            y: field_y,
-            width: field_width,
-            height: field_height,
+            position: field_position,
+            size_logical: field_size_logical,
+            size_physical: field_size_physical,
             scale_factor_milli: field_scale_factor_milli,
             visibility: field_visibility,
+            display: field_display,
             focused: field_focused,
             occluded: field_occluded,
+            theme: field_theme,
+            always_on_top: field_always_on_top,
         })
     }
 
@@ -1034,15 +2446,74 @@ impl VmAggregateCodec for WindowState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.position, context)?,
+            <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_logical,
+                context,
+            )?,
+            <WindowPhysicalSizeVm as VmAggregateCodec>::encode_with_context(
+                self.size_physical,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.scale_factor_milli, context)?,
             <WindowVisibility as VmAggregateCodec>::encode_with_context(self.visibility, context)?,
+            <Option<resource::DisplayHandle> as VmAggregateCodec>::encode_with_context(
+                self.display,
+                context,
+            )?,
             <bool as VmAggregateCodec>::encode_with_context(self.focused, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.occluded, context)?,
+            <WindowTheme as VmAggregateCodec>::encode_with_context(self.theme, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.always_on_top, context)?,
         ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for WindowThemePayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WindowThemePayload {
+    /// The theme field.
+    pub theme: WindowTheme,
+}
+
+pub type WindowThemePayloadVm = WindowThemePayload;
+
+impl VmAggregateCodec for WindowThemePayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "WindowThemePayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_theme =
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self { theme: field_theme })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<WindowTheme as VmAggregateCodec>::encode_with_context(
+            self.theme, context,
+        )?];
         Ok(context.allocate_aggregate(slots))
     }
 }
@@ -1098,6 +2569,13 @@ impl VmAggregateCodec for WindowVisibilityPayload {
     }
 }
 
+/// Replay struct for DisplayAddedPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayAddedPayloadReplayRecord {
+    /// The descriptor field.
+    pub descriptor: DisplayDescriptorReplayRecord,
+}
+
 /// Replay struct for DisplayDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayDescriptorReplayRecord {
@@ -1105,12 +2583,91 @@ pub struct DisplayDescriptorReplayRecord {
     pub id: String,
     /// The name field.
     pub name: String,
+    /// The primary field.
+    pub primary: bool,
+    /// The x field.
+    pub x: i32,
+    /// The y field.
+    pub y: i32,
+    /// The width_px field.
+    pub width_px: u32,
+    /// The height_px field.
+    pub height_px: u32,
+    /// The work_area_x field.
+    pub work_area_x: i32,
+    /// The work_area_y field.
+    pub work_area_y: i32,
+    /// The work_area_width_px field.
+    pub work_area_width_px: u32,
+    /// The work_area_height_px field.
+    pub work_area_height_px: u32,
     /// The width_mm field.
     pub width_mm: u32,
     /// The height_mm field.
     pub height_mm: u32,
+    /// The scale_factor_milli field.
+    pub scale_factor_milli: u32,
+    /// The orientation field.
+    pub orientation: DisplayOrientation,
+    /// The is_builtin field.
+    pub is_builtin: bool,
+    /// The supports_variable_refresh field.
+    pub supports_variable_refresh: bool,
+    /// The supports_hdr field.
+    pub supports_hdr: bool,
+}
+
+/// Replay struct for DisplayDescriptorChangedPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayDescriptorChangedPayloadReplayRecord {
+    /// The descriptor field.
+    pub descriptor: DisplayDescriptorReplayRecord,
+    /// The changed_mask field.
+    pub changed_mask: u32,
+}
+
+/// Replay struct for DisplayEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayEventReplayRecord {
+    /// The display_id field.
+    pub display_id: Option<String>,
+    /// The kind field.
+    pub kind: DisplayEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The payload field.
+    pub payload: DisplayEventPayloadReplayRecord,
+}
+
+/// Replay struct for DisplayEventPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayEventPayloadReplayRecord {
+    /// The added field.
+    pub added: DisplayAddedPayloadReplayRecord,
+    /// The removed field.
+    pub removed: DisplayRemovedPayloadReplayRecord,
     /// The primary field.
-    pub primary: bool,
+    pub primary: DisplayPrimaryPayloadReplayRecord,
+    /// The descriptor field.
+    pub descriptor: DisplayDescriptorChangedPayloadReplayRecord,
+    /// The mode field.
+    pub mode: DisplayModeChangedPayload,
+}
+
+/// Replay struct for DisplayPrimaryPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayPrimaryPayloadReplayRecord {
+    /// The id field.
+    pub id: Option<String>,
+}
+
+/// Replay struct for DisplayRemovedPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DisplayRemovedPayloadReplayRecord {
+    /// The id field.
+    pub id: String,
 }
 
 /// Replay struct for WindowDescriptor.
@@ -1120,35 +2677,35 @@ pub struct WindowDescriptorReplayRecord {
     pub id: String,
     /// The title field.
     pub title: String,
-    /// The display_id field.
-    pub display_id: String,
     /// The mode field.
-    pub mode: WindowMode,
+    pub mode: WindowModeOptions,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
     /// The resizable field.
     pub resizable: bool,
     /// The decorated field.
     pub decorated: bool,
     /// The transparent field.
     pub transparent: bool,
+    /// The always_on_top field.
+    pub always_on_top: bool,
 }
 
 /// Replay struct for WindowOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowOptionsReplayRecord {
-    /// The width field.
-    pub width: u32,
-    /// The height field.
-    pub height: u32,
-    /// The x field.
-    pub x: i32,
-    /// The y field.
-    pub y: i32,
-    /// The flags field.
-    pub flags: u64,
     /// The title field.
     pub title: String,
+    /// The size_logical field.
+    pub size_logical: WindowLogicalSize,
+    /// The position field.
+    pub position: Option<WindowPosition>,
+    /// The constraints field.
+    pub constraints: Option<WindowSizeConstraints>,
+    /// The display field.
+    pub display: Option<resource::DisplayHandle>,
     /// The mode field.
-    pub mode: WindowMode,
+    pub mode: WindowModeOptions,
     /// The visibility field.
     pub visibility: WindowVisibility,
     /// The resizable field.
@@ -1157,4 +2714,8 @@ pub struct WindowOptionsReplayRecord {
     pub decorated: bool,
     /// The transparent field.
     pub transparent: bool,
+    /// The focus_on_show field.
+    pub focus_on_show: bool,
+    /// The always_on_top field.
+    pub always_on_top: bool,
 }

@@ -7,13 +7,22 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayDescriptor, DisplayDescriptorVm, DisplayMode, DisplayModeVm, WindowDescriptor,
-    WindowDescriptorVm, WindowEvent, WindowEventKind, WindowEventPayload, WindowEventPayloadVm,
-    WindowEventVm, WindowFocusPayload, WindowFocusPayloadVm, WindowMode, WindowOcclusionPayload,
-    WindowOcclusionPayloadVm, WindowOptions, WindowOptionsVm, WindowPositionPayload,
-    WindowPositionPayloadVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
-    WindowSizePayload, WindowSizePayloadVm, WindowState, WindowStateVm, WindowVisibility,
-    WindowVisibilityPayload, WindowVisibilityPayloadVm, native as display_native, vm as display_vm,
+    DisplayAddedPayload, DisplayAddedPayloadVm, DisplayDescriptor, DisplayDescriptorChangedPayload,
+    DisplayDescriptorChangedPayloadVm, DisplayDescriptorVm, DisplayEvent, DisplayEventKind,
+    DisplayEventPayload, DisplayEventPayloadVm, DisplayEventVm, DisplayMode,
+    DisplayModeChangedPayload, DisplayModeChangedPayloadVm, DisplayModeVm, DisplayOrientation,
+    DisplayPrimaryPayload, DisplayPrimaryPayloadVm, DisplayRemovedPayload, DisplayRemovedPayloadVm,
+    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowDescriptorVm,
+    WindowDisplayPayload, WindowDisplayPayloadVm, WindowEvent, WindowEventKind, WindowEventPayload,
+    WindowEventPayloadVm, WindowEventVm, WindowFocusPayload, WindowFocusPayloadVm,
+    WindowLogicalSize, WindowLogicalSizeVm, WindowMode, WindowModeOptions, WindowModeOptionsVm,
+    WindowModePayload, WindowModePayloadVm, WindowOcclusionPayload, WindowOcclusionPayloadVm,
+    WindowOptions, WindowOptionsVm, WindowPhysicalSize, WindowPhysicalSizeVm, WindowPosition,
+    WindowPositionPayload, WindowPositionPayloadVm, WindowPositionVm, WindowScaleFactorPayload,
+    WindowScaleFactorPayloadVm, WindowSizeConstraints, WindowSizeConstraintsVm, WindowSizePayload,
+    WindowSizePayloadVm, WindowState, WindowStateVm, WindowTheme, WindowThemePayload,
+    WindowThemePayloadVm, WindowVisibility, WindowVisibilityPayload, WindowVisibilityPayloadVm,
+    native as display_native, vm as display_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -56,13 +65,460 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_close(
+    pub(crate) fn destack_display_monitor_close(
         &mut self,
         handle: resource::DisplayHandle,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => display_vm::destack_display_close(self.call_context, context, handle),
-            None => unsafe { display_native::destack_display_close(self.call_context, handle) },
+            Some(context) => {
+                display_vm::destack_display_monitor_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                display_native::destack_display_monitor_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Resolve one requested mode to the closest supported mode.
+    ///
+    /// Return one backend-selected closest mode for one requested mode.
+    /// Mode-matching behavior follows host backend selection policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend mode-matching queries where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_closest_mode(
+        &mut self,
+        handle: resource::DisplayHandle,
+        requested: HarnessValue<DisplayMode, DisplayModeVm>,
+    ) -> RuntimeResult<HarnessValue<DisplayMode, DisplayModeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let requested = requested.into_vm("requested")?;
+                let out = display_vm::destack_display_monitor_closest_mode(
+                    self.call_context,
+                    context,
+                    handle,
+                    requested,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let requested = requested.into_native("requested")?;
+                let mut out = std::mem::MaybeUninit::<DisplayMode>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_closest_mode(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        requested,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read the current mode for one opened display.
+    ///
+    /// Read one point-in-time active mode for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific current-mode queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_current_mode(
+        &mut self,
+        handle: resource::DisplayHandle,
+    ) -> RuntimeResult<HarnessValue<DisplayMode, DisplayModeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_current_mode(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayMode>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_current_mode(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read descriptor metadata for one opened display.
+    ///
+    /// Read one normalized descriptor snapshot for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific monitor metadata queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_descriptor(
+        &mut self,
+        handle: resource::DisplayHandle,
+    ) -> RuntimeResult<HarnessValue<DisplayDescriptor, DisplayDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_descriptor(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayDescriptor>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_descriptor(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read the desktop-preferred mode for one opened display.
+    ///
+    /// Read one platform desktop mode for one opened display endpoint.
+    /// This aligns with SDL desktop-mode and Unreal desktop-resolution semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend desktop-mode queries where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_desktop_mode(
+        &mut self,
+        handle: resource::DisplayHandle,
+    ) -> RuntimeResult<HarnessValue<DisplayMode, DisplayModeVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_desktop_mode(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayMode>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_desktop_mode(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close one global monitor-event stream.
+    ///
+    /// Close one opened monitor-event stream and release host monitor routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific event-stream close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_close(
+        &mut self,
+        handle: resource::DisplayEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                display_vm::destack_display_monitor_event_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                display_native::destack_display_monitor_event_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open one global monitor-event stream.
+    ///
+    /// Open one host monitor-event stream for display hotplug and metrics-change routing.
+    /// Event ordering follows host event-loop delivery behavior.
+    /// This stream should be consumed from one runtime event-loop thread.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host monitor callback or message subscriptions similar to GLFW monitor callbacks and SDL display events.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_open(
+        &mut self,
+    ) -> RuntimeResult<resource::DisplayEventHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    display_vm::destack_display_monitor_event_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::DisplayEventHandle>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_event_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one monitor event.
+    ///
+    /// Wait for one event from one opened monitor-event stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_read(
+        &mut self,
+        handle: resource::DisplayEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<DisplayEvent, DisplayEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_event_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayEvent>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_event_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Wait for one batch of monitor events.
+    ///
+    /// Wait for pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue batch wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_read_batch(
+        &mut self,
+        handle: resource::DisplayEventHandle,
+        maxevents: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DisplayEvent>, VmArray<DisplayEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_event_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<DisplayEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_event_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one monitor event without blocking.
+    ///
+    /// Poll one pending event from one opened monitor-event stream without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_try_read(
+        &mut self,
+        handle: resource::DisplayEventHandle,
+    ) -> RuntimeResult<HarnessValue<DisplayEvent, DisplayEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_event_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<DisplayEvent>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_event_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one batch of monitor events without blocking.
+    ///
+    /// Poll pending events from one opened monitor-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue batch polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_event_try_read_batch(
+        &mut self,
+        handle: resource::DisplayEventHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DisplayEvent>, VmArray<DisplayEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_event_try_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<DisplayEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_event_try_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
         }
     }
 
@@ -83,19 +539,22 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_list(
+    pub(crate) fn destack_display_monitor_list(
         &mut self,
     ) -> RuntimeResult<HarnessValue<NativeSlice<DisplayDescriptor>, VmSlice<DisplayDescriptorVm>>>
     {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = display_vm::destack_display_list(self.call_context, context)?;
+                let out = display_vm::destack_display_monitor_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<DisplayDescriptor>>::uninit();
                 unsafe {
-                    display_native::destack_display_list(self.call_context, out.as_mut_ptr())?;
+                    display_native::destack_display_monitor_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -120,19 +579,20 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_modes(
+    pub(crate) fn destack_display_monitor_modes(
         &mut self,
         handle: resource::DisplayHandle,
     ) -> RuntimeResult<HarnessValue<NativeSlice<DisplayMode>, VmSlice<DisplayModeVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = display_vm::destack_display_modes(self.call_context, context, handle)?;
+                let out =
+                    display_vm::destack_display_monitor_modes(self.call_context, context, handle)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeSlice<DisplayMode>>::uninit();
                 unsafe {
-                    display_native::destack_display_modes(
+                    display_native::destack_display_monitor_modes(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
@@ -161,21 +621,64 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_open(
+    pub(crate) fn destack_display_monitor_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<resource::DisplayHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let id = id.into_vm("id")?;
-                let out = display_vm::destack_display_open(self.call_context, context, id)?;
+                let out = display_vm::destack_display_monitor_open(self.call_context, context, id)?;
                 Ok(out)
             }
             None => {
                 let id = id.into_native("id")?;
                 let mut out = std::mem::MaybeUninit::<resource::DisplayHandle>::uninit();
                 unsafe {
-                    display_native::destack_display_open(self.call_context, out.as_mut_ptr(), id)?;
+                    display_native::destack_display_monitor_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        id,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read the current primary display handle.
+    ///
+    /// Return one opened display handle for the current primary display when available.
+    /// Returns `void` when the backend has no discoverable primary display.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses compositor and system-display primary-output selection.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_monitor_primary(
+        &mut self,
+    ) -> RuntimeResult<Option<resource::DisplayHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_monitor_primary(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<Option<resource::DisplayHandle>>::uninit();
+                unsafe {
+                    display_native::destack_display_monitor_primary(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
@@ -200,7 +703,7 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_display_set_mode(
+    pub(crate) fn destack_display_monitor_set_mode(
         &mut self,
         handle: resource::DisplayHandle,
         mode: HarnessValue<DisplayMode, DisplayModeVm>,
@@ -208,11 +711,22 @@ impl<'call> DisplayHarnessContext<'call> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let mode = mode.into_vm("mode")?;
-                display_vm::destack_display_set_mode(self.call_context, context, handle, mode)
+                display_vm::destack_display_monitor_set_mode(
+                    self.call_context,
+                    context,
+                    handle,
+                    mode,
+                )
             }
             None => {
                 let mode = mode.into_native("mode")?;
-                unsafe { display_native::destack_display_set_mode(self.call_context, handle, mode) }
+                unsafe {
+                    display_native::destack_display_monitor_set_mode(
+                        self.call_context,
+                        handle,
+                        mode,
+                    )
+                }
             }
         }
     }
@@ -325,6 +839,7 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// Open one host window-event stream for all windows in this runtime.
     /// Event ordering follows host event-loop delivery behavior.
+    /// This stream should be consumed from one runtime event-loop thread.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -550,9 +1065,9 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open one window on a display.
+    /// Open one window.
     ///
-    /// Create one host window bound to the specified display endpoint.
+    /// Create one host window with one explicit window configuration payload.
     /// Window lifecycle and compositor integration follow host window-system semantics.
     ///
     /// # Platform
@@ -569,18 +1084,13 @@ impl<'call> DisplayHarnessContext<'call> {
     /// External, recordable.
     pub(crate) fn destack_display_window_open(
         &mut self,
-        display: resource::DisplayHandle,
         options: HarnessValue<WindowOptions, WindowOptionsVm>,
     ) -> RuntimeResult<resource::WindowHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let options = options.into_vm("options")?;
-                let out = display_vm::destack_display_window_open(
-                    self.call_context,
-                    context,
-                    display,
-                    options,
-                )?;
+                let out =
+                    display_vm::destack_display_window_open(self.call_context, context, options)?;
                 Ok(out)
             }
             None => {
@@ -590,13 +1100,50 @@ impl<'call> DisplayHarnessContext<'call> {
                     display_native::destack_display_window_open(
                         self.call_context,
                         out.as_mut_ptr(),
-                        display,
                         options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
             }
+        }
+    }
+
+    /// Request user attention for one window.
+    ///
+    /// Request host-specific user attention signaling for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific request-attention primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_request_attention(
+        &mut self,
+        window: resource::WindowHandle,
+        level: WindowAttentionLevel,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_request_attention(
+                self.call_context,
+                context,
+                window,
+                level,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_request_attention(
+                    self.call_context,
+                    window,
+                    level,
+                )
+            },
         }
     }
 
@@ -632,6 +1179,240 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
+    /// Set always-on-top state.
+    ///
+    /// Toggle host always-on-top policy for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific topmost-window flags.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_always_on_top(
+        &mut self,
+        window: resource::WindowHandle,
+        alwaysontop: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_always_on_top(
+                self.call_context,
+                context,
+                window,
+                alwaysontop,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_always_on_top(
+                    self.call_context,
+                    window,
+                    alwaysontop,
+                )
+            },
+        }
+    }
+
+    /// Set cursor icon for one window.
+    ///
+    /// Apply one standard system cursor icon for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific cursor-shape operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_cursor_icon(
+        &mut self,
+        window: resource::WindowHandle,
+        icon: WindowCursorIcon,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_cursor_icon(
+                self.call_context,
+                context,
+                window,
+                icon,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_cursor_icon(
+                    self.call_context,
+                    window,
+                    icon,
+                )
+            },
+        }
+    }
+
+    /// Set cursor interaction mode for one window.
+    ///
+    /// Apply one cursor mode policy for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific cursor lock and confine and hide operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_cursor_mode(
+        &mut self,
+        window: resource::WindowHandle,
+        mode: WindowCursorMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_cursor_mode(
+                self.call_context,
+                context,
+                window,
+                mode,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_cursor_mode(
+                    self.call_context,
+                    window,
+                    mode,
+                )
+            },
+        }
+    }
+
+    /// Set cursor position for one window.
+    ///
+    /// Warp cursor position relative to one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific cursor warp operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_cursor_position(
+        &mut self,
+        window: resource::WindowHandle,
+        position: HarnessValue<WindowPosition, WindowPositionVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let position = position.into_vm("position")?;
+                display_vm::destack_display_window_set_cursor_position(
+                    self.call_context,
+                    context,
+                    window,
+                    position,
+                )
+            }
+            None => {
+                let position = position.into_native("position")?;
+                unsafe {
+                    display_native::destack_display_window_set_cursor_position(
+                        self.call_context,
+                        window,
+                        position,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Set cursor visibility for one window.
+    ///
+    /// Show or hide one window cursor without changing lock or confinement state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific cursor visibility operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_cursor_visible(
+        &mut self,
+        window: resource::WindowHandle,
+        visible: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_cursor_visible(
+                self.call_context,
+                context,
+                window,
+                visible,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_cursor_visible(
+                    self.call_context,
+                    window,
+                    visible,
+                )
+            },
+        }
+    }
+
+    /// Set window decoration state.
+    ///
+    /// Toggle host decorations for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific decorated-window flags.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_decorated(
+        &mut self,
+        window: resource::WindowHandle,
+        decorated: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_decorated(
+                self.call_context,
+                context,
+                window,
+                decorated,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_decorated(
+                    self.call_context,
+                    window,
+                    decorated,
+                )
+            },
+        }
+    }
+
     /// Set one window mode.
     ///
     /// Apply one host window mode transition for one opened window.
@@ -651,24 +1432,30 @@ impl<'call> DisplayHarnessContext<'call> {
     pub(crate) fn destack_display_window_set_mode(
         &mut self,
         window: resource::WindowHandle,
-        mode: WindowMode,
+        mode: HarnessValue<WindowModeOptions, WindowModeOptionsVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => display_vm::destack_display_window_set_mode(
-                self.call_context,
-                context,
-                window,
-                mode,
-            ),
-            None => unsafe {
-                display_native::destack_display_window_set_mode(self.call_context, window, mode)
-            },
+            Some(context) => {
+                let mode = mode.into_vm("mode")?;
+                display_vm::destack_display_window_set_mode(
+                    self.call_context,
+                    context,
+                    window,
+                    mode,
+                )
+            }
+            None => {
+                let mode = mode.into_native("mode")?;
+                unsafe {
+                    display_native::destack_display_window_set_mode(self.call_context, window, mode)
+                }
+            }
         }
     }
 
     /// Set one window position.
     ///
-    /// Apply one host window position in physical pixels.
+    /// Apply one host window position in desktop coordinates.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -685,26 +1472,72 @@ impl<'call> DisplayHarnessContext<'call> {
     pub(crate) fn destack_display_window_set_position(
         &mut self,
         window: resource::WindowHandle,
-        x: i32,
-        y: i32,
+        position: HarnessValue<WindowPosition, WindowPositionVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => display_vm::destack_display_window_set_position(
+            Some(context) => {
+                let position = position.into_vm("position")?;
+                display_vm::destack_display_window_set_position(
+                    self.call_context,
+                    context,
+                    window,
+                    position,
+                )
+            }
+            None => {
+                let position = position.into_native("position")?;
+                unsafe {
+                    display_native::destack_display_window_set_position(
+                        self.call_context,
+                        window,
+                        position,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Set window resizable state.
+    ///
+    /// Toggle host resize affordances for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific resizable-window flags.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_resizable(
+        &mut self,
+        window: resource::WindowHandle,
+        resizable: bool,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_resizable(
                 self.call_context,
                 context,
                 window,
-                x,
-                y,
+                resizable,
             ),
             None => unsafe {
-                display_native::destack_display_window_set_position(self.call_context, window, x, y)
+                display_native::destack_display_window_set_resizable(
+                    self.call_context,
+                    window,
+                    resizable,
+                )
             },
         }
     }
 
-    /// Set one window size.
+    /// Set one logical window size.
     ///
-    /// Apply one host window size in physical pixels.
+    /// Apply one host window size in logical platform points.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -718,28 +1551,120 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_window_set_size(
+    pub(crate) fn destack_display_window_set_size_logical(
         &mut self,
         window: resource::WindowHandle,
-        width: u32,
-        height: u32,
+        size: HarnessValue<WindowLogicalSize, WindowLogicalSizeVm>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => display_vm::destack_display_window_set_size(
-                self.call_context,
-                context,
-                window,
-                width,
-                height,
-            ),
-            None => unsafe {
-                display_native::destack_display_window_set_size(
+            Some(context) => {
+                let size = size.into_vm("size")?;
+                display_vm::destack_display_window_set_size_logical(
                     self.call_context,
+                    context,
                     window,
-                    width,
-                    height,
+                    size,
                 )
-            },
+            }
+            None => {
+                let size = size.into_native("size")?;
+                unsafe {
+                    display_native::destack_display_window_set_size_logical(
+                        self.call_context,
+                        window,
+                        size,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Set logical size constraints.
+    ///
+    /// Apply minimum and maximum logical size constraints for one window.
+    /// Passing `void` clears current constraints.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific size-constraint operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_size_constraints(
+        &mut self,
+        window: resource::WindowHandle,
+        constraints: HarnessValue<Option<WindowSizeConstraints>, Option<WindowSizeConstraintsVm>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let constraints = constraints.into_vm("constraints")?;
+                display_vm::destack_display_window_set_size_constraints(
+                    self.call_context,
+                    context,
+                    window,
+                    constraints,
+                )
+            }
+            None => {
+                let constraints = constraints.into_native("constraints")?;
+                unsafe {
+                    display_native::destack_display_window_set_size_constraints(
+                        self.call_context,
+                        window,
+                        constraints,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Set one physical window size.
+    ///
+    /// Apply one host window size in physical pixels.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific pixel-size resize operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_size_physical(
+        &mut self,
+        window: resource::WindowHandle,
+        size: HarnessValue<WindowPhysicalSize, WindowPhysicalSizeVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let size = size.into_vm("size")?;
+                display_vm::destack_display_window_set_size_physical(
+                    self.call_context,
+                    context,
+                    window,
+                    size,
+                )
+            }
+            None => {
+                let size = size.into_native("size")?;
+                unsafe {
+                    display_native::destack_display_window_set_size_physical(
+                        self.call_context,
+                        window,
+                        size,
+                    )
+                }
+            }
         }
     }
 
