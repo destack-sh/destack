@@ -2,11 +2,10 @@ use crate::format::collection::list_like;
 use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
 use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::declaration::statement::format_block_of_statements;
-use crate::format::expression::{
-    BinaryOperator, ParenthesizedDropMode, should_drop_parenthesized,
-    should_drop_parenthesized_type_expression,
+use crate::format::expression::{BinaryOperator, ParenthesizedDropMode, should_drop_parenthesized};
+use crate::format::operator::{
+    flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix, is_type_context,
 };
-use crate::format::operator::{flatten_type_binary_expression, is_type_context};
 use crate::{
     Annotation, DestackFormatContext, DestackFormatter, FormatNode,
     empty_block_with_infix_annotations,
@@ -14,8 +13,8 @@ use crate::{
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationDescriptor, DeclarationKind, DependencyKind,
     DependencyMode, Expression, FunctionKind, Generics, Heritage, IfKind, ImportAliasTarget, Key,
-    Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind, NodeType, Parameter, TypeKind,
-    Visibility,
+    Keyword, LocalNodeId, Member, Mutability, Name, NamespaceKind, NodeType, Parameter, TokenType,
+    TypeKind, Visibility,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -29,47 +28,47 @@ use crate::format::declaration::r#type::{
 
 const TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH: u16 = 80;
 
+/// Normalized type-alias value expression data.
+struct NormalizedTypeAliasValueExpression {
+    /// The normalized value expression to print.
+    value_id: LocalNodeId<Expression>,
+    /// Transparent wrapper owners whose prefix annotations stay before `value_id`.
+    dropped_prefix_annotation_owner_ids: Vec<LocalNodeId<Expression>>,
+}
+
 /// Normalize one TypeScript type-alias value through transparent grouping wrappers.
 ///
-/// This mirrors oxc/prettier single-member union transparency for TS fixtures:
-/// nested `| (...)` wrapper chains should resolve to the effective value expression.
+/// This mirrors oxc and Prettier single-member union transparency in TS fixtures.
 fn normalize_typescript_type_alias_value_expression(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
+) -> NormalizedTypeAliasValueExpression {
     if context.options.language_type.is_destack() {
-        return value_id;
+        return NormalizedTypeAliasValueExpression {
+            value_id,
+            dropped_prefix_annotation_owner_ids: Vec::new(),
+        };
     }
 
     let mut current_id = value_id;
+    let mut dropped_prefix_annotation_owner_ids = Vec::new();
     loop {
         match context.tree.get(current_id) {
             Expression::Statement(inner_expression_id) => {
+                if context.has_prefix_annotation(current_id) {
+                    dropped_prefix_annotation_owner_ids.push(current_id);
+                }
                 current_id = *inner_expression_id;
                 continue;
             }
             Expression::Parenthesized {
                 expression: inner_expression_id,
             } => {
-                let inner_id = *inner_expression_id;
-                let inner_is_type_grouping_wrapper = matches!(
-                    context.tree.get(inner_id),
-                    Expression::Parenthesized { .. }
-                        | Expression::Binary {
-                            operator: BinaryOperator::ElementwiseOr
-                                | BinaryOperator::ElementwiseAnd,
-                            ..
-                        }
-                ) && is_type_context(context, inner_id);
-                if !context.has_annotation(current_id) && inner_is_type_grouping_wrapper {
-                    current_id = inner_id;
-                    continue;
+                if context.has_prefix_annotation(current_id) {
+                    dropped_prefix_annotation_owner_ids.push(current_id);
                 }
-
-                if should_drop_parenthesized_type_expression(context, current_id, inner_id) {
-                    current_id = *inner_expression_id;
-                    continue;
-                }
+                current_id = *inner_expression_id;
+                continue;
             }
             Expression::Binary { operator, .. }
                 if is_type_context(context, current_id)
@@ -80,6 +79,9 @@ fn normalize_typescript_type_alias_value_expression(
             {
                 let operands = flatten_type_binary_expression(context, current_id, *operator);
                 if operands.len() == 1 {
+                    if context.has_prefix_annotation(current_id) {
+                        break;
+                    }
                     current_id = operands[0].expression;
                     continue;
                 }
@@ -90,7 +92,10 @@ fn normalize_typescript_type_alias_value_expression(
         break;
     }
 
-    current_id
+    NormalizedTypeAliasValueExpression {
+        value_id: current_id,
+        dropped_prefix_annotation_owner_ids,
+    }
 }
 
 /// Return whether one union value ends with an own-line doc prefix annotation.
@@ -116,6 +121,92 @@ fn union_has_trailing_own_line_doc_prefix_annotation(
                 && context.annotation_starts_on_own_line(annotation_id)
                 && !context.annotation_next_token_is_on_same_line(annotation_id)
         })
+}
+
+/// Return whether one expression has an own-line prefix annotation.
+fn expression_has_own_line_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotations| {
+            annotations.iter().copied().any(|annotation_id| {
+                matches!(
+                    context.annotation(annotation_id).position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) && context.annotation_starts_on_own_line(annotation_id)
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one type-alias value is a union or intersection through transparent wrappers.
+fn type_alias_value_is_type_binary_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+    loop {
+        match context.tree.get(current_id) {
+            Expression::Statement(inner_expression_id) => {
+                current_id = *inner_expression_id;
+            }
+            Expression::Parenthesized {
+                expression: inner_expression_id,
+            } => {
+                current_id = *inner_expression_id;
+            }
+            Expression::Binary { operator, .. } => {
+                return is_type_context(context, current_id)
+                    && matches!(
+                        operator,
+                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                    );
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// Return whether dropped wrappers include one own-line `|` line-prefix seam comment.
+fn dropped_wrappers_have_own_line_pipe_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_ids: &[LocalNodeId<Expression>],
+) -> bool {
+    expression_ids.iter().copied().any(|expression_id| {
+        context
+            .visit_annotations(expression_id, |annotations| {
+                annotations.iter().copied().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id).position(),
+                        AnnotationPosition::LinePrefix
+                    ) && context.annotation_starts_on_own_line(annotation_id)
+                        && context.annotation_next_token_is_on_same_line(annotation_id)
+                        && context.annotation_next_non_whitespace_token_type(annotation_id)
+                            == Some(TokenType::ElementwiseOr)
+                })
+            })
+            .unwrap_or(false)
+    })
+}
+
+/// Return whether dropped wrappers include one block-prefix annotation.
+fn dropped_wrappers_have_block_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_ids: &[LocalNodeId<Expression>],
+) -> bool {
+    expression_ids.iter().copied().any(|expression_id| {
+        context
+            .visit_annotations(expression_id, |annotations| {
+                annotations.iter().copied().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id).position(),
+                        AnnotationPosition::BlockPrefix
+                    )
+                })
+            })
+            .unwrap_or(false)
+    })
 }
 
 /// Format one declaration export modifier and export-head seam comments.
@@ -526,7 +617,28 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     static_parameters: &Option<Vec<LocalNodeId<Parameter>>>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let value_id = normalize_typescript_type_alias_value_expression(f.context(), value_id);
+    let normalized_value = normalize_typescript_type_alias_value_expression(f.context(), value_id);
+    let value_id = normalized_value.value_id;
+    let dropped_prefix_annotation_owner_ids = normalized_value.dropped_prefix_annotation_owner_ids;
+    let value_expression = f.context().tree.get(value_id);
+    let value_is_type_binary = type_alias_value_is_type_binary_expression(f.context(), value_id);
+    let value_is_type_union = matches!(
+        value_expression,
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr,
+            ..
+        }
+    ) && is_type_context(f.context(), value_id);
+    let dropped_prefix_has_block_prefix_annotation = dropped_wrappers_have_block_prefix_annotation(
+        f.context(),
+        dropped_prefix_annotation_owner_ids.as_slice(),
+    );
+    let dropped_has_own_line_pipe_prefix_annotation = value_is_type_union
+        && dropped_prefix_has_block_prefix_annotation
+        && dropped_wrappers_have_own_line_pipe_prefix_annotation(
+            f.context(),
+            dropped_prefix_annotation_owner_ids.as_slice(),
+        );
 
     let header = format_with(|f| {
         // export
@@ -565,27 +677,69 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     });
 
     let tree = f.context().tree;
+    let format_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if !dropped_prefix_annotation_owner_ids.is_empty() {
+            let format_dropped_prefix = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                for expression_id in dropped_prefix_annotation_owner_ids.iter().copied() {
+                    write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+                }
+
+                Ok(())
+            });
+
+            if dropped_prefix_has_block_prefix_annotation {
+                write!(f, [indent(&format_dropped_prefix)])?;
+            } else {
+                write!(f, [format_dropped_prefix])?;
+            }
+        }
+
+        if dropped_has_own_line_pipe_prefix_annotation {
+            let operands = flatten_type_binary_expression(
+                f.context(),
+                value_id,
+                BinaryOperator::ElementwiseOr,
+            );
+            return format_leading_pipe_union_with_external_prefix(
+                f, value_id, &operands, false, true,
+            );
+        }
+
+        write!(f, [value_id])
+    });
 
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("=")])?;
         write!(f, [space()])?;
-        write!(f, [value_id])?;
+        write!(f, [format_value])?;
         Ok(())
     });
 
     let format_soft_break = format_with(|f| {
-        write!(
-            f,
-            [group(&format_args![
-                header,
-                space(),
-                token("="),
-                indent(&format_args![soft_line_break_or_space(), value_id])
-            ])]
-        )
+        if value_is_type_binary {
+            write!(
+                f,
+                [group(&format_args![
+                    header,
+                    space(),
+                    token("="),
+                    soft_line_break_or_space(),
+                    format_value
+                ])]
+            )
+        } else {
+            write!(
+                f,
+                [group(&format_args![
+                    header,
+                    space(),
+                    token("="),
+                    indent(&format_args![soft_line_break_or_space(), format_value])
+                ])]
+            )
+        }
     });
-    let value_expression = tree.get(value_id);
     let line_width = f.context().options.line_width;
     let should_break_template_literal_type_after_equals = match value_expression {
         Expression::TypeTemplateLiteral { spans, .. } => {
@@ -609,26 +763,13 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         }
         _ => false,
     };
-    let value_is_type_union = matches!(
-        value_expression,
-        Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr,
-            ..
-        }
-    ) && is_type_context(f.context(), value_id);
-    let value_has_own_line_prefix_annotation = f
-        .context()
-        .visit_annotations(value_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                matches!(
-                    f.context().annotation(*annotation_id).position(),
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) && f.context().annotation_starts_on_own_line(*annotation_id)
-            })
-        })
-        .unwrap_or(false);
-    let should_break_for_own_line_prefix_annotation =
-        value_has_own_line_prefix_annotation && !value_is_type_union;
+    let value_has_own_line_prefix_annotation =
+        expression_has_own_line_prefix_annotation(f.context(), value_id);
+    let should_break_for_prefix_annotation = if value_is_type_binary {
+        false
+    } else {
+        value_has_own_line_prefix_annotation
+    };
     let should_break_for_union_trailing_doc_prefix_annotation = value_is_type_union
         && union_has_trailing_own_line_doc_prefix_annotation(f.context(), value_id);
     let value_prefers_inline_after_equals = match value_expression {
@@ -645,7 +786,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     };
     if should_break_after_equals
         || should_break_template_literal_type_after_equals
-        || should_break_for_own_line_prefix_annotation
+        || should_break_for_prefix_annotation
         || should_break_for_union_trailing_doc_prefix_annotation
     {
         format_soft_break.format(f)?;

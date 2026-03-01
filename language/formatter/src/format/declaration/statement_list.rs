@@ -168,24 +168,6 @@ fn write_expression_postfix_annotations<'ast>(
     )
 }
 
-/// Return whether one expression has non-blank infix or postfix annotations.
-fn expression_has_non_blank_infix_or_postfix_annotations(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    expression: &Expression,
-    use_statement_inner_annotations: bool,
-) -> bool {
-    if use_statement_inner_annotations && let Expression::Statement(statement_id) = expression {
-        return context.has_non_blank_infix_annotation(*statement_id)
-            || context.has_non_blank_postfix_annotation(*statement_id)
-            || context.has_non_blank_infix_annotation(expression_id)
-            || context.has_non_blank_postfix_annotation(expression_id);
-    }
-
-    context.has_non_blank_infix_annotation(expression_id)
-        || context.has_non_blank_postfix_annotation(expression_id)
-}
-
 /// Return whether an expression or declaration wrapper has one non-comment prefix annotation.
 fn expression_has_effective_non_comment_prefix_annotation(
     context: &DestackFormatContext<'_>,
@@ -554,20 +536,6 @@ pub(crate) fn format_block_of_statements<'ast>(
             }
 
             write_ignored_span(f, range_span)?;
-            if expression_has_non_blank_infix_or_postfix_annotations(
-                f.context(),
-                expression_id,
-                expression,
-                true,
-            ) {
-                write_expression_postfix_annotations(
-                    f,
-                    expression_id,
-                    expression,
-                    directive,
-                    true,
-                )?;
-            }
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;
