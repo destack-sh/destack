@@ -177,6 +177,46 @@ fn test_annotation_array_element_own_line_comment_attaches_to_following_element(
     }
 }
 
+/// Inline comments between closing delimiters and semicolons should stay on the preceding boundary.
+#[test]
+fn test_annotation_inline_comment_between_closing_paren_and_semicolon_is_boundary_postfix() {
+    let source = "const value = !(() => 3) /* closing-paren-semicolon-marker */;";
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse closing-paren semicolon marker source");
+    let context = context_from_formatter(&formatter);
+    let _ = roots;
+
+    let annotation_id = find_annotation_by_marker(&context, "closing-paren-semicolon-marker")
+        .expect("expected closing-paren semicolon marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node_ids = context
+        .formatter_annotation_ids_by_node_id
+        .iter()
+        .enumerate()
+        .filter_map(|(node_index, annotation_ids)| {
+            annotation_ids
+                .iter()
+                .any(|candidate| candidate.id == annotation_id.id)
+                .then_some(node_index as u32)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        owner_node_ids.len(),
+        1,
+        "expected one owner for closing-paren semicolon marker, got {owner_node_ids:?}"
+    );
+    let owner_node_id = owner_node_ids[0];
+    let owner_node_type = context.tree.get_node_type(owner_node_id);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "marker owner id={owner_node_id} owner type={owner_node_type:?}"
+    );
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
 /// Own-line comments before list elements should stay as line prefixes in mixed list layouts.
 #[test]
 fn test_annotation_mixed_array_element_own_line_comments_attach_as_line_prefix() {
@@ -769,6 +809,26 @@ fn test_annotation_call_callee_line_comment_stays_on_call_expression() {
 
     assert_eq!(owner_node_type, NodeType::Expression);
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+}
+
+/// Line comments between call callees and argument parentheses should normalize to call boundaries.
+#[test]
+fn test_format_call_callee_line_comment_before_empty_arguments_is_boundary_postfix() {
+    let source = "call // call-tail-marker
+()
+call // optional-call-tail-marker
+?.()
+";
+    let expected = "call(); // call-tail-marker
+call?.(); // optional-call-tail-marker
+";
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
 }
 
 /// Semicolon-guard own-line comments with indentation should stay on preceding boundaries.
@@ -2713,6 +2773,51 @@ fn test_format_semicolon_guard_own_line_comment_before_asi_call_is_idempotent() 
     );
 }
 
+/// Own-line comments after `(` before nested unary heads should stay on the inner unary operand.
+#[test]
+fn test_annotation_if_nested_unary_own_line_comment_attaches_to_inner_unary() {
+    let source = r#"if (!(
+  // if-nested-unary-marker
+  !(node.type === "ImportExpression" ||
+    node.type === "TSImportType" ||
+    node.type === "TSExternalModuleReference")
+));"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse nested unary own-line marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "if-nested-unary-marker")
+        .expect("expected nested unary own-line marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected nested unary own-line marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_expression_kind = if owner_node_type == NodeType::Expression {
+        match context
+            .tree
+            .get(LocalNodeId::<Expression>::new(owner_node as u32))
+        {
+            Expression::Unary { .. } => "Unary",
+            Expression::Parenthesized { .. } => "Parenthesized",
+            Expression::If { .. } => "If",
+            _ => "Other",
+        }
+    } else {
+        "NonExpression"
+    };
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePrefix,
+        "owner={owner_node}, owner_type={owner_node_type:?}, owner_expression_kind={owner_expression_kind}",
+    );
+    assert_eq!(
+        owner_expression_kind, "Unary",
+        "owner={owner_node}, owner_type={owner_node_type:?}",
+    );
+}
+
 /// Own-line comments before non-guard semicolon starts should stay idempotent.
 #[test]
 fn test_format_own_line_comment_before_non_guard_semicolon_is_idempotent() {
@@ -2738,6 +2843,21 @@ fn test_format_inline_comment_between_semicolon_and_guard_head_is_idempotent() {
     let values = [1]
 
     ;/* keep guard seam */[values[0]] = [2]
+}
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Inline block comments before semicolons should stay on preceding expression boundaries.
+#[test]
+fn test_format_inline_block_comment_before_semicolon_is_idempotent() {
+    let source = r#"{
+    const value = run() /* keep before semicolon */;
 }
 "#;
 

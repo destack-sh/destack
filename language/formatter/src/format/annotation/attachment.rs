@@ -1,6 +1,6 @@
 use ast::{
-    AnnotationPosition, Argument, Block, BlockFormat, CommentDirective, DependencyMode, Expression,
-    Keyword, LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
+    AnnotationPosition, Argument, CommentDirective, DependencyMode, Expression, Keyword,
+    LocalNodeId, NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
 };
 use destack_ast as ast;
 use destack_source::{File, Span};
@@ -1586,33 +1586,6 @@ pub(crate) fn attach_comment_default(
     (None, AnnotationPosition::BlockInfix)
 }
 
-/// Return one empty-statement body owner when one seam is before its semicolon.
-fn empty_statement_body_owner_before_semicolon(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    following_owner: Option<u32>,
-) -> Option<u32> {
-    if !seam.token_after_is(ast::TokenType::Semicolon) {
-        return None;
-    }
-
-    let following_owner = following_owner?;
-    let block_owner = if tree.get_node_type(following_owner) == NodeType::Block {
-        following_owner
-    } else {
-        promote_owner_to_node_type_ancestor(tree, parents, following_owner, NodeType::Block)?
-    };
-
-    let block_id = LocalNodeId::<Block>::new(block_owner);
-    let block = tree.get(block_id);
-    if block.format != BlockFormat::Implicit || !block.expressions.is_empty() {
-        return None;
-    }
-
-    Some(block_owner)
-}
-
 /// Resolve one following owner with one token-after fallback owner.
 pub(crate) fn following_owner_with_token_after_fallback(
     tree: &NodeTree,
@@ -1624,23 +1597,6 @@ pub(crate) fn following_owner_with_token_after_fallback(
             .token_after_span
             .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
     })
-}
-
-/// Attach one seam comment that appears before one empty-statement body semicolon.
-pub(crate) fn try_attach_comment_before_empty_statement_semicolon(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    following_owner: Option<u32>,
-) -> Option<CommentAttachment> {
-    let target_owner =
-        empty_statement_body_owner_before_semicolon(tree, parents, seam, following_owner)?;
-    let position = if seam.comment_is_line {
-        AnnotationPosition::LinePrefix
-    } else {
-        AnnotationPosition::BlockPrefix
-    };
-    Some((Some(target_owner), position))
 }
 
 /// Return the then-branch owner id for one if-expression owner that has no else branch.

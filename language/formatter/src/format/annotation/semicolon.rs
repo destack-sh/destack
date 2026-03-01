@@ -1,19 +1,24 @@
 use destack_ast::{
-    AnnotationPosition, Declaration, Expression, FunctionKind, IfKind, LocalNodeId,
-    NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType, WhileKind,
+    AnnotationPosition, Block, BlockFormat, Expression, LocalNodeId, NodeParentIndex, NodeTree,
+    NodeType, TokenSpan, TokenType,
 };
+use destack_source::Span;
 
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentSeamContext, CommentSeamData,
-    previous_non_newline_token_index,
+    is_close_delimiter_token, previous_non_newline_token_index,
 };
-use super::facts::{next_non_trivia_token_index, next_non_trivia_token_type, token_type_is_trivia};
+use super::facts::{
+    next_non_trivia_token_index, token_type_is_comment_trivia, token_type_is_trivia,
+};
 use super::ownership::{
-    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
-    normalize_owner_with_shared_end, promote_owner_to_nearest_statement_boundary,
+    find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
+    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
+    promote_owner_by_shared_end, promote_owner_to_nearest_statement_boundary,
     promote_owner_to_node_type_ancestor,
 };
-use crate::DestackFormatContext;
+use super::terminator::owner_starts_with_asi_hazard;
+use crate::{Annotation, DestackFormatContext};
 
 /// One normalized semicolon guard seam classification for own-line comments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,13 +60,129 @@ impl SemicolonGuardCommentSeam {
     }
 }
 
-/// Return whether one token type can start one semicolon-guarded statement head.
-#[inline]
-pub(crate) fn token_type_is_semicolon_guard_head(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::OpenBracket | TokenType::OpenParenthesis | TokenType::Add | TokenType::Subtract
-    )
+/// Return one token index and token type for one before-comment semicolon guard seam.
+fn before_comment_semicolon_guard_target(
+    semantic_tokens: &[TokenSpan],
+    token_after_type: Option<TokenType>,
+    token_after_index: Option<usize>,
+) -> Option<(usize, TokenType)> {
+    if token_after_type.is_some_and(token_type_is_trivia) {
+        return token_after_index
+            .and_then(|index| next_non_trivia_token_index(semantic_tokens, index))
+            .and_then(|index| {
+                semantic_tokens
+                    .get(index)
+                    .map(|token| (index, token.token.ty))
+            });
+    }
+
+    token_after_index.zip(token_after_type)
+}
+
+/// Return one token index and token type for one after-comment semicolon guard seam.
+fn after_comment_semicolon_guard_target(
+    semantic_tokens: &[TokenSpan],
+    token_after_index: Option<usize>,
+) -> Option<(usize, TokenType)> {
+    token_after_index
+        .and_then(|index| next_non_trivia_token_index(semantic_tokens, index))
+        .and_then(|index| {
+            semantic_tokens
+                .get(index)
+                .map(|token| (index, token.token.ty))
+        })
+}
+
+/// Return whether one semicolon token appears at one logical line start.
+fn semicolon_token_is_line_leading(semantic_tokens: &[TokenSpan], semicolon_index: usize) -> bool {
+    if semicolon_index == 0 {
+        return true;
+    }
+
+    let mut cursor = semicolon_index;
+    while cursor > 0 {
+        cursor -= 1;
+        let token_type = semantic_tokens[cursor].token.ty;
+
+        if token_type == TokenType::Whitespace {
+            continue;
+        }
+
+        if token_type == TokenType::Newline {
+            return true;
+        }
+
+        if token_type_is_comment_trivia(token_type) {
+            continue;
+        }
+
+        return false;
+    }
+
+    true
+}
+
+/// Return whether one semicolon guard target owner starts with one ASI hazard.
+fn semicolon_guard_target_owner_starts_with_asi_hazard(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner: u32,
+) -> Option<bool> {
+    let statement_owner = promote_owner_to_nearest_statement_boundary(tree, parents, owner);
+    if let Some(is_asi_hazard) = owner_starts_with_asi_hazard(tree, statement_owner) {
+        return Some(is_asi_hazard);
+    }
+
+    let expression_owner =
+        promote_owner_to_node_type_ancestor(tree, parents, statement_owner, NodeType::Expression);
+    if let Some(expression_owner) = expression_owner {
+        return owner_starts_with_asi_hazard(tree, expression_owner);
+    }
+
+    let declaration_owner =
+        promote_owner_to_node_type_ancestor(tree, parents, statement_owner, NodeType::Declaration);
+    if let Some(declaration_owner) = declaration_owner {
+        return owner_starts_with_asi_hazard(tree, declaration_owner);
+    }
+
+    None
+}
+
+/// Return whether one semicolon guard seam has one structural ASI hazard target.
+fn semicolon_guard_target_is_asi_hazard(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    semantic_tokens: &[TokenSpan],
+    target_token_index: usize,
+) -> bool {
+    let target_owner_from_token = semantic_tokens.get(target_token_index).and_then(|token| {
+        find_preferred_owner_starting_at(tree, token.span)
+            .or_else(|| find_smallest_owner_enclosing_token(tree, token.span))
+    });
+
+    target_owner_from_token.is_some_and(|owner| {
+        semicolon_guard_target_owner_starts_with_asi_hazard(tree, parents, owner) == Some(true)
+    })
+}
+
+/// Return whether one annotation needs continuation indentation for semicolon-guard seams.
+pub(crate) fn annotation_needs_semicolon_guard_continuation_indent(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+    position: AnnotationPosition,
+    is_slash_comment: bool,
+    starts_on_own_line: bool,
+) -> bool {
+    if position != AnnotationPosition::LinePostfixBoundary || !is_slash_comment {
+        return false;
+    }
+
+    if !starts_on_own_line {
+        return false;
+    }
+
+    context.annotation_semicolon_guard_target_token_type(annotation_id)
+        == Some(TokenType::OpenParenthesis)
 }
 
 /// Return whether one semicolon guard target needs boundary continuation formatting.
@@ -71,12 +192,6 @@ pub(crate) fn token_type_is_semicolon_guard_boundary_continuation(token_type: To
         token_type,
         TokenType::OpenBracket | TokenType::OpenParenthesis
     )
-}
-
-/// Return whether one token type can be one guard target after semicolon.
-#[inline]
-pub(crate) fn token_type_is_semicolon_guard_target(token_type: TokenType) -> bool {
-    token_type_is_semicolon_guard_head(token_type)
 }
 
 /// Return whether one semicolon seam should preserve the preceding boundary continuation.
@@ -105,36 +220,61 @@ pub(crate) fn semicolon_guard_targets_array_literal(
 
 /// Classify one semicolon guard seam around one own-line comment.
 pub(crate) fn classify_semicolon_guard_comment_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
     semantic_tokens: &[TokenSpan],
     token_before_type: Option<TokenType>,
+    token_before_index: Option<usize>,
     token_after_type: Option<TokenType>,
     token_after_index: Option<usize>,
 ) -> SemicolonGuardCommentSeam {
     if token_before_type == Some(TokenType::Semicolon) {
-        let target_type = token_after_type
-            .filter(|token_type| token_type_is_semicolon_guard_head(*token_type))
-            .or_else(|| {
-                let token_after_is_trivia = token_after_type.is_none_or(token_type_is_trivia);
-                if !token_after_is_trivia {
-                    return None;
-                }
+        if let Some((target_token_index, target_type)) = before_comment_semicolon_guard_target(
+            semantic_tokens,
+            token_after_type,
+            token_after_index,
+        ) {
+            let semicolon_is_line_leading = token_before_index
+                .is_some_and(|index| semicolon_token_is_line_leading(semantic_tokens, index));
+            let non_leading_semicolon_can_guard =
+                token_type_is_semicolon_guard_boundary_continuation(target_type);
+            if !semicolon_is_line_leading && !non_leading_semicolon_can_guard {
+                return SemicolonGuardCommentSeam::None;
+            }
 
-                token_after_index
-                    .and_then(|index| next_non_trivia_token_type(semantic_tokens, index))
-                    .filter(|token_type| token_type_is_semicolon_guard_head(*token_type))
-            });
-
-        if let Some(target_type) = target_type {
-            return SemicolonGuardCommentSeam::BeforeComment { target_type };
+            let target_is_asi_hazard = semicolon_guard_target_is_asi_hazard(
+                tree,
+                parents,
+                semantic_tokens,
+                target_token_index,
+            );
+            if target_is_asi_hazard {
+                return SemicolonGuardCommentSeam::BeforeComment { target_type };
+            }
         }
     }
 
     if token_after_type == Some(TokenType::Semicolon)
-        && let Some(token_after_index) = token_after_index
-        && let Some(target_type) = next_non_trivia_token_type(semantic_tokens, token_after_index)
-        && token_type_is_semicolon_guard_target(target_type)
+        && let Some((target_token_index, target_type)) =
+            after_comment_semicolon_guard_target(semantic_tokens, token_after_index)
     {
-        return SemicolonGuardCommentSeam::AfterComment { target_type };
+        let semicolon_is_line_leading = token_after_index
+            .is_some_and(|index| semicolon_token_is_line_leading(semantic_tokens, index));
+        let non_leading_semicolon_can_guard =
+            token_type_is_semicolon_guard_boundary_continuation(target_type);
+        if !semicolon_is_line_leading && !non_leading_semicolon_can_guard {
+            return SemicolonGuardCommentSeam::None;
+        }
+
+        let target_is_asi_hazard = semicolon_guard_target_is_asi_hazard(
+            tree,
+            parents,
+            semantic_tokens,
+            target_token_index,
+        );
+        if target_is_asi_hazard {
+            return SemicolonGuardCommentSeam::AfterComment { target_type };
+        }
     }
 
     SemicolonGuardCommentSeam::None
@@ -155,6 +295,135 @@ pub(crate) fn preceding_owner_with_non_newline_token_fallback(
         .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
 
     preceding_owner.or(fallback_owner)
+}
+
+/// Return one empty-statement block owner when one seam appears before its semicolon.
+fn empty_statement_body_owner_before_semicolon(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<u32> {
+    if !seam.token_after_is(TokenType::Semicolon) {
+        return None;
+    }
+
+    let following_owner = following_owner?;
+    let block_owner = if tree.get_node_type(following_owner) == NodeType::Block {
+        following_owner
+    } else {
+        promote_owner_to_node_type_ancestor(tree, parents, following_owner, NodeType::Block)?
+    };
+
+    let block_id = LocalNodeId::<Block>::new(block_owner);
+    let block = tree.get(block_id);
+    if block.format != BlockFormat::Implicit || !block.expressions.is_empty() {
+        return None;
+    }
+
+    Some(block_owner)
+}
+
+/// Attach one seam comment that appears before one empty-statement body semicolon.
+pub(crate) fn try_attach_comment_before_empty_statement_semicolon(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    let target_owner =
+        empty_statement_body_owner_before_semicolon(tree, parents, seam, following_owner)?;
+    let position = if seam.comment_is_line {
+        AnnotationPosition::LinePrefix
+    } else {
+        AnnotationPosition::BlockPrefix
+    };
+
+    Some((Some(target_owner), position))
+}
+
+/// Attach one same-line comment before one semicolon to one preceding expression boundary.
+pub(crate) fn attach_inline_comment_before_semicolon(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    token_before_span: Option<Span>,
+    is_same_line_comment: bool,
+) -> Option<CommentAttachment> {
+    if !is_same_line_comment
+        || !seam.token_after_is(TokenType::Semicolon)
+        || seam.token_before_is(TokenType::Semicolon)
+    {
+        return None;
+    }
+
+    let token_before_owner =
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span));
+    let target_owner = if seam.token_before_type.is_some_and(is_close_delimiter_token) {
+        token_before_owner.or(preceding_owner)
+    } else {
+        preceding_owner.or(token_before_owner)
+    }?;
+    let target_owner = token_before_span
+        .map(|span| promote_owner_by_shared_end(tree, parents, target_owner, span.end))
+        .unwrap_or(target_owner);
+    let target_owner = if tree.get_node_type(target_owner) == NodeType::Expression {
+        target_owner
+    } else {
+        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Expression)
+            .unwrap_or(target_owner)
+    };
+
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
+/// Attach one same-line comment after one semicolon-terminated statement.
+pub(crate) fn attach_after_semicolon_terminated_statement_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner_with_semicolon_fallback: Option<u32>,
+    token_before_span: Option<Span>,
+    is_same_line_comment: bool,
+) -> Option<CommentAttachment> {
+    if !seam.token_before_is(TokenType::Semicolon) || !is_same_line_comment {
+        return None;
+    }
+
+    let target_owner = preceding_owner_with_semicolon_fallback?;
+    let target_owner =
+        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+    if let Some(member_owner) =
+        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Member)
+    {
+        let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
+        return Some((Some(member_owner), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    let target_owner = promote_owner_to_nearest_statement_boundary(tree, parents, target_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
+/// Attach one own-line comment before one member semicolon seam.
+pub(crate) fn attach_own_line_comment_before_member_semicolon(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+    token_before_span: Option<Span>,
+) -> Option<CommentAttachment> {
+    if !seam.token_after_is(TokenType::Semicolon) {
+        return None;
+    }
+
+    let target_owner = preceding_owner?;
+    let target_owner =
+        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+    let member_owner =
+        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Member)?;
+    let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
+    Some((Some(member_owner), AnnotationPosition::BlockPostfix))
 }
 
 /// Return one following expression owner for one semicolon guard seam.
@@ -198,6 +467,52 @@ fn semicolon_guard_following_expression_owner(
         })?;
 
     Some(following_owner)
+}
+
+/// Attach one non-own-line comment between `;` and one ASI guard head.
+pub(crate) fn attach_before_comment_semicolon_guard_head(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    following_owner: Option<u32>,
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline {
+        return None;
+    }
+
+    let semicolon_guard_seam = classify_semicolon_guard_comment_seam(
+        tree,
+        parents,
+        context.semantic_tokens,
+        seam.token_before_type,
+        context.token_before,
+        seam.token_after_type,
+        context.token_after,
+    );
+    if !matches!(
+        semicolon_guard_seam,
+        SemicolonGuardCommentSeam::BeforeComment { .. }
+    ) {
+        return None;
+    }
+
+    let target_owner = semicolon_guard_following_expression_owner(
+        tree,
+        parents,
+        context,
+        semicolon_guard_seam,
+        context.token_after_span,
+        following_owner,
+    )?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    let position = if seam.comment_is_line || seam.has_trailing_newline {
+        AnnotationPosition::BlockPrefix
+    } else {
+        AnnotationPosition::LinePrefix
+    };
+
+    Some((Some(target_owner), position))
 }
 
 /// Return one preceding statement owner for one semicolon guard seam.
@@ -262,8 +577,17 @@ fn owner_is_top_level_statement(tree: &NodeTree, parents: &NodeParentIndex, owne
     owner_is_statement && block_ancestor.is_none()
 }
 
-/// Return one comment column for one trivia span.
-fn comment_column(context: &CommentSeamContext<'_>) -> u32 {
+/// Return one 1-based source column for one owner start.
+fn owner_start_column(context: &CommentSeamContext<'_>, owner: u32) -> u32 {
+    let owner_span = context.tree.get_span_by_id(owner);
+    context
+        .file
+        .get_position(owner_span.start)
+        .map_or(1, |(_, column)| column)
+}
+
+/// Return one 1-based source column for one seam comment start.
+fn seam_comment_column(context: &CommentSeamContext<'_>) -> u32 {
     let comment_start = context
         .semantic_tokens
         .iter()
@@ -286,6 +610,14 @@ fn comment_column(context: &CommentSeamContext<'_>) -> u32 {
         .map_or(1, |(_, column)| column)
 }
 
+/// Return whether one seam comment is indented relative to one owner start column.
+fn seam_comment_is_indented_relative_to_owner(
+    context: &CommentSeamContext<'_>,
+    owner: u32,
+) -> bool {
+    seam_comment_column(context) > owner_start_column(context, owner)
+}
+
 /// Attach one own-line semicolon-guard comment across both seam shapes.
 pub(crate) fn attach_semicolon_guard_own_line_comment(
     tree: &NodeTree,
@@ -300,8 +632,11 @@ pub(crate) fn attach_semicolon_guard_own_line_comment(
 
     // classify the semicolon guard seam once
     let semicolon_guard_seam = classify_semicolon_guard_comment_seam(
+        tree,
+        parents,
         context.semantic_tokens,
         seam.token_before_type,
+        context.token_before,
         seam.token_after_type,
         context.token_after,
     );
@@ -325,9 +660,10 @@ pub(crate) fn attach_semicolon_guard_own_line_comment(
     // preserve preceding boundary continuation when the seam is one indented `comment ; [` or `comment ; (`
     let should_preserve_preceding_boundary_continuation = semicolon_guard_seam.is_after_comment()
         && semicolon_guard_seam_prefers_preceding_boundary_continuation(semicolon_guard_seam)
-        && comment_column(context) > 1
-        && preceding_statement_owner
-            .is_some_and(|owner| owner_is_top_level_statement(tree, parents, owner));
+        && preceding_statement_owner.is_some_and(|owner| {
+            owner_is_top_level_statement(tree, parents, owner)
+                && seam_comment_is_indented_relative_to_owner(context, owner)
+        });
     if should_preserve_preceding_boundary_continuation
         && let Some(target_owner) = preceding_statement_owner
     {
@@ -356,90 +692,41 @@ pub(crate) fn attach_semicolon_guard_own_line_comment(
     None
 }
 
-/// Return whether one block expression needs a trailing statement terminator.
-pub(crate) fn expression_needs_statement_terminator(
-    context: &DestackFormatContext<'_>,
-    expression: &Expression,
-    is_expression_context_tail: bool,
-) -> bool {
-    if is_expression_context_tail {
-        return false;
+/// Attach one own-line line comment before one statement semicolon seam.
+pub(crate) fn attach_own_line_comment_before_statement_semicolon(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    owners: CommentAttachmentNeighbors,
+    preceding_owner: Option<u32>,
+    following_owner_with_token_fallback: Option<u32>,
+    token_before_span: Option<Span>,
+) -> Option<CommentAttachment> {
+    if !seam.comment_is_line || !seam.token_after_is(TokenType::Semicolon) {
+        return None;
     }
 
-    matches!(
-        expression,
-        Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
-    ) || matches!(
-        expression,
-        Expression::While {
-            kind: WhileKind::DoWhile,
-            ..
-        }
-    ) || matches!(
-        expression,
-        Expression::Declaration(declaration_id)
-            if matches!(
-                context.tree.get(*declaration_id),
-                Declaration::Function {
-                    descriptor,
-                    signature,
-                    ..
-                }
-                if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
-            )
-    ) || (!matches!(expression, Expression::Statement(_))
-        && !matches!(expression, Expression::Stub | Expression::Error)
-        && !expression.ends_statement_on_newline())
-}
-
-/// Return whether one statement wrapper should keep its trailing semicolon.
-pub(crate) fn statement_wrapper_needs_semicolon(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = context.tree.get(expression_id);
-    if let Expression::Statement(inner_expression_id) = expression {
-        return statement_wrapper_needs_semicolon(context, *inner_expression_id);
-    }
-
-    if matches!(
-        expression,
-        Expression::Declaration(_) | Expression::Block(_)
-    ) {
-        return false;
-    }
-
-    if let Expression::Try {
-        catch_expression,
-        catch_pattern,
-        finally_expression,
-        ..
-    } = expression
-        && (catch_expression.is_some() || catch_pattern.is_some() || finally_expression.is_some())
+    if let Some(attachment) =
+        attach_semicolon_guard_own_line_comment(tree, parents, context, seam, owners)
     {
-        return false;
+        return Some(attachment);
     }
 
-    if matches!(
-        expression,
-        Expression::If {
-            kind: IfKind::If,
-            ..
-        } | Expression::While {
-            kind: WhileKind::While,
-            ..
-        } | Expression::ForEach { .. }
-            | Expression::For { .. }
-            | Expression::Loop { .. }
-            | Expression::Match { .. }
-            | Expression::Labelled { .. }
-    ) {
-        return false;
+    let target_owner = following_owner_with_token_fallback
+        .map(|target_owner| {
+            promote_owner_to_nearest_statement_boundary(tree, parents, target_owner)
+        })
+        .filter(|target_owner| tree.get_node_type(*target_owner) != NodeType::Block)
+        .map(|target_owner| normalize_formatter_trivia_target_owner(tree, target_owner));
+    if let Some(target_owner) = target_owner {
+        return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
     }
 
-    if matches!(expression, Expression::Stub | Expression::Error) {
-        return false;
-    }
-
-    true
+    let target_owner = preceding_owner.or_else(|| {
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))
+    })?;
+    let target_owner =
+        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }

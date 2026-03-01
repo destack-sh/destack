@@ -621,8 +621,11 @@ fn blank_seam_facts(
     );
 
     let semicolon_guard_seam = classify_semicolon_guard_comment_seam(
+        tree,
+        parents,
         semantic_tokens,
         token_before_type,
+        token_state.token_before,
         token_after_type,
         token_after,
     );

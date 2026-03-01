@@ -1,4 +1,5 @@
-use super::facts::{token_type_is_comment_trivia, token_type_is_trivia};
+use super::facts::token_type_is_comment_trivia;
+use super::semicolon::annotation_needs_semicolon_guard_continuation_indent;
 use crate::format::directive::{
     comment_node_is_any_ignore_directive, comment_node_is_ignore_directive,
 };
@@ -252,63 +253,6 @@ pub(crate) fn annotation_precedes_separator<'ast>(
     context
         .annotation_next_non_whitespace_token_type(annotation_id)
         .is_some_and(token_type_is_separator_after_annotation)
-}
-
-/// Return the first and second non-trivia token types after one annotation.
-fn annotation_next_two_non_trivia_token_types(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> (Option<TokenType>, Option<TokenType>) {
-    let annotation_span = annotation_content_span(context, annotation_id);
-    let mut token_types = context
-        .tokens
-        .iter()
-        .filter(|token| token.span.start >= annotation_span.end)
-        .map(|token| token.token.ty)
-        .filter(|token_type| !token_type_is_trivia(*token_type));
-
-    (token_types.next(), token_types.next())
-}
-
-/// Return one 1-based source column where one annotation starts.
-fn annotation_start_column(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> u32 {
-    let annotation_span = annotation_content_span(context, annotation_id);
-    context
-        .file
-        .get_position(annotation_span.start)
-        .map_or(1, |(_, column)| column)
-}
-
-/// Return whether one own-line postfix-boundary slash comment is one indented semicolon guard seam.
-fn annotation_is_indented_semicolon_guard_boundary_comment(
-    context: &DestackFormatContext<'_>,
-    position: AnnotationPosition,
-    annotation_id: LocalNodeId<Annotation>,
-    flow: AnnotationFlow,
-) -> bool {
-    if position != AnnotationPosition::LinePostfixBoundary || !flow.is_slash_comment {
-        return false;
-    }
-
-    if !flow.starts_on_own_line {
-        return false;
-    }
-
-    let (next_token_type, second_token_type) =
-        annotation_next_two_non_trivia_token_types(context, annotation_id);
-    let is_semicolon_guard = next_token_type == Some(TokenType::Semicolon)
-        && matches!(
-            second_token_type,
-            Some(TokenType::OpenParenthesis | TokenType::OpenBracket)
-        );
-    if !is_semicolon_guard {
-        return false;
-    }
-
-    annotation_start_column(context, annotation_id) > 1
 }
 
 /// Return whether one token type is a separator for annotation seams.
@@ -1819,6 +1763,7 @@ enum AnnotationSpacing {
     HardLine,
     SoftLine,
     EmptyLine,
+    ContinuationIndent,
 }
 
 /// Emit one concrete annotation spacing decision.
@@ -1839,6 +1784,11 @@ fn write_annotation_spacing<'ast>(
         }
         AnnotationSpacing::EmptyLine => {
             write!(f, [empty_line()])?;
+        }
+        AnnotationSpacing::ContinuationIndent => {
+            let indent_width = f.context().options.indent_width as usize;
+            let continuation_indent = " ".repeat(indent_width);
+            write!(f, [text(&continuation_indent)])?;
         }
     }
 
@@ -2222,6 +2172,26 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
     write_annotation_spacing(f, spacing)
 }
 
+/// Return spacing emitted immediately before one annotation payload.
+fn annotation_content_prefix_spacing(
+    context: &DestackFormatContext<'_>,
+    position: AnnotationPosition,
+    annotation_id: LocalNodeId<Annotation>,
+    flow: AnnotationFlow,
+) -> AnnotationSpacing {
+    if annotation_needs_semicolon_guard_continuation_indent(
+        context,
+        annotation_id,
+        position,
+        flow.is_slash_comment,
+        flow.starts_on_own_line,
+    ) {
+        return AnnotationSpacing::ContinuationIndent;
+    }
+
+    AnnotationSpacing::None
+}
+
 /// Return whether one inline star comment should keep one trailing space.
 fn should_write_space_after_inline_star_comment(
     flow: AnnotationFlow,
@@ -2340,16 +2310,9 @@ where
         }
 
         // emit annotation content
-        if annotation_is_indented_semicolon_guard_boundary_comment(
-            f.context(),
-            item.position,
-            item.annotation_id,
-            flow,
-        ) {
-            for _ in 0..f.context().options.indent_width {
-                write!(f, [space()])?;
-            }
-        }
+        let content_prefix_spacing =
+            annotation_content_prefix_spacing(f.context(), item.position, item.annotation_id, flow);
+        write_annotation_spacing(f, content_prefix_spacing)?;
 
         annotation.format_node(item.annotation_id, f)?;
 
