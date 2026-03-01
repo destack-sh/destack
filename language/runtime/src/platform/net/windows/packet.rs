@@ -180,11 +180,7 @@ static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketSta
 
 /// Return configured packet backend mode for Windows packet lanes.
 fn windows_packet_backend_mode(context: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    context
-        .runtime()
-        .platform_options
-        .windows
-        .net_packet_backend
+    context.runtime().options.windows.net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -963,7 +959,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     let timestamp_ns = if state.timestamp_mode == PacketTimestampMode::Disabled {
         0
     } else {
-        context.runtime().time.mono_nanos()
+        context.world().clock().mono_nanos()
     };
     let record = PacketCaptureRecord {
         bytes: written as u64,

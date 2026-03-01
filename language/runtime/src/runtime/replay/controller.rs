@@ -4,7 +4,7 @@ use crate::runtime::replay::{
     BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
     TimeEventKind,
 };
-use crate::runtime::{RuntimeHookState, with_current_binding_call_context};
+use crate::runtime::{HookState, with_current_binding_call_context};
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
@@ -98,7 +98,7 @@ impl ReplayController {
         let _ = with_current_binding_call_context(|context| {
             context
                 .hooks()
-                .on_after_binding(spec, RuntimeHookState::from_engine(Some(context.engine())))
+                .on_after_binding(spec, HookState::from_engine(Some(context.engine())))
         });
     }
 

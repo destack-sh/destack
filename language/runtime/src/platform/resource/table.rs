@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{ResourceId, ResourceSnapshotAdapter, ResourceSnapshotPolicy};
-use crate::runtime::{RuntimeHookState, with_current_binding_call_context};
+use crate::runtime::{HookState, with_current_binding_call_context};
 
 /// Resource classification for platform handles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -340,10 +340,10 @@ impl ResourceTable {
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         self.entries.write().insert(id, entry);
         let _ = with_current_binding_call_context(|context| {
-            context.hooks().on_resource_attach(RuntimeHookState {
+            context.hooks().on_resource_attach(HookState {
                 engine: Some(context.engine()),
                 resource_id: Some(id),
-                ..RuntimeHookState::empty()
+                ..HookState::empty()
             })
         });
         id
@@ -354,10 +354,10 @@ impl ResourceTable {
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
         let _ = with_current_binding_call_context(|context| {
-            context.hooks().on_resource_attach(RuntimeHookState {
+            context.hooks().on_resource_attach(HookState {
                 engine: Some(context.engine()),
                 resource_id: Some(resource_id),
-                ..RuntimeHookState::empty()
+                ..HookState::empty()
             })
         });
     }
@@ -394,10 +394,10 @@ impl ResourceTable {
         let removed = self.entries.write().remove(&resource_id);
         if removed.is_some() {
             let _ = with_current_binding_call_context(|context| {
-                context.hooks().on_resource_detach(RuntimeHookState {
+                context.hooks().on_resource_detach(HookState {
                     engine: Some(context.engine()),
                     resource_id: Some(resource_id),
-                    ..RuntimeHookState::empty()
+                    ..HookState::empty()
                 })
             });
         }

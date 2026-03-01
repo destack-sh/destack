@@ -31,8 +31,8 @@ fn run_runtime_smoke() -> Result<String, String> {
 
     // return smoke summary
     Ok(format!(
-        "runtime-smoke-ok host_events={host_event_count} callback_runtime_id={:?}",
-        runtime.host_callback_runtime_id(),
+        "runtime-smoke-ok host_events={host_event_count} callback_agent_id={:?}",
+        runtime.host_callback_agent_id(),
     ))
 }
 

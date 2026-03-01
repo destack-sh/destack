@@ -3,15 +3,17 @@ pub mod capability;
 mod core;
 pub mod engine;
 pub mod memory;
+pub mod policy;
 pub(crate) mod poller;
 pub mod random;
 pub mod replay;
-pub(crate) mod rules;
 pub mod scheduler;
 pub mod snapshot;
 #[cfg(test)]
 mod tests;
 pub(crate) mod time;
+pub mod world;
 
 pub use core::*;
-pub(crate) use rules::*;
+pub use policy::*;
+pub use world::*;

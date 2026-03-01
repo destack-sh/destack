@@ -3,50 +3,49 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostBridge, HostBridgeRegistration, HostState, register_host_bridge};
-use crate::host::{Host, HostLifecycleState, HostPlatform, HostPollOutcome};
+use crate::host::core::{HostState, HostStateRegistration, register_host_state};
+use crate::host::{HostAdapter, HostLifecycleState, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
 
 /// Unsupported host implementation.
 #[derive(Debug)]
 pub(crate) struct UnsupportedHost {
-    /// Shared callback bridge used for event ingestion and state updates.
-    bridge: Arc<HostBridge>,
+    /// Shared host state used for event ingestion and state updates.
+    state: Arc<HostState>,
     /// Shared registration guard for callback routing.
-    registration: HostBridgeRegistration,
+    registration: HostStateRegistration,
 }
 
 impl UnsupportedHost {
     /// Create one unsupported host.
     pub(crate) fn new() -> Self {
         let state = Arc::new(HostState::new());
-        let bridge = Arc::new(HostBridge::new(state));
-        bridge.push_lifecycle(HostLifecycleState::Initializing);
-        let registration = register_host_bridge(HostPlatform::Universal, &bridge);
+        state.push_lifecycle(HostLifecycleState::Initializing);
+        let registration = register_host_state(HostPlatform::Universal, &state);
 
         Self {
-            bridge,
+            state,
             registration,
         }
     }
 }
 
-impl Host for UnsupportedHost {
+impl HostAdapter for UnsupportedHost {
     fn platform(&self) -> HostPlatform {
         HostPlatform::Universal
     }
 
     fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
-        self.bridge.poll_events(timeout_nanos)
+        self.state.poll_events(timeout_nanos)
     }
 
     fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
-        Some(self.bridge.wake_handle())
+        Some(self.state.wake_handle())
     }
 
     fn configure_host_options(&self, host_options: &PlatformHostOptions) {
-        self.bridge.configure_host_options(host_options);
+        self.state.configure_host_options(host_options);
     }
 
     fn callback_runtime_id(&self) -> Option<u64> {
@@ -58,6 +57,6 @@ impl Host for UnsupportedHost {
     }
 
     fn state(&self) -> &Arc<HostState> {
-        self.bridge.state()
+        &self.state
     }
 }

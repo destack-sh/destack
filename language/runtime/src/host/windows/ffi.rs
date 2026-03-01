@@ -41,7 +41,7 @@ const WINDOWS_POWER_MODE_NORMAL: u32 = 0;
 /// Windows power mode code for low power state.
 const WINDOWS_POWER_MODE_LOW_POWER: u32 = 1;
 
-/// Notify the runtime host bridge about one Windows application lifecycle transition.
+/// Notify the runtime host state about one Windows application lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_application_lifecycle(
     runtime_id: u64,
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_application_lifecycle(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that one Windows window became available.
+/// Notify the runtime host state that one Windows window became available.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_window_available(
     runtime_id: u64,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_window_available(
     runtime_status(windows_notify_window_available(runtime_id, window_id))
 }
 
-/// Notify the runtime host bridge that one Windows window terminated.
+/// Notify the runtime host state that one Windows window terminated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_window_terminated(
     runtime_id: u64,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_window_terminated(
     runtime_status(windows_notify_window_terminated(runtime_id, window_id))
 }
 
-/// Notify the runtime host bridge that one Windows window resized.
+/// Notify the runtime host state that one Windows window resized.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_window_resized(
     runtime_id: u64,
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_window_resized(
     ))
 }
 
-/// Notify the runtime host bridge that one Windows window focus changed.
+/// Notify the runtime host state that one Windows window focus changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_window_focus_changed(
     runtime_id: u64,
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_window_focus_changed(
     ))
 }
 
-/// Notify the runtime host bridge with one Windows permission result.
+/// Notify the runtime host state with one Windows permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_permission_result(
     runtime_id: u64,
@@ -110,7 +110,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_permission_result(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that interruption state changed on Windows.
+/// Notify the runtime host state that interruption state changed on Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_interruption_changed(
     runtime_id: u64,
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_interruption_changed(
     runtime_status(windows_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host bridge that memory pressure changed on Windows.
+/// Notify the runtime host state that memory pressure changed on Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -131,7 +131,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_memory_pressure_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that thermal state changed on Windows.
+/// Notify the runtime host state that thermal state changed on Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_thermal_state_changed(
     runtime_id: u64,
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_thermal_state_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that power mode changed on Windows.
+/// Notify the runtime host state that power mode changed on Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_power_mode_changed(
     runtime_id: u64,
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn destack_host_windows_notify_power_mode_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that wall clock changed on Windows.
+/// Notify the runtime host state that wall clock changed on Windows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_windows_notify_wall_clock_changed(
     runtime_id: u64,

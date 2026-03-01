@@ -1478,7 +1478,7 @@ pub(crate) unsafe fn destack_audio_stream_write_at(
         "destack.audio.stream.writeAt",
     )?;
 
-    let now = context.runtime().time.mono_nanos();
+    let now = context.world().clock().mono_nanos();
     if presentationtimens > now {
         let sleep_ns = presentationtimens - now;
         thread::sleep(Duration::from_nanos(sleep_ns));

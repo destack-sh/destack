@@ -4,102 +4,99 @@ use std::sync::{Arc, OnceLock, Weak};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::{HostBridge, HostPlatform};
+use super::{HostPlatform, HostState};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 
-/// Shared host-bridge runtime id generator.
-static HOST_BRIDGE_ID_NEXT: AtomicU64 = AtomicU64::new(1);
+/// Shared host runtime id generator.
+static HOST_STATE_ID_NEXT: AtomicU64 = AtomicU64::new(1);
 
-/// Shared process-global host-bridge registry state.
-static HOST_BRIDGE_REGISTRY: OnceLock<RwLock<HostBridgeRegistryState>> = OnceLock::new();
+/// Shared process-global host state registry.
+static HOST_STATE_REGISTRY: OnceLock<RwLock<HostStateRegistryState>> = OnceLock::new();
 
-/// Registration guard for one host bridge.
+/// Registration guard for one host state.
 #[derive(Debug)]
-pub(crate) struct HostBridgeRegistration {
-    /// Stable runtime id for this bridge.
+pub(crate) struct HostStateRegistration {
+    /// Stable runtime id for this state.
     runtime_id: u64,
 }
 
-/// Shared registry state for active host bridges.
+/// Shared registry state for active host states.
 #[derive(Debug, Default)]
-struct HostBridgeRegistryState {
-    /// Bridge entries keyed by runtime id.
-    bridges: FxHashMap<u64, HostBridgeRegistryEntry>,
+struct HostStateRegistryState {
+    /// State entries keyed by runtime id.
+    states: FxHashMap<u64, HostStateRegistryEntry>,
 }
 
-/// Shared registry entry metadata for one host bridge.
+/// Shared registry entry metadata for one host state.
 #[derive(Debug)]
-struct HostBridgeRegistryEntry {
-    /// Platform tag for this bridge.
+struct HostStateRegistryEntry {
+    /// Platform tag for this state.
     platform: HostPlatform,
-    /// Weak reference to one runtime-owned bridge.
-    bridge: Weak<HostBridge>,
+    /// Weak reference to one runtime-owned state.
+    state: Weak<HostState>,
 }
 
-impl Drop for HostBridgeRegistration {
+impl Drop for HostStateRegistration {
     fn drop(&mut self) {
-        unregister_host_bridge(self.runtime_id);
+        unregister_host_state(self.runtime_id);
     }
 }
 
-impl HostBridgeRegistration {
+impl HostStateRegistration {
     /// Return the stable runtime id for this registration.
     pub(crate) fn runtime_id(&self) -> u64 {
         self.runtime_id
     }
 }
 
-/// Register one host bridge with one runtime id.
-pub(crate) fn register_host_bridge(
+/// Register one host state with one runtime id.
+pub(crate) fn register_host_state(
     platform: HostPlatform,
-    bridge: &Arc<HostBridge>,
-) -> HostBridgeRegistration {
-    let runtime_id = HOST_BRIDGE_ID_NEXT.fetch_add(1, Ordering::Relaxed);
-    let mut state = host_bridge_registry().write();
-    let entry = HostBridgeRegistryEntry {
+    host_state: &Arc<HostState>,
+) -> HostStateRegistration {
+    let runtime_id = HOST_STATE_ID_NEXT.fetch_add(1, Ordering::Relaxed);
+    let mut state = host_state_registry().write();
+    let entry = HostStateRegistryEntry {
         platform,
-        bridge: Arc::downgrade(bridge),
+        state: Arc::downgrade(host_state),
     };
-    state.bridges.insert(runtime_id, entry);
+    state.states.insert(runtime_id, entry);
 
-    HostBridgeRegistration { runtime_id }
+    HostStateRegistration { runtime_id }
 }
 
-/// Resolve one host bridge by runtime id and platform tag.
-pub(crate) fn host_bridge_for_runtime(
+/// Resolve one host state by runtime id and platform tag.
+pub(crate) fn host_state_for_runtime(
     runtime_id: u64,
     platform: HostPlatform,
-) -> RuntimeResult<Arc<HostBridge>> {
-    let mut state = host_bridge_registry().write();
-    let Some(entry) = state.bridges.get(&runtime_id) else {
-        return Err(missing_host_bridge(runtime_id, platform));
+) -> RuntimeResult<Arc<HostState>> {
+    let mut state = host_state_registry().write();
+    let Some(entry) = state.states.get(&runtime_id) else {
+        return Err(missing_host_state(runtime_id, platform));
     };
 
     if entry.platform != platform {
-        return Err(missing_host_bridge(runtime_id, platform));
+        return Err(missing_host_state(runtime_id, platform));
     }
 
-    let Some(bridge) = entry.bridge.upgrade() else {
-        state.bridges.remove(&runtime_id);
-        return Err(missing_host_bridge(runtime_id, platform));
+    let Some(host_state) = entry.state.upgrade() else {
+        state.states.remove(&runtime_id);
+        return Err(missing_host_state(runtime_id, platform));
     };
 
-    Ok(bridge)
+    Ok(host_state)
 }
 
-/// Return the shared host bridge registry lock.
-fn host_bridge_registry() -> &'static RwLock<HostBridgeRegistryState> {
-    HOST_BRIDGE_REGISTRY.get_or_init(|| RwLock::new(HostBridgeRegistryState::default()))
+/// Return the shared host state registry lock.
+fn host_state_registry() -> &'static RwLock<HostStateRegistryState> {
+    HOST_STATE_REGISTRY.get_or_init(|| RwLock::new(HostStateRegistryState::default()))
 }
 
-/// Remove one registration from the shared host bridge registry.
-fn unregister_host_bridge(runtime_id: u64) {
-    let mut state = host_bridge_registry().write();
-    let platform = state
-        .bridges
-        .remove(&runtime_id)
-        .map(|entry| entry.platform);
+/// Remove one registration from the shared host state registry.
+fn unregister_host_state(runtime_id: u64) {
+    let mut state = host_state_registry().write();
+    let platform = state.states.remove(&runtime_id).map(|entry| entry.platform);
     drop(state);
 
     cleanup_host_runtime_state(runtime_id, platform);
@@ -109,7 +106,7 @@ fn unregister_host_bridge(runtime_id: u64) {
 fn cleanup_host_runtime_state(runtime_id: u64, platform: Option<HostPlatform>) {
     #[cfg(any(test, target_os = "android"))]
     {
-        // remove android callback payloads eagerly when the bridge is dropped
+        // remove android callback payloads eagerly when the state is dropped
         if platform == Some(HostPlatform::Android) {
             crate::host::android::unregister_android_bindings(runtime_id);
         }
@@ -121,11 +118,11 @@ fn cleanup_host_runtime_state(runtime_id: u64, platform: Option<HostPlatform>) {
     }
 }
 
-/// Build one runtime error for missing host bridges.
-fn missing_host_bridge(runtime_id: u64, platform: HostPlatform) -> Box<RuntimeError> {
+/// Build one runtime error for missing host state.
+fn missing_host_state(runtime_id: u64, platform: HostPlatform) -> Box<RuntimeError> {
     let platform = platform.canonical_tag();
     RuntimeError::from(PlatformError::not_supported(format!(
-        "runtime.host.bridge.{platform}.{runtime_id}"
+        "runtime.host.state.{platform}.{runtime_id}"
     )))
     .boxed()
 }
@@ -134,43 +131,40 @@ fn missing_host_bridge(runtime_id: u64, platform: HostPlatform) -> Box<RuntimeEr
 mod tests {
     use std::sync::Arc;
 
-    use super::{host_bridge_for_runtime, register_host_bridge};
+    use super::{host_state_for_runtime, register_host_state};
     use crate::host::HostPlatform;
-    use crate::host::core::{HostBridge, HostState};
+    use crate::host::core::HostState;
 
     #[test]
-    fn test_register_host_bridge_resolves_by_runtime_id() {
-        let state = Arc::new(HostState::new());
-        let bridge = Arc::new(HostBridge::new(state));
-        let registration = register_host_bridge(HostPlatform::Android, &bridge);
+    fn test_register_host_state_resolves_by_runtime_id() {
+        let host_state = Arc::new(HostState::new());
+        let registration = register_host_state(HostPlatform::Android, &host_state);
         let runtime_id = registration.runtime_id();
 
-        let resolved_bridge = host_bridge_for_runtime(runtime_id, HostPlatform::Android).unwrap();
+        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Android).unwrap();
 
-        assert!(Arc::ptr_eq(&bridge, &resolved_bridge));
+        assert!(Arc::ptr_eq(&host_state, &resolved_state));
     }
 
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
-        let state = Arc::new(HostState::new());
-        let bridge = Arc::new(HostBridge::new(state));
-        let registration = register_host_bridge(HostPlatform::MacOS, &bridge);
+        let host_state = Arc::new(HostState::new());
+        let registration = register_host_state(HostPlatform::MacOS, &host_state);
         let runtime_id = registration.runtime_id();
 
         drop(registration);
 
-        let resolved_bridge = host_bridge_for_runtime(runtime_id, HostPlatform::MacOS);
-        assert!(resolved_bridge.is_err());
+        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::MacOS);
+        assert!(resolved_state.is_err());
     }
 
     #[test]
-    fn test_host_bridge_for_runtime_rejects_platform_mismatch() {
-        let state = Arc::new(HostState::new());
-        let bridge = Arc::new(HostBridge::new(state));
-        let registration = register_host_bridge(HostPlatform::Windows, &bridge);
+    fn test_host_state_for_runtime_rejects_platform_mismatch() {
+        let host_state = Arc::new(HostState::new());
+        let registration = register_host_state(HostPlatform::Windows, &host_state);
         let runtime_id = registration.runtime_id();
 
-        let resolved_bridge = host_bridge_for_runtime(runtime_id, HostPlatform::Android);
-        assert!(resolved_bridge.is_err());
+        let resolved_state = host_state_for_runtime(runtime_id, HostPlatform::Android);
+        assert!(resolved_state.is_err());
     }
 }

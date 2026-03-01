@@ -57,8 +57,8 @@ fn invalid_period_error(field: &str) -> Box<RuntimeError> {
 /// Resolve one clock domain into one current nanosecond timestamp.
 fn now_for_clock(context: &BindingCallContext, clock: TimerClock) -> u64 {
     match clock {
-        TimerClock::Wall => context.runtime().time.wall_nanos(),
-        TimerClock::Monotonic => context.runtime().time.mono_nanos(),
+        TimerClock::Wall => context.world().clock().wall_nanos(),
+        TimerClock::Monotonic => context.world().clock().mono_nanos(),
     }
 }
 

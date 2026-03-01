@@ -147,7 +147,7 @@ struct HostStoreHandleCache {
 
 /// Return one stable cache key for the active runtime state.
 fn runtime_cache_key(context: &BindingCallContext) -> usize {
-    context.runtime().instance_id as usize
+    context.runtime().agent_id as usize
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.

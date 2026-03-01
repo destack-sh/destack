@@ -1,12 +1,16 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
+use destack_workspace::PlatformHostOptions;
 use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
-    HostEvent, HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
-    HostWindowEvent,
+    HostEvent, HostEventQueue, HostLifecycleState, HostMemoryPressureLevel, HostPollOutcome,
+    HostPowerMode, HostThermalState, HostWindowEvent,
 };
+use crate::diagnostic::RuntimeResult;
+use crate::runtime::poller::HostPollerWakeHandle;
 
 /// Encoded lifecycle value for initializing.
 const LIFECYCLE_INITIALIZING: u8 = 0;
@@ -40,6 +44,8 @@ const POWER_MODE_LOW_POWER: u8 = 1;
 /// Mutable host service state shared by adapter service surfaces.
 #[derive(Debug)]
 pub struct HostState {
+    /// Shared host event queue for adapter event ingestion.
+    queue: HostEventQueue,
     /// Current lifecycle state.
     lifecycle_state: AtomicU8,
     /// State tracked for each known host window.
@@ -79,6 +85,7 @@ impl HostState {
     /// Create one host service state with neutral defaults.
     pub fn new() -> Self {
         Self {
+            queue: HostEventQueue::new(),
             lifecycle_state: AtomicU8::new(LIFECYCLE_INITIALIZING),
             windows: RwLock::new(FxHashMap::default()),
             permissions_in_flight: RwLock::new(FxHashSet::default()),
@@ -160,6 +167,94 @@ impl HostState {
                 self.wall_clock_change_count.fetch_add(1, Ordering::Relaxed);
             }
         }
+    }
+
+    /// Return one shared wake handle for host event polling.
+    pub(crate) fn wake_handle(&self) -> Arc<dyn HostPollerWakeHandle> {
+        self.queue.wake_handle()
+    }
+
+    /// Configure host integration options on queue policy.
+    pub(crate) fn configure_host_options(&self, host_options: &PlatformHostOptions) {
+        let queue_capacity = host_options
+            .event_queue_capacity
+            .and_then(|capacity| usize::try_from(capacity).ok());
+        self.queue.configure(queue_capacity);
+    }
+
+    /// Poll events from this host and apply service-state updates.
+    pub(crate) fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
+        let events = self.queue.poll_events(timeout_nanos)?;
+        for event in &events {
+            self.apply_event(event);
+        }
+
+        let dropped_event_count = self.queue.take_dropped_event_count();
+
+        Ok(HostPollOutcome {
+            events,
+            dropped_event_count,
+        })
+    }
+
+    /// Enqueue one raw host event.
+    pub(crate) fn push_event(&self, event: HostEvent) {
+        self.queue.enqueue(event);
+    }
+
+    /// Enqueue one lifecycle event.
+    pub(crate) fn push_lifecycle(&self, state: HostLifecycleState) {
+        self.push_event(HostEvent::Lifecycle(super::HostLifecycleEvent { state }));
+    }
+
+    /// Enqueue one window event.
+    pub(crate) fn push_window(&self, event: HostWindowEvent) {
+        self.push_event(HostEvent::Window(event));
+    }
+
+    /// Enqueue one window focus event.
+    pub(crate) fn push_window_focus(&self, window_id: u64, is_focused: bool) {
+        self.push_event(HostEvent::WindowFocus(super::HostWindowFocusEvent {
+            window_id,
+            is_focused,
+        }));
+    }
+
+    /// Enqueue one permission result event.
+    pub(crate) fn push_permission_result(&self, permission: &str, granted: bool) {
+        self.push_event(HostEvent::Permission(super::HostPermissionEvent {
+            permission: permission.to_string(),
+            granted,
+        }));
+    }
+
+    /// Enqueue one interruption event.
+    pub(crate) fn push_interruption(&self, interrupted: bool) {
+        self.push_event(HostEvent::Interruption(super::HostInterruptionEvent {
+            interrupted,
+        }));
+    }
+
+    /// Enqueue one memory pressure event.
+    pub(crate) fn push_memory_pressure(&self, level: HostMemoryPressureLevel) {
+        self.push_event(HostEvent::MemoryPressure(super::HostMemoryPressureEvent {
+            level,
+        }));
+    }
+
+    /// Enqueue one thermal state event.
+    pub(crate) fn push_thermal_state(&self, state: HostThermalState) {
+        self.push_event(HostEvent::ThermalState(super::HostThermalEvent { state }));
+    }
+
+    /// Enqueue one power mode event.
+    pub(crate) fn push_power_mode(&self, mode: HostPowerMode) {
+        self.push_event(HostEvent::PowerMode(super::HostPowerModeEvent { mode }));
+    }
+
+    /// Enqueue one wall clock change event.
+    pub(crate) fn push_wall_clock_changed(&self) {
+        self.push_event(HostEvent::WallClock(super::HostWallClockEvent));
     }
 }
 

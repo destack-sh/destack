@@ -5,6 +5,8 @@ use std::cell::{Cell, RefCell};
 use std::ptr;
 use std::sync::Arc;
 
+use parking_lot::RwLock;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, PlatformError,
@@ -18,8 +20,8 @@ use crate::runtime::scheduler::{
     EventLoop, EventLoopScope, MicrotaskId, TaskId, current_event_loop_scope,
 };
 
-use super::RuntimeState;
-use crate::runtime::{RuntimeHookState, RuntimeHooks};
+use super::RuntimeContext;
+use crate::runtime::{HookState, Hooks};
 
 thread_local! {
     /// TLS slot for the current binding call context.
@@ -32,11 +34,11 @@ thread_local! {
 #[derive(Debug, Clone)]
 pub struct BindingCallContext {
     /// Runtime state for platform bindings.
-    runtime: *const RuntimeState,
+    runtime: *const RuntimeContext,
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Binding policy for external calls.
-    policy: Arc<BindingPolicy>,
+    policy: Arc<RwLock<BindingPolicy>>,
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Event loop scope metadata for the current call.
@@ -45,11 +47,15 @@ pub struct BindingCallContext {
 
 impl BindingCallContext {
     /// Create a binding call context for TLS.
-    pub fn new(runtime: &Arc<RuntimeState>, event_loop: &EventLoop, policy: BindingPolicy) -> Self {
+    pub fn new(
+        runtime: &Arc<RuntimeContext>,
+        event_loop: &EventLoop,
+        policy: BindingPolicy,
+    ) -> Self {
         Self {
             runtime: Arc::as_ptr(runtime),
             event_loop,
-            policy: Arc::new(policy),
+            policy: Arc::new(RwLock::new(policy)),
             engine: BindingEngine::Native,
             scope: current_event_loop_scope(),
         }
@@ -57,9 +63,9 @@ impl BindingCallContext {
 
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
-        runtime: *const RuntimeState,
+        runtime: *const RuntimeContext,
         event_loop: *const EventLoop,
-        policy: Arc<BindingPolicy>,
+        policy: Arc<RwLock<BindingPolicy>>,
         engine: BindingEngine,
     ) -> Self {
         Self {
@@ -73,7 +79,7 @@ impl BindingCallContext {
 
     /// Borrow the runtime state.
     #[inline]
-    pub fn runtime(&self) -> &RuntimeState {
+    pub fn runtime(&self) -> &RuntimeContext {
         // safety: pointer is owned by an Arc in the caller
         unsafe { &*self.runtime }
     }
@@ -99,20 +105,36 @@ impl BindingCallContext {
 
     /// Borrow the runtime hook state.
     #[inline]
-    pub fn hooks(&self) -> &RuntimeHooks {
+    pub fn hooks(&self) -> &Hooks {
         &self.runtime().hooks
     }
 
     /// Borrow the runtime host state.
     #[inline]
-    pub fn host(&self) -> &crate::host::HostRuntime {
+    pub fn host(&self) -> &crate::host::Host {
         &self.runtime().host
     }
 
-    /// Borrow the shared simulation state.
+    /// Borrow the shared runtime world.
     #[inline]
-    pub fn simulation(&self) -> &crate::simulation::SharedSimulationState {
-        &self.runtime().simulation
+    pub fn world(&self) -> &crate::runtime::world::World {
+        &self.runtime().world
+    }
+
+    /// Borrow one read guard for the simulation state.
+    #[inline]
+    pub fn read_simulation(
+        &self,
+    ) -> parking_lot::RwLockReadGuard<'_, crate::simulation::Simulation> {
+        self.world().read_simulation()
+    }
+
+    /// Borrow one write guard for the simulation state.
+    #[inline]
+    pub fn write_simulation(
+        &self,
+    ) -> parking_lot::RwLockWriteGuard<'_, crate::simulation::Simulation> {
+        self.world().write_simulation()
     }
 
     /// Return the current event loop scope.
@@ -175,8 +197,10 @@ impl BindingCallContext {
     pub fn check_policy(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
         // run rule hooks and policy checks first
         self.hooks()
-            .on_before_binding(spec, RuntimeHookState::from_engine(Some(self.engine)))?;
-        self.policy.check_for_engine(spec, Some(self.engine))?;
+            .on_before_binding(spec, HookState::from_engine(Some(self.engine)))?;
+        self.policy
+            .read()
+            .check_for_engine(spec, Some(self.engine))?;
 
         Ok(())
     }
@@ -186,9 +210,10 @@ impl BindingCallContext {
     pub fn check_and_resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
         // run rule hooks and policy checks first
         self.hooks()
-            .on_before_binding(spec, RuntimeHookState::from_engine(Some(self.engine)))?;
+            .on_before_binding(spec, HookState::from_engine(Some(self.engine)))?;
         let world = self
             .policy
+            .read()
             .check_and_resolve_world_for_engine(spec, Some(self.engine))?;
 
         // reject host dispatch when the binding is unavailable on this host
@@ -203,6 +228,7 @@ impl BindingCallContext {
     #[inline]
     pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeWorld {
         self.policy
+            .read()
             .resolve_world_for_engine(spec, Some(self.engine))
     }
 
@@ -214,6 +240,7 @@ impl BindingCallContext {
     ) -> RuntimeResult<BindingReplayPayload> {
         let requested = self
             .policy
+            .read()
             .resolve_replay_payload_for_engine(spec, Some(self.engine));
         self.replay().payload_policy_for_requested(spec, requested)
     }

@@ -109,14 +109,14 @@ pub(super) fn windows_configured_keystore_path(
     match kind {
         CryptoStoreKind::User => context
             .runtime()
-            .module_options
+            .options
             .crypto
             .host_store_paths
             .user
             .clone(),
         CryptoStoreKind::Machine => context
             .runtime()
-            .module_options
+            .options
             .crypto
             .host_store_paths
             .machine

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::HostPlatform;
-use super::adapter::Host;
+use super::adapter::HostAdapter;
 
 /// Return the host platform for the active compile target.
 pub(super) const fn compile_target_host_platform() -> HostPlatform {
@@ -85,7 +85,7 @@ pub(super) const fn compile_target_host_platform() -> HostPlatform {
 }
 
 /// Return one default host for the active compile target.
-pub fn default_host() -> Arc<dyn Host> {
+pub fn default_host() -> Arc<dyn HostAdapter> {
     #[cfg(target_os = "android")]
     return Arc::new(crate::host::android::AndroidHost::new());
 

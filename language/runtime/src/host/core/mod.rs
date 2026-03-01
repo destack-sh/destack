@@ -1,5 +1,4 @@
 mod adapter;
-mod bridge;
 mod capability;
 mod event;
 mod queue;
@@ -9,8 +8,7 @@ mod select;
 mod service;
 mod state;
 
-pub use adapter::{Host, HostPlatform, HostPollOutcome};
-pub(crate) use bridge::HostBridge;
+pub use adapter::{HostAdapter, HostPlatform, HostPollOutcome};
 pub(crate) use capability::default_host_capabilities;
 pub use event::{
     HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostMemoryPressureEvent,
@@ -19,8 +17,8 @@ pub use event::{
 };
 pub(crate) use queue::HostEventQueue;
 #[allow(unused_imports)]
-pub(crate) use registry::{HostBridgeRegistration, host_bridge_for_runtime, register_host_bridge};
-pub use runtime::HostRuntime;
+pub(crate) use registry::{HostStateRegistration, host_state_for_runtime, register_host_state};
+pub use runtime::Host;
 pub use select::default_host;
 pub use service::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 pub use state::HostState;
