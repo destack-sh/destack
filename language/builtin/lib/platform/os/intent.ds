@@ -3,47 +3,112 @@ import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
 import { IntentHandle } from "../resource/index.ds";
 
-/// Host intent event kind.
-export enum IntentKind {
-    /// Runtime was activated with one URL target.
-    OpenUrl = 1,
-    /// Runtime was activated with one file target.
-    OpenFile = 2,
-    /// Runtime received one text-share payload.
-    ShareText = 3,
-    /// Runtime received one file-share payload.
-    ShareFiles = 4,
-    /// Runtime received one custom action payload.
-    CustomAction = 5,
+/// Open-url intent payload.
+export struct IntentOpenUrlPayload {
+    /// URL payload.
+    url: string;
 }
 
-/// Inbound intent payload.
-export struct IntentPayload {
-    /// URL payload when kind is `OpenUrl`.
-    url: string;
-    /// File payloads when kind is `OpenFile` or `ShareFiles`.
-    paths: Array<OsPath>;
-    /// Text payload when kind is `ShareText`.
+/// Open-file intent payload.
+export struct IntentOpenFilePayload {
+    /// File target payload.
+    path: OsPath;
+    /// MIME type when provided by host.
+    mimeType: string | void;
+}
+
+/// Share-text intent payload.
+export struct IntentShareTextPayload {
+    /// Shared text payload.
     text: string;
     /// MIME type when provided by host.
-    mimeType: string;
-    /// Action identifier when kind is `CustomAction`.
-    action: string;
+    mimeType: string | void;
 }
 
-/// Inbound intent event.
-export struct IntentEvent {
-    /// Event kind selector.
-    kind: IntentKind;
+/// Share-files intent payload.
+export struct IntentShareFilesPayload {
+    /// Shared file payloads.
+    paths: Array<OsPath>;
+    /// MIME type when provided by host.
+    mimeType: string | void;
+}
+
+/// Custom-action intent payload.
+export struct IntentCustomActionPayload {
+    /// Action identifier.
+    action: string;
+    /// URL payload when provided by host.
+    url: string | void;
+    /// File payloads when provided by host.
+    paths: Array<OsPath>;
+    /// Text payload when provided by host.
+    text: string | void;
+    /// MIME type when provided by host.
+    mimeType: string | void;
+}
+
+/// Shared metadata for all inbound intent events.
+export struct IntentEventMetadata {
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this stream.
     sequence: uint64;
     /// Host source package or process identifier when available.
     source: string;
-    /// Typed payload for the event.
-    payload: IntentPayload;
 }
+
+/// Open-url intent event.
+export struct IntentOpenUrlEvent {
+    /// Discriminator for this intent event variant.
+    kind: "openUrl";
+    /// Shared event metadata.
+    metadata: IntentEventMetadata;
+    /// Open-url payload.
+    payload: IntentOpenUrlPayload;
+}
+
+/// Open-file intent event.
+export struct IntentOpenFileEvent {
+    /// Discriminator for this intent event variant.
+    kind: "openFile";
+    /// Shared event metadata.
+    metadata: IntentEventMetadata;
+    /// Open-file payload.
+    payload: IntentOpenFilePayload;
+}
+
+/// Share-text intent event.
+export struct IntentShareTextEvent {
+    /// Discriminator for this intent event variant.
+    kind: "shareText";
+    /// Shared event metadata.
+    metadata: IntentEventMetadata;
+    /// Share-text payload.
+    payload: IntentShareTextPayload;
+}
+
+/// Share-files intent event.
+export struct IntentShareFilesEvent {
+    /// Discriminator for this intent event variant.
+    kind: "shareFiles";
+    /// Shared event metadata.
+    metadata: IntentEventMetadata;
+    /// Share-files payload.
+    payload: IntentShareFilesPayload;
+}
+
+/// Custom-action intent event.
+export struct IntentCustomActionEvent {
+    /// Discriminator for this intent event variant.
+    kind: "customAction";
+    /// Shared event metadata.
+    metadata: IntentEventMetadata;
+    /// Custom-action payload.
+    payload: IntentCustomActionPayload;
+}
+
+/// Inbound intent event.
+export newtype IntentEvent = IntentOpenUrlEvent | IntentOpenFileEvent | IntentShareTextEvent | IntentShareFilesEvent | IntentCustomActionEvent;
 
 /// Intent stream open options.
 export struct IntentOpenOptions {

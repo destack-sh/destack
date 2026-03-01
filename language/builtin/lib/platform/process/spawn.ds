@@ -4,57 +4,79 @@ import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
 import { FileMode, OpenFlags } from "../fs/flags.ds";
 import { OsPath } from "../fs/path.ds";
 
-/// Standard I/O wiring mode for spawned processes.
-export enum ProcessStdioKind {
-    /// Inherit the parent process stream.
-    Inherit = 0,
-    /// Connect to a null sink.
-    Null = 1,
-    /// Create a pipe endpoint.
-    Pipe = 2,
-    /// Use an existing file handle.
-    File = 3,
-    /// Use an existing numeric descriptor.
-    Descriptor = 4,
+/// Inherit stdio from the parent process.
+export struct ProcessStdioInherit {
+    /// Discriminator for this stdio variant.
+    kind: "inherit";
 }
 
-/// Stdio entry for process spawning.
-export struct ProcessStdio {
-    /// Selected stdio wiring mode.
-    kind: ProcessStdioKind;
-    /// File handle used when the mode is file.
-    file: FileHandle;
-    /// Pipe handle used when the mode is pipe.
+/// Connect stdio to one null sink.
+export struct ProcessStdioNull {
+    /// Discriminator for this stdio variant.
+    kind: "null";
+}
+
+/// Connect stdio to one pipe endpoint.
+export struct ProcessStdioPipe {
+    /// Discriminator for this stdio variant.
+    kind: "pipe";
+    /// Pipe handle used for this stdio lane.
     pipe: PipeHandle;
-    /// Numeric descriptor used when the mode is descriptor.
+}
+
+/// Connect stdio to one existing file handle.
+export struct ProcessStdioFile {
+    /// Discriminator for this stdio variant.
+    kind: "file";
+    /// File handle used for this stdio lane.
+    file: FileHandle;
+}
+
+/// Connect stdio to one existing numeric descriptor.
+export struct ProcessStdioDescriptor {
+    /// Discriminator for this stdio variant.
+    kind: "descriptor";
+    /// Numeric descriptor used for this stdio lane.
     descriptor: int32;
 }
 
-/// File descriptor action for process spawning.
-export enum ProcessFdActionKind {
-    /// Close one descriptor before exec.
-    Close = 1,
-    /// Duplicate one descriptor onto another.
-    Dup2 = 2,
-    /// Open one path and bind it to one descriptor.
-    Open = 3,
+/// Stdio entry for process spawning.
+export newtype ProcessStdio = ProcessStdioInherit | ProcessStdioNull | ProcessStdioPipe | ProcessStdioFile | ProcessStdioDescriptor;
+
+/// Close one descriptor before exec.
+export struct ProcessFdActionClose {
+    /// Discriminator for this fd action variant.
+    kind: "close";
+    /// Descriptor to close.
+    descriptor: int32;
 }
 
-/// File descriptor action for process spawning.
-export struct ProcessFdAction {
-    /// Action opcode.
-    op: ProcessFdActionKind;
+/// Duplicate one descriptor onto another.
+export struct ProcessFdActionDup2 {
+    /// Discriminator for this fd action variant.
+    kind: "dup2";
     /// Source descriptor.
     source: int32;
     /// Target descriptor.
     target: int32;
-    /// Path used by open actions.
+}
+
+/// Open one path and bind it to one descriptor.
+export struct ProcessFdActionOpen {
+    /// Discriminator for this fd action variant.
+    kind: "open";
+    /// Target descriptor.
+    target: int32;
+    /// Path used by open action.
     path: OsPath;
-    /// Open flags for open actions.
+    /// Open flags for open action.
     flags: OpenFlags;
-    /// Open mode for open actions.
+    /// Open mode for open action.
     mode: FileMode;
 }
+
+/// File descriptor action for process spawning.
+export newtype ProcessFdAction = ProcessFdActionClose | ProcessFdActionDup2 | ProcessFdActionOpen;
 
 /// Process spawn options.
 export struct ProcessSpawnOptions {

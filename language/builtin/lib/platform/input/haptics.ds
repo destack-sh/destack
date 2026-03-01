@@ -90,7 +90,7 @@ declare namespace input {
     export function hapticsPlay(
         handle: InputDeviceHandle,
         effect: InputHapticEffectType,
-        params: InputHapticEffectParameters,
+        parameters: InputHapticEffectParameters,
     ): Result<InputHapticsResult, PlatformError>;
 
     /// Stop active haptic effects.

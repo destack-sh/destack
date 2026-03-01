@@ -30,14 +30,6 @@ export enum BackgroundTaskResult {
     Failure = 3,
 }
 
-/// Background-task event kind.
-export enum BackgroundEventKind {
-    /// Host scheduled one task execution.
-    TaskReady = 1,
-    /// Host signaled one running task expiration.
-    TaskExpired = 2,
-}
-
 /// Background-task scheduling options.
 export struct BackgroundTaskOptions {
     /// Stable task identifier.
@@ -90,10 +82,8 @@ export struct BackgroundEventOpenOptions {
     includeTaskExpired: boolean;
 }
 
-/// Background-task event payload.
-export struct BackgroundEvent {
-    /// Event kind selector.
-    kind: BackgroundEventKind;
+/// Shared metadata for all background-task events.
+export struct BackgroundEventMetadata {
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this event stream.
@@ -105,6 +95,25 @@ export struct BackgroundEvent {
     /// Host execution deadline in UTC nanoseconds when provided.
     deadlineUnixNs: uint64;
 }
+
+/// Task-ready background event.
+export struct BackgroundTaskReadyEvent {
+    /// Discriminator for this background event variant.
+    kind: "taskReady";
+    /// Shared event metadata.
+    metadata: BackgroundEventMetadata;
+}
+
+/// Task-expired background event.
+export struct BackgroundTaskExpiredEvent {
+    /// Discriminator for this background event variant.
+    kind: "taskExpired";
+    /// Shared event metadata.
+    metadata: BackgroundEventMetadata;
+}
+
+/// Background-task event payload.
+export newtype BackgroundEvent = BackgroundTaskReadyEvent | BackgroundTaskExpiredEvent;
 
 /// Background-task bindings.
 declare namespace os {

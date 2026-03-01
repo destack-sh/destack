@@ -13,8 +13,64 @@ export enum PacketTimestampMode {
     Hardware = 2,
 }
 
+/// Packet backend selector.
+export enum PacketBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Linux AF_PACKET backend.
+    AfPacket = 1,
+    /// BSD BPF device backend.
+    Bpf = 2,
+    /// Windows raw-socket backend.
+    WinRawSocket = 3,
+    /// Null backend for tests and simulation.
+    Null = 255,
+}
+
+/// Packet backend selection policy.
+export enum PacketBackendSelectionPolicy {
+    /// Require that the requested backend is used with no fallback.
+    Strict = 1,
+    /// Allow fallback to one host-default backend when unavailable.
+    AllowFallback = 2,
+}
+
+/// Packet backend capability flags.
+export newtype PacketBackendCapabilityFlags = uint64;
+
+/// Packet backend descriptor.
+export struct PacketBackendDescriptor {
+    /// Backend selector.
+    backend: PacketBackend;
+    /// Stable backend name.
+    name: string;
+    /// Whether this backend is currently available on this host.
+    available: boolean;
+    /// Priority in default auto-selection order.
+    priority: uint16;
+    /// Backend capability flags.
+    capabilityFlags: PacketBackendCapabilityFlags;
+}
+
+/// Backend capability flag bit for packet capture operations.
+export const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x1);
+/// Backend capability flag bit for packet send operations.
+export const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x2);
+/// Backend capability flag bit for timestamp configuration.
+export const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x4);
+/// Backend capability flag bit for packet filter programs.
+export const PACKET_BACKEND_CAP_FILTER: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x8);
+/// Backend capability flag bit for packet fanout operations.
+export const PACKET_BACKEND_CAP_FANOUT: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x10);
+/// Backend capability flag bit for packet ring operations.
+export const PACKET_BACKEND_CAP_RING: PacketBackendCapabilityFlags = PacketBackendCapabilityFlags(0x20);
+
 /// Packet capture options.
 export struct PacketCaptureOptions {
+    /// Preferred packet backend selector.
+    backend: PacketBackend;
+    /// Packet backend selection policy.
+    backendPolicy: PacketBackendSelectionPolicy;
     /// Interface index for capture.
     interfaceIndex: uint32;
     /// Maximum frame bytes per packet.
@@ -89,6 +145,24 @@ export struct PacketRingOptions {
 
 /// Raw network bindings for the native runtime.
 declare namespace net {
+    /// List host packet backends.
+    ///
+    /// Enumerate available packet backend implementations and backend-level feature flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `net.raw`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.net.raw.packetBackendList", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
+    export function packetBackendList(): Result<Slice<PacketBackendDescriptor>, PlatformError>;
+
     /// Open a raw IP socket.
     ///
     /// Creates a raw socket endpoint for protocol-level packet control.

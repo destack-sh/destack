@@ -3,22 +3,6 @@ import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle, WatchHandle } from "../resource/index.ds";
 import { OsPath } from "./path.ds";
 
-/// Filesystem watch event kind.
-export enum WatchEventKind {
-    /// A path was created.
-    Create = 1,
-    /// A path was removed.
-    Remove = 2,
-    /// A path was modified.
-    Modify = 3,
-    /// A path was renamed.
-    Rename = 4,
-    /// Metadata changed without content writes.
-    Metadata = 5,
-    /// Backend queue overflowed and events were dropped.
-    Overflow = 6,
-}
-
 /// Filesystem watch mask.
 export newtype WatchMask = uint32;
 
@@ -32,17 +16,74 @@ export struct WatchOptions {
     followSymlinks: boolean;
 }
 
-/// Filesystem watch event payload.
-export struct WatchEvent {
-    /// Event kind.
-    kind: WatchEventKind;
-    /// Watched path.
-    path: OsPath;
-    /// Optional related path for rename pairs.
-    relatedPath: OsPath;
+/// Shared metadata for filesystem watch events.
+export struct WatchEventMetadata {
     /// Backend event cookie when available.
     cookie: uint64;
 }
+
+/// Filesystem create event.
+export struct WatchCreateEvent {
+    /// Discriminator for this watch event variant.
+    kind: "create";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+    /// Created path.
+    path: OsPath;
+}
+
+/// Filesystem remove event.
+export struct WatchRemoveEvent {
+    /// Discriminator for this watch event variant.
+    kind: "remove";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+    /// Removed path.
+    path: OsPath;
+}
+
+/// Filesystem modify event.
+export struct WatchModifyEvent {
+    /// Discriminator for this watch event variant.
+    kind: "modify";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+    /// Modified path.
+    path: OsPath;
+}
+
+/// Filesystem rename event.
+export struct WatchRenameEvent {
+    /// Discriminator for this watch event variant.
+    kind: "rename";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+    /// Source path for rename.
+    path: OsPath;
+    /// Destination or paired path for rename.
+    relatedPath: OsPath;
+}
+
+/// Filesystem metadata-change event.
+export struct WatchMetadataEvent {
+    /// Discriminator for this watch event variant.
+    kind: "metadata";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+    /// Metadata-changed path.
+    path: OsPath;
+}
+
+/// Filesystem overflow event.
+export struct WatchOverflowEvent {
+    /// Discriminator for this watch event variant.
+    kind: "overflow";
+    /// Shared event metadata.
+    metadata: WatchEventMetadata;
+}
+
+/// Filesystem watch event payload.
+export newtype WatchEvent = WatchCreateEvent | WatchRemoveEvent | WatchModifyEvent | WatchRenameEvent | WatchMetadataEvent | WatchOverflowEvent;
 
 /// Batch of filesystem watch events.
 export struct WatchBatch {

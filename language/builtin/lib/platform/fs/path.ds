@@ -8,41 +8,37 @@ export newtype PathBytes = uint8[];
 /// UTF-16 path on Windows platforms.
 export newtype PathUtf16 = uint16[];
 
-/// Path encoding tag for platform paths.
-export enum PathEncoding {
-    /// Raw byte path data.
-    Bytes = 1,
-    /// UTF-16 path data encoded as little-endian bytes.
-    Utf16 = 2,
+/// Raw byte platform path payload.
+export struct OsPathBytes {
+    /// Discriminator for this platform path variant.
+    kind: "bytes";
+    /// Raw byte payload.
+    bytes: PathBytes;
 }
 
-/// Platform path payload with one tagged representation.
-///
-/// When encoding is `Bytes`, `bytes` stores raw path bytes.
-/// When encoding is `Utf16`, `utf16` stores UTF-16 code units.
-export struct OsPath {
-    /// Path encoding tag.
-    encoding: PathEncoding;
-    /// Raw byte payload for `PathEncoding.Bytes`.
-    bytes: PathBytes;
-    /// UTF-16 payload for `PathEncoding.Utf16`.
+/// UTF-16 platform path payload.
+export struct OsPathUtf16 {
+    /// Discriminator for this platform path variant.
+    kind: "utf16";
+    /// UTF-16 payload.
     utf16: PathUtf16;
 }
 
+/// Platform path payload.
+export newtype OsPath = OsPathBytes | OsPathUtf16;
+
 /// Build an `OsPath` from raw platform bytes.
 export function osPathBytes(data: PathBytes): OsPath {
-    OsPath {
-        encoding: PathEncoding.Bytes,
+    OsPathBytes {
+        kind: "bytes",
         bytes: data,
-        utf16: [],
     }
 }
 
 /// Build an `OsPath` from UTF-16 code units.
 export function osPathUtf16(units: PathUtf16): OsPath {
-    OsPath {
-        encoding: PathEncoding.Utf16,
-        bytes: [],
+    OsPathUtf16 {
+        kind: "utf16",
         utf16: units,
     }
 }

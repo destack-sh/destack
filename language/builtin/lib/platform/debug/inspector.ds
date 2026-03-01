@@ -6,7 +6,7 @@ export struct InspectorEndpoint {
     /// Transport URL for the inspector session.
     url: string;
     /// Host process identifier that owns the session.
-    pid: uint32;
+    processId: uint32;
 }
 
 /// Inspector transport bindings.

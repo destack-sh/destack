@@ -22,26 +22,6 @@ export enum NotificationPriority {
     High = 3,
 }
 
-/// Notification event kind.
-export enum NotificationEventKind {
-    /// Host received one notification payload.
-    Delivered = 1,
-    /// User interacted with one notification payload.
-    Interacted = 2,
-    /// Host dismissed one notification payload.
-    Dismissed = 3,
-}
-
-/// Notification trigger kind.
-export enum NotificationTriggerKind {
-    /// Immediate notification delivery.
-    Immediate = 1,
-    /// Relative time-interval delivery.
-    TimeInterval = 2,
-    /// Calendar-date delivery.
-    CalendarDate = 3,
-}
-
 /// Notification action style.
 export enum NotificationActionStyle {
     /// Default action style.
@@ -72,15 +52,30 @@ export struct NotificationCalendarTrigger {
     repeats: boolean;
 }
 
-/// Notification trigger payload.
-export struct NotificationTrigger {
-    /// Trigger kind selector.
-    kind: NotificationTriggerKind;
-    /// Time-interval trigger delay in nanoseconds.
-    intervalNs?: uint64;
-    /// Calendar trigger payload.
-    calendar?: NotificationCalendarTrigger;
+/// Immediate notification trigger payload.
+export struct NotificationImmediateTrigger {
+    /// Discriminator for this notification trigger variant.
+    kind: "immediate";
 }
+
+/// Relative time-interval notification trigger payload.
+export struct NotificationTimeIntervalTrigger {
+    /// Discriminator for this notification trigger variant.
+    kind: "timeInterval";
+    /// Time-interval trigger delay in nanoseconds.
+    intervalNs: uint64;
+}
+
+/// Calendar-date notification trigger payload.
+export struct NotificationCalendarDateTrigger {
+    /// Discriminator for this notification trigger variant.
+    kind: "calendarDate";
+    /// Calendar trigger payload.
+    calendar: NotificationCalendarTrigger;
+}
+
+/// Notification trigger payload.
+export newtype NotificationTrigger = NotificationImmediateTrigger | NotificationTimeIntervalTrigger | NotificationCalendarDateTrigger;
 
 /// Notification action descriptor.
 export struct NotificationAction {
@@ -158,23 +153,54 @@ export struct NotificationEventOpenOptions {
     includeDismissed: boolean;
 }
 
-/// Host notification event payload.
-export struct NotificationEvent {
-    /// Event kind selector.
-    kind: NotificationEventKind;
+/// Shared metadata for all notification events.
+export struct NotificationEventMetadata {
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this event stream.
     sequence: uint64;
     /// Host notification identifier.
     id: string;
-    /// Action identifier for interaction events when available.
-    actionId?: string;
-    /// Text-input response payload for text-input actions when available.
-    actionResponseText?: string;
     /// Notification request payload.
     request: NotificationRequest;
 }
+
+/// Notification interaction payload.
+export struct NotificationInteractedPayload {
+    /// Action identifier when available.
+    actionId?: string;
+    /// Text-input response payload for text-input actions when available.
+    actionResponseText?: string;
+}
+
+/// Delivered notification event.
+export struct NotificationDeliveredEvent {
+    /// Discriminator for this notification event variant.
+    kind: "delivered";
+    /// Shared event metadata.
+    metadata: NotificationEventMetadata;
+}
+
+/// Interacted notification event.
+export struct NotificationInteractedEvent {
+    /// Discriminator for this notification event variant.
+    kind: "interacted";
+    /// Shared event metadata.
+    metadata: NotificationEventMetadata;
+    /// Interaction payload.
+    payload: NotificationInteractedPayload;
+}
+
+/// Dismissed notification event.
+export struct NotificationDismissedEvent {
+    /// Discriminator for this notification event variant.
+    kind: "dismissed";
+    /// Shared event metadata.
+    metadata: NotificationEventMetadata;
+}
+
+/// Host notification event payload.
+export newtype NotificationEvent = NotificationDeliveredEvent | NotificationInteractedEvent | NotificationDismissedEvent;
 
 /// Host notification bindings.
 declare namespace os {

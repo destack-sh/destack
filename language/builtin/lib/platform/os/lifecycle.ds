@@ -13,26 +13,6 @@ export enum LifecycleState {
     Terminating = 4,
 }
 
-/// Runtime lifecycle event kind.
-export enum LifecycleEventKind {
-    /// Runtime launched.
-    Launch = 1,
-    /// Runtime entered active foreground execution.
-    Resume = 2,
-    /// Runtime is pausing foreground execution.
-    Pause = 3,
-    /// Runtime entered background execution.
-    Background = 4,
-    /// Runtime returned to foreground execution.
-    Foreground = 5,
-    /// Host reported low-memory pressure.
-    LowMemory = 6,
-    /// Host low-power mode changed.
-    LowPowerModeChanged = 7,
-    /// Host requested termination.
-    Terminate = 8,
-}
-
 /// Low-memory event payload.
 export struct LifecycleLowMemoryPayload {
     /// Backend-defined severity level.
@@ -45,24 +25,84 @@ export struct LifecycleLowPowerPayload {
     enabled: boolean;
 }
 
-/// Lifecycle event payload.
-/// Exactly one payload field should be set according to `LifecycleEvent.kind`.
-export newtype LifecycleEventPayload = {
-    lowMemory?: LifecycleLowMemoryPayload,
-    lowPower?: LifecycleLowPowerPayload,
-};
-
-/// Runtime lifecycle event payload.
-export struct LifecycleEvent {
-    /// Lifecycle event kind selector.
-    kind: LifecycleEventKind;
+/// Shared metadata for all lifecycle events.
+export struct LifecycleEventMetadata {
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this lifecycle stream.
     sequence: uint64;
-    /// Optional typed payload for the event.
-    payload: LifecycleEventPayload;
 }
+
+/// Launch lifecycle event.
+export struct LifecycleLaunchEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "launch";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Resume lifecycle event.
+export struct LifecycleResumeEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "resume";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Pause lifecycle event.
+export struct LifecyclePauseEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "pause";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Background lifecycle event.
+export struct LifecycleBackgroundEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "background";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Foreground lifecycle event.
+export struct LifecycleForegroundEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "foreground";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Low-memory lifecycle event.
+export struct LifecycleLowMemoryEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "lowMemory";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+    /// Low-memory payload.
+    payload: LifecycleLowMemoryPayload;
+}
+
+/// Low-power-mode-changed lifecycle event.
+export struct LifecycleLowPowerModeChangedEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "lowPowerModeChanged";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+    /// Low-power payload.
+    payload: LifecycleLowPowerPayload;
+}
+
+/// Terminate lifecycle event.
+export struct LifecycleTerminateEvent {
+    /// Discriminator for this lifecycle event variant.
+    kind: "terminate";
+    /// Shared event metadata.
+    metadata: LifecycleEventMetadata;
+}
+
+/// Runtime lifecycle event payload.
+export newtype LifecycleEvent = LifecycleLaunchEvent | LifecycleResumeEvent | LifecyclePauseEvent | LifecycleBackgroundEvent | LifecycleForegroundEvent | LifecycleLowMemoryEvent | LifecycleLowPowerModeChangedEvent | LifecycleTerminateEvent;
 
 /// Lifecycle bindings.
 declare namespace os {

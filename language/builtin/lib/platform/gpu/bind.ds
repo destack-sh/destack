@@ -25,26 +25,6 @@ export enum GpuShaderVisibilityFlag {
     Compute = 4,
 }
 
-/// Binding resource kind.
-export enum GpuBindingResourceKind {
-    /// Resource kind is unspecified.
-    Undefined = 0,
-    /// Uniform buffer binding.
-    UniformBuffer = 1,
-    /// Storage buffer binding.
-    StorageBuffer = 2,
-    /// Read-only storage buffer binding.
-    ReadOnlyStorageBuffer = 3,
-    /// Sampled texture binding.
-    SampledTexture = 4,
-    /// Storage texture binding.
-    StorageTexture = 5,
-    /// Filtering sampler binding.
-    Sampler = 6,
-    /// Comparison sampler binding.
-    ComparisonSampler = 7,
-}
-
 /// Buffer binding layout selector.
 export enum GpuBufferBindingType {
     /// Buffer lane is not used by this entry.
@@ -123,35 +103,95 @@ export enum GpuStorageTextureAccess {
     ReadWrite = 4,
 }
 
-/// Bind group layout entry.
-export struct GpuBindGroupLayoutEntry {
-    /// Binding index.
-    binding: uint32;
-    /// Resource kind.
-    resourceKind: GpuBindingResourceKind;
-    /// Shader stage visibility mask.
-    visibility: GpuShaderVisibilityMask;
-    /// Binding array length, zero when not an array binding.
-    bindingArrayCount: uint32;
-    /// Buffer binding layout selector when resource kind is buffer.
-    bufferBindingType: GpuBufferBindingType;
+/// Buffer bind group layout resource payload.
+export struct GpuBindGroupLayoutBufferResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "buffer";
+    /// Buffer binding layout selector.
+    bindingType: GpuBufferBindingType;
     /// Whether this binding uses dynamic offsets.
     hasDynamicOffset: boolean;
     /// Minimum binding size in bytes when applicable.
     minBindingSize: uint64;
-    /// Sampler binding layout selector when resource kind is sampler.
-    samplerBindingType: GpuSamplerBindingType;
-    /// Texture sample type selector when resource kind is sampled texture.
+}
+
+/// Sampled-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutSampledTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "sampledTexture";
+    /// Texture sample type selector.
     textureSampleType: GpuTextureSampleType;
-    /// Texture view dimension selector when resource kind is texture.
+    /// Texture view dimension selector.
     textureViewDimension: GpuTextureViewDimension;
     /// Whether multisampled textures are required.
     multisampled: boolean;
-    /// Storage-texture access selector when resource kind is storage texture.
-    storageTextureAccess: GpuStorageTextureAccess;
-    /// Storage-texture format identifier when resource kind is storage texture.
-    storageTextureFormat: uint32;
 }
+
+/// Storage-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutStorageTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "storageTexture";
+    /// Storage-texture access selector.
+    storageTextureAccess: GpuStorageTextureAccess;
+    /// Storage-texture format identifier.
+    storageTextureFormat: uint32;
+    /// Texture view dimension selector.
+    textureViewDimension: GpuTextureViewDimension;
+}
+
+/// Sampler bind group layout resource payload.
+export struct GpuBindGroupLayoutSamplerResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "sampler";
+    /// Sampler binding layout selector.
+    samplerBindingType: GpuSamplerBindingType;
+}
+
+/// Bind group layout resource payload.
+export newtype GpuBindGroupLayoutResource = GpuBindGroupLayoutBufferResource | GpuBindGroupLayoutSampledTextureResource | GpuBindGroupLayoutStorageTextureResource | GpuBindGroupLayoutSamplerResource;
+
+/// Bind group layout entry.
+export struct GpuBindGroupLayoutEntry {
+    /// Binding index.
+    binding: uint32;
+    /// Shader stage visibility mask.
+    visibility: GpuShaderVisibilityMask;
+    /// Binding array length, zero when not an array binding.
+    bindingArrayCount: uint32;
+    /// Typed resource payload.
+    resource: GpuBindGroupLayoutResource;
+}
+
+/// Buffer bind group resource payload.
+export struct GpuBindGroupBufferResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "buffer";
+    /// Buffer handle.
+    buffer: GpuBufferHandle;
+    /// Buffer byte offset.
+    offset: uint64;
+    /// Buffer byte length.
+    size: uint64;
+}
+
+/// Texture bind group resource payload.
+export struct GpuBindGroupTextureResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "texture";
+    /// Texture-view handle.
+    texture: GpuTextureViewHandle;
+}
+
+/// Sampler bind group resource payload.
+export struct GpuBindGroupSamplerResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "sampler";
+    /// Sampler handle.
+    sampler: GpuSamplerHandle;
+}
+
+/// Bind group resource payload.
+export newtype GpuBindGroupResource = GpuBindGroupBufferResource | GpuBindGroupTextureResource | GpuBindGroupSamplerResource;
 
 /// Bind group resource entry.
 export struct GpuBindGroupEntry {
@@ -159,18 +199,8 @@ export struct GpuBindGroupEntry {
     binding: uint32;
     /// Binding array element index, zero when not array-indexed.
     bindingArrayElement: uint32;
-    /// Resource kind.
-    resourceKind: GpuBindingResourceKind;
-    /// Buffer handle when resource kind is buffer.
-    buffer: GpuBufferHandle;
-    /// Buffer byte offset when resource kind is buffer.
-    offset: uint64;
-    /// Buffer byte length when resource kind is buffer.
-    size: uint64;
-    /// Texture-view handle when resource kind is texture.
-    texture: GpuTextureViewHandle;
-    /// Sampler handle when resource kind is sampler.
-    sampler: GpuSamplerHandle;
+    /// Typed resource payload.
+    resource: GpuBindGroupResource;
 }
 
 /// Pipeline layout options.

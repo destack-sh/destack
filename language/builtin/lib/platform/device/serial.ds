@@ -77,18 +77,6 @@ export enum SerialSignalBits {
     Ri = 0x8,
 }
 
-/// Serial event kind.
-export enum SerialEventKind {
-    /// Read data became available.
-    ReadReady = 1,
-    /// Write side became ready.
-    WriteReady = 2,
-    /// Signal-line state changed.
-    SignalsChanged = 3,
-    /// Backend reported one serial-port error.
-    Error = 4,
-}
-
 /// Read-ready event payload.
 export struct SerialReadReadyPayload {
     /// Estimated number of readable bytes.
@@ -115,26 +103,56 @@ export struct SerialErrorPayload {
     detail: int32;
 }
 
-/// Typed serial event payload.
-/// Exactly one payload field should be set according to `SerialEvent.kind`.
-export newtype SerialEventPayload = {
-    readReady?: SerialReadReadyPayload,
-    writeReady?: SerialWriteReadyPayload,
-    signalsChanged?: SerialSignalsChangedPayload,
-    error?: SerialErrorPayload,
-};
-
-/// Serial event.
-export struct SerialEvent {
-    /// Event kind selector.
-    kind: SerialEventKind;
+/// Shared metadata for all serial events.
+export struct SerialEventMetadata {
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this serial event stream.
     sequence: uint64;
-    /// Optional typed payload for the event.
-    payload: SerialEventPayload;
 }
+
+/// Read-ready serial event.
+export struct SerialReadReadyEvent {
+    /// Discriminator for this serial event variant.
+    kind: "readReady";
+    /// Shared event metadata.
+    metadata: SerialEventMetadata;
+    /// Read-ready payload.
+    payload: SerialReadReadyPayload;
+}
+
+/// Write-ready serial event.
+export struct SerialWriteReadyEvent {
+    /// Discriminator for this serial event variant.
+    kind: "writeReady";
+    /// Shared event metadata.
+    metadata: SerialEventMetadata;
+    /// Write-ready payload.
+    payload: SerialWriteReadyPayload;
+}
+
+/// Signal-line-changed serial event.
+export struct SerialSignalsChangedEvent {
+    /// Discriminator for this serial event variant.
+    kind: "signalsChanged";
+    /// Shared event metadata.
+    metadata: SerialEventMetadata;
+    /// Signal-line payload.
+    payload: SerialSignalsChangedPayload;
+}
+
+/// Error serial event.
+export struct SerialErrorEvent {
+    /// Discriminator for this serial event variant.
+    kind: "error";
+    /// Shared event metadata.
+    metadata: SerialEventMetadata;
+    /// Error payload.
+    payload: SerialErrorPayload;
+}
+
+/// Serial event.
+export newtype SerialEvent = SerialReadReadyEvent | SerialWriteReadyEvent | SerialSignalsChangedEvent | SerialErrorEvent;
 
 /// Serial bindings.
 declare namespace device {
