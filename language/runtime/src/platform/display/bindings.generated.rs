@@ -370,28 +370,29 @@ fn encode_destack_display_monitor_descriptor_result(
     result: RuntimeResult<DisplayDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = value.name.value();
-        let field_2 = vm::Value::bool(value.primary);
-        let field_3 = vm::Value::int(value.x as i64, 32);
-        let field_4 = vm::Value::int(value.y as i64, 32);
-        let field_5 = vm::Value::uint(value.width_px as u64, 32);
-        let field_6 = vm::Value::uint(value.height_px as u64, 32);
-        let field_7 = vm::Value::int(value.work_area_x as i64, 32);
-        let field_8 = vm::Value::int(value.work_area_y as i64, 32);
-        let field_9 = vm::Value::uint(value.work_area_width_px as u64, 32);
-        let field_10 = vm::Value::uint(value.work_area_height_px as u64, 32);
-        let field_11 = vm::Value::uint(value.width_mm as u64, 32);
-        let field_12 = vm::Value::uint(value.height_mm as u64, 32);
-        let field_13 = vm::Value::uint(value.scale_factor_milli as u64, 32);
-        let field_14 = vm::Value::uint(value.orientation as u8 as u64, 8);
-        let field_15 = vm::Value::bool(value.is_builtin);
-        let field_16 = vm::Value::bool(value.supports_variable_refresh);
-        let field_17 = vm::Value::bool(value.supports_hdr);
+        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_1 = value.id.value();
+        let field_2 = value.name.value();
+        let field_3 = vm::Value::bool(value.primary);
+        let field_4 = vm::Value::int(value.x as i64, 32);
+        let field_5 = vm::Value::int(value.y as i64, 32);
+        let field_6 = vm::Value::uint(value.width_px as u64, 32);
+        let field_7 = vm::Value::uint(value.height_px as u64, 32);
+        let field_8 = vm::Value::int(value.work_area_x as i64, 32);
+        let field_9 = vm::Value::int(value.work_area_y as i64, 32);
+        let field_10 = vm::Value::uint(value.work_area_width_px as u64, 32);
+        let field_11 = vm::Value::uint(value.work_area_height_px as u64, 32);
+        let field_12 = vm::Value::uint(value.width_mm as u64, 32);
+        let field_13 = vm::Value::uint(value.height_mm as u64, 32);
+        let field_14 = vm::Value::uint(value.scale_factor_milli as u64, 32);
+        let field_15 = vm::Value::uint(value.orientation as u8 as u64, 8);
+        let field_16 = vm::Value::bool(value.is_builtin);
+        let field_17 = vm::Value::bool(value.supports_variable_refresh);
+        let field_18 = vm::Value::bool(value.supports_hdr);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
             field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17,
+            field_17, field_18,
         ])
     })
 }
@@ -592,50 +593,53 @@ fn encode_destack_display_monitor_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
-                        let field_0 = value.payload.descriptor.id.value();
-                        let field_1 = value.payload.descriptor.name.value();
-                        let field_2 = vm::Value::bool(value.payload.descriptor.primary);
-                        let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32);
-                        let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32);
-                        let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
-                        let field_6 =
-                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
+                        let field_0 =
+                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
+                        let field_1 = value.payload.descriptor.id.value();
+                        let field_2 = value.payload.descriptor.name.value();
+                        let field_3 = vm::Value::bool(value.payload.descriptor.primary);
+                        let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32);
+                        let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32);
+                        let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
                         let field_7 =
-                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
                         let field_8 =
-                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
                         let field_9 =
+                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                        let field_10 =
                             vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32);
-                        let field_10 = vm::Value::uint(
+                        let field_11 = vm::Value::uint(
                             value.payload.descriptor.work_area_height_px as u64,
                             32,
                         );
-                        let field_11 =
-                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_12 =
-                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_13 =
-                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
                         let field_14 =
+                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                        let field_15 =
                             vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8);
-                        let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin);
-                        let field_16 =
+                        let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin);
+                        let field_17 =
                             vm::Value::bool(value.payload.descriptor.supports_variable_refresh);
-                        let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr);
+                        let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr);
                         context.allocate_aggregate(vec![
                             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
                             field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                            field_15, field_16, field_17,
+                            field_15, field_16, field_17, field_18,
                         ])
                     };
                     context.allocate_aggregate(vec![field_0])
@@ -649,50 +653,53 @@ fn encode_destack_display_monitor_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
-                        let field_0 = value.payload.descriptor.id.value();
-                        let field_1 = value.payload.descriptor.name.value();
-                        let field_2 = vm::Value::bool(value.payload.descriptor.primary);
-                        let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32);
-                        let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32);
-                        let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
-                        let field_6 =
-                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
+                        let field_0 =
+                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
+                        let field_1 = value.payload.descriptor.id.value();
+                        let field_2 = value.payload.descriptor.name.value();
+                        let field_3 = vm::Value::bool(value.payload.descriptor.primary);
+                        let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32);
+                        let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32);
+                        let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
                         let field_7 =
-                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
                         let field_8 =
-                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
                         let field_9 =
+                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                        let field_10 =
                             vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32);
-                        let field_10 = vm::Value::uint(
+                        let field_11 = vm::Value::uint(
                             value.payload.descriptor.work_area_height_px as u64,
                             32,
                         );
-                        let field_11 =
-                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_12 =
-                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_13 =
-                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
                         let field_14 =
+                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                        let field_15 =
                             vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8);
-                        let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin);
-                        let field_16 =
+                        let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin);
+                        let field_17 =
                             vm::Value::bool(value.payload.descriptor.supports_variable_refresh);
-                        let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr);
+                        let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr);
                         context.allocate_aggregate(vec![
                             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
                             field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                            field_15, field_16, field_17,
+                            field_15, field_16, field_17, field_18,
                         ])
                     };
                     let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32);
@@ -707,13 +714,14 @@ fn encode_destack_display_monitor_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -737,13 +745,14 @@ fn encode_destack_display_monitor_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = match value.payload.id {
@@ -761,13 +770,14 @@ fn encode_destack_display_monitor_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = value.payload.id.value();
@@ -833,50 +843,53 @@ fn encode_destack_display_monitor_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
-                        let field_0 = value.payload.descriptor.id.value();
-                        let field_1 = value.payload.descriptor.name.value();
-                        let field_2 = vm::Value::bool(value.payload.descriptor.primary);
-                        let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32);
-                        let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32);
-                        let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
-                        let field_6 =
-                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
+                        let field_0 =
+                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
+                        let field_1 = value.payload.descriptor.id.value();
+                        let field_2 = value.payload.descriptor.name.value();
+                        let field_3 = vm::Value::bool(value.payload.descriptor.primary);
+                        let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32);
+                        let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32);
+                        let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
                         let field_7 =
-                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
                         let field_8 =
-                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
                         let field_9 =
+                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                        let field_10 =
                             vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32);
-                        let field_10 = vm::Value::uint(
+                        let field_11 = vm::Value::uint(
                             value.payload.descriptor.work_area_height_px as u64,
                             32,
                         );
-                        let field_11 =
-                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_12 =
-                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_13 =
-                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
                         let field_14 =
+                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                        let field_15 =
                             vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8);
-                        let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin);
-                        let field_16 =
+                        let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin);
+                        let field_17 =
                             vm::Value::bool(value.payload.descriptor.supports_variable_refresh);
-                        let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr);
+                        let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr);
                         context.allocate_aggregate(vec![
                             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
                             field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                            field_15, field_16, field_17,
+                            field_15, field_16, field_17, field_18,
                         ])
                     };
                     context.allocate_aggregate(vec![field_0])
@@ -890,50 +903,53 @@ fn encode_destack_display_monitor_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
-                        let field_0 = value.payload.descriptor.id.value();
-                        let field_1 = value.payload.descriptor.name.value();
-                        let field_2 = vm::Value::bool(value.payload.descriptor.primary);
-                        let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32);
-                        let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32);
-                        let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
-                        let field_6 =
-                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
+                        let field_0 =
+                            vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8);
+                        let field_1 = value.payload.descriptor.id.value();
+                        let field_2 = value.payload.descriptor.name.value();
+                        let field_3 = vm::Value::bool(value.payload.descriptor.primary);
+                        let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32);
+                        let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32);
+                        let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32);
                         let field_7 =
-                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_px as u64, 32);
                         let field_8 =
-                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                            vm::Value::int(value.payload.descriptor.work_area_x as i64, 32);
                         let field_9 =
+                            vm::Value::int(value.payload.descriptor.work_area_y as i64, 32);
+                        let field_10 =
                             vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32);
-                        let field_10 = vm::Value::uint(
+                        let field_11 = vm::Value::uint(
                             value.payload.descriptor.work_area_height_px as u64,
                             32,
                         );
-                        let field_11 =
-                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_12 =
-                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.width_mm as u64, 32);
                         let field_13 =
-                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                            vm::Value::uint(value.payload.descriptor.height_mm as u64, 32);
                         let field_14 =
+                            vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32);
+                        let field_15 =
                             vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8);
-                        let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin);
-                        let field_16 =
+                        let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin);
+                        let field_17 =
                             vm::Value::bool(value.payload.descriptor.supports_variable_refresh);
-                        let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr);
+                        let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr);
                         context.allocate_aggregate(vec![
                             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
                             field_8, field_9, field_10, field_11, field_12, field_13, field_14,
-                            field_15, field_16, field_17,
+                            field_15, field_16, field_17, field_18,
                         ])
                     };
                     let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32);
@@ -948,13 +964,14 @@ fn encode_destack_display_monitor_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -978,13 +995,14 @@ fn encode_destack_display_monitor_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = match value.payload.id {
@@ -1002,13 +1020,14 @@ fn encode_destack_display_monitor_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = match value.metadata.display_id {
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = match value.metadata.display_id {
                         Some(value) => value.value(),
                         None => vm::Value::VOID,
                     };
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = value.payload.id.value();
@@ -1389,9 +1408,10 @@ fn encode_destack_display_window_descriptor_result(
     result: RuntimeResult<WindowDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = value.id.value();
-        let field_1 = value.title.value();
-        let field_2 = {
+        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_1 = value.id.value();
+        let field_2 = value.title.value();
+        let field_3 = {
             let field_0 = vm::Value::uint(value.mode.mode as u8 as u64, 8);
             let field_1 = match value.mode.display {
                 Some(value) => vm::Value::uint(value.0.0, 64),
@@ -1410,16 +1430,16 @@ fn encode_destack_display_window_descriptor_result(
             };
             context.allocate_aggregate(vec![field_0, field_1, field_2])
         };
-        let field_3 = match value.display {
+        let field_4 = match value.display {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_4 = vm::Value::bool(value.resizable);
-        let field_5 = vm::Value::bool(value.decorated);
-        let field_6 = vm::Value::bool(value.transparent);
-        let field_7 = vm::Value::bool(value.always_on_top);
+        let field_5 = vm::Value::bool(value.resizable);
+        let field_6 = vm::Value::bool(value.decorated);
+        let field_7 = vm::Value::bool(value.transparent);
+        let field_8 = vm::Value::bool(value.always_on_top);
         context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
         ])
     })
 }
@@ -1591,10 +1611,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1605,10 +1626,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1619,10 +1641,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1633,10 +1656,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = match value.payload.display {
@@ -1654,10 +1678,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::bool(value.payload.focused);
@@ -1672,10 +1697,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -1710,10 +1736,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::bool(value.payload.occluded);
@@ -1728,10 +1755,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -1750,10 +1778,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1764,10 +1793,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32);
@@ -1782,10 +1812,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -1810,10 +1841,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8);
@@ -1828,10 +1860,11 @@ fn encode_destack_display_window_event_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8);
@@ -1897,10 +1930,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1911,10 +1945,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1925,10 +1960,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -1939,10 +1975,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = match value.payload.display {
@@ -1960,10 +1997,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::bool(value.payload.focused);
@@ -1978,10 +2016,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -2016,10 +2055,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::bool(value.payload.occluded);
@@ -2034,10 +2074,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -2056,10 +2097,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 context.allocate_aggregate(vec![field_0, field_1])
             };
@@ -2070,10 +2112,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32);
@@ -2088,10 +2131,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = {
@@ -2116,10 +2160,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8);
@@ -2134,10 +2179,11 @@ fn encode_destack_display_window_event_try_read_result(
             let payload_value = {
                 let field_0 = value.kind.value();
                 let field_1 = {
-                    let field_0 = vm::Value::uint(value.metadata.window.0.0, 64);
-                    let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64);
-                    let field_2 = vm::Value::uint(value.metadata.sequence, 64);
-                    context.allocate_aggregate(vec![field_0, field_1, field_2])
+                    let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8);
+                    let field_1 = vm::Value::uint(value.metadata.window.0.0, 64);
+                    let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64);
+                    let field_3 = vm::Value::uint(value.metadata.sequence, 64);
+                    context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
                 };
                 let field_2 = {
                     let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8);
@@ -3310,34 +3356,35 @@ fn encode_destack_display_window_state_result(
     result: RuntimeResult<WindowStateVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = {
+        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_1 = {
             let field_0 = vm::Value::int(value.position.x as i64, 32);
             let field_1 = vm::Value::int(value.position.y as i64, 32);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_1 = {
+        let field_2 = {
             let field_0 = vm::Value::float64(value.size_logical.width);
             let field_1 = vm::Value::float64(value.size_logical.height);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_2 = {
+        let field_3 = {
             let field_0 = vm::Value::uint(value.size_physical.width as u64, 32);
             let field_1 = vm::Value::uint(value.size_physical.height as u64, 32);
             context.allocate_aggregate(vec![field_0, field_1])
         };
-        let field_3 = vm::Value::uint(value.scale_factor_milli as u64, 32);
-        let field_4 = vm::Value::uint(value.visibility as u8 as u64, 8);
-        let field_5 = match value.display {
+        let field_4 = vm::Value::uint(value.scale_factor_milli as u64, 32);
+        let field_5 = vm::Value::uint(value.visibility as u8 as u64, 8);
+        let field_6 = match value.display {
             Some(value) => vm::Value::uint(value.0.0, 64),
             None => vm::Value::VOID,
         };
-        let field_6 = vm::Value::bool(value.focused);
-        let field_7 = vm::Value::bool(value.occluded);
-        let field_8 = vm::Value::uint(value.theme as u8 as u64, 8);
-        let field_9 = vm::Value::bool(value.always_on_top);
+        let field_7 = vm::Value::bool(value.focused);
+        let field_8 = vm::Value::bool(value.occluded);
+        let field_9 = vm::Value::uint(value.theme as u8 as u64, 8);
+        let field_10 = vm::Value::bool(value.always_on_top);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9,
+            field_9, field_10,
         ])
     })
 }
@@ -4913,6 +4960,7 @@ fn destack_display_monitor_descriptor_replay(
                     }
                     *out
                 };
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
                 let result_recorded_name = unsafe { result_value.name.as_str()? }.to_string();
                 let result_recorded_primary = result_value.primary;
@@ -4933,6 +4981,7 @@ fn destack_display_monitor_descriptor_replay(
                     result_value.supports_variable_refresh;
                 let result_recorded_supports_hdr = result_value.supports_hdr;
                 let result_recorded = DisplayDescriptorReplayRecord {
+                    backend: result_recorded_backend,
                     id: result_recorded_id,
                     name: result_recorded_name,
                     primary: result_recorded_primary,
@@ -4972,6 +5021,7 @@ fn destack_display_monitor_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let value_native_backend = value.backend;
                     let value_native_id = context.store_string(&value.id);
                     let value_native_name = context.store_string(&value.name);
                     let value_native_primary = value.primary;
@@ -4991,6 +5041,7 @@ fn destack_display_monitor_descriptor_replay(
                     let value_native_supports_variable_refresh = value.supports_variable_refresh;
                     let value_native_supports_hdr = value.supports_hdr;
                     let value_native = DisplayDescriptor {
+                        backend: value_native_backend,
                         id: value_native_id,
                         name: value_native_name,
                         primary: value_native_primary,
@@ -5243,6 +5294,7 @@ fn destack_display_monitor_event_read_replay(
                 let result_recorded = match result_value {
                     DisplayEvent::DisplayAddedEvent(value) => {
                         let result_recorded_display_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_added_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_added_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_added_event_metadata_display_id_inner)
@@ -5252,10 +5304,12 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_added_event_metadata_backend,
                             display_id: result_recorded_display_added_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_added_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_added_event_metadata_sequence,
                         };
+                        let result_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                         let result_recorded_display_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                         let result_recorded_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5275,6 +5329,7 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
                             name: result_recorded_display_added_event_payload_descriptor_name,
                             primary: result_recorded_display_added_event_payload_descriptor_primary,
@@ -5306,6 +5361,7 @@ fn destack_display_monitor_event_read_replay(
                     }
                     DisplayEvent::DisplayDescriptorChangedEvent(value) => {
                         let result_recorded_display_descriptor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_descriptor_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_descriptor_changed_event_metadata_display_id_inner)
@@ -5315,10 +5371,12 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_metadata_backend,
                             display_id: result_recorded_display_descriptor_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_descriptor_changed_event_metadata_sequence,
                         };
+                        let result_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5338,6 +5396,7 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_descriptor_id,
                             name: result_recorded_display_descriptor_changed_event_payload_descriptor_name,
                             primary: result_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -5371,6 +5430,7 @@ fn destack_display_monitor_event_read_replay(
                     }
                     DisplayEvent::DisplayModeChangedEvent(value) => {
                         let result_recorded_display_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_mode_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_mode_changed_event_metadata_display_id_inner)
@@ -5380,6 +5440,7 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_mode_changed_event_metadata_backend,
                             display_id: result_recorded_display_mode_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_mode_changed_event_metadata_sequence,
@@ -5408,6 +5469,7 @@ fn destack_display_monitor_event_read_replay(
                     }
                     DisplayEvent::DisplayPrimaryChangedEvent(value) => {
                         let result_recorded_display_primary_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_primary_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_primary_changed_event_metadata_display_id_inner)
@@ -5417,6 +5479,7 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_primary_changed_event_metadata_backend,
                             display_id: result_recorded_display_primary_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_primary_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_primary_changed_event_metadata_sequence,
@@ -5439,6 +5502,7 @@ fn destack_display_monitor_event_read_replay(
                     }
                     DisplayEvent::DisplayRemovedEvent(value) => {
                         let result_recorded_display_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_removed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_removed_event_metadata_display_id_inner)
@@ -5448,6 +5512,7 @@ fn destack_display_monitor_event_read_replay(
                         let result_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_removed_event_metadata_backend,
                             display_id: result_recorded_display_removed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_removed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_removed_event_metadata_sequence,
@@ -5489,6 +5554,7 @@ fn destack_display_monitor_event_read_replay(
                     let value_native = match value {
                         DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                             let value_native_display_added_event_kind = context.store_string(&value.kind);
+                            let value_native_display_added_event_metadata_backend = value.metadata.backend;
                             let value_native_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_added_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_added_event_metadata_display_id_inner)
@@ -5498,10 +5564,12 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_added_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_added_event_metadata_backend,
                                 display_id: value_native_display_added_event_metadata_display_id,
                                 timestamp_ns: value_native_display_added_event_metadata_timestamp_ns,
                                 sequence: value_native_display_added_event_metadata_sequence,
                             };
+                            let value_native_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let value_native_display_added_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                             let value_native_display_added_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                             let value_native_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5521,6 +5589,7 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let value_native_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let value_native_display_added_event_payload_descriptor = DisplayDescriptor {
+                                backend: value_native_display_added_event_payload_descriptor_backend,
                                 id: value_native_display_added_event_payload_descriptor_id,
                                 name: value_native_display_added_event_payload_descriptor_name,
                                 primary: value_native_display_added_event_payload_descriptor_primary,
@@ -5552,6 +5621,7 @@ fn destack_display_monitor_event_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                             let value_native_display_descriptor_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_descriptor_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_descriptor_changed_event_metadata_display_id_inner)
@@ -5561,10 +5631,12 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_descriptor_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_descriptor_changed_event_metadata_backend,
                                 display_id: value_native_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let value_native_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let value_native_display_descriptor_changed_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                             let value_native_display_descriptor_changed_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                             let value_native_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5584,6 +5656,7 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let value_native_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let value_native_display_descriptor_changed_event_payload_descriptor = DisplayDescriptor {
+                                backend: value_native_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: value_native_display_descriptor_changed_event_payload_descriptor_id,
                                 name: value_native_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: value_native_display_descriptor_changed_event_payload_descriptor_primary,
@@ -5617,6 +5690,7 @@ fn destack_display_monitor_event_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                             let value_native_display_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_mode_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_mode_changed_event_metadata_display_id_inner)
@@ -5626,6 +5700,7 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_mode_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_mode_changed_event_metadata_backend,
                                 display_id: value_native_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_mode_changed_event_metadata_sequence,
@@ -5654,6 +5729,7 @@ fn destack_display_monitor_event_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                             let value_native_display_primary_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_primary_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_primary_changed_event_metadata_display_id_inner)
@@ -5663,6 +5739,7 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_primary_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_primary_changed_event_metadata_backend,
                                 display_id: value_native_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_primary_changed_event_metadata_sequence,
@@ -5685,6 +5762,7 @@ fn destack_display_monitor_event_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                             let value_native_display_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_removed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_removed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_removed_event_metadata_display_id_inner)
@@ -5694,6 +5772,7 @@ fn destack_display_monitor_event_read_replay(
                             let value_native_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_removed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_removed_event_metadata_backend,
                                 display_id: value_native_display_removed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_removed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_removed_event_metadata_sequence,
@@ -5750,6 +5829,7 @@ fn destack_display_monitor_event_read_batch_replay(
                     let result_recorded_item_recorded = match result_recorded_item {
                         DisplayEvent::DisplayAddedEvent(value) => {
                             let result_recorded_item_recorded_display_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_added_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_added_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_added_event_metadata_display_id_inner)
@@ -5759,10 +5839,12 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_added_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_added_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_added_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5782,6 +5864,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_added_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_added_event_payload_descriptor_primary,
@@ -5813,6 +5896,7 @@ fn destack_display_monitor_event_read_batch_replay(
                         }
                         DisplayEvent::DisplayDescriptorChangedEvent(value) => {
                             let result_recorded_item_recorded_display_descriptor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner)
@@ -5822,10 +5906,12 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -5845,6 +5931,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -5878,6 +5965,7 @@ fn destack_display_monitor_event_read_batch_replay(
                         }
                         DisplayEvent::DisplayModeChangedEvent(value) => {
                             let result_recorded_item_recorded_display_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner)
@@ -5887,6 +5975,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_mode_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_mode_changed_event_metadata_sequence,
@@ -5915,6 +6004,7 @@ fn destack_display_monitor_event_read_batch_replay(
                         }
                         DisplayEvent::DisplayPrimaryChangedEvent(value) => {
                             let result_recorded_item_recorded_display_primary_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner)
@@ -5924,6 +6014,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_primary_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_primary_changed_event_metadata_sequence,
@@ -5946,6 +6037,7 @@ fn destack_display_monitor_event_read_batch_replay(
                         }
                         DisplayEvent::DisplayRemovedEvent(value) => {
                             let result_recorded_item_recorded_display_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_removed_event_metadata_display_id_inner)
@@ -5955,6 +6047,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             let result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_removed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_removed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_removed_event_metadata_sequence,
@@ -6000,6 +6093,7 @@ fn destack_display_monitor_event_read_batch_replay(
                         let value_native_item_native = match value_native_item {
                             DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                                 let value_native_item_native_display_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_added_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_added_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_added_event_metadata_display_id_inner)
@@ -6009,10 +6103,12 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_added_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_added_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_added_event_metadata_backend,
                                     display_id: value_native_item_native_display_added_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_added_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_added_event_metadata_sequence,
                                 };
+                                let value_native_item_native_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let value_native_item_native_display_added_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                                 let value_native_item_native_display_added_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                                 let value_native_item_native_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6032,6 +6128,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let value_native_item_native_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let value_native_item_native_display_added_event_payload_descriptor = DisplayDescriptor {
+                                    backend: value_native_item_native_display_added_event_payload_descriptor_backend,
                                     id: value_native_item_native_display_added_event_payload_descriptor_id,
                                     name: value_native_item_native_display_added_event_payload_descriptor_name,
                                     primary: value_native_item_native_display_added_event_payload_descriptor_primary,
@@ -6063,6 +6160,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                                 let value_native_item_native_display_descriptor_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_descriptor_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_descriptor_changed_event_metadata_display_id_inner)
@@ -6072,10 +6170,12 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_descriptor_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_descriptor_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_descriptor_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_descriptor_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_descriptor_changed_event_metadata_sequence,
                                 };
+                                let value_native_item_native_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6095,6 +6195,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor = DisplayDescriptor {
+                                    backend: value_native_item_native_display_descriptor_changed_event_payload_descriptor_backend,
                                     id: value_native_item_native_display_descriptor_changed_event_payload_descriptor_id,
                                     name: value_native_item_native_display_descriptor_changed_event_payload_descriptor_name,
                                     primary: value_native_item_native_display_descriptor_changed_event_payload_descriptor_primary,
@@ -6128,6 +6229,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                                 let value_native_item_native_display_mode_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_mode_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_mode_changed_event_metadata_display_id_inner)
@@ -6137,6 +6239,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_mode_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_mode_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_mode_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_mode_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_mode_changed_event_metadata_sequence,
@@ -6165,6 +6268,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                                 let value_native_item_native_display_primary_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_primary_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_primary_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_primary_changed_event_metadata_display_id_inner)
@@ -6174,6 +6278,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_primary_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_primary_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_primary_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_primary_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_primary_changed_event_metadata_sequence,
@@ -6196,6 +6301,7 @@ fn destack_display_monitor_event_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                                 let value_native_item_native_display_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_removed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_removed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_removed_event_metadata_display_id_inner)
@@ -6205,6 +6311,7 @@ fn destack_display_monitor_event_read_batch_replay(
                                 let value_native_item_native_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_removed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_removed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_removed_event_metadata_backend,
                                     display_id: value_native_item_native_display_removed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_removed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_removed_event_metadata_sequence,
@@ -6258,6 +6365,7 @@ fn destack_display_monitor_event_try_read_replay(
                 let result_recorded = match result_value {
                     DisplayEvent::DisplayAddedEvent(value) => {
                         let result_recorded_display_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_added_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_added_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_added_event_metadata_display_id_inner)
@@ -6267,10 +6375,12 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_added_event_metadata_backend,
                             display_id: result_recorded_display_added_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_added_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_added_event_metadata_sequence,
                         };
+                        let result_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                         let result_recorded_display_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                         let result_recorded_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6290,6 +6400,7 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
                             name: result_recorded_display_added_event_payload_descriptor_name,
                             primary: result_recorded_display_added_event_payload_descriptor_primary,
@@ -6321,6 +6432,7 @@ fn destack_display_monitor_event_try_read_replay(
                     }
                     DisplayEvent::DisplayDescriptorChangedEvent(value) => {
                         let result_recorded_display_descriptor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_descriptor_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_descriptor_changed_event_metadata_display_id_inner)
@@ -6330,10 +6442,12 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_metadata_backend,
                             display_id: result_recorded_display_descriptor_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_descriptor_changed_event_metadata_sequence,
                         };
+                        let result_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6353,6 +6467,7 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_descriptor_id,
                             name: result_recorded_display_descriptor_changed_event_payload_descriptor_name,
                             primary: result_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -6386,6 +6501,7 @@ fn destack_display_monitor_event_try_read_replay(
                     }
                     DisplayEvent::DisplayModeChangedEvent(value) => {
                         let result_recorded_display_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_mode_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_mode_changed_event_metadata_display_id_inner)
@@ -6395,6 +6511,7 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_mode_changed_event_metadata_backend,
                             display_id: result_recorded_display_mode_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_mode_changed_event_metadata_sequence,
@@ -6423,6 +6540,7 @@ fn destack_display_monitor_event_try_read_replay(
                     }
                     DisplayEvent::DisplayPrimaryChangedEvent(value) => {
                         let result_recorded_display_primary_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_primary_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_primary_changed_event_metadata_display_id_inner)
@@ -6432,6 +6550,7 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_primary_changed_event_metadata_backend,
                             display_id: result_recorded_display_primary_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_primary_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_primary_changed_event_metadata_sequence,
@@ -6454,6 +6573,7 @@ fn destack_display_monitor_event_try_read_replay(
                     }
                     DisplayEvent::DisplayRemovedEvent(value) => {
                         let result_recorded_display_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_removed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                             Some(result_recorded_display_removed_event_metadata_display_id_inner)
@@ -6463,6 +6583,7 @@ fn destack_display_monitor_event_try_read_replay(
                         let result_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_removed_event_metadata_backend,
                             display_id: result_recorded_display_removed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_removed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_removed_event_metadata_sequence,
@@ -6504,6 +6625,7 @@ fn destack_display_monitor_event_try_read_replay(
                     let value_native = match value {
                         DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                             let value_native_display_added_event_kind = context.store_string(&value.kind);
+                            let value_native_display_added_event_metadata_backend = value.metadata.backend;
                             let value_native_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_added_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_added_event_metadata_display_id_inner)
@@ -6513,10 +6635,12 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_added_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_added_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_added_event_metadata_backend,
                                 display_id: value_native_display_added_event_metadata_display_id,
                                 timestamp_ns: value_native_display_added_event_metadata_timestamp_ns,
                                 sequence: value_native_display_added_event_metadata_sequence,
                             };
+                            let value_native_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let value_native_display_added_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                             let value_native_display_added_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                             let value_native_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6536,6 +6660,7 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let value_native_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let value_native_display_added_event_payload_descriptor = DisplayDescriptor {
+                                backend: value_native_display_added_event_payload_descriptor_backend,
                                 id: value_native_display_added_event_payload_descriptor_id,
                                 name: value_native_display_added_event_payload_descriptor_name,
                                 primary: value_native_display_added_event_payload_descriptor_primary,
@@ -6567,6 +6692,7 @@ fn destack_display_monitor_event_try_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                             let value_native_display_descriptor_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_descriptor_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_descriptor_changed_event_metadata_display_id_inner)
@@ -6576,10 +6702,12 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_descriptor_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_descriptor_changed_event_metadata_backend,
                                 display_id: value_native_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let value_native_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let value_native_display_descriptor_changed_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                             let value_native_display_descriptor_changed_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                             let value_native_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6599,6 +6727,7 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let value_native_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let value_native_display_descriptor_changed_event_payload_descriptor = DisplayDescriptor {
+                                backend: value_native_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: value_native_display_descriptor_changed_event_payload_descriptor_id,
                                 name: value_native_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: value_native_display_descriptor_changed_event_payload_descriptor_primary,
@@ -6632,6 +6761,7 @@ fn destack_display_monitor_event_try_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                             let value_native_display_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_mode_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_mode_changed_event_metadata_display_id_inner)
@@ -6641,6 +6771,7 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_mode_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_mode_changed_event_metadata_backend,
                                 display_id: value_native_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_mode_changed_event_metadata_sequence,
@@ -6669,6 +6800,7 @@ fn destack_display_monitor_event_try_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                             let value_native_display_primary_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_primary_changed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_primary_changed_event_metadata_display_id_inner)
@@ -6678,6 +6810,7 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_primary_changed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_primary_changed_event_metadata_backend,
                                 display_id: value_native_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_primary_changed_event_metadata_sequence,
@@ -6700,6 +6833,7 @@ fn destack_display_monitor_event_try_read_replay(
                         }
                         DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                             let value_native_display_removed_event_kind = context.store_string(&value.kind);
+                            let value_native_display_removed_event_metadata_backend = value.metadata.backend;
                             let value_native_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let value_native_display_removed_event_metadata_display_id_inner = context.store_string(&value);
                                 Some(value_native_display_removed_event_metadata_display_id_inner)
@@ -6709,6 +6843,7 @@ fn destack_display_monitor_event_try_read_replay(
                             let value_native_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_display_removed_event_metadata = DisplayEventMetadata {
+                                backend: value_native_display_removed_event_metadata_backend,
                                 display_id: value_native_display_removed_event_metadata_display_id,
                                 timestamp_ns: value_native_display_removed_event_metadata_timestamp_ns,
                                 sequence: value_native_display_removed_event_metadata_sequence,
@@ -6764,6 +6899,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                     let result_recorded_item_recorded = match result_recorded_item {
                         DisplayEvent::DisplayAddedEvent(value) => {
                             let result_recorded_item_recorded_display_added_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_added_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_added_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_added_event_metadata_display_id_inner)
@@ -6773,10 +6909,12 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_added_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_added_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_added_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6796,6 +6934,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_added_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_added_event_payload_descriptor_primary,
@@ -6827,6 +6966,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                         }
                         DisplayEvent::DisplayDescriptorChangedEvent(value) => {
                             let result_recorded_item_recorded_display_descriptor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner)
@@ -6836,10 +6976,12 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id = unsafe { value.payload.descriptor.id.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name = unsafe { value.payload.descriptor.name.as_str()? }.to_string();
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -6859,6 +7001,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -6892,6 +7035,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                         }
                         DisplayEvent::DisplayModeChangedEvent(value) => {
                             let result_recorded_item_recorded_display_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner)
@@ -6901,6 +7045,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_mode_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_mode_changed_event_metadata_sequence,
@@ -6929,6 +7074,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                         }
                         DisplayEvent::DisplayPrimaryChangedEvent(value) => {
                             let result_recorded_item_recorded_display_primary_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner)
@@ -6938,6 +7084,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_primary_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_primary_changed_event_metadata_sequence,
@@ -6960,6 +7107,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                         }
                         DisplayEvent::DisplayRemovedEvent(value) => {
                             let result_recorded_item_recorded_display_removed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner = unsafe { value.as_str()? }.to_string();
                                 Some(result_recorded_item_recorded_display_removed_event_metadata_display_id_inner)
@@ -6969,6 +7117,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             let result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_removed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_removed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_removed_event_metadata_sequence,
@@ -7014,6 +7163,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                         let value_native_item_native = match value_native_item {
                             DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                                 let value_native_item_native_display_added_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_added_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_added_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_added_event_metadata_display_id_inner)
@@ -7023,10 +7173,12 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_added_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_added_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_added_event_metadata_backend,
                                     display_id: value_native_item_native_display_added_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_added_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_added_event_metadata_sequence,
                                 };
+                                let value_native_item_native_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let value_native_item_native_display_added_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                                 let value_native_item_native_display_added_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                                 let value_native_item_native_display_added_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -7046,6 +7198,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let value_native_item_native_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let value_native_item_native_display_added_event_payload_descriptor = DisplayDescriptor {
+                                    backend: value_native_item_native_display_added_event_payload_descriptor_backend,
                                     id: value_native_item_native_display_added_event_payload_descriptor_id,
                                     name: value_native_item_native_display_added_event_payload_descriptor_name,
                                     primary: value_native_item_native_display_added_event_payload_descriptor_primary,
@@ -7077,6 +7230,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                                 let value_native_item_native_display_descriptor_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_descriptor_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_descriptor_changed_event_metadata_display_id_inner)
@@ -7086,10 +7240,12 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_descriptor_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_descriptor_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_descriptor_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_descriptor_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_descriptor_changed_event_metadata_sequence,
                                 };
+                                let value_native_item_native_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_id = context.store_string(&value.payload.descriptor.id);
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_name = context.store_string(&value.payload.descriptor.name);
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_primary = value.payload.descriptor.primary;
@@ -7109,6 +7265,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let value_native_item_native_display_descriptor_changed_event_payload_descriptor = DisplayDescriptor {
+                                    backend: value_native_item_native_display_descriptor_changed_event_payload_descriptor_backend,
                                     id: value_native_item_native_display_descriptor_changed_event_payload_descriptor_id,
                                     name: value_native_item_native_display_descriptor_changed_event_payload_descriptor_name,
                                     primary: value_native_item_native_display_descriptor_changed_event_payload_descriptor_primary,
@@ -7142,6 +7299,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                                 let value_native_item_native_display_mode_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_mode_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_mode_changed_event_metadata_display_id_inner)
@@ -7151,6 +7309,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_mode_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_mode_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_mode_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_mode_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_mode_changed_event_metadata_sequence,
@@ -7179,6 +7338,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                                 let value_native_item_native_display_primary_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_primary_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_primary_changed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_primary_changed_event_metadata_display_id_inner)
@@ -7188,6 +7348,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_primary_changed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_primary_changed_event_metadata_backend,
                                     display_id: value_native_item_native_display_primary_changed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_primary_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_primary_changed_event_metadata_sequence,
@@ -7210,6 +7371,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                             }
                             DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                                 let value_native_item_native_display_removed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_display_removed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let value_native_item_native_display_removed_event_metadata_display_id_inner = context.store_string(&value);
                                     Some(value_native_item_native_display_removed_event_metadata_display_id_inner)
@@ -7219,6 +7381,7 @@ fn destack_display_monitor_event_try_read_batch_replay(
                                 let value_native_item_native_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_display_removed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_display_removed_event_metadata = DisplayEventMetadata {
+                                    backend: value_native_item_native_display_removed_event_metadata_backend,
                                     display_id: value_native_item_native_display_removed_event_metadata_display_id,
                                     timestamp_ns: value_native_item_native_display_removed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_display_removed_event_metadata_sequence,
@@ -7279,6 +7442,7 @@ fn destack_display_monitor_list_replay(
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
                     let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_id =
                         unsafe { result_recorded_item.id.as_str()? }.to_string();
                     let result_recorded_item_recorded_name =
@@ -7308,6 +7472,7 @@ fn destack_display_monitor_list_replay(
                     let result_recorded_item_recorded_supports_hdr =
                         result_recorded_item.supports_hdr;
                     let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
+                        backend: result_recorded_item_recorded_backend,
                         id: result_recorded_item_recorded_id,
                         name: result_recorded_item_recorded_name,
                         primary: result_recorded_item_recorded_primary,
@@ -7352,6 +7517,7 @@ fn destack_display_monitor_list_replay(
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
                     for value_native_item in value {
+                        let value_native_item_native_backend = value_native_item.backend;
                         let value_native_item_native_id =
                             context.store_string(&value_native_item.id);
                         let value_native_item_native_name =
@@ -7377,6 +7543,7 @@ fn destack_display_monitor_list_replay(
                             value_native_item.supports_variable_refresh;
                         let value_native_item_native_supports_hdr = value_native_item.supports_hdr;
                         let value_native_item_native = DisplayDescriptor {
+                            backend: value_native_item_native_backend,
                             id: value_native_item_native_id,
                             name: value_native_item_native_name,
                             primary: value_native_item_native_primary,
@@ -7716,6 +7883,7 @@ fn destack_display_window_descriptor_replay(
                     }
                     *out
                 };
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
                 let result_recorded_title = unsafe { result_value.title.as_str()? }.to_string();
                 let result_recorded_mode_mode = result_value.mode.mode;
@@ -7761,6 +7929,7 @@ fn destack_display_window_descriptor_replay(
                 let result_recorded_transparent = result_value.transparent;
                 let result_recorded_always_on_top = result_value.always_on_top;
                 let result_recorded = WindowDescriptorReplayRecord {
+                    backend: result_recorded_backend,
                     id: result_recorded_id,
                     title: result_recorded_title,
                     mode: result_recorded_mode,
@@ -7790,6 +7959,7 @@ fn destack_display_window_descriptor_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let value_native_backend = value.backend;
                     let value_native_id = context.store_string(&value.id);
                     let value_native_title = context.store_string(&value.title);
                     let value_native_mode_mode = value.mode.mode;
@@ -7835,6 +8005,7 @@ fn destack_display_window_descriptor_replay(
                     let value_native_transparent = value.transparent;
                     let value_native_always_on_top = value.always_on_top;
                     let value_native = WindowDescriptor {
+                        backend: value_native_backend,
                         id: value_native_id,
                         title: value_native_title,
                         mode: value_native_mode,
@@ -7990,10 +8161,12 @@ fn destack_display_window_event_read_replay(
                 let result_recorded = match result_value {
                     WindowEvent::WindowCloseRequestedEvent(value) => {
                         let result_recorded_window_close_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_close_requested_event_metadata_backend,
                             window: result_recorded_window_close_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_close_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_close_requested_event_metadata_sequence,
@@ -8006,10 +8179,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_created_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_created_event_metadata_window = value.metadata.window;
                         let result_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_created_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_created_event_metadata_backend,
                             window: result_recorded_window_created_event_metadata_window,
                             timestamp_ns: result_recorded_window_created_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_created_event_metadata_sequence,
@@ -8022,10 +8197,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowDestroyedEvent(value) => {
                         let result_recorded_window_destroyed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_destroyed_event_metadata_backend,
                             window: result_recorded_window_destroyed_event_metadata_window,
                             timestamp_ns: result_recorded_window_destroyed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_destroyed_event_metadata_sequence,
@@ -8038,10 +8215,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowDisplayChangedEvent(value) => {
                         let result_recorded_window_display_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_display_changed_event_metadata_backend,
                             window: result_recorded_window_display_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_display_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_display_changed_event_metadata_sequence,
@@ -8064,10 +8243,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowFocusChangedEvent(value) => {
                         let result_recorded_window_focus_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_focus_changed_event_metadata_backend,
                             window: result_recorded_window_focus_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_focus_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_focus_changed_event_metadata_sequence,
@@ -8085,10 +8266,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowModeChangedEvent(value) => {
                         let result_recorded_window_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_mode_changed_event_metadata_backend,
                             window: result_recorded_window_mode_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_mode_changed_event_metadata_sequence,
@@ -8134,10 +8317,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowOcclusionChangedEvent(value) => {
                         let result_recorded_window_occlusion_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_occlusion_changed_event_metadata_backend,
                             window: result_recorded_window_occlusion_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -8155,10 +8340,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowPositionChangedEvent(value) => {
                         let result_recorded_window_position_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_position_changed_event_metadata_backend,
                             window: result_recorded_window_position_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_position_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_position_changed_event_metadata_sequence,
@@ -8181,10 +8368,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowRefreshRequestedEvent(value) => {
                         let result_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
                             window: result_recorded_window_refresh_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
@@ -8197,10 +8386,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowScaleFactorChangedEvent(value) => {
                         let result_recorded_window_scale_factor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_scale_factor_changed_event_metadata_backend,
                             window: result_recorded_window_scale_factor_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -8218,10 +8409,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowSizeChangedEvent(value) => {
                         let result_recorded_window_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_size_changed_event_metadata_backend,
                             window: result_recorded_window_size_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_size_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_size_changed_event_metadata_sequence,
@@ -8251,10 +8444,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowThemeChangedEvent(value) => {
                         let result_recorded_window_theme_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_theme_changed_event_metadata_backend,
                             window: result_recorded_window_theme_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_theme_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_theme_changed_event_metadata_sequence,
@@ -8272,10 +8467,12 @@ fn destack_display_window_event_read_replay(
                     }
                     WindowEvent::WindowVisibilityChangedEvent(value) => {
                         let result_recorded_window_visibility_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_visibility_changed_event_metadata_backend,
                             window: result_recorded_window_visibility_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_visibility_changed_event_metadata_sequence,
@@ -8317,10 +8514,12 @@ fn destack_display_window_event_read_replay(
                     let value_native = match value {
                         WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                             let value_native_window_close_requested_event_kind = context.store_string(&value.kind);
+                            let value_native_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let value_native_window_close_requested_event_metadata_window = value.metadata.window;
                             let value_native_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_close_requested_event_metadata_backend,
                                 window: value_native_window_close_requested_event_metadata_window,
                                 timestamp_ns: value_native_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: value_native_window_close_requested_event_metadata_sequence,
@@ -8333,10 +8532,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowCreatedEvent(value) => {
                             let value_native_window_created_event_kind = context.store_string(&value.kind);
+                            let value_native_window_created_event_metadata_backend = value.metadata.backend;
                             let value_native_window_created_event_metadata_window = value.metadata.window;
                             let value_native_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_created_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_created_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_created_event_metadata_backend,
                                 window: value_native_window_created_event_metadata_window,
                                 timestamp_ns: value_native_window_created_event_metadata_timestamp_ns,
                                 sequence: value_native_window_created_event_metadata_sequence,
@@ -8349,10 +8550,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                             let value_native_window_destroyed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_destroyed_event_metadata_window = value.metadata.window;
                             let value_native_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_destroyed_event_metadata_backend,
                                 window: value_native_window_destroyed_event_metadata_window,
                                 timestamp_ns: value_native_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_destroyed_event_metadata_sequence,
@@ -8365,10 +8568,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                             let value_native_window_display_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_display_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_display_changed_event_metadata_backend,
                                 window: value_native_window_display_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_display_changed_event_metadata_sequence,
@@ -8391,10 +8596,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                             let value_native_window_focus_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_focus_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_focus_changed_event_metadata_backend,
                                 window: value_native_window_focus_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_focus_changed_event_metadata_sequence,
@@ -8412,10 +8619,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                             let value_native_window_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_mode_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_mode_changed_event_metadata_backend,
                                 window: value_native_window_mode_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_mode_changed_event_metadata_sequence,
@@ -8461,10 +8670,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                             let value_native_window_occlusion_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_occlusion_changed_event_metadata_backend,
                                 window: value_native_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_occlusion_changed_event_metadata_sequence,
@@ -8482,10 +8693,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                             let value_native_window_position_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_position_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_position_changed_event_metadata_backend,
                                 window: value_native_window_position_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_position_changed_event_metadata_sequence,
@@ -8508,10 +8721,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                             let value_native_window_refresh_requested_event_kind = context.store_string(&value.kind);
+                            let value_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let value_native_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let value_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_refresh_requested_event_metadata_backend,
                                 window: value_native_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: value_native_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: value_native_window_refresh_requested_event_metadata_sequence,
@@ -8524,10 +8739,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                             let value_native_window_scale_factor_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_scale_factor_changed_event_metadata_backend,
                                 window: value_native_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_scale_factor_changed_event_metadata_sequence,
@@ -8545,10 +8762,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                             let value_native_window_size_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_size_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_size_changed_event_metadata_backend,
                                 window: value_native_window_size_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_size_changed_event_metadata_sequence,
@@ -8578,10 +8797,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                             let value_native_window_theme_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_theme_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_theme_changed_event_metadata_backend,
                                 window: value_native_window_theme_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_theme_changed_event_metadata_sequence,
@@ -8599,10 +8820,12 @@ fn destack_display_window_event_read_replay(
                         }
                         WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                             let value_native_window_visibility_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_visibility_changed_event_metadata_backend,
                                 window: value_native_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_visibility_changed_event_metadata_sequence,
@@ -8659,10 +8882,12 @@ fn destack_display_window_event_read_batch_replay(
                     let result_recorded_item_recorded = match result_recorded_item {
                         WindowEvent::WindowCloseRequestedEvent(value) => {
                             let result_recorded_item_recorded_window_close_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_close_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_close_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_close_requested_event_metadata_sequence,
@@ -8675,10 +8900,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_created_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_created_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_created_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_created_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_created_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_created_event_metadata_sequence,
@@ -8691,10 +8918,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowDestroyedEvent(value) => {
                             let result_recorded_item_recorded_window_destroyed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_destroyed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_destroyed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_destroyed_event_metadata_sequence,
@@ -8707,10 +8936,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowDisplayChangedEvent(value) => {
                             let result_recorded_item_recorded_window_display_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_display_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_display_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_display_changed_event_metadata_sequence,
@@ -8733,10 +8964,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowFocusChangedEvent(value) => {
                             let result_recorded_item_recorded_window_focus_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_focus_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_focus_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_focus_changed_event_metadata_sequence,
@@ -8754,10 +8987,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowModeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_mode_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_mode_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_mode_changed_event_metadata_sequence,
@@ -8803,10 +9038,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowOcclusionChangedEvent(value) => {
                             let result_recorded_item_recorded_window_occlusion_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -8824,10 +9061,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowPositionChangedEvent(value) => {
                             let result_recorded_item_recorded_window_position_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_position_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_position_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_position_changed_event_metadata_sequence,
@@ -8850,10 +9089,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowRefreshRequestedEvent(value) => {
                             let result_recorded_item_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
@@ -8866,10 +9107,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowScaleFactorChangedEvent(value) => {
                             let result_recorded_item_recorded_window_scale_factor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -8887,10 +9130,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowSizeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_size_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_size_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_size_changed_event_metadata_sequence,
@@ -8920,10 +9165,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowThemeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_theme_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_theme_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_theme_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_theme_changed_event_metadata_sequence,
@@ -8941,10 +9188,12 @@ fn destack_display_window_event_read_batch_replay(
                         }
                         WindowEvent::WindowVisibilityChangedEvent(value) => {
                             let result_recorded_item_recorded_window_visibility_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_visibility_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence,
@@ -8990,10 +9239,12 @@ fn destack_display_window_event_read_batch_replay(
                         let value_native_item_native = match value_native_item {
                             WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                                 let value_native_item_native_window_close_requested_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_close_requested_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_close_requested_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_close_requested_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_close_requested_event_metadata_backend,
                                     window: value_native_item_native_window_close_requested_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_close_requested_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_close_requested_event_metadata_sequence,
@@ -9006,10 +9257,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowCreatedEvent(value) => {
                                 let value_native_item_native_window_created_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_created_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_created_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_created_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_created_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_created_event_metadata_backend,
                                     window: value_native_item_native_window_created_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_created_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_created_event_metadata_sequence,
@@ -9022,10 +9275,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                                 let value_native_item_native_window_destroyed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_destroyed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_destroyed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_destroyed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_destroyed_event_metadata_backend,
                                     window: value_native_item_native_window_destroyed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_destroyed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_destroyed_event_metadata_sequence,
@@ -9038,10 +9293,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                                 let value_native_item_native_window_display_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_display_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_display_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_display_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_display_changed_event_metadata_backend,
                                     window: value_native_item_native_window_display_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_display_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_display_changed_event_metadata_sequence,
@@ -9064,10 +9321,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                                 let value_native_item_native_window_focus_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_focus_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_focus_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_focus_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_focus_changed_event_metadata_backend,
                                     window: value_native_item_native_window_focus_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_focus_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_focus_changed_event_metadata_sequence,
@@ -9085,10 +9344,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                                 let value_native_item_native_window_mode_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_mode_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_mode_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_mode_changed_event_metadata_backend,
                                     window: value_native_item_native_window_mode_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_mode_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_mode_changed_event_metadata_sequence,
@@ -9134,10 +9395,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                                 let value_native_item_native_window_occlusion_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_occlusion_changed_event_metadata_backend,
                                     window: value_native_item_native_window_occlusion_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_occlusion_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_occlusion_changed_event_metadata_sequence,
@@ -9155,10 +9418,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                                 let value_native_item_native_window_position_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_position_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_position_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_position_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_position_changed_event_metadata_backend,
                                     window: value_native_item_native_window_position_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_position_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_position_changed_event_metadata_sequence,
@@ -9181,10 +9446,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                                 let value_native_item_native_window_refresh_requested_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_refresh_requested_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_refresh_requested_event_metadata_backend,
                                     window: value_native_item_native_window_refresh_requested_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_refresh_requested_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_refresh_requested_event_metadata_sequence,
@@ -9197,10 +9464,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                                 let value_native_item_native_window_scale_factor_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_scale_factor_changed_event_metadata_backend,
                                     window: value_native_item_native_window_scale_factor_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_scale_factor_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_scale_factor_changed_event_metadata_sequence,
@@ -9218,10 +9487,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                                 let value_native_item_native_window_size_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_size_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_size_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_size_changed_event_metadata_backend,
                                     window: value_native_item_native_window_size_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_size_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_size_changed_event_metadata_sequence,
@@ -9251,10 +9522,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                                 let value_native_item_native_window_theme_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_theme_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_theme_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_theme_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_theme_changed_event_metadata_backend,
                                     window: value_native_item_native_window_theme_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_theme_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_theme_changed_event_metadata_sequence,
@@ -9272,10 +9545,12 @@ fn destack_display_window_event_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                                 let value_native_item_native_window_visibility_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_visibility_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_visibility_changed_event_metadata_backend,
                                     window: value_native_item_native_window_visibility_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_visibility_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_visibility_changed_event_metadata_sequence,
@@ -9329,10 +9604,12 @@ fn destack_display_window_event_try_read_replay(
                 let result_recorded = match result_value {
                     WindowEvent::WindowCloseRequestedEvent(value) => {
                         let result_recorded_window_close_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_close_requested_event_metadata_backend,
                             window: result_recorded_window_close_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_close_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_close_requested_event_metadata_sequence,
@@ -9345,10 +9622,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowCreatedEvent(value) => {
                         let result_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_created_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_created_event_metadata_window = value.metadata.window;
                         let result_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_created_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_created_event_metadata_backend,
                             window: result_recorded_window_created_event_metadata_window,
                             timestamp_ns: result_recorded_window_created_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_created_event_metadata_sequence,
@@ -9361,10 +9640,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowDestroyedEvent(value) => {
                         let result_recorded_window_destroyed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_destroyed_event_metadata_backend,
                             window: result_recorded_window_destroyed_event_metadata_window,
                             timestamp_ns: result_recorded_window_destroyed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_destroyed_event_metadata_sequence,
@@ -9377,10 +9658,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowDisplayChangedEvent(value) => {
                         let result_recorded_window_display_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_display_changed_event_metadata_backend,
                             window: result_recorded_window_display_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_display_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_display_changed_event_metadata_sequence,
@@ -9403,10 +9686,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowFocusChangedEvent(value) => {
                         let result_recorded_window_focus_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_focus_changed_event_metadata_backend,
                             window: result_recorded_window_focus_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_focus_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_focus_changed_event_metadata_sequence,
@@ -9424,10 +9709,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowModeChangedEvent(value) => {
                         let result_recorded_window_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_mode_changed_event_metadata_backend,
                             window: result_recorded_window_mode_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_mode_changed_event_metadata_sequence,
@@ -9473,10 +9760,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowOcclusionChangedEvent(value) => {
                         let result_recorded_window_occlusion_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_occlusion_changed_event_metadata_backend,
                             window: result_recorded_window_occlusion_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -9494,10 +9783,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowPositionChangedEvent(value) => {
                         let result_recorded_window_position_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_position_changed_event_metadata_backend,
                             window: result_recorded_window_position_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_position_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_position_changed_event_metadata_sequence,
@@ -9520,10 +9811,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowRefreshRequestedEvent(value) => {
                         let result_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
                             window: result_recorded_window_refresh_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
@@ -9536,10 +9829,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowScaleFactorChangedEvent(value) => {
                         let result_recorded_window_scale_factor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_scale_factor_changed_event_metadata_backend,
                             window: result_recorded_window_scale_factor_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -9557,10 +9852,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowSizeChangedEvent(value) => {
                         let result_recorded_window_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_size_changed_event_metadata_backend,
                             window: result_recorded_window_size_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_size_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_size_changed_event_metadata_sequence,
@@ -9590,10 +9887,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowThemeChangedEvent(value) => {
                         let result_recorded_window_theme_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_theme_changed_event_metadata_backend,
                             window: result_recorded_window_theme_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_theme_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_theme_changed_event_metadata_sequence,
@@ -9611,10 +9910,12 @@ fn destack_display_window_event_try_read_replay(
                     }
                     WindowEvent::WindowVisibilityChangedEvent(value) => {
                         let result_recorded_window_visibility_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                        let result_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_visibility_changed_event_metadata_backend,
                             window: result_recorded_window_visibility_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_visibility_changed_event_metadata_sequence,
@@ -9656,10 +9957,12 @@ fn destack_display_window_event_try_read_replay(
                     let value_native = match value {
                         WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                             let value_native_window_close_requested_event_kind = context.store_string(&value.kind);
+                            let value_native_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let value_native_window_close_requested_event_metadata_window = value.metadata.window;
                             let value_native_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_close_requested_event_metadata_backend,
                                 window: value_native_window_close_requested_event_metadata_window,
                                 timestamp_ns: value_native_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: value_native_window_close_requested_event_metadata_sequence,
@@ -9672,10 +9975,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowCreatedEvent(value) => {
                             let value_native_window_created_event_kind = context.store_string(&value.kind);
+                            let value_native_window_created_event_metadata_backend = value.metadata.backend;
                             let value_native_window_created_event_metadata_window = value.metadata.window;
                             let value_native_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_created_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_created_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_created_event_metadata_backend,
                                 window: value_native_window_created_event_metadata_window,
                                 timestamp_ns: value_native_window_created_event_metadata_timestamp_ns,
                                 sequence: value_native_window_created_event_metadata_sequence,
@@ -9688,10 +9993,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                             let value_native_window_destroyed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_destroyed_event_metadata_window = value.metadata.window;
                             let value_native_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_destroyed_event_metadata_backend,
                                 window: value_native_window_destroyed_event_metadata_window,
                                 timestamp_ns: value_native_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_destroyed_event_metadata_sequence,
@@ -9704,10 +10011,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                             let value_native_window_display_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_display_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_display_changed_event_metadata_backend,
                                 window: value_native_window_display_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_display_changed_event_metadata_sequence,
@@ -9730,10 +10039,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                             let value_native_window_focus_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_focus_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_focus_changed_event_metadata_backend,
                                 window: value_native_window_focus_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_focus_changed_event_metadata_sequence,
@@ -9751,10 +10062,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                             let value_native_window_mode_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_mode_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_mode_changed_event_metadata_backend,
                                 window: value_native_window_mode_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_mode_changed_event_metadata_sequence,
@@ -9800,10 +10113,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                             let value_native_window_occlusion_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_occlusion_changed_event_metadata_backend,
                                 window: value_native_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_occlusion_changed_event_metadata_sequence,
@@ -9821,10 +10136,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                             let value_native_window_position_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_position_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_position_changed_event_metadata_backend,
                                 window: value_native_window_position_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_position_changed_event_metadata_sequence,
@@ -9847,10 +10164,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                             let value_native_window_refresh_requested_event_kind = context.store_string(&value.kind);
+                            let value_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let value_native_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let value_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_refresh_requested_event_metadata_backend,
                                 window: value_native_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: value_native_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: value_native_window_refresh_requested_event_metadata_sequence,
@@ -9863,10 +10182,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                             let value_native_window_scale_factor_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_scale_factor_changed_event_metadata_backend,
                                 window: value_native_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_scale_factor_changed_event_metadata_sequence,
@@ -9884,10 +10205,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                             let value_native_window_size_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_size_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_size_changed_event_metadata_backend,
                                 window: value_native_window_size_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_size_changed_event_metadata_sequence,
@@ -9917,10 +10240,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                             let value_native_window_theme_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_theme_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_theme_changed_event_metadata_backend,
                                 window: value_native_window_theme_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_theme_changed_event_metadata_sequence,
@@ -9938,10 +10263,12 @@ fn destack_display_window_event_try_read_replay(
                         }
                         WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                             let value_native_window_visibility_changed_event_kind = context.store_string(&value.kind);
+                            let value_native_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let value_native_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let value_native_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: value_native_window_visibility_changed_event_metadata_backend,
                                 window: value_native_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: value_native_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: value_native_window_visibility_changed_event_metadata_sequence,
@@ -9997,10 +10324,12 @@ fn destack_display_window_event_try_read_batch_replay(
                     let result_recorded_item_recorded = match result_recorded_item {
                         WindowEvent::WindowCloseRequestedEvent(value) => {
                             let result_recorded_item_recorded_window_close_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_close_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_close_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_close_requested_event_metadata_sequence,
@@ -10013,10 +10342,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowCreatedEvent(value) => {
                             let result_recorded_item_recorded_window_created_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_created_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_created_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_created_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_created_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_created_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_created_event_metadata_sequence,
@@ -10029,10 +10360,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowDestroyedEvent(value) => {
                             let result_recorded_item_recorded_window_destroyed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_destroyed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_destroyed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_destroyed_event_metadata_sequence,
@@ -10045,10 +10378,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowDisplayChangedEvent(value) => {
                             let result_recorded_item_recorded_window_display_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_display_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_display_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_display_changed_event_metadata_sequence,
@@ -10071,10 +10406,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowFocusChangedEvent(value) => {
                             let result_recorded_item_recorded_window_focus_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_focus_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_focus_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_focus_changed_event_metadata_sequence,
@@ -10092,10 +10429,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowModeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_mode_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_mode_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_mode_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_mode_changed_event_metadata_sequence,
@@ -10141,10 +10480,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowOcclusionChangedEvent(value) => {
                             let result_recorded_item_recorded_window_occlusion_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -10162,10 +10503,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowPositionChangedEvent(value) => {
                             let result_recorded_item_recorded_window_position_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_position_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_position_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_position_changed_event_metadata_sequence,
@@ -10188,10 +10531,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowRefreshRequestedEvent(value) => {
                             let result_recorded_item_recorded_window_refresh_requested_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
@@ -10204,10 +10549,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowScaleFactorChangedEvent(value) => {
                             let result_recorded_item_recorded_window_scale_factor_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -10225,10 +10572,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowSizeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_size_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_size_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_size_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_size_changed_event_metadata_sequence,
@@ -10258,10 +10607,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowThemeChangedEvent(value) => {
                             let result_recorded_item_recorded_window_theme_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_theme_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_theme_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_theme_changed_event_metadata_sequence,
@@ -10279,10 +10630,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         }
                         WindowEvent::WindowVisibilityChangedEvent(value) => {
                             let result_recorded_item_recorded_window_visibility_changed_event_kind = unsafe { value.kind.as_str()? }.to_string();
+                            let result_recorded_item_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_visibility_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence,
@@ -10328,10 +10681,12 @@ fn destack_display_window_event_try_read_batch_replay(
                         let value_native_item_native = match value_native_item {
                             WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                                 let value_native_item_native_window_close_requested_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_close_requested_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_close_requested_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_close_requested_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_close_requested_event_metadata_backend,
                                     window: value_native_item_native_window_close_requested_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_close_requested_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_close_requested_event_metadata_sequence,
@@ -10344,10 +10699,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowCreatedEvent(value) => {
                                 let value_native_item_native_window_created_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_created_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_created_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_created_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_created_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_created_event_metadata_backend,
                                     window: value_native_item_native_window_created_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_created_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_created_event_metadata_sequence,
@@ -10360,10 +10717,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                                 let value_native_item_native_window_destroyed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_destroyed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_destroyed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_destroyed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_destroyed_event_metadata_backend,
                                     window: value_native_item_native_window_destroyed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_destroyed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_destroyed_event_metadata_sequence,
@@ -10376,10 +10735,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                                 let value_native_item_native_window_display_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_display_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_display_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_display_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_display_changed_event_metadata_backend,
                                     window: value_native_item_native_window_display_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_display_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_display_changed_event_metadata_sequence,
@@ -10402,10 +10763,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                                 let value_native_item_native_window_focus_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_focus_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_focus_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_focus_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_focus_changed_event_metadata_backend,
                                     window: value_native_item_native_window_focus_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_focus_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_focus_changed_event_metadata_sequence,
@@ -10423,10 +10786,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                                 let value_native_item_native_window_mode_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_mode_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_mode_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_mode_changed_event_metadata_backend,
                                     window: value_native_item_native_window_mode_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_mode_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_mode_changed_event_metadata_sequence,
@@ -10472,10 +10837,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                                 let value_native_item_native_window_occlusion_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_occlusion_changed_event_metadata_backend,
                                     window: value_native_item_native_window_occlusion_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_occlusion_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_occlusion_changed_event_metadata_sequence,
@@ -10493,10 +10860,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                                 let value_native_item_native_window_position_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_position_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_position_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_position_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_position_changed_event_metadata_backend,
                                     window: value_native_item_native_window_position_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_position_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_position_changed_event_metadata_sequence,
@@ -10519,10 +10888,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                                 let value_native_item_native_window_refresh_requested_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_refresh_requested_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_refresh_requested_event_metadata_backend,
                                     window: value_native_item_native_window_refresh_requested_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_refresh_requested_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_refresh_requested_event_metadata_sequence,
@@ -10535,10 +10906,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                                 let value_native_item_native_window_scale_factor_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_scale_factor_changed_event_metadata_backend,
                                     window: value_native_item_native_window_scale_factor_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_scale_factor_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_scale_factor_changed_event_metadata_sequence,
@@ -10556,10 +10929,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                                 let value_native_item_native_window_size_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_size_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_size_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_size_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_size_changed_event_metadata_backend,
                                     window: value_native_item_native_window_size_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_size_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_size_changed_event_metadata_sequence,
@@ -10589,10 +10964,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                                 let value_native_item_native_window_theme_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_theme_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_theme_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_theme_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_theme_changed_event_metadata_backend,
                                     window: value_native_item_native_window_theme_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_theme_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_theme_changed_event_metadata_sequence,
@@ -10610,10 +10987,12 @@ fn destack_display_window_event_try_read_batch_replay(
                             }
                             WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                                 let value_native_item_native_window_visibility_changed_event_kind = context.store_string(&value.kind);
+                                let value_native_item_native_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                                 let value_native_item_native_window_visibility_changed_event_metadata_window = value.metadata.window;
                                 let value_native_item_native_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let value_native_item_native_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                                 let value_native_item_native_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                    backend: value_native_item_native_window_visibility_changed_event_metadata_backend,
                                     window: value_native_item_native_window_visibility_changed_event_metadata_window,
                                     timestamp_ns: value_native_item_native_window_visibility_changed_event_metadata_timestamp_ns,
                                     sequence: value_native_item_native_window_visibility_changed_event_metadata_sequence,
@@ -11554,6 +11933,7 @@ fn destack_display_window_state_replay(
                     }
                     *out
                 };
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -11585,6 +11965,7 @@ fn destack_display_window_state_replay(
                 let result_recorded_theme = result_value.theme;
                 let result_recorded_always_on_top = result_value.always_on_top;
                 let result_recorded = WindowState {
+                    backend: result_recorded_backend,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
@@ -11616,6 +11997,7 @@ fn destack_display_window_state_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let value_native_backend = value.backend;
                     let value_native_position_x = value.position.x;
                     let value_native_position_y = value.position.y;
                     let value_native_position = WindowPosition {
@@ -11647,6 +12029,7 @@ fn destack_display_window_state_replay(
                     let value_native_theme = value.theme;
                     let value_native_always_on_top = value.always_on_top;
                     let value_native = WindowState {
+                        backend: value_native_backend,
                         position: value_native_position,
                         size_logical: value_native_size_logical,
                         size_physical: value_native_size_physical,
@@ -12832,6 +13215,7 @@ fn destack_display_monitor_descriptor_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: DisplayDescriptorVm = value.clone();
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_id = {
                     let result_recorded_id_ref = context
                         .string_ref(result_value.id)
@@ -12862,6 +13246,7 @@ fn destack_display_monitor_descriptor_vm_replay(
                     result_value.supports_variable_refresh;
                 let result_recorded_supports_hdr = result_value.supports_hdr;
                 let result_recorded = DisplayDescriptorReplayRecord {
+                    backend: result_recorded_backend,
                     id: result_recorded_id,
                     name: result_recorded_name,
                     primary: result_recorded_primary,
@@ -12902,6 +13287,7 @@ fn destack_display_monitor_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let vm_result_backend = value.backend;
                     let vm_result_id_value = context.intern_string(value.id.as_str());
                     let vm_result_id = vm::StringHandle::new(vm_result_id_value);
                     let vm_result_name_value = context.intern_string(value.name.as_str());
@@ -12923,6 +13309,7 @@ fn destack_display_monitor_descriptor_vm_replay(
                     let vm_result_supports_variable_refresh = value.supports_variable_refresh;
                     let vm_result_supports_hdr = value.supports_hdr;
                     let vm_result = DisplayDescriptorVm {
+                        backend: vm_result_backend,
                         id: vm_result_id,
                         name: vm_result_name,
                         primary: vm_result_primary,
@@ -13170,6 +13557,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_added_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_added_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_added_event_metadata_display_id_inner = {
                                 let result_recorded_display_added_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13182,10 +13570,12 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_added_event_metadata_backend,
                             display_id: result_recorded_display_added_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_added_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_added_event_metadata_sequence,
                         };
+                        let result_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_added_event_payload_descriptor_id = {
                             let result_recorded_display_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_added_event_payload_descriptor_id_ref.as_str().to_string()
@@ -13211,6 +13601,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
                             name: result_recorded_display_added_event_payload_descriptor_name,
                             primary: result_recorded_display_added_event_payload_descriptor_primary,
@@ -13245,6 +13636,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_descriptor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_descriptor_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_descriptor_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_descriptor_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13257,10 +13649,12 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_metadata_backend,
                             display_id: result_recorded_display_descriptor_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_descriptor_changed_event_metadata_sequence,
                         };
+                        let result_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_id = {
                             let result_recorded_display_descriptor_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_descriptor_changed_event_payload_descriptor_id_ref.as_str().to_string()
@@ -13286,6 +13680,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_descriptor_id,
                             name: result_recorded_display_descriptor_changed_event_payload_descriptor_name,
                             primary: result_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -13322,6 +13717,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_mode_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_mode_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_mode_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13334,6 +13730,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_mode_changed_event_metadata_backend,
                             display_id: result_recorded_display_mode_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_mode_changed_event_metadata_sequence,
@@ -13365,6 +13762,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_primary_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_primary_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_primary_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_primary_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13377,6 +13775,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_primary_changed_event_metadata_backend,
                             display_id: result_recorded_display_primary_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_primary_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_primary_changed_event_metadata_sequence,
@@ -13405,6 +13804,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let result_recorded_display_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_removed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_removed_event_metadata_display_id_inner = {
                                 let result_recorded_display_removed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13417,6 +13817,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         let result_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_removed_event_metadata_backend,
                             display_id: result_recorded_display_removed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_removed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_removed_event_metadata_sequence,
@@ -13463,6 +13864,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                             let vm_result_display_added_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_added_event_kind = vm::StringHandle::new(vm_result_display_added_event_kind_value);
+                            let vm_result_display_added_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_added_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_added_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_added_event_metadata_display_id_inner_value);
@@ -13473,10 +13875,12 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_added_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_added_event_metadata_backend,
                                 display_id: vm_result_display_added_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_added_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_added_event_metadata_sequence,
                             };
+                            let vm_result_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let vm_result_display_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                             let vm_result_display_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_display_added_event_payload_descriptor_id_value);
                             let vm_result_display_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -13498,6 +13902,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let vm_result_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let vm_result_display_added_event_payload_descriptor = DisplayDescriptorVm {
+                                backend: vm_result_display_added_event_payload_descriptor_backend,
                                 id: vm_result_display_added_event_payload_descriptor_id,
                                 name: vm_result_display_added_event_payload_descriptor_name,
                                 primary: vm_result_display_added_event_payload_descriptor_primary,
@@ -13530,6 +13935,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                             let vm_result_display_descriptor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_descriptor_changed_event_kind = vm::StringHandle::new(vm_result_display_descriptor_changed_event_kind_value);
+                            let vm_result_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_descriptor_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_descriptor_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_descriptor_changed_event_metadata_display_id_inner_value);
@@ -13540,10 +13946,12 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_descriptor_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_descriptor_changed_event_metadata_backend,
                                 display_id: vm_result_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let vm_result_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let vm_result_display_descriptor_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                             let vm_result_display_descriptor_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_display_descriptor_changed_event_payload_descriptor_id_value);
                             let vm_result_display_descriptor_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -13565,6 +13973,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let vm_result_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let vm_result_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorVm {
+                                backend: vm_result_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: vm_result_display_descriptor_changed_event_payload_descriptor_id,
                                 name: vm_result_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: vm_result_display_descriptor_changed_event_payload_descriptor_primary,
@@ -13599,6 +14008,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                             let vm_result_display_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_mode_changed_event_kind = vm::StringHandle::new(vm_result_display_mode_changed_event_kind_value);
+                            let vm_result_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_mode_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_mode_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_mode_changed_event_metadata_display_id_inner_value);
@@ -13609,6 +14019,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_mode_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_mode_changed_event_metadata_backend,
                                 display_id: vm_result_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_mode_changed_event_metadata_sequence,
@@ -13638,6 +14049,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                             let vm_result_display_primary_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_primary_changed_event_kind = vm::StringHandle::new(vm_result_display_primary_changed_event_kind_value);
+                            let vm_result_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_primary_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_primary_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_primary_changed_event_metadata_display_id_inner_value);
@@ -13648,6 +14060,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_primary_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_primary_changed_event_metadata_backend,
                                 display_id: vm_result_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_primary_changed_event_metadata_sequence,
@@ -13672,6 +14085,7 @@ fn destack_display_monitor_event_read_vm_replay(
                         DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                             let vm_result_display_removed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_removed_event_kind = vm::StringHandle::new(vm_result_display_removed_event_kind_value);
+                            let vm_result_display_removed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_removed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_removed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_removed_event_metadata_display_id_inner_value);
@@ -13682,6 +14096,7 @@ fn destack_display_monitor_event_read_vm_replay(
                             let vm_result_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_removed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_removed_event_metadata_backend,
                                 display_id: vm_result_display_removed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_removed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_removed_event_metadata_sequence,
@@ -13742,6 +14157,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_added_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_added_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_added_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_added_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13754,10 +14170,12 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_added_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_added_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_added_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_id = {
                                 let result_recorded_item_recorded_display_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_added_event_payload_descriptor_id_ref.as_str().to_string()
@@ -13783,6 +14201,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_added_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_added_event_payload_descriptor_primary,
@@ -13817,6 +14236,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_descriptor_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13829,10 +14249,12 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id = {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id_ref.as_str().to_string()
@@ -13858,6 +14280,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -13894,6 +14317,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_mode_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13906,6 +14330,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_mode_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_mode_changed_event_metadata_sequence,
@@ -13937,6 +14362,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_primary_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_primary_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13949,6 +14375,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_primary_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_primary_changed_event_metadata_sequence,
@@ -13977,6 +14404,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_removed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -13989,6 +14417,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_removed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_removed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_removed_event_metadata_sequence,
@@ -14040,6 +14469,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                                 let vm_result_item_value_display_added_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_added_event_kind = vm::StringHandle::new(vm_result_item_value_display_added_event_kind_value);
+                                let vm_result_item_value_display_added_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_added_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_added_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_added_event_metadata_display_id_inner_value);
@@ -14050,10 +14480,12 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_added_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_added_event_metadata_backend,
                                     display_id: vm_result_item_value_display_added_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_added_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_added_event_metadata_sequence,
                                 };
+                                let vm_result_item_value_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let vm_result_item_value_display_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                                 let vm_result_item_value_display_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_display_added_event_payload_descriptor_id_value);
                                 let vm_result_item_value_display_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -14075,6 +14507,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let vm_result_item_value_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let vm_result_item_value_display_added_event_payload_descriptor = DisplayDescriptorVm {
+                                    backend: vm_result_item_value_display_added_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_added_event_payload_descriptor_id,
                                     name: vm_result_item_value_display_added_event_payload_descriptor_name,
                                     primary: vm_result_item_value_display_added_event_payload_descriptor_primary,
@@ -14107,6 +14540,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                                 let vm_result_item_value_display_descriptor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_descriptor_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_kind_value);
+                                let vm_result_item_value_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner_value);
@@ -14117,10 +14551,12 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_descriptor_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_descriptor_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_descriptor_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_descriptor_changed_event_metadata_sequence,
                                 };
+                                let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id_value);
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -14142,6 +14578,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorVm {
+                                    backend: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id,
                                     name: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_name,
                                     primary: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_primary,
@@ -14176,6 +14613,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                                 let vm_result_item_value_display_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_mode_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_mode_changed_event_kind_value);
+                                let vm_result_item_value_display_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_mode_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_mode_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_mode_changed_event_metadata_display_id_inner_value);
@@ -14186,6 +14624,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_mode_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_mode_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_mode_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_mode_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_mode_changed_event_metadata_sequence,
@@ -14215,6 +14654,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                                 let vm_result_item_value_display_primary_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_primary_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_primary_changed_event_kind_value);
+                                let vm_result_item_value_display_primary_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_primary_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_primary_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_primary_changed_event_metadata_display_id_inner_value);
@@ -14225,6 +14665,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_primary_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_primary_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_primary_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_primary_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_primary_changed_event_metadata_sequence,
@@ -14249,6 +14690,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                                 let vm_result_item_value_display_removed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_removed_event_kind = vm::StringHandle::new(vm_result_item_value_display_removed_event_kind_value);
+                                let vm_result_item_value_display_removed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_removed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_removed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_removed_event_metadata_display_id_inner_value);
@@ -14259,6 +14701,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 let vm_result_item_value_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_removed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_removed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_removed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_removed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_removed_event_metadata_sequence,
@@ -14276,7 +14719,7 @@ fn destack_display_monitor_event_read_batch_vm_replay(
                                 DisplayEventVm::DisplayRemovedEvent(vm_result_item_value_display_removed_event)
                             }
                         };
-                        let vm_result_item_value_encoded = match vm_result_item_value { DisplayEventVm::DisplayAddedEvent(value) => { let tag_value = vm::Value::uint(3903158928u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = value.payload.descriptor.id.value(); let field_1 = value.payload.descriptor.name.value(); let field_2 = vm::Value::bool(value.payload.descriptor.primary); let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_7 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_9 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_16 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayDescriptorChangedEvent(value) => { let tag_value = vm::Value::uint(3626154447u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = value.payload.descriptor.id.value(); let field_1 = value.payload.descriptor.name.value(); let field_2 = vm::Value::bool(value.payload.descriptor.primary); let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_7 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_9 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_16 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17]) }; let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayModeChangedEvent(value) => { let tag_value = vm::Value::uint(1450655903u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.width as u64, 32); let field_1 = vm::Value::uint(value.payload.mode.height as u64, 32); let field_2 = vm::Value::uint(value.payload.mode.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.payload.mode.format as u64, 32); let field_4 = vm::Value::uint(value.payload.mode.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayPrimaryChangedEvent(value) => { let tag_value = vm::Value::uint(2709592227u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = match value.payload.id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayRemovedEvent(value) => { let tag_value = vm::Value::uint(837691889u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = value.payload.id.value(); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
+                        let vm_result_item_value_encoded = match vm_result_item_value { DisplayEventVm::DisplayAddedEvent(value) => { let tag_value = vm::Value::uint(3903158928u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8); let field_1 = value.payload.descriptor.id.value(); let field_2 = value.payload.descriptor.name.value(); let field_3 = vm::Value::bool(value.payload.descriptor.primary); let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_7 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_9 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_15 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_17 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17, field_18]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayDescriptorChangedEvent(value) => { let tag_value = vm::Value::uint(3626154447u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8); let field_1 = value.payload.descriptor.id.value(); let field_2 = value.payload.descriptor.name.value(); let field_3 = vm::Value::bool(value.payload.descriptor.primary); let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_7 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_9 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_15 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_17 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17, field_18]) }; let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayModeChangedEvent(value) => { let tag_value = vm::Value::uint(1450655903u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.width as u64, 32); let field_1 = vm::Value::uint(value.payload.mode.height as u64, 32); let field_2 = vm::Value::uint(value.payload.mode.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.payload.mode.format as u64, 32); let field_4 = vm::Value::uint(value.payload.mode.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayPrimaryChangedEvent(value) => { let tag_value = vm::Value::uint(2709592227u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = match value.payload.id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayRemovedEvent(value) => { let tag_value = vm::Value::uint(837691889u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = value.payload.id.value(); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -14318,6 +14761,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_added_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_added_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_added_event_metadata_display_id_inner = {
                                 let result_recorded_display_added_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14330,10 +14774,12 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_added_event_metadata_backend,
                             display_id: result_recorded_display_added_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_added_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_added_event_metadata_sequence,
                         };
+                        let result_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_added_event_payload_descriptor_id = {
                             let result_recorded_display_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_added_event_payload_descriptor_id_ref.as_str().to_string()
@@ -14359,6 +14805,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_added_event_payload_descriptor_backend,
                             id: result_recorded_display_added_event_payload_descriptor_id,
                             name: result_recorded_display_added_event_payload_descriptor_name,
                             primary: result_recorded_display_added_event_payload_descriptor_primary,
@@ -14393,6 +14840,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_descriptor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_descriptor_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_descriptor_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_descriptor_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14405,10 +14853,12 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_metadata_backend,
                             display_id: result_recorded_display_descriptor_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_descriptor_changed_event_metadata_sequence,
                         };
+                        let result_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_id = {
                             let result_recorded_display_descriptor_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_descriptor_changed_event_payload_descriptor_id_ref.as_str().to_string()
@@ -14434,6 +14884,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                         let result_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                            backend: result_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                             id: result_recorded_display_descriptor_changed_event_payload_descriptor_id,
                             name: result_recorded_display_descriptor_changed_event_payload_descriptor_name,
                             primary: result_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -14470,6 +14921,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_mode_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_mode_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_mode_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14482,6 +14934,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_mode_changed_event_metadata_backend,
                             display_id: result_recorded_display_mode_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_mode_changed_event_metadata_sequence,
@@ -14513,6 +14966,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_primary_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_primary_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_primary_changed_event_metadata_display_id_inner = {
                                 let result_recorded_display_primary_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14525,6 +14979,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_primary_changed_event_metadata_backend,
                             display_id: result_recorded_display_primary_changed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_primary_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_primary_changed_event_metadata_sequence,
@@ -14553,6 +15008,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let result_recorded_display_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_display_removed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                             let result_recorded_display_removed_event_metadata_display_id_inner = {
                                 let result_recorded_display_removed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14565,6 +15021,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         let result_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                            backend: result_recorded_display_removed_event_metadata_backend,
                             display_id: result_recorded_display_removed_event_metadata_display_id,
                             timestamp_ns: result_recorded_display_removed_event_metadata_timestamp_ns,
                             sequence: result_recorded_display_removed_event_metadata_sequence,
@@ -14611,6 +15068,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                             let vm_result_display_added_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_added_event_kind = vm::StringHandle::new(vm_result_display_added_event_kind_value);
+                            let vm_result_display_added_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_added_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_added_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_added_event_metadata_display_id_inner_value);
@@ -14621,10 +15079,12 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_added_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_added_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_added_event_metadata_backend,
                                 display_id: vm_result_display_added_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_added_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_added_event_metadata_sequence,
                             };
+                            let vm_result_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let vm_result_display_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                             let vm_result_display_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_display_added_event_payload_descriptor_id_value);
                             let vm_result_display_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -14646,6 +15106,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let vm_result_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let vm_result_display_added_event_payload_descriptor = DisplayDescriptorVm {
+                                backend: vm_result_display_added_event_payload_descriptor_backend,
                                 id: vm_result_display_added_event_payload_descriptor_id,
                                 name: vm_result_display_added_event_payload_descriptor_name,
                                 primary: vm_result_display_added_event_payload_descriptor_primary,
@@ -14678,6 +15139,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                             let vm_result_display_descriptor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_descriptor_changed_event_kind = vm::StringHandle::new(vm_result_display_descriptor_changed_event_kind_value);
+                            let vm_result_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_descriptor_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_descriptor_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_descriptor_changed_event_metadata_display_id_inner_value);
@@ -14688,10 +15150,12 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_descriptor_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_descriptor_changed_event_metadata_backend,
                                 display_id: vm_result_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let vm_result_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let vm_result_display_descriptor_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                             let vm_result_display_descriptor_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_display_descriptor_changed_event_payload_descriptor_id_value);
                             let vm_result_display_descriptor_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -14713,6 +15177,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let vm_result_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let vm_result_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorVm {
+                                backend: vm_result_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: vm_result_display_descriptor_changed_event_payload_descriptor_id,
                                 name: vm_result_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: vm_result_display_descriptor_changed_event_payload_descriptor_primary,
@@ -14747,6 +15212,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                             let vm_result_display_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_mode_changed_event_kind = vm::StringHandle::new(vm_result_display_mode_changed_event_kind_value);
+                            let vm_result_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_mode_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_mode_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_mode_changed_event_metadata_display_id_inner_value);
@@ -14757,6 +15223,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_mode_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_mode_changed_event_metadata_backend,
                                 display_id: vm_result_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_mode_changed_event_metadata_sequence,
@@ -14786,6 +15253,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                             let vm_result_display_primary_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_primary_changed_event_kind = vm::StringHandle::new(vm_result_display_primary_changed_event_kind_value);
+                            let vm_result_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_primary_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_primary_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_primary_changed_event_metadata_display_id_inner_value);
@@ -14796,6 +15264,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_primary_changed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_primary_changed_event_metadata_backend,
                                 display_id: vm_result_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_primary_changed_event_metadata_sequence,
@@ -14820,6 +15289,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                         DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                             let vm_result_display_removed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_display_removed_event_kind = vm::StringHandle::new(vm_result_display_removed_event_kind_value);
+                            let vm_result_display_removed_event_metadata_backend = value.metadata.backend;
                             let vm_result_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let vm_result_display_removed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                 let vm_result_display_removed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_display_removed_event_metadata_display_id_inner_value);
@@ -14830,6 +15300,7 @@ fn destack_display_monitor_event_try_read_vm_replay(
                             let vm_result_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_display_removed_event_metadata = DisplayEventMetadataVm {
+                                backend: vm_result_display_removed_event_metadata_backend,
                                 display_id: vm_result_display_removed_event_metadata_display_id,
                                 timestamp_ns: vm_result_display_removed_event_metadata_timestamp_ns,
                                 sequence: vm_result_display_removed_event_metadata_sequence,
@@ -14889,6 +15360,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_added_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_added_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_added_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_added_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_added_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14901,10 +15373,12 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_added_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_added_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_added_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_added_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_added_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_id = {
                                 let result_recorded_item_recorded_display_added_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_added_event_payload_descriptor_id_ref.as_str().to_string()
@@ -14930,6 +15404,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_added_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_added_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_added_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_added_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_added_event_payload_descriptor_primary,
@@ -14964,6 +15439,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_descriptor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_descriptor_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -14976,10 +15452,12 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_descriptor_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_descriptor_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_descriptor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_descriptor_changed_event_metadata_sequence,
                             };
+                            let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id = {
                                 let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id_ref = context.string_ref(value.payload.descriptor.id).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id_ref.as_str().to_string()
@@ -15005,6 +15483,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                             let result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorReplayRecord {
+                                backend: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_backend,
                                 id: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_id,
                                 name: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_name,
                                 primary: result_recorded_item_recorded_display_descriptor_changed_event_payload_descriptor_primary,
@@ -15041,6 +15520,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_mode_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_mode_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -15053,6 +15533,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_mode_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_mode_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_mode_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_mode_changed_event_metadata_sequence,
@@ -15084,6 +15565,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_primary_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_primary_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_primary_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_primary_changed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -15096,6 +15578,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_primary_changed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_primary_changed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_primary_changed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_primary_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_primary_changed_event_metadata_sequence,
@@ -15124,6 +15607,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_display_removed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_display_removed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_display_removed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                 let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner = {
                                     let result_recorded_item_recorded_display_removed_event_metadata_display_id_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -15136,6 +15620,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             let result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_display_removed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_display_removed_event_metadata = DisplayEventMetadataReplayRecord {
+                                backend: result_recorded_item_recorded_display_removed_event_metadata_backend,
                                 display_id: result_recorded_item_recorded_display_removed_event_metadata_display_id,
                                 timestamp_ns: result_recorded_item_recorded_display_removed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_display_removed_event_metadata_sequence,
@@ -15187,6 +15672,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayAddedEvent(value) => {
                                 let vm_result_item_value_display_added_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_added_event_kind = vm::StringHandle::new(vm_result_item_value_display_added_event_kind_value);
+                                let vm_result_item_value_display_added_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_added_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_added_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_added_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_added_event_metadata_display_id_inner_value);
@@ -15197,10 +15683,12 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_added_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_added_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_added_event_metadata_backend,
                                     display_id: vm_result_item_value_display_added_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_added_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_added_event_metadata_sequence,
                                 };
+                                let vm_result_item_value_display_added_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let vm_result_item_value_display_added_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                                 let vm_result_item_value_display_added_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_display_added_event_payload_descriptor_id_value);
                                 let vm_result_item_value_display_added_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -15222,6 +15710,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_added_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let vm_result_item_value_display_added_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let vm_result_item_value_display_added_event_payload_descriptor = DisplayDescriptorVm {
+                                    backend: vm_result_item_value_display_added_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_added_event_payload_descriptor_id,
                                     name: vm_result_item_value_display_added_event_payload_descriptor_name,
                                     primary: vm_result_item_value_display_added_event_payload_descriptor_primary,
@@ -15254,6 +15743,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayDescriptorChangedEvent(value) => {
                                 let vm_result_item_value_display_descriptor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_descriptor_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_kind_value);
+                                let vm_result_item_value_display_descriptor_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_metadata_display_id_inner_value);
@@ -15264,10 +15754,12 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_descriptor_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_descriptor_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_descriptor_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_descriptor_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_descriptor_changed_event_metadata_sequence,
                                 };
+                                let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_backend = value.payload.descriptor.backend;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id_value = context.intern_string(value.payload.descriptor.id.as_str());
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id = vm::StringHandle::new(vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id_value);
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_name_value = context.intern_string(value.payload.descriptor.name.as_str());
@@ -15289,6 +15781,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_supports_variable_refresh = value.payload.descriptor.supports_variable_refresh;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor_supports_hdr = value.payload.descriptor.supports_hdr;
                                 let vm_result_item_value_display_descriptor_changed_event_payload_descriptor = DisplayDescriptorVm {
+                                    backend: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_backend,
                                     id: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_id,
                                     name: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_name,
                                     primary: vm_result_item_value_display_descriptor_changed_event_payload_descriptor_primary,
@@ -15323,6 +15816,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayModeChangedEvent(value) => {
                                 let vm_result_item_value_display_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_mode_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_mode_changed_event_kind_value);
+                                let vm_result_item_value_display_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_mode_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_mode_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_mode_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_mode_changed_event_metadata_display_id_inner_value);
@@ -15333,6 +15827,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_mode_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_mode_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_mode_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_mode_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_mode_changed_event_metadata_sequence,
@@ -15362,6 +15857,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayPrimaryChangedEvent(value) => {
                                 let vm_result_item_value_display_primary_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_primary_changed_event_kind = vm::StringHandle::new(vm_result_item_value_display_primary_changed_event_kind_value);
+                                let vm_result_item_value_display_primary_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_primary_changed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_primary_changed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_primary_changed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_primary_changed_event_metadata_display_id_inner_value);
@@ -15372,6 +15868,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_primary_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_primary_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_primary_changed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_primary_changed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_primary_changed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_primary_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_primary_changed_event_metadata_sequence,
@@ -15396,6 +15893,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                             DisplayEventReplayRecord::DisplayRemovedEvent(value) => {
                                 let vm_result_item_value_display_removed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_display_removed_event_kind = vm::StringHandle::new(vm_result_item_value_display_removed_event_kind_value);
+                                let vm_result_item_value_display_removed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_display_removed_event_metadata_display_id = if let Some(value) = value.metadata.display_id {
                                     let vm_result_item_value_display_removed_event_metadata_display_id_inner_value = context.intern_string(value.as_str());
                                     let vm_result_item_value_display_removed_event_metadata_display_id_inner = vm::StringHandle::new(vm_result_item_value_display_removed_event_metadata_display_id_inner_value);
@@ -15406,6 +15904,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 let vm_result_item_value_display_removed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_display_removed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_display_removed_event_metadata = DisplayEventMetadataVm {
+                                    backend: vm_result_item_value_display_removed_event_metadata_backend,
                                     display_id: vm_result_item_value_display_removed_event_metadata_display_id,
                                     timestamp_ns: vm_result_item_value_display_removed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_display_removed_event_metadata_sequence,
@@ -15423,7 +15922,7 @@ fn destack_display_monitor_event_try_read_batch_vm_replay(
                                 DisplayEventVm::DisplayRemovedEvent(vm_result_item_value_display_removed_event)
                             }
                         };
-                        let vm_result_item_value_encoded = match vm_result_item_value { DisplayEventVm::DisplayAddedEvent(value) => { let tag_value = vm::Value::uint(3903158928u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = value.payload.descriptor.id.value(); let field_1 = value.payload.descriptor.name.value(); let field_2 = vm::Value::bool(value.payload.descriptor.primary); let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_7 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_9 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_16 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayDescriptorChangedEvent(value) => { let tag_value = vm::Value::uint(3626154447u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = value.payload.descriptor.id.value(); let field_1 = value.payload.descriptor.name.value(); let field_2 = vm::Value::bool(value.payload.descriptor.primary); let field_3 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_4 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_5 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_7 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_9 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_15 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_16 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_17 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17]) }; let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayModeChangedEvent(value) => { let tag_value = vm::Value::uint(1450655903u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.width as u64, 32); let field_1 = vm::Value::uint(value.payload.mode.height as u64, 32); let field_2 = vm::Value::uint(value.payload.mode.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.payload.mode.format as u64, 32); let field_4 = vm::Value::uint(value.payload.mode.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayPrimaryChangedEvent(value) => { let tag_value = vm::Value::uint(2709592227u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = match value.payload.id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayRemovedEvent(value) => { let tag_value = vm::Value::uint(837691889u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = value.payload.id.value(); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
+                        let vm_result_item_value_encoded = match vm_result_item_value { DisplayEventVm::DisplayAddedEvent(value) => { let tag_value = vm::Value::uint(3903158928u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8); let field_1 = value.payload.descriptor.id.value(); let field_2 = value.payload.descriptor.name.value(); let field_3 = vm::Value::bool(value.payload.descriptor.primary); let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_7 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_9 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_15 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_17 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17, field_18]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayDescriptorChangedEvent(value) => { let tag_value = vm::Value::uint(3626154447u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.descriptor.backend as u8 as u64, 8); let field_1 = value.payload.descriptor.id.value(); let field_2 = value.payload.descriptor.name.value(); let field_3 = vm::Value::bool(value.payload.descriptor.primary); let field_4 = vm::Value::int(value.payload.descriptor.x as i64, 32); let field_5 = vm::Value::int(value.payload.descriptor.y as i64, 32); let field_6 = vm::Value::uint(value.payload.descriptor.width_px as u64, 32); let field_7 = vm::Value::uint(value.payload.descriptor.height_px as u64, 32); let field_8 = vm::Value::int(value.payload.descriptor.work_area_x as i64, 32); let field_9 = vm::Value::int(value.payload.descriptor.work_area_y as i64, 32); let field_10 = vm::Value::uint(value.payload.descriptor.work_area_width_px as u64, 32); let field_11 = vm::Value::uint(value.payload.descriptor.work_area_height_px as u64, 32); let field_12 = vm::Value::uint(value.payload.descriptor.width_mm as u64, 32); let field_13 = vm::Value::uint(value.payload.descriptor.height_mm as u64, 32); let field_14 = vm::Value::uint(value.payload.descriptor.scale_factor_milli as u64, 32); let field_15 = vm::Value::uint(value.payload.descriptor.orientation as u8 as u64, 8); let field_16 = vm::Value::bool(value.payload.descriptor.is_builtin); let field_17 = vm::Value::bool(value.payload.descriptor.supports_variable_refresh); let field_18 = vm::Value::bool(value.payload.descriptor.supports_hdr); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16, field_17, field_18]) }; let field_1 = vm::Value::uint(value.payload.changed_mask as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayModeChangedEvent(value) => { let tag_value = vm::Value::uint(1450655903u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.width as u64, 32); let field_1 = vm::Value::uint(value.payload.mode.height as u64, 32); let field_2 = vm::Value::uint(value.payload.mode.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.payload.mode.format as u64, 32); let field_4 = vm::Value::uint(value.payload.mode.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayPrimaryChangedEvent(value) => { let tag_value = vm::Value::uint(2709592227u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = match value.payload.id { Some(value) => value.value(), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, DisplayEventVm::DisplayRemovedEvent(value) => { let tag_value = vm::Value::uint(837691889u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = match value.metadata.display_id { Some(value) => value.value(), None => vm::Value::VOID }; let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = value.payload.id.value(); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -15475,58 +15974,79 @@ fn destack_display_monitor_list_vm_replay(
                         let slots = context
                             .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 18 {
+                        if slots.len() != 19 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
-                                "expected 18 fields",
+                                "expected 19 fields",
                             ))
                             .boxed());
                         }
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[0], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
+                            0u8 => DisplayBackend::Auto,
+                            1u8 => DisplayBackend::Wayland,
+                            2u8 => DisplayBackend::X11,
+                            3u8 => DisplayBackend::Win32,
+                            4u8 => DisplayBackend::AppKit,
+                            5u8 => DisplayBackend::UIKit,
+                            6u8 => DisplayBackend::Android,
+                            255u8 => DisplayBackend::Null,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_backend",
+                                        "unknown DisplayBackend value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
                         let result_recorded_item_id =
-                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                            decode_string(slots[1], "result_recorded_item_id", "id")?;
                         let result_recorded_item_name =
-                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                            decode_string(slots[2], "result_recorded_item_name", "name")?;
                         let result_recorded_item_primary =
-                            decode_bool(slots[2], "result_recorded_item_primary", "primary")?;
+                            decode_bool(slots[3], "result_recorded_item_primary", "primary")?;
                         let result_recorded_item_x =
-                            decode_int32(slots[3], "result_recorded_item_x", "x")?;
+                            decode_int32(slots[4], "result_recorded_item_x", "x")?;
                         let result_recorded_item_y =
-                            decode_int32(slots[4], "result_recorded_item_y", "y")?;
+                            decode_int32(slots[5], "result_recorded_item_y", "y")?;
                         let result_recorded_item_width_px =
-                            decode_uint32(slots[5], "result_recorded_item_width_px", "widthPx")?;
+                            decode_uint32(slots[6], "result_recorded_item_width_px", "widthPx")?;
                         let result_recorded_item_height_px =
-                            decode_uint32(slots[6], "result_recorded_item_height_px", "heightPx")?;
+                            decode_uint32(slots[7], "result_recorded_item_height_px", "heightPx")?;
                         let result_recorded_item_work_area_x = decode_int32(
-                            slots[7],
+                            slots[8],
                             "result_recorded_item_work_area_x",
                             "workAreaX",
                         )?;
                         let result_recorded_item_work_area_y = decode_int32(
-                            slots[8],
+                            slots[9],
                             "result_recorded_item_work_area_y",
                             "workAreaY",
                         )?;
                         let result_recorded_item_work_area_width_px = decode_uint32(
-                            slots[9],
+                            slots[10],
                             "result_recorded_item_work_area_width_px",
                             "workAreaWidthPx",
                         )?;
                         let result_recorded_item_work_area_height_px = decode_uint32(
-                            slots[10],
+                            slots[11],
                             "result_recorded_item_work_area_height_px",
                             "workAreaHeightPx",
                         )?;
                         let result_recorded_item_width_mm =
-                            decode_uint32(slots[11], "result_recorded_item_width_mm", "widthMm")?;
+                            decode_uint32(slots[12], "result_recorded_item_width_mm", "widthMm")?;
                         let result_recorded_item_height_mm =
-                            decode_uint32(slots[12], "result_recorded_item_height_mm", "heightMm")?;
+                            decode_uint32(slots[13], "result_recorded_item_height_mm", "heightMm")?;
                         let result_recorded_item_scale_factor_milli = decode_uint32(
-                            slots[13],
+                            slots[14],
                             "result_recorded_item_scale_factor_milli",
                             "scaleFactorMilli",
                         )?;
                         let result_recorded_item_orientation_raw = decode_uint8(
-                            slots[14],
+                            slots[15],
                             "result_recorded_item_orientation_raw",
                             "orientation",
                         )?;
@@ -15548,18 +16068,19 @@ fn destack_display_monitor_list_vm_replay(
                                 }
                             };
                         let result_recorded_item_is_builtin =
-                            decode_bool(slots[15], "result_recorded_item_is_builtin", "isBuiltin")?;
+                            decode_bool(slots[16], "result_recorded_item_is_builtin", "isBuiltin")?;
                         let result_recorded_item_supports_variable_refresh = decode_bool(
-                            slots[16],
+                            slots[17],
                             "result_recorded_item_supports_variable_refresh",
                             "supportsVariableRefresh",
                         )?;
                         let result_recorded_item_supports_hdr = decode_bool(
-                            slots[17],
+                            slots[18],
                             "result_recorded_item_supports_hdr",
                             "supportsHdr",
                         )?;
                         DisplayDescriptorVm {
+                            backend: result_recorded_item_backend,
                             id: result_recorded_item_id,
                             name: result_recorded_item_name,
                             primary: result_recorded_item_primary,
@@ -15581,6 +16102,7 @@ fn destack_display_monitor_list_vm_replay(
                             supports_hdr: result_recorded_item_supports_hdr,
                         }
                     };
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_id = {
                         let result_recorded_item_recorded_id_ref = context
                             .string_ref(result_recorded_item.id)
@@ -15618,6 +16140,7 @@ fn destack_display_monitor_list_vm_replay(
                     let result_recorded_item_recorded_supports_hdr =
                         result_recorded_item.supports_hdr;
                     let result_recorded_item_recorded = DisplayDescriptorReplayRecord {
+                        backend: result_recorded_item_recorded_backend,
                         id: result_recorded_item_recorded_id,
                         name: result_recorded_item_recorded_name,
                         primary: result_recorded_item_recorded_primary,
@@ -15664,6 +16187,7 @@ fn destack_display_monitor_list_vm_replay(
                     let mut vm_result_values = Vec::with_capacity(value.len());
                     for vm_result_item in value.iter() {
                         let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_id_value =
                             context.intern_string(vm_result_item.id.as_str());
                         let vm_result_item_value_id =
@@ -15693,6 +16217,7 @@ fn destack_display_monitor_list_vm_replay(
                             vm_result_item.supports_variable_refresh;
                         let vm_result_item_value_supports_hdr = vm_result_item.supports_hdr;
                         let vm_result_item_value = DisplayDescriptorVm {
+                            backend: vm_result_item_value_backend,
                             id: vm_result_item_value_id,
                             name: vm_result_item_value_name,
                             primary: vm_result_item_value_primary,
@@ -15714,40 +16239,42 @@ fn destack_display_monitor_list_vm_replay(
                             supports_hdr: vm_result_item_value_supports_hdr,
                         };
                         let vm_result_item_value_encoded = {
-                            let field_0 = vm_result_item_value.id.value();
-                            let field_1 = vm_result_item_value.name.value();
-                            let field_2 = vm::Value::bool(vm_result_item_value.primary);
-                            let field_3 = vm::Value::int(vm_result_item_value.x as i64, 32);
-                            let field_4 = vm::Value::int(vm_result_item_value.y as i64, 32);
-                            let field_5 = vm::Value::uint(vm_result_item_value.width_px as u64, 32);
-                            let field_6 =
-                                vm::Value::uint(vm_result_item_value.height_px as u64, 32);
+                            let field_0 =
+                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
+                            let field_1 = vm_result_item_value.id.value();
+                            let field_2 = vm_result_item_value.name.value();
+                            let field_3 = vm::Value::bool(vm_result_item_value.primary);
+                            let field_4 = vm::Value::int(vm_result_item_value.x as i64, 32);
+                            let field_5 = vm::Value::int(vm_result_item_value.y as i64, 32);
+                            let field_6 = vm::Value::uint(vm_result_item_value.width_px as u64, 32);
                             let field_7 =
-                                vm::Value::int(vm_result_item_value.work_area_x as i64, 32);
+                                vm::Value::uint(vm_result_item_value.height_px as u64, 32);
                             let field_8 =
-                                vm::Value::int(vm_result_item_value.work_area_y as i64, 32);
+                                vm::Value::int(vm_result_item_value.work_area_x as i64, 32);
                             let field_9 =
+                                vm::Value::int(vm_result_item_value.work_area_y as i64, 32);
+                            let field_10 =
                                 vm::Value::uint(vm_result_item_value.work_area_width_px as u64, 32);
-                            let field_10 = vm::Value::uint(
+                            let field_11 = vm::Value::uint(
                                 vm_result_item_value.work_area_height_px as u64,
                                 32,
                             );
-                            let field_11 =
-                                vm::Value::uint(vm_result_item_value.width_mm as u64, 32);
                             let field_12 =
-                                vm::Value::uint(vm_result_item_value.height_mm as u64, 32);
+                                vm::Value::uint(vm_result_item_value.width_mm as u64, 32);
                             let field_13 =
-                                vm::Value::uint(vm_result_item_value.scale_factor_milli as u64, 32);
+                                vm::Value::uint(vm_result_item_value.height_mm as u64, 32);
                             let field_14 =
+                                vm::Value::uint(vm_result_item_value.scale_factor_milli as u64, 32);
+                            let field_15 =
                                 vm::Value::uint(vm_result_item_value.orientation as u8 as u64, 8);
-                            let field_15 = vm::Value::bool(vm_result_item_value.is_builtin);
-                            let field_16 =
+                            let field_16 = vm::Value::bool(vm_result_item_value.is_builtin);
+                            let field_17 =
                                 vm::Value::bool(vm_result_item_value.supports_variable_refresh);
-                            let field_17 = vm::Value::bool(vm_result_item_value.supports_hdr);
+                            let field_18 = vm::Value::bool(vm_result_item_value.supports_hdr);
                             context.allocate_aggregate(vec![
                                 field_0, field_1, field_2, field_3, field_4, field_5, field_6,
                                 field_7, field_8, field_9, field_10, field_11, field_12, field_13,
-                                field_14, field_15, field_16, field_17,
+                                field_14, field_15, field_16, field_17, field_18,
                             ])
                         };
                         vm_result_values.push(vm_result_item_value_encoded);
@@ -16112,6 +16639,7 @@ fn destack_display_window_descriptor_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: WindowDescriptorVm = value.clone();
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_id = {
                     let result_recorded_id_ref = context
                         .string_ref(result_value.id)
@@ -16167,6 +16695,7 @@ fn destack_display_window_descriptor_vm_replay(
                 let result_recorded_transparent = result_value.transparent;
                 let result_recorded_always_on_top = result_value.always_on_top;
                 let result_recorded = WindowDescriptorReplayRecord {
+                    backend: result_recorded_backend,
                     id: result_recorded_id,
                     title: result_recorded_title,
                     mode: result_recorded_mode,
@@ -16197,6 +16726,7 @@ fn destack_display_window_descriptor_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let vm_result_backend = value.backend;
                     let vm_result_id_value = context.intern_string(value.id.as_str());
                     let vm_result_id = vm::StringHandle::new(vm_result_id_value);
                     let vm_result_title_value = context.intern_string(value.title.as_str());
@@ -16242,6 +16772,7 @@ fn destack_display_window_descriptor_vm_replay(
                     let vm_result_transparent = value.transparent;
                     let vm_result_always_on_top = value.always_on_top;
                     let vm_result = WindowDescriptorVm {
+                        backend: vm_result_backend,
                         id: vm_result_id,
                         title: vm_result_title,
                         mode: vm_result_mode,
@@ -16397,10 +16928,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_close_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_close_requested_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_close_requested_event_metadata_backend,
                             window: result_recorded_window_close_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_close_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_close_requested_event_metadata_sequence,
@@ -16416,10 +16949,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_created_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_created_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_created_event_metadata_window = value.metadata.window;
                         let result_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_created_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_created_event_metadata_backend,
                             window: result_recorded_window_created_event_metadata_window,
                             timestamp_ns: result_recorded_window_created_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_created_event_metadata_sequence,
@@ -16435,10 +16970,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_destroyed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_destroyed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_destroyed_event_metadata_backend,
                             window: result_recorded_window_destroyed_event_metadata_window,
                             timestamp_ns: result_recorded_window_destroyed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_destroyed_event_metadata_sequence,
@@ -16454,10 +16991,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_display_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_display_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_display_changed_event_metadata_backend,
                             window: result_recorded_window_display_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_display_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_display_changed_event_metadata_sequence,
@@ -16483,10 +17022,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_focus_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_focus_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_focus_changed_event_metadata_backend,
                             window: result_recorded_window_focus_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_focus_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_focus_changed_event_metadata_sequence,
@@ -16507,10 +17048,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_mode_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_mode_changed_event_metadata_backend,
                             window: result_recorded_window_mode_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_mode_changed_event_metadata_sequence,
@@ -16559,10 +17102,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_occlusion_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_occlusion_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_occlusion_changed_event_metadata_backend,
                             window: result_recorded_window_occlusion_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -16583,10 +17128,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_position_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_position_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_position_changed_event_metadata_backend,
                             window: result_recorded_window_position_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_position_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_position_changed_event_metadata_sequence,
@@ -16612,10 +17159,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
                             window: result_recorded_window_refresh_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
@@ -16631,10 +17180,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_scale_factor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_scale_factor_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_scale_factor_changed_event_metadata_backend,
                             window: result_recorded_window_scale_factor_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -16655,10 +17206,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_size_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_size_changed_event_metadata_backend,
                             window: result_recorded_window_size_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_size_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_size_changed_event_metadata_sequence,
@@ -16691,10 +17244,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_theme_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_theme_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_theme_changed_event_metadata_backend,
                             window: result_recorded_window_theme_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_theme_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_theme_changed_event_metadata_sequence,
@@ -16715,10 +17270,12 @@ fn destack_display_window_event_read_vm_replay(
                             let result_recorded_window_visibility_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_visibility_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_visibility_changed_event_metadata_backend,
                             window: result_recorded_window_visibility_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_visibility_changed_event_metadata_sequence,
@@ -16762,10 +17319,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                             let vm_result_window_close_requested_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_close_requested_event_kind = vm::StringHandle::new(vm_result_window_close_requested_event_kind_value);
+                            let vm_result_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_close_requested_event_metadata_window = value.metadata.window;
                             let vm_result_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_close_requested_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_close_requested_event_metadata_backend,
                                 window: vm_result_window_close_requested_event_metadata_window,
                                 timestamp_ns: vm_result_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_close_requested_event_metadata_sequence,
@@ -16779,10 +17338,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowCreatedEvent(value) => {
                             let vm_result_window_created_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_created_event_kind = vm::StringHandle::new(vm_result_window_created_event_kind_value);
+                            let vm_result_window_created_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_created_event_metadata_window = value.metadata.window;
                             let vm_result_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_created_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_created_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_created_event_metadata_backend,
                                 window: vm_result_window_created_event_metadata_window,
                                 timestamp_ns: vm_result_window_created_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_created_event_metadata_sequence,
@@ -16796,10 +17357,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                             let vm_result_window_destroyed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_destroyed_event_kind = vm::StringHandle::new(vm_result_window_destroyed_event_kind_value);
+                            let vm_result_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_destroyed_event_metadata_window = value.metadata.window;
                             let vm_result_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_destroyed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_destroyed_event_metadata_backend,
                                 window: vm_result_window_destroyed_event_metadata_window,
                                 timestamp_ns: vm_result_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_destroyed_event_metadata_sequence,
@@ -16813,10 +17376,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                             let vm_result_window_display_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_display_changed_event_kind = vm::StringHandle::new(vm_result_window_display_changed_event_kind_value);
+                            let vm_result_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_display_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_display_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_display_changed_event_metadata_backend,
                                 window: vm_result_window_display_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_display_changed_event_metadata_sequence,
@@ -16840,10 +17405,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                             let vm_result_window_focus_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_focus_changed_event_kind = vm::StringHandle::new(vm_result_window_focus_changed_event_kind_value);
+                            let vm_result_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_focus_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_focus_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_focus_changed_event_metadata_backend,
                                 window: vm_result_window_focus_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_focus_changed_event_metadata_sequence,
@@ -16862,10 +17429,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                             let vm_result_window_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_mode_changed_event_kind = vm::StringHandle::new(vm_result_window_mode_changed_event_kind_value);
+                            let vm_result_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_mode_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_mode_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_mode_changed_event_metadata_backend,
                                 window: vm_result_window_mode_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_mode_changed_event_metadata_sequence,
@@ -16912,10 +17481,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                             let vm_result_window_occlusion_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_occlusion_changed_event_kind = vm::StringHandle::new(vm_result_window_occlusion_changed_event_kind_value);
+                            let vm_result_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_occlusion_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_occlusion_changed_event_metadata_backend,
                                 window: vm_result_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_occlusion_changed_event_metadata_sequence,
@@ -16934,10 +17505,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                             let vm_result_window_position_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_position_changed_event_kind = vm::StringHandle::new(vm_result_window_position_changed_event_kind_value);
+                            let vm_result_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_position_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_position_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_position_changed_event_metadata_backend,
                                 window: vm_result_window_position_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_position_changed_event_metadata_sequence,
@@ -16961,10 +17534,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                             let vm_result_window_refresh_requested_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_refresh_requested_event_kind = vm::StringHandle::new(vm_result_window_refresh_requested_event_kind_value);
+                            let vm_result_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let vm_result_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_refresh_requested_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_refresh_requested_event_metadata_backend,
                                 window: vm_result_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: vm_result_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_refresh_requested_event_metadata_sequence,
@@ -16978,10 +17553,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                             let vm_result_window_scale_factor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_scale_factor_changed_event_kind = vm::StringHandle::new(vm_result_window_scale_factor_changed_event_kind_value);
+                            let vm_result_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_scale_factor_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_scale_factor_changed_event_metadata_backend,
                                 window: vm_result_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_scale_factor_changed_event_metadata_sequence,
@@ -17000,10 +17577,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                             let vm_result_window_size_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_size_changed_event_kind = vm::StringHandle::new(vm_result_window_size_changed_event_kind_value);
+                            let vm_result_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_size_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_size_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_size_changed_event_metadata_backend,
                                 window: vm_result_window_size_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_size_changed_event_metadata_sequence,
@@ -17034,10 +17613,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                             let vm_result_window_theme_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_theme_changed_event_kind = vm::StringHandle::new(vm_result_window_theme_changed_event_kind_value);
+                            let vm_result_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_theme_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_theme_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_theme_changed_event_metadata_backend,
                                 window: vm_result_window_theme_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_theme_changed_event_metadata_sequence,
@@ -17056,10 +17637,12 @@ fn destack_display_window_event_read_vm_replay(
                         WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                             let vm_result_window_visibility_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_visibility_changed_event_kind = vm::StringHandle::new(vm_result_window_visibility_changed_event_kind_value);
+                            let vm_result_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_visibility_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_visibility_changed_event_metadata_backend,
                                 window: vm_result_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_visibility_changed_event_metadata_sequence,
@@ -17119,10 +17702,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_close_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_close_requested_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_close_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_close_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_close_requested_event_metadata_sequence,
@@ -17138,10 +17723,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_created_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_created_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_created_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_created_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_created_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_created_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_created_event_metadata_sequence,
@@ -17157,10 +17744,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_destroyed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_destroyed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_destroyed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_destroyed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_destroyed_event_metadata_sequence,
@@ -17176,10 +17765,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_display_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_display_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_display_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_display_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_display_changed_event_metadata_sequence,
@@ -17205,10 +17796,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_focus_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_focus_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_focus_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_focus_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_focus_changed_event_metadata_sequence,
@@ -17229,10 +17822,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_mode_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_mode_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_mode_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_mode_changed_event_metadata_sequence,
@@ -17281,10 +17876,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_occlusion_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_occlusion_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -17305,10 +17902,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_position_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_position_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_position_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_position_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_position_changed_event_metadata_sequence,
@@ -17334,10 +17933,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
@@ -17353,10 +17954,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_scale_factor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_scale_factor_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -17377,10 +17980,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_size_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_size_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_size_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_size_changed_event_metadata_sequence,
@@ -17413,10 +18018,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_theme_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_theme_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_theme_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_theme_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_theme_changed_event_metadata_sequence,
@@ -17437,10 +18044,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_visibility_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_visibility_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_visibility_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence,
@@ -17489,10 +18098,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                                 let vm_result_item_value_window_close_requested_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_close_requested_event_kind = vm::StringHandle::new(vm_result_item_value_window_close_requested_event_kind_value);
+                                let vm_result_item_value_window_close_requested_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_close_requested_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_close_requested_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_close_requested_event_metadata_backend,
                                     window: vm_result_item_value_window_close_requested_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_close_requested_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_close_requested_event_metadata_sequence,
@@ -17506,10 +18117,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowCreatedEvent(value) => {
                                 let vm_result_item_value_window_created_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_created_event_kind = vm::StringHandle::new(vm_result_item_value_window_created_event_kind_value);
+                                let vm_result_item_value_window_created_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_created_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_created_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_created_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_created_event_metadata_backend,
                                     window: vm_result_item_value_window_created_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_created_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_created_event_metadata_sequence,
@@ -17523,10 +18136,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                                 let vm_result_item_value_window_destroyed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_destroyed_event_kind = vm::StringHandle::new(vm_result_item_value_window_destroyed_event_kind_value);
+                                let vm_result_item_value_window_destroyed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_destroyed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_destroyed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_destroyed_event_metadata_backend,
                                     window: vm_result_item_value_window_destroyed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_destroyed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_destroyed_event_metadata_sequence,
@@ -17540,10 +18155,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                                 let vm_result_item_value_window_display_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_display_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_display_changed_event_kind_value);
+                                let vm_result_item_value_window_display_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_display_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_display_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_display_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_display_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_display_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_display_changed_event_metadata_sequence,
@@ -17567,10 +18184,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                                 let vm_result_item_value_window_focus_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_focus_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_focus_changed_event_kind_value);
+                                let vm_result_item_value_window_focus_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_focus_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_focus_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_focus_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_focus_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_focus_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_focus_changed_event_metadata_sequence,
@@ -17589,10 +18208,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                                 let vm_result_item_value_window_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_mode_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_mode_changed_event_kind_value);
+                                let vm_result_item_value_window_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_mode_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_mode_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_mode_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_mode_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_mode_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_mode_changed_event_metadata_sequence,
@@ -17639,10 +18260,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                                 let vm_result_item_value_window_occlusion_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_occlusion_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_occlusion_changed_event_kind_value);
+                                let vm_result_item_value_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_occlusion_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_occlusion_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_occlusion_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_occlusion_changed_event_metadata_sequence,
@@ -17661,10 +18284,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                                 let vm_result_item_value_window_position_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_position_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_position_changed_event_kind_value);
+                                let vm_result_item_value_window_position_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_position_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_position_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_position_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_position_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_position_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_position_changed_event_metadata_sequence,
@@ -17688,10 +18313,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                                 let vm_result_item_value_window_refresh_requested_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_refresh_requested_event_kind = vm::StringHandle::new(vm_result_item_value_window_refresh_requested_event_kind_value);
+                                let vm_result_item_value_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_refresh_requested_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_refresh_requested_event_metadata_backend,
                                     window: vm_result_item_value_window_refresh_requested_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_refresh_requested_event_metadata_sequence,
@@ -17705,10 +18332,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                                 let vm_result_item_value_window_scale_factor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_scale_factor_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_scale_factor_changed_event_kind_value);
+                                let vm_result_item_value_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_scale_factor_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_scale_factor_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_scale_factor_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_scale_factor_changed_event_metadata_sequence,
@@ -17727,10 +18356,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                                 let vm_result_item_value_window_size_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_size_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_size_changed_event_kind_value);
+                                let vm_result_item_value_window_size_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_size_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_size_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_size_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_size_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_size_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_size_changed_event_metadata_sequence,
@@ -17761,10 +18392,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                                 let vm_result_item_value_window_theme_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_theme_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_theme_changed_event_kind_value);
+                                let vm_result_item_value_window_theme_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_theme_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_theme_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_theme_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_theme_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_theme_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_theme_changed_event_metadata_sequence,
@@ -17783,10 +18416,12 @@ fn destack_display_window_event_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                                 let vm_result_item_value_window_visibility_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_visibility_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_visibility_changed_event_kind_value);
+                                let vm_result_item_value_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_visibility_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_visibility_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_visibility_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_visibility_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_visibility_changed_event_metadata_sequence,
@@ -17803,7 +18438,7 @@ fn destack_display_window_event_read_batch_vm_replay(
                                 WindowEventVm::WindowVisibilityChangedEvent(vm_result_item_value_window_visibility_changed_event)
                             }
                         };
-                        let vm_result_item_value_encoded = match vm_result_item_value { WindowEventVm::WindowCloseRequestedEvent(value) => { let tag_value = vm::Value::uint(994806682u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowCreatedEvent(value) => { let tag_value = vm::Value::uint(878591535u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDestroyedEvent(value) => { let tag_value = vm::Value::uint(184891498u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDisplayChangedEvent(value) => { let tag_value = vm::Value::uint(1189065445u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = match value.payload.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowFocusChangedEvent(value) => { let tag_value = vm::Value::uint(3088503659u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.focused); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowModeChangedEvent(value) => { let tag_value = vm::Value::uint(3707716724u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.mode as u8 as u64, 8); let field_1 = match value.payload.mode.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_2 = match value.payload.mode.display_mode { Some(value) => { let field_0 = vm::Value::uint(value.width as u64, 32); let field_1 = vm::Value::uint(value.height as u64, 32); let field_2 = vm::Value::uint(value.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.format as u64, 32); let field_4 = vm::Value::uint(value.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }, None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowOcclusionChangedEvent(value) => { let tag_value = vm::Value::uint(158403053u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.occluded); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowPositionChangedEvent(value) => { let tag_value = vm::Value::uint(1091699329u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::int(value.payload.position.x as i64, 32); let field_1 = vm::Value::int(value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowRefreshRequestedEvent(value) => { let tag_value = vm::Value::uint(1316312880u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowScaleFactorChangedEvent(value) => { let tag_value = vm::Value::uint(230889647u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowSizeChangedEvent(value) => { let tag_value = vm::Value::uint(1375014571u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::float64(value.payload.size_logical.width); let field_1 = vm::Value::float64(value.payload.size_logical.height); context.allocate_aggregate(vec![field_0, field_1]) }; let field_1 = { let field_0 = vm::Value::uint(value.payload.size_physical.width as u64, 32); let field_1 = vm::Value::uint(value.payload.size_physical.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowThemeChangedEvent(value) => { let tag_value = vm::Value::uint(1613918779u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowVisibilityChangedEvent(value) => { let tag_value = vm::Value::uint(170308681u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
+                        let vm_result_item_value_encoded = match vm_result_item_value { WindowEventVm::WindowCloseRequestedEvent(value) => { let tag_value = vm::Value::uint(994806682u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowCreatedEvent(value) => { let tag_value = vm::Value::uint(878591535u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDestroyedEvent(value) => { let tag_value = vm::Value::uint(184891498u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDisplayChangedEvent(value) => { let tag_value = vm::Value::uint(1189065445u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = match value.payload.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowFocusChangedEvent(value) => { let tag_value = vm::Value::uint(3088503659u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.focused); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowModeChangedEvent(value) => { let tag_value = vm::Value::uint(3707716724u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.mode as u8 as u64, 8); let field_1 = match value.payload.mode.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_2 = match value.payload.mode.display_mode { Some(value) => { let field_0 = vm::Value::uint(value.width as u64, 32); let field_1 = vm::Value::uint(value.height as u64, 32); let field_2 = vm::Value::uint(value.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.format as u64, 32); let field_4 = vm::Value::uint(value.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }, None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowOcclusionChangedEvent(value) => { let tag_value = vm::Value::uint(158403053u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.occluded); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowPositionChangedEvent(value) => { let tag_value = vm::Value::uint(1091699329u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::int(value.payload.position.x as i64, 32); let field_1 = vm::Value::int(value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowRefreshRequestedEvent(value) => { let tag_value = vm::Value::uint(1316312880u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowScaleFactorChangedEvent(value) => { let tag_value = vm::Value::uint(230889647u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowSizeChangedEvent(value) => { let tag_value = vm::Value::uint(1375014571u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::float64(value.payload.size_logical.width); let field_1 = vm::Value::float64(value.payload.size_logical.height); context.allocate_aggregate(vec![field_0, field_1]) }; let field_1 = { let field_0 = vm::Value::uint(value.payload.size_physical.width as u64, 32); let field_1 = vm::Value::uint(value.payload.size_physical.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowThemeChangedEvent(value) => { let tag_value = vm::Value::uint(1613918779u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowVisibilityChangedEvent(value) => { let tag_value = vm::Value::uint(170308681u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -17845,10 +18480,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_close_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_close_requested_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_close_requested_event_metadata_backend,
                             window: result_recorded_window_close_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_close_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_close_requested_event_metadata_sequence,
@@ -17864,10 +18501,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_created_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_created_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_created_event_metadata_window = value.metadata.window;
                         let result_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_created_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_created_event_metadata_backend,
                             window: result_recorded_window_created_event_metadata_window,
                             timestamp_ns: result_recorded_window_created_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_created_event_metadata_sequence,
@@ -17883,10 +18522,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_destroyed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_destroyed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_destroyed_event_metadata_backend,
                             window: result_recorded_window_destroyed_event_metadata_window,
                             timestamp_ns: result_recorded_window_destroyed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_destroyed_event_metadata_sequence,
@@ -17902,10 +18543,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_display_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_display_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_display_changed_event_metadata_backend,
                             window: result_recorded_window_display_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_display_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_display_changed_event_metadata_sequence,
@@ -17931,10 +18574,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_focus_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_focus_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_focus_changed_event_metadata_backend,
                             window: result_recorded_window_focus_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_focus_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_focus_changed_event_metadata_sequence,
@@ -17955,10 +18600,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_mode_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_mode_changed_event_metadata_backend,
                             window: result_recorded_window_mode_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_mode_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_mode_changed_event_metadata_sequence,
@@ -18007,10 +18654,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_occlusion_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_occlusion_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_occlusion_changed_event_metadata_backend,
                             window: result_recorded_window_occlusion_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -18031,10 +18680,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_position_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_position_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_position_changed_event_metadata_backend,
                             window: result_recorded_window_position_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_position_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_position_changed_event_metadata_sequence,
@@ -18060,10 +18711,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                         let result_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_refresh_requested_event_metadata_backend,
                             window: result_recorded_window_refresh_requested_event_metadata_window,
                             timestamp_ns: result_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_refresh_requested_event_metadata_sequence,
@@ -18079,10 +18732,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_scale_factor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_scale_factor_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_scale_factor_changed_event_metadata_backend,
                             window: result_recorded_window_scale_factor_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -18103,10 +18758,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_size_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_size_changed_event_metadata_backend,
                             window: result_recorded_window_size_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_size_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_size_changed_event_metadata_sequence,
@@ -18139,10 +18796,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_theme_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_theme_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_theme_changed_event_metadata_backend,
                             window: result_recorded_window_theme_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_theme_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_theme_changed_event_metadata_sequence,
@@ -18163,10 +18822,12 @@ fn destack_display_window_event_try_read_vm_replay(
                             let result_recorded_window_visibility_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_window_visibility_changed_event_kind_ref.as_str().to_string()
                         };
+                        let result_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                         let result_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                         let result_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                         let result_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                         let result_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                            backend: result_recorded_window_visibility_changed_event_metadata_backend,
                             window: result_recorded_window_visibility_changed_event_metadata_window,
                             timestamp_ns: result_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                             sequence: result_recorded_window_visibility_changed_event_metadata_sequence,
@@ -18210,10 +18871,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                             let vm_result_window_close_requested_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_close_requested_event_kind = vm::StringHandle::new(vm_result_window_close_requested_event_kind_value);
+                            let vm_result_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_close_requested_event_metadata_window = value.metadata.window;
                             let vm_result_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_close_requested_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_close_requested_event_metadata_backend,
                                 window: vm_result_window_close_requested_event_metadata_window,
                                 timestamp_ns: vm_result_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_close_requested_event_metadata_sequence,
@@ -18227,10 +18890,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowCreatedEvent(value) => {
                             let vm_result_window_created_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_created_event_kind = vm::StringHandle::new(vm_result_window_created_event_kind_value);
+                            let vm_result_window_created_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_created_event_metadata_window = value.metadata.window;
                             let vm_result_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_created_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_created_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_created_event_metadata_backend,
                                 window: vm_result_window_created_event_metadata_window,
                                 timestamp_ns: vm_result_window_created_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_created_event_metadata_sequence,
@@ -18244,10 +18909,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                             let vm_result_window_destroyed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_destroyed_event_kind = vm::StringHandle::new(vm_result_window_destroyed_event_kind_value);
+                            let vm_result_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_destroyed_event_metadata_window = value.metadata.window;
                             let vm_result_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_destroyed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_destroyed_event_metadata_backend,
                                 window: vm_result_window_destroyed_event_metadata_window,
                                 timestamp_ns: vm_result_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_destroyed_event_metadata_sequence,
@@ -18261,10 +18928,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                             let vm_result_window_display_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_display_changed_event_kind = vm::StringHandle::new(vm_result_window_display_changed_event_kind_value);
+                            let vm_result_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_display_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_display_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_display_changed_event_metadata_backend,
                                 window: vm_result_window_display_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_display_changed_event_metadata_sequence,
@@ -18288,10 +18957,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                             let vm_result_window_focus_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_focus_changed_event_kind = vm::StringHandle::new(vm_result_window_focus_changed_event_kind_value);
+                            let vm_result_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_focus_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_focus_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_focus_changed_event_metadata_backend,
                                 window: vm_result_window_focus_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_focus_changed_event_metadata_sequence,
@@ -18310,10 +18981,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                             let vm_result_window_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_mode_changed_event_kind = vm::StringHandle::new(vm_result_window_mode_changed_event_kind_value);
+                            let vm_result_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_mode_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_mode_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_mode_changed_event_metadata_backend,
                                 window: vm_result_window_mode_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_mode_changed_event_metadata_sequence,
@@ -18360,10 +19033,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                             let vm_result_window_occlusion_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_occlusion_changed_event_kind = vm::StringHandle::new(vm_result_window_occlusion_changed_event_kind_value);
+                            let vm_result_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_occlusion_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_occlusion_changed_event_metadata_backend,
                                 window: vm_result_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_occlusion_changed_event_metadata_sequence,
@@ -18382,10 +19057,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                             let vm_result_window_position_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_position_changed_event_kind = vm::StringHandle::new(vm_result_window_position_changed_event_kind_value);
+                            let vm_result_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_position_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_position_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_position_changed_event_metadata_backend,
                                 window: vm_result_window_position_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_position_changed_event_metadata_sequence,
@@ -18409,10 +19086,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                             let vm_result_window_refresh_requested_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_refresh_requested_event_kind = vm::StringHandle::new(vm_result_window_refresh_requested_event_kind_value);
+                            let vm_result_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let vm_result_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_refresh_requested_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_refresh_requested_event_metadata_backend,
                                 window: vm_result_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: vm_result_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_refresh_requested_event_metadata_sequence,
@@ -18426,10 +19105,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                             let vm_result_window_scale_factor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_scale_factor_changed_event_kind = vm::StringHandle::new(vm_result_window_scale_factor_changed_event_kind_value);
+                            let vm_result_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_scale_factor_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_scale_factor_changed_event_metadata_backend,
                                 window: vm_result_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_scale_factor_changed_event_metadata_sequence,
@@ -18448,10 +19129,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                             let vm_result_window_size_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_size_changed_event_kind = vm::StringHandle::new(vm_result_window_size_changed_event_kind_value);
+                            let vm_result_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_size_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_size_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_size_changed_event_metadata_backend,
                                 window: vm_result_window_size_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_size_changed_event_metadata_sequence,
@@ -18482,10 +19165,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                             let vm_result_window_theme_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_theme_changed_event_kind = vm::StringHandle::new(vm_result_window_theme_changed_event_kind_value);
+                            let vm_result_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_theme_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_theme_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_theme_changed_event_metadata_backend,
                                 window: vm_result_window_theme_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_theme_changed_event_metadata_sequence,
@@ -18504,10 +19189,12 @@ fn destack_display_window_event_try_read_vm_replay(
                         WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                             let vm_result_window_visibility_changed_event_kind_value = context.intern_string(value.kind.as_str());
                             let vm_result_window_visibility_changed_event_kind = vm::StringHandle::new(vm_result_window_visibility_changed_event_kind_value);
+                            let vm_result_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let vm_result_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let vm_result_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let vm_result_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let vm_result_window_visibility_changed_event_metadata = WindowEventMetadataVm {
+                                backend: vm_result_window_visibility_changed_event_metadata_backend,
                                 window: vm_result_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: vm_result_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: vm_result_window_visibility_changed_event_metadata_sequence,
@@ -18566,10 +19253,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_close_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_close_requested_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_close_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_close_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_close_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_close_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_close_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_close_requested_event_metadata_sequence,
@@ -18585,10 +19274,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_created_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_created_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_created_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_created_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_created_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_created_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_created_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_created_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_created_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_created_event_metadata_sequence,
@@ -18604,10 +19295,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_destroyed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_destroyed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_destroyed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_destroyed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_destroyed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_destroyed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_destroyed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_destroyed_event_metadata_sequence,
@@ -18623,10 +19316,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_display_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_display_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_display_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_display_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_display_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_display_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_display_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_display_changed_event_metadata_sequence,
@@ -18652,10 +19347,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_focus_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_focus_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_focus_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_focus_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_focus_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_focus_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_focus_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_focus_changed_event_metadata_sequence,
@@ -18676,10 +19373,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_mode_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_mode_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_mode_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_mode_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_mode_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_mode_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_mode_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_mode_changed_event_metadata_sequence,
@@ -18728,10 +19427,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_occlusion_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_occlusion_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_occlusion_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_occlusion_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_occlusion_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_occlusion_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_occlusion_changed_event_metadata_sequence,
@@ -18752,10 +19453,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_position_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_position_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_position_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_position_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_position_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_position_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_position_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_position_changed_event_metadata_sequence,
@@ -18781,10 +19484,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_refresh_requested_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_refresh_requested_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_refresh_requested_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_refresh_requested_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_refresh_requested_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_refresh_requested_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_refresh_requested_event_metadata_sequence,
@@ -18800,10 +19505,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_scale_factor_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_scale_factor_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_scale_factor_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_scale_factor_changed_event_metadata_sequence,
@@ -18824,10 +19531,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_size_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_size_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_size_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_size_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_size_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_size_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_size_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_size_changed_event_metadata_sequence,
@@ -18860,10 +19569,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_theme_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_theme_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_theme_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_theme_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_theme_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_theme_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_theme_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_theme_changed_event_metadata_sequence,
@@ -18884,10 +19595,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 let result_recorded_item_recorded_window_visibility_changed_event_kind_ref = context.string_ref(value.kind).map_err(|error| RuntimeError::from(error).boxed())?;
                                 result_recorded_item_recorded_window_visibility_changed_event_kind_ref.as_str().to_string()
                             };
+                            let result_recorded_item_recorded_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_window = value.metadata.window;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                             let result_recorded_item_recorded_window_visibility_changed_event_metadata = WindowEventMetadata {
+                                backend: result_recorded_item_recorded_window_visibility_changed_event_metadata_backend,
                                 window: result_recorded_item_recorded_window_visibility_changed_event_metadata_window,
                                 timestamp_ns: result_recorded_item_recorded_window_visibility_changed_event_metadata_timestamp_ns,
                                 sequence: result_recorded_item_recorded_window_visibility_changed_event_metadata_sequence,
@@ -18936,10 +19649,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowCloseRequestedEvent(value) => {
                                 let vm_result_item_value_window_close_requested_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_close_requested_event_kind = vm::StringHandle::new(vm_result_item_value_window_close_requested_event_kind_value);
+                                let vm_result_item_value_window_close_requested_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_close_requested_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_close_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_close_requested_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_close_requested_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_close_requested_event_metadata_backend,
                                     window: vm_result_item_value_window_close_requested_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_close_requested_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_close_requested_event_metadata_sequence,
@@ -18953,10 +19668,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowCreatedEvent(value) => {
                                 let vm_result_item_value_window_created_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_created_event_kind = vm::StringHandle::new(vm_result_item_value_window_created_event_kind_value);
+                                let vm_result_item_value_window_created_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_created_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_created_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_created_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_created_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_created_event_metadata_backend,
                                     window: vm_result_item_value_window_created_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_created_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_created_event_metadata_sequence,
@@ -18970,10 +19687,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowDestroyedEvent(value) => {
                                 let vm_result_item_value_window_destroyed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_destroyed_event_kind = vm::StringHandle::new(vm_result_item_value_window_destroyed_event_kind_value);
+                                let vm_result_item_value_window_destroyed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_destroyed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_destroyed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_destroyed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_destroyed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_destroyed_event_metadata_backend,
                                     window: vm_result_item_value_window_destroyed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_destroyed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_destroyed_event_metadata_sequence,
@@ -18987,10 +19706,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowDisplayChangedEvent(value) => {
                                 let vm_result_item_value_window_display_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_display_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_display_changed_event_kind_value);
+                                let vm_result_item_value_window_display_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_display_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_display_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_display_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_display_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_display_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_display_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_display_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_display_changed_event_metadata_sequence,
@@ -19014,10 +19735,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowFocusChangedEvent(value) => {
                                 let vm_result_item_value_window_focus_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_focus_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_focus_changed_event_kind_value);
+                                let vm_result_item_value_window_focus_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_focus_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_focus_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_focus_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_focus_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_focus_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_focus_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_focus_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_focus_changed_event_metadata_sequence,
@@ -19036,10 +19759,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowModeChangedEvent(value) => {
                                 let vm_result_item_value_window_mode_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_mode_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_mode_changed_event_kind_value);
+                                let vm_result_item_value_window_mode_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_mode_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_mode_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_mode_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_mode_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_mode_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_mode_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_mode_changed_event_metadata_sequence,
@@ -19086,10 +19811,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowOcclusionChangedEvent(value) => {
                                 let vm_result_item_value_window_occlusion_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_occlusion_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_occlusion_changed_event_kind_value);
+                                let vm_result_item_value_window_occlusion_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_occlusion_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_occlusion_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_occlusion_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_occlusion_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_occlusion_changed_event_metadata_sequence,
@@ -19108,10 +19835,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowPositionChangedEvent(value) => {
                                 let vm_result_item_value_window_position_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_position_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_position_changed_event_kind_value);
+                                let vm_result_item_value_window_position_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_position_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_position_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_position_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_position_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_position_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_position_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_position_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_position_changed_event_metadata_sequence,
@@ -19135,10 +19864,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowRefreshRequestedEvent(value) => {
                                 let vm_result_item_value_window_refresh_requested_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_refresh_requested_event_kind = vm::StringHandle::new(vm_result_item_value_window_refresh_requested_event_kind_value);
+                                let vm_result_item_value_window_refresh_requested_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_refresh_requested_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_refresh_requested_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_refresh_requested_event_metadata_backend,
                                     window: vm_result_item_value_window_refresh_requested_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_refresh_requested_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_refresh_requested_event_metadata_sequence,
@@ -19152,10 +19883,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowScaleFactorChangedEvent(value) => {
                                 let vm_result_item_value_window_scale_factor_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_scale_factor_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_scale_factor_changed_event_kind_value);
+                                let vm_result_item_value_window_scale_factor_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_scale_factor_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_scale_factor_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_scale_factor_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_scale_factor_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_scale_factor_changed_event_metadata_sequence,
@@ -19174,10 +19907,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowSizeChangedEvent(value) => {
                                 let vm_result_item_value_window_size_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_size_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_size_changed_event_kind_value);
+                                let vm_result_item_value_window_size_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_size_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_size_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_size_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_size_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_size_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_size_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_size_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_size_changed_event_metadata_sequence,
@@ -19208,10 +19943,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowThemeChangedEvent(value) => {
                                 let vm_result_item_value_window_theme_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_theme_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_theme_changed_event_kind_value);
+                                let vm_result_item_value_window_theme_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_theme_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_theme_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_theme_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_theme_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_theme_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_theme_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_theme_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_theme_changed_event_metadata_sequence,
@@ -19230,10 +19967,12 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                             WindowEventReplayRecord::WindowVisibilityChangedEvent(value) => {
                                 let vm_result_item_value_window_visibility_changed_event_kind_value = context.intern_string(value.kind.as_str());
                                 let vm_result_item_value_window_visibility_changed_event_kind = vm::StringHandle::new(vm_result_item_value_window_visibility_changed_event_kind_value);
+                                let vm_result_item_value_window_visibility_changed_event_metadata_backend = value.metadata.backend;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_window = value.metadata.window;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                                 let vm_result_item_value_window_visibility_changed_event_metadata_sequence = value.metadata.sequence;
                                 let vm_result_item_value_window_visibility_changed_event_metadata = WindowEventMetadataVm {
+                                    backend: vm_result_item_value_window_visibility_changed_event_metadata_backend,
                                     window: vm_result_item_value_window_visibility_changed_event_metadata_window,
                                     timestamp_ns: vm_result_item_value_window_visibility_changed_event_metadata_timestamp_ns,
                                     sequence: vm_result_item_value_window_visibility_changed_event_metadata_sequence,
@@ -19250,7 +19989,7 @@ fn destack_display_window_event_try_read_batch_vm_replay(
                                 WindowEventVm::WindowVisibilityChangedEvent(vm_result_item_value_window_visibility_changed_event)
                             }
                         };
-                        let vm_result_item_value_encoded = match vm_result_item_value { WindowEventVm::WindowCloseRequestedEvent(value) => { let tag_value = vm::Value::uint(994806682u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowCreatedEvent(value) => { let tag_value = vm::Value::uint(878591535u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDestroyedEvent(value) => { let tag_value = vm::Value::uint(184891498u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDisplayChangedEvent(value) => { let tag_value = vm::Value::uint(1189065445u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = match value.payload.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowFocusChangedEvent(value) => { let tag_value = vm::Value::uint(3088503659u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.focused); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowModeChangedEvent(value) => { let tag_value = vm::Value::uint(3707716724u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.mode as u8 as u64, 8); let field_1 = match value.payload.mode.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_2 = match value.payload.mode.display_mode { Some(value) => { let field_0 = vm::Value::uint(value.width as u64, 32); let field_1 = vm::Value::uint(value.height as u64, 32); let field_2 = vm::Value::uint(value.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.format as u64, 32); let field_4 = vm::Value::uint(value.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }, None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowOcclusionChangedEvent(value) => { let tag_value = vm::Value::uint(158403053u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.occluded); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowPositionChangedEvent(value) => { let tag_value = vm::Value::uint(1091699329u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::int(value.payload.position.x as i64, 32); let field_1 = vm::Value::int(value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowRefreshRequestedEvent(value) => { let tag_value = vm::Value::uint(1316312880u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowScaleFactorChangedEvent(value) => { let tag_value = vm::Value::uint(230889647u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowSizeChangedEvent(value) => { let tag_value = vm::Value::uint(1375014571u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::float64(value.payload.size_logical.width); let field_1 = vm::Value::float64(value.payload.size_logical.height); context.allocate_aggregate(vec![field_0, field_1]) }; let field_1 = { let field_0 = vm::Value::uint(value.payload.size_physical.width as u64, 32); let field_1 = vm::Value::uint(value.payload.size_physical.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowThemeChangedEvent(value) => { let tag_value = vm::Value::uint(1613918779u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowVisibilityChangedEvent(value) => { let tag_value = vm::Value::uint(170308681u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.window.0.0, 64); let field_1 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_2 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
+                        let vm_result_item_value_encoded = match vm_result_item_value { WindowEventVm::WindowCloseRequestedEvent(value) => { let tag_value = vm::Value::uint(994806682u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowCreatedEvent(value) => { let tag_value = vm::Value::uint(878591535u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDestroyedEvent(value) => { let tag_value = vm::Value::uint(184891498u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowDisplayChangedEvent(value) => { let tag_value = vm::Value::uint(1189065445u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = match value.payload.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowFocusChangedEvent(value) => { let tag_value = vm::Value::uint(3088503659u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.focused); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowModeChangedEvent(value) => { let tag_value = vm::Value::uint(3707716724u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::uint(value.payload.mode.mode as u8 as u64, 8); let field_1 = match value.payload.mode.display { Some(value) => vm::Value::uint(value.0.0, 64), None => vm::Value::VOID }; let field_2 = match value.payload.mode.display_mode { Some(value) => { let field_0 = vm::Value::uint(value.width as u64, 32); let field_1 = vm::Value::uint(value.height as u64, 32); let field_2 = vm::Value::uint(value.refresh_milli_hz as u64, 32); let field_3 = vm::Value::uint(value.format as u64, 32); let field_4 = vm::Value::uint(value.bit_depth as u64, 16); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) }, None => vm::Value::VOID }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowOcclusionChangedEvent(value) => { let tag_value = vm::Value::uint(158403053u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::bool(value.payload.occluded); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowPositionChangedEvent(value) => { let tag_value = vm::Value::uint(1091699329u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::int(value.payload.position.x as i64, 32); let field_1 = vm::Value::int(value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowRefreshRequestedEvent(value) => { let tag_value = vm::Value::uint(1316312880u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowScaleFactorChangedEvent(value) => { let tag_value = vm::Value::uint(230889647u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowSizeChangedEvent(value) => { let tag_value = vm::Value::uint(1375014571u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = { let field_0 = vm::Value::float64(value.payload.size_logical.width); let field_1 = vm::Value::float64(value.payload.size_logical.height); context.allocate_aggregate(vec![field_0, field_1]) }; let field_1 = { let field_0 = vm::Value::uint(value.payload.size_physical.width as u64, 32); let field_1 = vm::Value::uint(value.payload.size_physical.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowThemeChangedEvent(value) => { let tag_value = vm::Value::uint(1613918779u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.theme as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) }, WindowEventVm::WindowVisibilityChangedEvent(value) => { let tag_value = vm::Value::uint(170308681u64, 32); let payload_value = { let field_0 = value.kind.value(); let field_1 = { let field_0 = vm::Value::uint(value.metadata.backend as u8 as u64, 8); let field_1 = vm::Value::uint(value.metadata.window.0.0, 64); let field_2 = vm::Value::uint(value.metadata.timestamp_ns, 64); let field_3 = vm::Value::uint(value.metadata.sequence, 64); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3]) }; let field_2 = { let field_0 = vm::Value::uint(value.payload.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; context.allocate_aggregate(vec![tag_value, payload_value]) } };
                         vm_result_values.push(vm_result_item_value_encoded);
                     }
                     let vm_result_data = context.allocate_raw_values(vm_result_values);
@@ -20231,6 +20970,7 @@ fn destack_display_window_state_vm_replay(
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: WindowStateVm = value.clone();
+                let result_recorded_backend = result_value.backend;
                 let result_recorded_position_x = result_value.position.x;
                 let result_recorded_position_y = result_value.position.y;
                 let result_recorded_position = WindowPosition {
@@ -20262,6 +21002,7 @@ fn destack_display_window_state_vm_replay(
                 let result_recorded_theme = result_value.theme;
                 let result_recorded_always_on_top = result_value.always_on_top;
                 let result_recorded = WindowState {
+                    backend: result_recorded_backend,
                     position: result_recorded_position,
                     size_logical: result_recorded_size_logical,
                     size_physical: result_recorded_size_physical,
@@ -20294,6 +21035,7 @@ fn destack_display_window_state_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
+                    let vm_result_backend = value.backend;
                     let vm_result_position_x = value.position.x;
                     let vm_result_position_y = value.position.y;
                     let vm_result_position = WindowPositionVm {
@@ -20325,6 +21067,7 @@ fn destack_display_window_state_vm_replay(
                     let vm_result_theme = value.theme;
                     let vm_result_always_on_top = value.always_on_top;
                     let vm_result = WindowStateVm {
+                        backend: vm_result_backend,
                         position: vm_result_position,
                         size_logical: vm_result_size_logical,
                         size_physical: vm_result_size_physical,

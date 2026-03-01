@@ -912,11 +912,11 @@ impl VmAggregateCodec for WindowEventAbi<VmAbi> {
 /// ABI struct for DisplayAddedEvent.
 #[repr(C)]
 pub struct DisplayAddedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_display::DisplayEventMetadataAbi<A>,
-    /// The payload field.
+    /// Added payload.
     pub payload: platform_display::DisplayAddedPayloadAbi<A>,
 }
 
@@ -1001,7 +1001,7 @@ impl VmAggregateCodec for DisplayAddedEventAbi<VmAbi> {
 /// ABI struct for DisplayAddedPayload.
 #[repr(C)]
 pub struct DisplayAddedPayloadAbi<A: BindingAbi> {
-    /// The descriptor field.
+    /// Descriptor after this event.
     pub descriptor: platform_display::DisplayDescriptorAbi<A>,
 }
 
@@ -1075,15 +1075,15 @@ impl VmAggregateCodec for DisplayAddedPayloadAbi<VmAbi> {
 /// ABI struct for DisplayBackendDescriptor.
 #[repr(C)]
 pub struct DisplayBackendDescriptorAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Backend selector.
     pub backend: DisplayBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: A::String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend-level capability flags.
     pub capability_flags: DisplayBackendCapabilityFlags,
 }
 
@@ -1173,41 +1173,43 @@ impl VmAggregateCodec for DisplayBackendDescriptorAbi<VmAbi> {
 /// ABI struct for DisplayDescriptor.
 #[repr(C)]
 pub struct DisplayDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Resolved backend that produced this descriptor.
+    pub backend: DisplayBackend,
+    /// Stable runtime display identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host display name.
     pub name: A::String,
-    /// The primary field.
+    /// Whether this display is primary.
     pub primary: bool,
-    /// The x field.
+    /// Display origin x coordinate in desktop space.
     pub x: i32,
-    /// The y field.
+    /// Display origin y coordinate in desktop space.
     pub y: i32,
-    /// The width_px field.
+    /// Display width in physical pixels.
     pub width_px: u32,
-    /// The height_px field.
+    /// Display height in physical pixels.
     pub height_px: u32,
-    /// The work_area_x field.
+    /// Work-area origin x coordinate in desktop space.
     pub work_area_x: i32,
-    /// The work_area_y field.
+    /// Work-area origin y coordinate in desktop space.
     pub work_area_y: i32,
-    /// The work_area_width_px field.
+    /// Work-area width in physical pixels.
     pub work_area_width_px: u32,
-    /// The work_area_height_px field.
+    /// Work-area height in physical pixels.
     pub work_area_height_px: u32,
-    /// The width_mm field.
+    /// Physical width in millimeters when reported by the backend.
     pub width_mm: u32,
-    /// The height_mm field.
+    /// Physical height in millimeters when reported by the backend.
     pub height_mm: u32,
-    /// The scale_factor_milli field.
+    /// Scale factor in milli-scale units.
     pub scale_factor_milli: u32,
-    /// The orientation field.
+    /// Current orientation.
     pub orientation: DisplayOrientation,
-    /// The is_builtin field.
+    /// Whether this display is one built-in panel.
     pub is_builtin: bool,
-    /// The supports_variable_refresh field.
+    /// Whether this display reports variable refresh support.
     pub supports_variable_refresh: bool,
-    /// The supports_hdr field.
+    /// Whether this display reports hdr support.
     pub supports_hdr: bool,
 }
 
@@ -1250,40 +1252,43 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 18 {
+        if slots.len() != 19 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 18 fields",
+                "expected 19 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_width_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_height_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_work_area_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_work_area_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_width_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_height_px = <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_work_area_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_work_area_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_work_area_width_px =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_work_area_height_px =
             <u32 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_width_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_height_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_work_area_height_px =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_width_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_height_mm = <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[14])?;
         let field_orientation =
-            <DisplayOrientation as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_is_builtin = <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+            <DisplayOrientation as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_is_builtin = <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
         let field_supports_variable_refresh =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_supports_hdr =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+        let field_supports_hdr =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
         Ok(Self {
+            backend: field_backend,
             id: field_id,
             name: field_name,
             primary: field_primary,
@@ -1310,6 +1315,7 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
@@ -1342,11 +1348,11 @@ impl VmAggregateCodec for DisplayDescriptorAbi<VmAbi> {
 /// ABI struct for DisplayDescriptorChangedEvent.
 #[repr(C)]
 pub struct DisplayDescriptorChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_display::DisplayEventMetadataAbi<A>,
-    /// The payload field.
+    /// Descriptor-change payload.
     pub payload: platform_display::DisplayDescriptorChangedPayloadAbi<A>,
 }
 
@@ -1433,9 +1439,9 @@ impl VmAggregateCodec for DisplayDescriptorChangedEventAbi<VmAbi> {
 /// ABI struct for DisplayDescriptorChangedPayload.
 #[repr(C)]
 pub struct DisplayDescriptorChangedPayloadAbi<A: BindingAbi> {
-    /// The descriptor field.
+    /// Descriptor after this event.
     pub descriptor: platform_display::DisplayDescriptorAbi<A>,
-    /// The changed_mask field.
+    /// Changed descriptor fields as bit flags.
     pub changed_mask: u32,
 }
 
@@ -1512,11 +1518,13 @@ impl VmAggregateCodec for DisplayDescriptorChangedPayloadAbi<VmAbi> {
 /// ABI struct for DisplayEventMetadata.
 #[repr(C)]
 pub struct DisplayEventMetadataAbi<A: BindingAbi> {
-    /// The display_id field.
+    /// Resolved backend that produced this event.
+    pub backend: DisplayBackend,
+    /// Display identifier associated with this event.
     pub display_id: Option<A::String>,
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic event sequence number.
     pub sequence: u64,
 }
 
@@ -1559,18 +1567,21 @@ impl VmAggregateCodec for DisplayEventMetadataAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_display_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
+            backend: field_backend,
             display_id: field_display_id,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -1582,6 +1593,7 @@ impl VmAggregateCodec for DisplayEventMetadataAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
                 self.display_id,
                 context,
@@ -1597,9 +1609,9 @@ impl VmAggregateCodec for DisplayEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayEventQueueOptions {
-    /// The queue_capacity field.
+    /// Requested queue capacity, or zero for backend default.
     pub queue_capacity: u32,
-    /// The overflow_policy field.
+    /// Queue overflow policy.
     pub overflow_policy: DisplayEventOverflowPolicy,
 }
 
@@ -1658,15 +1670,15 @@ impl VmAggregateCodec for DisplayEventQueueOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayMode {
-    /// The width field.
+    /// Pixel width.
     pub width: u32,
-    /// The height field.
+    /// Pixel height.
     pub height: u32,
-    /// The refresh_milli_hz field.
+    /// Refresh rate in millihertz.
     pub refresh_milli_hz: u32,
-    /// The format field.
+    /// Color format identifier.
     pub format: u32,
-    /// The bit_depth field.
+    /// Color depth in bits per pixel.
     pub bit_depth: u16,
 }
 
@@ -1727,11 +1739,11 @@ impl VmAggregateCodec for DisplayMode {
 /// ABI struct for DisplayModeChangedEvent.
 #[repr(C)]
 pub struct DisplayModeChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_display::DisplayEventMetadataAbi<A>,
-    /// The payload field.
+    /// Mode-change payload.
     pub payload: DisplayModeChangedPayload,
 }
 
@@ -1818,7 +1830,7 @@ impl VmAggregateCodec for DisplayModeChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayModeChangedPayload {
-    /// The mode field.
+    /// Active mode after this event.
     pub mode: DisplayMode,
 }
 
@@ -1866,11 +1878,11 @@ impl VmAggregateCodec for DisplayModeChangedPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayMonitorEventOpenOptions {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
-    /// The queue field.
+    /// Event queue configuration.
     pub queue: DisplayEventQueueOptions,
 }
 
@@ -1936,9 +1948,9 @@ impl VmAggregateCodec for DisplayMonitorEventOpenOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayMonitorListRequest {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
 }
 
@@ -1997,9 +2009,9 @@ impl VmAggregateCodec for DisplayMonitorListRequest {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DisplayMonitorOpenOptions {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
 }
 
@@ -2057,11 +2069,11 @@ impl VmAggregateCodec for DisplayMonitorOpenOptions {
 /// ABI struct for DisplayPrimaryChangedEvent.
 #[repr(C)]
 pub struct DisplayPrimaryChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_display::DisplayEventMetadataAbi<A>,
-    /// The payload field.
+    /// Primary-change payload.
     pub payload: platform_display::DisplayPrimaryPayloadAbi<A>,
 }
 
@@ -2146,7 +2158,7 @@ impl VmAggregateCodec for DisplayPrimaryChangedEventAbi<VmAbi> {
 /// ABI struct for DisplayPrimaryPayload.
 #[repr(C)]
 pub struct DisplayPrimaryPayloadAbi<A: BindingAbi> {
-    /// The id field.
+    /// Current primary display identifier when available.
     pub id: Option<A::String>,
 }
 
@@ -2215,11 +2227,11 @@ impl VmAggregateCodec for DisplayPrimaryPayloadAbi<VmAbi> {
 /// ABI struct for DisplayRemovedEvent.
 #[repr(C)]
 pub struct DisplayRemovedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_display::DisplayEventMetadataAbi<A>,
-    /// The payload field.
+    /// Removed payload.
     pub payload: platform_display::DisplayRemovedPayloadAbi<A>,
 }
 
@@ -2304,7 +2316,7 @@ impl VmAggregateCodec for DisplayRemovedEventAbi<VmAbi> {
 /// ABI struct for DisplayRemovedPayload.
 #[repr(C)]
 pub struct DisplayRemovedPayloadAbi<A: BindingAbi> {
-    /// The id field.
+    /// Identifier for the removed display.
     pub id: A::String,
 }
 
@@ -2373,9 +2385,9 @@ impl VmAggregateCodec for DisplayRemovedPayloadAbi<VmAbi> {
 /// ABI struct for WindowCloseRequestedEvent.
 #[repr(C)]
 pub struct WindowCloseRequestedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
@@ -2453,9 +2465,9 @@ impl VmAggregateCodec for WindowCloseRequestedEventAbi<VmAbi> {
 /// ABI struct for WindowCreatedEvent.
 #[repr(C)]
 pub struct WindowCreatedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
@@ -2533,21 +2545,23 @@ impl VmAggregateCodec for WindowCreatedEventAbi<VmAbi> {
 /// ABI struct for WindowDescriptor.
 #[repr(C)]
 pub struct WindowDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Resolved backend that owns this window.
+    pub backend: DisplayBackend,
+    /// Stable runtime window identifier.
     pub id: A::String,
-    /// The title field.
+    /// Current host-visible title.
     pub title: A::String,
-    /// The mode field.
+    /// Current mode configuration.
     pub mode: WindowModeOptions,
-    /// The display field.
+    /// Current display association.
     pub display: Option<resource::DisplayHandle>,
-    /// The resizable field.
+    /// Whether this window is resizable.
     pub resizable: bool,
-    /// The decorated field.
+    /// Whether this window uses host decorations.
     pub decorated: bool,
-    /// The transparent field.
+    /// Whether this window requested compositor transparency.
     pub transparent: bool,
-    /// The always_on_top field.
+    /// Whether this window is configured as always-on-top.
     pub always_on_top: bool,
 }
 
@@ -2590,29 +2604,32 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 8 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_title =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_mode =
-            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <WindowModeOptionsVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_display =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+                context, slots[4],
             )?;
-        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_resizable = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_decorated = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_transparent = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         Ok(Self {
+            backend: field_backend,
             id: field_id,
             title: field_title,
             mode: field_mode,
@@ -2629,6 +2646,7 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
             <WindowModeOptionsVm as VmAggregateCodec>::encode_with_context(self.mode, context)?,
@@ -2648,9 +2666,9 @@ impl VmAggregateCodec for WindowDescriptorAbi<VmAbi> {
 /// ABI struct for WindowDestroyedEvent.
 #[repr(C)]
 pub struct WindowDestroyedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
@@ -2728,11 +2746,11 @@ impl VmAggregateCodec for WindowDestroyedEventAbi<VmAbi> {
 /// ABI struct for WindowDisplayChangedEvent.
 #[repr(C)]
 pub struct WindowDisplayChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Display-change payload.
     pub payload: WindowDisplayPayload,
 }
 
@@ -2818,7 +2836,7 @@ impl VmAggregateCodec for WindowDisplayChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowDisplayPayload {
-    /// The display field.
+    /// Display after this event.
     pub display: Option<resource::DisplayHandle>,
 }
 
@@ -2873,11 +2891,13 @@ impl VmAggregateCodec for WindowDisplayPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowEventMetadata {
-    /// The window field.
+    /// Resolved backend that produced this event.
+    pub backend: DisplayBackend,
+    /// Window handle associated with this event.
     pub window: resource::WindowHandle,
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic event sequence number.
     pub sequence: u64,
 }
 
@@ -2898,18 +2918,21 @@ impl VmAggregateCodec for WindowEventMetadata {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 4 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_window =
-            <resource::WindowHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <resource::WindowHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         Ok(Self {
+            backend: field_backend,
             window: field_window,
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -2921,6 +2944,7 @@ impl VmAggregateCodec for WindowEventMetadata {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <resource::WindowHandle as VmAggregateCodec>::encode_with_context(
                 self.window,
                 context,
@@ -2936,11 +2960,11 @@ impl VmAggregateCodec for WindowEventMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowEventOpenOptions {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
-    /// The queue field.
+    /// Event queue configuration.
     pub queue: DisplayEventQueueOptions,
 }
 
@@ -3005,11 +3029,11 @@ impl VmAggregateCodec for WindowEventOpenOptions {
 /// ABI struct for WindowFocusChangedEvent.
 #[repr(C)]
 pub struct WindowFocusChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Focus-change payload.
     pub payload: WindowFocusPayload,
 }
 
@@ -3092,7 +3116,7 @@ impl VmAggregateCodec for WindowFocusChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowFocusPayload {
-    /// The focused field.
+    /// Whether the window is focused after this event.
     pub focused: bool,
 }
 
@@ -3142,9 +3166,9 @@ impl VmAggregateCodec for WindowFocusPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowLogicalSize {
-    /// The width field.
+    /// Logical width.
     pub width: f64,
-    /// The height field.
+    /// Logical height.
     pub height: f64,
 }
 
@@ -3195,11 +3219,11 @@ impl VmAggregateCodec for WindowLogicalSize {
 /// ABI struct for WindowModeChangedEvent.
 #[repr(C)]
 pub struct WindowModeChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Mode-change payload.
     pub payload: WindowModePayload,
 }
 
@@ -3282,11 +3306,11 @@ impl VmAggregateCodec for WindowModeChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowModeOptions {
-    /// The mode field.
+    /// Target window mode.
     pub mode: WindowMode,
-    /// The display field.
+    /// Preferred display for fullscreen transitions.
     pub display: Option<resource::DisplayHandle>,
-    /// The display_mode field.
+    /// Preferred exclusive fullscreen mode.
     pub display_mode: Option<DisplayMode>,
 }
 
@@ -3351,7 +3375,7 @@ impl VmAggregateCodec for WindowModeOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowModePayload {
-    /// The mode field.
+    /// Mode after this event.
     pub mode: WindowModeOptions,
 }
 
@@ -3398,11 +3422,11 @@ impl VmAggregateCodec for WindowModePayload {
 /// ABI struct for WindowOcclusionChangedEvent.
 #[repr(C)]
 pub struct WindowOcclusionChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Occlusion-change payload.
     pub payload: WindowOcclusionPayload,
 }
 
@@ -3488,7 +3512,7 @@ impl VmAggregateCodec for WindowOcclusionChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowOcclusionPayload {
-    /// The occluded field.
+    /// Whether the window is occluded after this event.
     pub occluded: bool,
 }
 
@@ -3537,33 +3561,33 @@ impl VmAggregateCodec for WindowOcclusionPayload {
 /// ABI struct for WindowOptions.
 #[repr(C)]
 pub struct WindowOptionsAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
-    /// The title field.
+    /// Initial window title string.
     pub title: A::String,
-    /// The size_logical field.
+    /// Initial logical size.
     pub size_logical: WindowLogicalSize,
-    /// The position field.
+    /// Initial window position when explicitly requested.
     pub position: Option<WindowPosition>,
-    /// The constraints field.
+    /// Initial window size constraints.
     pub constraints: Option<WindowSizeConstraints>,
-    /// The display field.
+    /// Initial display preference.
     pub display: Option<resource::DisplayHandle>,
-    /// The mode field.
+    /// Initial window mode.
     pub mode: WindowModeOptions,
-    /// The visibility field.
+    /// Initial visibility state.
     pub visibility: WindowVisibility,
-    /// The resizable field.
+    /// Whether host resize controls are enabled.
     pub resizable: bool,
-    /// The decorated field.
+    /// Whether host window decorations are enabled.
     pub decorated: bool,
-    /// The transparent field.
+    /// Whether compositor alpha transparency is requested.
     pub transparent: bool,
-    /// The focus_on_show field.
+    /// Whether the window should request focus at creation.
     pub focus_on_show: bool,
-    /// The always_on_top field.
+    /// Whether this window should stay above standard windows.
     pub always_on_top: bool,
 }
 
@@ -3706,9 +3730,9 @@ impl VmAggregateCodec for WindowOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowPhysicalSize {
-    /// The width field.
+    /// Pixel width.
     pub width: u32,
-    /// The height field.
+    /// Pixel height.
     pub height: u32,
 }
 
@@ -3760,9 +3784,9 @@ impl VmAggregateCodec for WindowPhysicalSize {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowPosition {
-    /// The x field.
+    /// Desktop x coordinate.
     pub x: i32,
-    /// The y field.
+    /// Desktop y coordinate.
     pub y: i32,
 }
 
@@ -3813,11 +3837,11 @@ impl VmAggregateCodec for WindowPosition {
 /// ABI struct for WindowPositionChangedEvent.
 #[repr(C)]
 pub struct WindowPositionChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Position-change payload.
     pub payload: WindowPositionPayload,
 }
 
@@ -3903,7 +3927,7 @@ impl VmAggregateCodec for WindowPositionChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowPositionPayload {
-    /// The position field.
+    /// Position after this event.
     pub position: WindowPosition,
 }
 
@@ -3953,9 +3977,9 @@ impl VmAggregateCodec for WindowPositionPayload {
 /// ABI struct for WindowRefreshRequestedEvent.
 #[repr(C)]
 pub struct WindowRefreshRequestedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
@@ -4033,11 +4057,11 @@ impl VmAggregateCodec for WindowRefreshRequestedEventAbi<VmAbi> {
 /// ABI struct for WindowScaleFactorChangedEvent.
 #[repr(C)]
 pub struct WindowScaleFactorChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Scale-factor payload.
     pub payload: WindowScaleFactorPayload,
 }
 
@@ -4124,7 +4148,7 @@ impl VmAggregateCodec for WindowScaleFactorChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowScaleFactorPayload {
-    /// The scale_factor_milli field.
+    /// Scale factor in milli-scale units.
     pub scale_factor_milli: u32,
 }
 
@@ -4174,11 +4198,11 @@ impl VmAggregateCodec for WindowScaleFactorPayload {
 /// ABI struct for WindowSizeChangedEvent.
 #[repr(C)]
 pub struct WindowSizeChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Size-change payload.
     pub payload: WindowSizePayload,
 }
 
@@ -4261,9 +4285,9 @@ impl VmAggregateCodec for WindowSizeChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowSizeConstraints {
-    /// The min field.
+    /// Optional minimum logical size.
     pub min: Option<WindowLogicalSize>,
-    /// The max field.
+    /// Optional maximum logical size.
     pub max: Option<WindowLogicalSize>,
 }
 
@@ -4323,9 +4347,9 @@ impl VmAggregateCodec for WindowSizeConstraints {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowSizePayload {
-    /// The size_logical field.
+    /// Logical size after this event.
     pub size_logical: WindowLogicalSize,
-    /// The size_physical field.
+    /// Physical size after this event.
     pub size_physical: WindowPhysicalSize,
 }
 
@@ -4385,25 +4409,27 @@ impl VmAggregateCodec for WindowSizePayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowState {
-    /// The position field.
+    /// Resolved backend that owns this window.
+    pub backend: DisplayBackend,
+    /// Current desktop position.
     pub position: WindowPosition,
-    /// The size_logical field.
+    /// Current logical size.
     pub size_logical: WindowLogicalSize,
-    /// The size_physical field.
+    /// Current physical size.
     pub size_physical: WindowPhysicalSize,
-    /// The scale_factor_milli field.
+    /// Current scale factor in milli-scale units.
     pub scale_factor_milli: u32,
-    /// The visibility field.
+    /// Current visibility state.
     pub visibility: WindowVisibility,
-    /// The display field.
+    /// Current display association.
     pub display: Option<resource::DisplayHandle>,
-    /// The focused field.
+    /// Whether this window currently has keyboard focus.
     pub focused: bool,
-    /// The occluded field.
+    /// Whether this window is currently occluded.
     pub occluded: bool,
-    /// The theme field.
+    /// Current theme for this window.
     pub theme: WindowTheme,
-    /// The always_on_top field.
+    /// Whether this window is currently always-on-top.
     pub always_on_top: bool,
 }
 
@@ -4424,34 +4450,37 @@ impl VmAggregateCodec for WindowState {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 10 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
+        let field_backend =
+            <DisplayBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_position =
-            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <WindowPositionVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_size_logical =
-            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <WindowLogicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_size_physical =
-            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <WindowPhysicalSizeVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_scale_factor_milli =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
         let field_visibility =
-            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <WindowVisibility as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_display =
             <Option<resource::DisplayHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
+                context, slots[6],
             )?;
-        let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_occluded = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_focused = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_occluded = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_theme =
-            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <WindowTheme as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_always_on_top =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
+            backend: field_backend,
             position: field_position,
             size_logical: field_size_logical,
             size_physical: field_size_physical,
@@ -4470,6 +4499,7 @@ impl VmAggregateCodec for WindowState {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
+            <DisplayBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
             <WindowPositionVm as VmAggregateCodec>::encode_with_context(self.position, context)?,
             <WindowLogicalSizeVm as VmAggregateCodec>::encode_with_context(
                 self.size_logical,
@@ -4497,11 +4527,11 @@ impl VmAggregateCodec for WindowState {
 /// ABI struct for WindowThemeChangedEvent.
 #[repr(C)]
 pub struct WindowThemeChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Theme-change payload.
     pub payload: WindowThemePayload,
 }
 
@@ -4584,7 +4614,7 @@ impl VmAggregateCodec for WindowThemeChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowThemePayload {
-    /// The theme field.
+    /// Theme value after this event.
     pub theme: WindowTheme,
 }
 
@@ -4631,11 +4661,11 @@ impl VmAggregateCodec for WindowThemePayload {
 /// ABI struct for WindowVisibilityChangedEvent.
 #[repr(C)]
 pub struct WindowVisibilityChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Visibility-change payload.
     pub payload: WindowVisibilityPayload,
 }
 
@@ -4722,7 +4752,7 @@ impl VmAggregateCodec for WindowVisibilityChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WindowVisibilityPayload {
-    /// The visibility field.
+    /// Visibility state after this event.
     pub visibility: WindowVisibility,
 }
 
@@ -4772,341 +4802,347 @@ impl VmAggregateCodec for WindowVisibilityPayload {
 /// Replay struct for DisplayAddedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayAddedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: DisplayEventMetadataReplayRecord,
-    /// The payload field.
+    /// Added payload.
     pub payload: DisplayAddedPayloadReplayRecord,
 }
 
 /// Replay struct for DisplayAddedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayAddedPayloadReplayRecord {
-    /// The descriptor field.
+    /// Descriptor after this event.
     pub descriptor: DisplayDescriptorReplayRecord,
 }
 
 /// Replay struct for DisplayBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayBackendDescriptorReplayRecord {
-    /// The backend field.
+    /// Backend selector.
     pub backend: DisplayBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend-level capability flags.
     pub capability_flags: DisplayBackendCapabilityFlags,
 }
 
 /// Replay struct for DisplayDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayDescriptorReplayRecord {
-    /// The id field.
+    /// Resolved backend that produced this descriptor.
+    pub backend: DisplayBackend,
+    /// Stable runtime display identifier.
     pub id: String,
-    /// The name field.
+    /// Host display name.
     pub name: String,
-    /// The primary field.
+    /// Whether this display is primary.
     pub primary: bool,
-    /// The x field.
+    /// Display origin x coordinate in desktop space.
     pub x: i32,
-    /// The y field.
+    /// Display origin y coordinate in desktop space.
     pub y: i32,
-    /// The width_px field.
+    /// Display width in physical pixels.
     pub width_px: u32,
-    /// The height_px field.
+    /// Display height in physical pixels.
     pub height_px: u32,
-    /// The work_area_x field.
+    /// Work-area origin x coordinate in desktop space.
     pub work_area_x: i32,
-    /// The work_area_y field.
+    /// Work-area origin y coordinate in desktop space.
     pub work_area_y: i32,
-    /// The work_area_width_px field.
+    /// Work-area width in physical pixels.
     pub work_area_width_px: u32,
-    /// The work_area_height_px field.
+    /// Work-area height in physical pixels.
     pub work_area_height_px: u32,
-    /// The width_mm field.
+    /// Physical width in millimeters when reported by the backend.
     pub width_mm: u32,
-    /// The height_mm field.
+    /// Physical height in millimeters when reported by the backend.
     pub height_mm: u32,
-    /// The scale_factor_milli field.
+    /// Scale factor in milli-scale units.
     pub scale_factor_milli: u32,
-    /// The orientation field.
+    /// Current orientation.
     pub orientation: DisplayOrientation,
-    /// The is_builtin field.
+    /// Whether this display is one built-in panel.
     pub is_builtin: bool,
-    /// The supports_variable_refresh field.
+    /// Whether this display reports variable refresh support.
     pub supports_variable_refresh: bool,
-    /// The supports_hdr field.
+    /// Whether this display reports hdr support.
     pub supports_hdr: bool,
 }
 
 /// Replay struct for DisplayDescriptorChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayDescriptorChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: DisplayEventMetadataReplayRecord,
-    /// The payload field.
+    /// Descriptor-change payload.
     pub payload: DisplayDescriptorChangedPayloadReplayRecord,
 }
 
 /// Replay struct for DisplayDescriptorChangedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayDescriptorChangedPayloadReplayRecord {
-    /// The descriptor field.
+    /// Descriptor after this event.
     pub descriptor: DisplayDescriptorReplayRecord,
-    /// The changed_mask field.
+    /// Changed descriptor fields as bit flags.
     pub changed_mask: u32,
 }
 
 /// Replay struct for DisplayEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayEventMetadataReplayRecord {
-    /// The display_id field.
+    /// Resolved backend that produced this event.
+    pub backend: DisplayBackend,
+    /// Display identifier associated with this event.
     pub display_id: Option<String>,
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic event sequence number.
     pub sequence: u64,
 }
 
 /// Replay struct for DisplayModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayModeChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: DisplayEventMetadataReplayRecord,
-    /// The payload field.
+    /// Mode-change payload.
     pub payload: DisplayModeChangedPayload,
 }
 
 /// Replay struct for DisplayPrimaryChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayPrimaryChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: DisplayEventMetadataReplayRecord,
-    /// The payload field.
+    /// Primary-change payload.
     pub payload: DisplayPrimaryPayloadReplayRecord,
 }
 
 /// Replay struct for DisplayPrimaryPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayPrimaryPayloadReplayRecord {
-    /// The id field.
+    /// Current primary display identifier when available.
     pub id: Option<String>,
 }
 
 /// Replay struct for DisplayRemovedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayRemovedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this display event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: DisplayEventMetadataReplayRecord,
-    /// The payload field.
+    /// Removed payload.
     pub payload: DisplayRemovedPayloadReplayRecord,
 }
 
 /// Replay struct for DisplayRemovedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayRemovedPayloadReplayRecord {
-    /// The id field.
+    /// Identifier for the removed display.
     pub id: String,
 }
 
 /// Replay struct for WindowCloseRequestedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowCloseRequestedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
 /// Replay struct for WindowCreatedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowCreatedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
 /// Replay struct for WindowDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDescriptorReplayRecord {
-    /// The id field.
+    /// Resolved backend that owns this window.
+    pub backend: DisplayBackend,
+    /// Stable runtime window identifier.
     pub id: String,
-    /// The title field.
+    /// Current host-visible title.
     pub title: String,
-    /// The mode field.
+    /// Current mode configuration.
     pub mode: WindowModeOptions,
-    /// The display field.
+    /// Current display association.
     pub display: Option<resource::DisplayHandle>,
-    /// The resizable field.
+    /// Whether this window is resizable.
     pub resizable: bool,
-    /// The decorated field.
+    /// Whether this window uses host decorations.
     pub decorated: bool,
-    /// The transparent field.
+    /// Whether this window requested compositor transparency.
     pub transparent: bool,
-    /// The always_on_top field.
+    /// Whether this window is configured as always-on-top.
     pub always_on_top: bool,
 }
 
 /// Replay struct for WindowDestroyedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDestroyedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
 /// Replay struct for WindowDisplayChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowDisplayChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Display-change payload.
     pub payload: WindowDisplayPayload,
 }
 
 /// Replay struct for WindowFocusChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowFocusChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Focus-change payload.
     pub payload: WindowFocusPayload,
 }
 
 /// Replay struct for WindowModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowModeChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Mode-change payload.
     pub payload: WindowModePayload,
 }
 
 /// Replay struct for WindowOcclusionChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowOcclusionChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Occlusion-change payload.
     pub payload: WindowOcclusionPayload,
 }
 
 /// Replay struct for WindowOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowOptionsReplayRecord {
-    /// The backend field.
+    /// Preferred backend selector.
     pub backend: DisplayBackend,
-    /// The backend_policy field.
+    /// Backend selection policy.
     pub backend_policy: DisplayBackendSelectionPolicy,
-    /// The title field.
+    /// Initial window title string.
     pub title: String,
-    /// The size_logical field.
+    /// Initial logical size.
     pub size_logical: WindowLogicalSize,
-    /// The position field.
+    /// Initial window position when explicitly requested.
     pub position: Option<WindowPosition>,
-    /// The constraints field.
+    /// Initial window size constraints.
     pub constraints: Option<WindowSizeConstraints>,
-    /// The display field.
+    /// Initial display preference.
     pub display: Option<resource::DisplayHandle>,
-    /// The mode field.
+    /// Initial window mode.
     pub mode: WindowModeOptions,
-    /// The visibility field.
+    /// Initial visibility state.
     pub visibility: WindowVisibility,
-    /// The resizable field.
+    /// Whether host resize controls are enabled.
     pub resizable: bool,
-    /// The decorated field.
+    /// Whether host window decorations are enabled.
     pub decorated: bool,
-    /// The transparent field.
+    /// Whether compositor alpha transparency is requested.
     pub transparent: bool,
-    /// The focus_on_show field.
+    /// Whether the window should request focus at creation.
     pub focus_on_show: bool,
-    /// The always_on_top field.
+    /// Whether this window should stay above standard windows.
     pub always_on_top: bool,
 }
 
 /// Replay struct for WindowPositionChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowPositionChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Position-change payload.
     pub payload: WindowPositionPayload,
 }
 
 /// Replay struct for WindowRefreshRequestedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowRefreshRequestedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
 }
 
 /// Replay struct for WindowScaleFactorChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowScaleFactorChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Scale-factor payload.
     pub payload: WindowScaleFactorPayload,
 }
 
 /// Replay struct for WindowSizeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowSizeChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Size-change payload.
     pub payload: WindowSizePayload,
 }
 
 /// Replay struct for WindowThemeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowThemeChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Theme-change payload.
     pub payload: WindowThemePayload,
 }
 
 /// Replay struct for WindowVisibilityChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WindowVisibilityChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this window event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WindowEventMetadata,
-    /// The payload field.
+    /// Visibility-change payload.
     pub payload: WindowVisibilityPayload,
 }
 

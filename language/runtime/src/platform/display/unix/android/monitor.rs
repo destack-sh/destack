@@ -1,19 +1,21 @@
+use super::core::display_unsupported;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
     DisplayDescriptor, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
-    unsupported as display_unsupported,
 };
 use crate::platform::{NativeSlice, NativeStringRef, resource};
 use crate::runtime::BindingCallContext;
 
-pub(crate) unsafe fn destack_display_monitor_close(
+/// Close one display endpoint.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_close(
     context: &BindingCallContext,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
     unsafe { display_unsupported::destack_display_monitor_close(context, handle) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_closest_mode(
+/// Resolve one requested mode to the closest supported mode.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_closest_mode(
     context: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -24,7 +26,8 @@ pub(crate) unsafe fn destack_display_monitor_closest_mode(
     }
 }
 
-pub(crate) unsafe fn destack_display_monitor_current_mode(
+/// Read the current mode for one opened display.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_current_mode(
     context: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -32,7 +35,8 @@ pub(crate) unsafe fn destack_display_monitor_current_mode(
     unsafe { display_unsupported::destack_display_monitor_current_mode(context, out, handle) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_descriptor(
+/// Read descriptor metadata for one opened display.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_descriptor(
     context: &BindingCallContext,
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
@@ -40,7 +44,8 @@ pub(crate) unsafe fn destack_display_monitor_descriptor(
     unsafe { display_unsupported::destack_display_monitor_descriptor(context, out, handle) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_desktop_mode(
+/// Read the desktop-preferred mode for one opened display.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_desktop_mode(
     context: &BindingCallContext,
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
@@ -48,7 +53,8 @@ pub(crate) unsafe fn destack_display_monitor_desktop_mode(
     unsafe { display_unsupported::destack_display_monitor_desktop_mode(context, out, handle) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_list(
+/// List available displays.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_list(
     context: &BindingCallContext,
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
@@ -56,7 +62,8 @@ pub(crate) unsafe fn destack_display_monitor_list(
     unsafe { display_unsupported::destack_display_monitor_list(context, out, request) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_modes(
+/// Read available display modes.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_modes(
     context: &BindingCallContext,
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
@@ -64,7 +71,8 @@ pub(crate) unsafe fn destack_display_monitor_modes(
     unsafe { display_unsupported::destack_display_monitor_modes(context, out, handle) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_open(
+/// Open one display endpoint.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_open(
     context: &BindingCallContext,
     out: *mut resource::DisplayHandle,
     id: NativeStringRef,
@@ -73,7 +81,8 @@ pub(crate) unsafe fn destack_display_monitor_open(
     unsafe { display_unsupported::destack_display_monitor_open(context, out, id, options) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_primary(
+/// Read the current primary display handle.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_primary(
     context: &BindingCallContext,
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
@@ -81,7 +90,8 @@ pub(crate) unsafe fn destack_display_monitor_primary(
     unsafe { display_unsupported::destack_display_monitor_primary(context, out, request) }
 }
 
-pub(crate) unsafe fn destack_display_monitor_set_mode(
+/// Apply one display mode.
+pub(in crate::platform::display::host::unix) unsafe fn monitor_set_mode(
     context: &BindingCallContext,
     handle: resource::DisplayHandle,
     mode: DisplayMode,
