@@ -16,7 +16,7 @@ use windows_sys::Win32::System::IO::IO_STATUS_BLOCK;
 use super::util::{file_handle, last_os_error, wide_from_bytes, wide_from_utf16};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::fs::{OsPath, PathBytes, PathEncoding, PathUtf16, XattrFlags};
+use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags};
 use crate::platform::resource::FileHandle;
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
@@ -1385,9 +1385,13 @@ pub(crate) unsafe fn destack_fs_getxattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe { destack_fs_getxattr_bytes(context, out, path.bytes, name) },
-        PathEncoding::Utf16 => unsafe { destack_fs_getxattr_utf16(context, out, path.utf16, name) },
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_getxattr_bytes(context, out, path_bytes.bytes, name)
+        },
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_getxattr_utf16(context, out, path_utf16.utf16, name)
+        },
     }
 }
 
@@ -1418,12 +1422,12 @@ pub(crate) unsafe fn destack_fs_lgetxattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            destack_fs_lgetxattr_bytes(context, out, path.bytes, name)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_lgetxattr_bytes(context, out, path_bytes.bytes, name)
         },
-        PathEncoding::Utf16 => unsafe {
-            destack_fs_lgetxattr_utf16(context, out, path.utf16, name)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_lgetxattr_utf16(context, out, path_utf16.utf16, name)
         },
     }
 }
@@ -1486,12 +1490,12 @@ pub(crate) unsafe fn destack_fs_setxattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            destack_fs_setxattr_bytes(context, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_setxattr_bytes(context, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            destack_fs_setxattr_utf16(context, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_setxattr_utf16(context, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -1524,12 +1528,12 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe {
-            destack_fs_lsetxattr_bytes(context, path.bytes, name, value, flags)
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_lsetxattr_bytes(context, path_bytes.bytes, name, value, flags)
         },
-        PathEncoding::Utf16 => unsafe {
-            destack_fs_lsetxattr_utf16(context, path.utf16, name, value, flags)
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_lsetxattr_utf16(context, path_utf16.utf16, name, value, flags)
         },
     }
 }
@@ -1594,12 +1598,12 @@ pub(crate) unsafe fn destack_fs_listxattr(
 
     // read raw names for the selected path encoding
     let mut names = std::mem::MaybeUninit::<NativeArray<NativeArray<u8>>>::uninit();
-    match path.encoding {
-        PathEncoding::Bytes => {
-            unsafe { destack_fs_listxattr_bytes(context, names.as_mut_ptr(), path.bytes) }?;
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
+            unsafe { destack_fs_listxattr_bytes(context, names.as_mut_ptr(), path_bytes.bytes) }?;
         }
-        PathEncoding::Utf16 => {
-            unsafe { destack_fs_listxattr_utf16(context, names.as_mut_ptr(), path.utf16) }?;
+        OsPath::OsPathUtf16(path_utf16) => {
+            unsafe { destack_fs_listxattr_utf16(context, names.as_mut_ptr(), path_utf16.utf16) }?;
         }
     }
     let names = unsafe { names.assume_init() };
@@ -1642,12 +1646,12 @@ pub(crate) unsafe fn destack_fs_llistxattr(
 
     // read raw names for the selected path encoding
     let mut names = std::mem::MaybeUninit::<NativeArray<NativeArray<u8>>>::uninit();
-    match path.encoding {
-        PathEncoding::Bytes => {
-            unsafe { destack_fs_llistxattr_bytes(context, names.as_mut_ptr(), path.bytes) }?;
+    match path {
+        OsPath::OsPathBytes(path_bytes) => {
+            unsafe { destack_fs_llistxattr_bytes(context, names.as_mut_ptr(), path_bytes.bytes) }?;
         }
-        PathEncoding::Utf16 => {
-            unsafe { destack_fs_llistxattr_utf16(context, names.as_mut_ptr(), path.utf16) }?;
+        OsPath::OsPathUtf16(path_utf16) => {
+            unsafe { destack_fs_llistxattr_utf16(context, names.as_mut_ptr(), path_utf16.utf16) }?;
         }
     }
     let names = unsafe { names.assume_init() };
@@ -1728,9 +1732,13 @@ pub(crate) unsafe fn destack_fs_removexattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe { destack_fs_removexattr_bytes(context, path.bytes, name) },
-        PathEncoding::Utf16 => unsafe { destack_fs_removexattr_utf16(context, path.utf16, name) },
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_removexattr_bytes(context, path_bytes.bytes, name)
+        },
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_removexattr_utf16(context, path_utf16.utf16, name)
+        },
     }
 }
 
@@ -1760,9 +1768,13 @@ pub(crate) unsafe fn destack_fs_lremovexattr(
     let name = xattr_name_slice_from_string(context, name)?;
 
     // dispatch by path encoding
-    match path.encoding {
-        PathEncoding::Bytes => unsafe { destack_fs_lremovexattr_bytes(context, path.bytes, name) },
-        PathEncoding::Utf16 => unsafe { destack_fs_lremovexattr_utf16(context, path.utf16, name) },
+    match path {
+        OsPath::OsPathBytes(path_bytes) => unsafe {
+            destack_fs_lremovexattr_bytes(context, path_bytes.bytes, name)
+        },
+        OsPath::OsPathUtf16(path_utf16) => unsafe {
+            destack_fs_lremovexattr_utf16(context, path_utf16.utf16, name)
+        },
     }
 }
 

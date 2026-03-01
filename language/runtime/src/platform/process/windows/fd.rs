@@ -13,11 +13,11 @@ use crate::runtime::BindingCallContext;
 use bindings::*;
 
 use crate::platform::process::{
-    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdActionKind, ProcessFdFlags,
-    ProcessFdSignalFlags, ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource,
-    ProcessNamespaceKind, ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions,
-    ProcessStdio, ProcessStdioKind, ProcessUnshareFlags, ProcessUserIds, ProcessWaitFlags,
-    ProcessWaitKind, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
+    ExecAtFlags, GroupId, ProcessCpuSet, ProcessFdAction, ProcessFdFlags, ProcessFdSignalFlags,
+    ProcessGroupIds, ProcessId, ProcessLimit, ProcessLimitResource, ProcessNamespaceKind,
+    ProcessSchedulerConfig, ProcessSchedulerPolicy, ProcessSpawnOptions, ProcessStdio,
+    ProcessUnshareFlags, ProcessUserIds, ProcessWaitExitedStatus, ProcessWaitFlags,
+    ProcessWaitRunningStatus, ProcessWaitStatus, Signal, SignalEvent, SignalFdFlags, SignalMaskHow,
     SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
@@ -376,22 +376,21 @@ fn wait_process_handle_with_timeout(
             }
 
             if exit_code == STILL_ACTIVE as u32 {
-                return Ok(ProcessWaitStatus {
-                    pid,
-                    kind: ProcessWaitKind::Running,
-                    exit_code: 0,
-                    signal: Signal(0),
-                    core_dumped: false,
-                });
+                return Ok(ProcessWaitStatus::ProcessWaitRunningStatus(
+                    ProcessWaitRunningStatus {
+                        kind: "running".into(),
+                        pid,
+                    },
+                ));
             }
 
-            Ok(ProcessWaitStatus {
-                pid,
-                kind: ProcessWaitKind::Exited,
-                exit_code: exit_code as i32,
-                signal: Signal(0),
-                core_dumped: false,
-            })
+            Ok(ProcessWaitStatus::ProcessWaitExitedStatus(
+                ProcessWaitExitedStatus {
+                    kind: "exited".into(),
+                    pid,
+                    exit_code: exit_code as i32,
+                },
+            ))
         }
         WAIT_FAILED => {
             let error = core_platform::last_error_code();

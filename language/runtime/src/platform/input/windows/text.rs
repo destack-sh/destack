@@ -155,7 +155,7 @@ pub(super) fn text_read_composition(
     };
 
     // stamp one per-handle sequence number for this composition read
-    event.sequence = input_core::next_sequence(context, handle, operation)?;
+    event.metadata.sequence = input_core::next_sequence(context, handle, operation)?;
     Ok(event)
 }
 

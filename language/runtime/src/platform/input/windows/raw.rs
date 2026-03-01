@@ -53,10 +53,11 @@ use crate::platform::input::{
     InputDeviceEventPayload, InputDeviceKind, InputEvent, InputEventAction, InputEventKind,
     InputGamepadBatteryState, InputGamepadBatteryStatus, InputGamepadButtonState,
     InputGamepadConnectionType, InputGamepadMappingType, InputGamepadState, InputKeyEventPayload,
-    InputMonitorEvent, InputMonitorEventKind, InputPointerButtonEventPayload,
-    InputPointerMotionEventPayload, InputRawHidReport, InputScrollEventPayload,
-    InputSensorDescriptor, InputSensorKind, InputSensorSample, InputTouchContactPhase,
-    InputTouchContactState, InputTouchState,
+    InputMonitorChangeEvent, InputMonitorConnectEvent, InputMonitorDisconnectEvent,
+    InputMonitorEvent, InputMonitorEventKind, InputMonitorEventMetadata,
+    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputRawHidReport,
+    InputScrollEventPayload, InputSensorDescriptor, InputSensorKind, InputSensorSample,
+    InputTouchContactPhase, InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
@@ -3132,13 +3133,33 @@ fn build_raw_monitor_event(
 ) -> InputMonitorEvent {
     let kind = monitor_kind_from_action(action);
     let connected = !matches!(kind, InputMonitorEventKind::Disconnect);
-    InputMonitorEvent {
-        kind,
+    let metadata = InputMonitorEventMetadata {
         timestamp_ns,
         sequence,
         device_id: context.store_string(device_id),
         device_kind,
         connected,
+    };
+
+    match kind {
+        InputMonitorEventKind::Connect => {
+            InputMonitorEvent::InputMonitorConnectEvent(InputMonitorConnectEvent {
+                kind: context.store_string("connect"),
+                metadata,
+            })
+        }
+        InputMonitorEventKind::Disconnect => {
+            InputMonitorEvent::InputMonitorDisconnectEvent(InputMonitorDisconnectEvent {
+                kind: context.store_string("disconnect"),
+                metadata,
+            })
+        }
+        InputMonitorEventKind::Change => {
+            InputMonitorEvent::InputMonitorChangeEvent(InputMonitorChangeEvent {
+                kind: context.store_string("change"),
+                metadata,
+            })
+        }
     }
 }
 

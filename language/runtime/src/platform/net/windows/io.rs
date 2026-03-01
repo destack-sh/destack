@@ -10,8 +10,8 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{
-    SocketAddress, SocketControlBufferAbi, SocketCredentials, SocketHandle, SocketMessageFlags,
-    SocketRecvFrom, SocketRecvMessage, SocketSendMessage, SocketSendTo,
+    SocketControlBufferAbi, SocketHandle, SocketMessageFlags, SocketRecvFrom, SocketRecvMessage,
+    SocketSendMessage, SocketSendTo,
 };
 use crate::platform::resource::TransferredHandle;
 use crate::platform::{NativeArray, NativeSlice, PlatformError, core as core_platform};

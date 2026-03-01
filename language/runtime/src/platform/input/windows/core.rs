@@ -24,12 +24,14 @@ use super::{raw as raw_input, xinput as xinput_input};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
-    InputCompositionEventPayload, InputDeviceEventPayload, InputEvent, InputEventAction,
-    InputEventKind, InputEventPayload, InputGamepadEventPayload, InputKeyEventPayload,
-    InputPointerButtonEventPayload, InputPointerMotionEventPayload, InputReadMode,
-    InputScrollEventPayload, InputSensorEffectiveConfig, InputSensorEventPayload, InputSensorKind,
-    InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEventPayload,
-    InputWindowTarget,
+    InputCompositionEvent, InputCompositionEventPayload, InputDeviceEvent, InputDeviceEventPayload,
+    InputEvent, InputEventAction, InputEventKind, InputEventMetadata, InputEventPayload,
+    InputGamepadEvent, InputGamepadEventPayload, InputKeyEvent, InputKeyEventPayload,
+    InputPointerButtonEvent, InputPointerButtonEventPayload, InputPointerMotionEvent,
+    InputPointerMotionEventPayload, InputReadMode, InputScrollEvent, InputScrollEventPayload,
+    InputSensorEffectiveConfig, InputSensorEvent, InputSensorEventPayload, InputSensorKind,
+    InputTextEvent, InputTextEventPayload, InputTextInputArea, InputTextInputType, InputTouchEvent,
+    InputTouchEventPayload, InputWindowTarget,
 };
 use crate::platform::resource::{ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform, resource};
@@ -161,12 +163,83 @@ pub(super) fn build_input_event(
     device_id: &str,
     payload: InputEventPayload,
 ) -> InputEvent {
-    InputEvent {
-        kind,
+    let metadata = InputEventMetadata {
         timestamp_ns,
         sequence,
         device_id: context.store_string(device_id),
-        payload,
+    };
+
+    match kind {
+        InputEventKind::Key => InputEvent::InputKeyEvent(InputKeyEvent {
+            kind: context.store_string("key"),
+            metadata,
+            payload: payload.key,
+        }),
+        InputEventKind::PointerMotion => {
+            InputEvent::InputPointerMotionEvent(InputPointerMotionEvent {
+                kind: context.store_string("pointerMotion"),
+                metadata,
+                payload: payload.pointer_motion,
+            })
+        }
+        InputEventKind::PointerButton => {
+            InputEvent::InputPointerButtonEvent(InputPointerButtonEvent {
+                kind: context.store_string("pointerButton"),
+                metadata,
+                payload: payload.pointer_button,
+            })
+        }
+        InputEventKind::Scroll => InputEvent::InputScrollEvent(InputScrollEvent {
+            kind: context.store_string("scroll"),
+            metadata,
+            payload: payload.scroll,
+        }),
+        InputEventKind::Touch => InputEvent::InputTouchEvent(InputTouchEvent {
+            kind: context.store_string("touch"),
+            metadata,
+            payload: payload.touch,
+        }),
+        InputEventKind::Gamepad => InputEvent::InputGamepadEvent(InputGamepadEvent {
+            kind: context.store_string("gamepad"),
+            metadata,
+            payload: payload.gamepad,
+        }),
+        InputEventKind::Text => InputEvent::InputTextEvent(InputTextEvent {
+            kind: context.store_string("text"),
+            metadata,
+            payload: payload.text,
+        }),
+        InputEventKind::Device => InputEvent::InputDeviceEvent(InputDeviceEvent {
+            kind: context.store_string("device"),
+            metadata,
+            payload: payload.device,
+        }),
+        InputEventKind::Sensor => InputEvent::InputSensorEvent(InputSensorEvent {
+            kind: context.store_string("sensor"),
+            metadata,
+            payload: payload.sensor,
+        }),
+        InputEventKind::Composition => InputEvent::InputCompositionEvent(InputCompositionEvent {
+            kind: context.store_string("composition"),
+            metadata,
+            payload: payload.composition,
+        }),
+    }
+}
+
+/// Set one sequence number on one union input event.
+pub(super) fn set_input_event_sequence(event: &mut InputEvent, sequence: u64) {
+    match event {
+        InputEvent::InputCompositionEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputDeviceEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputGamepadEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputKeyEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputPointerButtonEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputPointerMotionEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputScrollEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputSensorEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputTextEvent(value) => value.metadata.sequence = sequence,
+        InputEvent::InputTouchEvent(value) => value.metadata.sequence = sequence,
     }
 }
 

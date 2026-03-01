@@ -11,7 +11,7 @@ use windows_sys::Win32::System::Threading::GetCurrentProcessId;
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::platform::fs::{OsPath, PathEncoding};
+use crate::platform::fs::OsPath;
 use crate::platform::net::{AcceptFlags, ListenerHandle, SocketHandle, SocketPair, SocketType};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::runtime::BindingCallContext;
@@ -21,16 +21,16 @@ static NEXT_UDS_SOCKET_PAIR_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Convert a OsPath into a UTF-8 byte buffer.
 fn uds_path_bytes(path: OsPath) -> RuntimeResult<Vec<u8>> {
-    match path.encoding {
+    match path {
         // decode bytes paths directly
-        PathEncoding::Bytes => {
-            let bytes = unsafe { path.bytes.0.as_slice()? };
+        OsPath::OsPathBytes(path_bytes) => {
+            let bytes = unsafe { path_bytes.bytes.0.as_slice()? };
             Ok(bytes.to_vec())
         }
 
         // decode utf16 paths into a UTF-8 byte path
-        PathEncoding::Utf16 => {
-            let utf16 = unsafe { path.utf16.0.as_slice()? };
+        OsPath::OsPathUtf16(path_utf16) => {
+            let utf16 = unsafe { path_utf16.utf16.0.as_slice()? };
             let string = String::from_utf16(utf16).map_err(|_| {
                 RuntimeError::from(PlatformError::invalid_argument_value(
                     "path",
