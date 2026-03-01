@@ -160,7 +160,8 @@ pub(crate) fn argument_is_compact_simple_unannotated(
     }
 
     context.increment_counter("call.arguments.compact_simple.cache.misses", 1);
-    let is_compact_simple_unannotated = !context.has_annotation(argument_id)
+    // blank seams should not declassify compact argument simplicity
+    let is_compact_simple_unannotated = !context.has_non_blank_annotation(argument_id)
         && !context.node_has_newline(argument_id)
         && argument_is_simple_with_options(
             context,
@@ -210,7 +211,8 @@ pub(crate) fn scan_call_argument_layout_cache(
 
     // scan each argument once and collect layout flags
     for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
-        let has_annotation = context.has_annotation(argument_id);
+        // layout decisions only treat non blank annotations as comment signals
+        let has_annotation = context.has_non_blank_annotation(argument_id);
         let has_newline = context.node_has_newline(argument_id);
         if has_annotation {
             has_any_argument_annotation = true;
@@ -379,7 +381,7 @@ pub(crate) fn call_argument_comments(
     let mut has_prefix_line_comment_annotations = false;
 
     for argument_id in dynamic_arguments.iter().copied() {
-        if !context.has_annotation(argument_id) {
+        if !context.has_non_blank_annotation(argument_id) {
             continue;
         }
 

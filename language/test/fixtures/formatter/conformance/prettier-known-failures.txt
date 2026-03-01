@@ -2,10 +2,7 @@ js/arrays/preserve_empty_lines.js
 js/arrows/currying-4.js
 js/binary-expressions/short-right.js
 js/comments-closure-typecast/member.js
-js/comments/between-head-and-body/empty-statement.js
-js/comments/break-continue-statements-2.js
 js/comments/dangling_array.js
-js/comments/empty-statements.js
 js/decorators/redux.js
 js/explicit-resource-management/valid-await-using-comments.js
 js/function-single-destructuring/array.js
@@ -19,7 +16,6 @@ js/logical-expressions/in-unary-expression.js
 js/multiparser-html/lit-html.js
 js/preserve-line/argument-list.js
 js/preserve-line/member-chain.js
-js/sequence-expression/parenthesized.js
 js/ternaries/nested.js
 js/unary-expression/comments.js
 jsx/comments/in-end-tag.js
@@ -33,7 +29,6 @@ typescript/as/as.ts
 typescript/as/comments/17407.ts
 typescript/call/callee-comments.ts
 typescript/class/parameter-properties.ts
-typescript/comments-2/last-arg.ts
 typescript/comments/10260.ts
 typescript/conditional-types/conditional-types.ts
 typescript/decorators/decorators.ts
@@ -46,4 +41,3 @@ typescript/tsx/member-expression.tsx
 typescript/type-parameters-arguments/class-method.ts
 typescript/typescript-only/prettier-ignore-parenthesized-type.ts
 typescript/union/consistent-with-flow/single-type.ts
-typescript/union/consistent-with-flow/within-tuple.ts

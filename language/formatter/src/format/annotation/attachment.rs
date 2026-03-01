@@ -16,7 +16,9 @@ use super::boundary::{
 use super::declaration::try_attach_comment_declaration;
 use super::endofline::attach_end_of_line_comment;
 use super::expression::try_attach_comment_expression;
-use super::facts::previous_non_trivia_token_index;
+use super::facts::{
+    previous_non_trivia_token_index, token_type_is_comment_trivia, token_type_is_whitespace_trivia,
+};
 use super::operator::try_attach_comment_assignment;
 use super::ownership::{
     find_owner_at_or_after_token, find_owner_at_or_after_token_with_node_type,
@@ -72,19 +74,9 @@ fn assignment_like_rhs_owner_for_doc_annotation(
     }
     let previous_token_span = tokens[previous_index].span;
 
-    let mut token_after_annotation_index =
-        tokens.partition_point(|token| token.span.start < annotation_span.end);
-    while let Some(token) = tokens.get(token_after_annotation_index) {
-        if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
-            token_after_annotation_index += 1;
-            continue;
-        }
-        break;
-    }
-    let token_after_span = tokens
-        .get(token_after_annotation_index)
-        .map(|token| token.span);
-    if token_after_span.is_some_and(|span| annotation_span.start >= span.start) {
+    let (token_after_annotation_index, token_after_span, has_intervening_comment_trivia) =
+        next_semantic_token_after_span(tokens, annotation_span)?;
+    if has_intervening_comment_trivia || annotation_span.start >= token_after_span.start {
         return None;
     }
 
@@ -114,8 +106,7 @@ fn assignment_like_rhs_owner_for_doc_annotation(
             }
         });
 
-    let fallback_expression_owner = token_after_span
-        .and_then(|span| find_preferred_owner_starting_at(tree, span))
+    let fallback_expression_owner = find_preferred_owner_starting_at(tree, token_after_span)
         .and_then(|owner_id| {
             if tree.get_node_type(owner_id) == NodeType::Expression {
                 Some(owner_id)
@@ -134,7 +125,7 @@ fn assignment_like_rhs_owner_for_doc_annotation(
 
     let expression_owner = assignment_owner.or(fallback_expression_owner)?;
     let expression_owner =
-        promote_rhs_expression_owner(tree, parents, expression_owner, token_after_span);
+        promote_rhs_expression_owner(tree, parents, expression_owner, Some(token_after_span));
 
     let annotation_starts_on_assignment_line =
         file.is_same_line(previous_token_span.start, annotation_span.start);
@@ -196,6 +187,98 @@ fn trailing_statement_owner_for_doc_annotation(
     };
 
     Some((owner, position))
+}
+
+/// Return rhs owner for one doc annotation that follows one opening parenthesis seam.
+fn parenthesized_rhs_owner_for_doc_annotation(
+    file: &File,
+    tree: &NodeTree,
+    tokens: &[TokenSpan],
+    annotation_span: Span,
+) -> Option<(u32, AnnotationPosition)> {
+    let annotation_token_index =
+        tokens.partition_point(|token| token.span.start < annotation_span.start);
+    if annotation_token_index >= tokens.len() {
+        return None;
+    }
+
+    let previous_index = previous_non_trivia_token_index(tokens, annotation_token_index)?;
+    if tokens[previous_index].token.ty != TokenType::OpenParenthesis {
+        return None;
+    }
+    let previous_token_span = tokens[previous_index].span;
+
+    let (token_after_annotation_index, token_after_span, has_intervening_comment_trivia) =
+        next_semantic_token_after_span(tokens, annotation_span)?;
+    if has_intervening_comment_trivia || annotation_span.start >= token_after_span.start {
+        return None;
+    }
+
+    let expression_owner = find_smallest_owner_enclosing_token(tree, token_after_span)
+        .or_else(|| find_owner_at_or_after_token(tree, tokens, token_after_annotation_index))
+        .filter(|owner_id| tree.get_node_type(*owner_id) == NodeType::Expression)?;
+    let annotation_starts_on_parenthesis_line =
+        file.is_same_line(previous_token_span.start, annotation_span.start);
+    let annotation_has_newline = annotation_span.start < annotation_span.end
+        && !file.is_same_line(annotation_span.start, annotation_span.end.saturating_sub(1));
+    let position = if annotation_starts_on_parenthesis_line && !annotation_has_newline {
+        AnnotationPosition::LinePrefix
+    } else {
+        AnnotationPosition::BlockPrefix
+    };
+
+    Some((expression_owner, position))
+}
+
+/// Return the next semantic token after one annotation span.
+///
+/// The boolean indicates whether one comment trivia token exists before that semantic token.
+fn next_semantic_token_after_span(
+    tokens: &[TokenSpan],
+    annotation_span: Span,
+) -> Option<(usize, Span, bool)> {
+    let mut token_index = tokens.partition_point(|token| token.span.start < annotation_span.end);
+    let mut has_intervening_comment_trivia = false;
+
+    while token_index < tokens.len() {
+        let token = tokens[token_index];
+        let token_type = token.token.ty;
+
+        if token_type_is_whitespace_trivia(token_type) {
+            token_index += 1;
+            continue;
+        }
+
+        if token_type_is_comment_trivia(token_type) {
+            has_intervening_comment_trivia = true;
+            token_index += 1;
+            continue;
+        }
+
+        return Some((token_index, token.span, has_intervening_comment_trivia));
+    }
+
+    None
+}
+
+/// Return whether all semantic tokens between one source range are whitespace trivia.
+fn token_range_is_whitespace_trivia_only(tokens: &[TokenSpan], start: u32, end: u32) -> bool {
+    let token_start_index = tokens.partition_point(|token| token.span.start < start);
+    for token in tokens.iter().skip(token_start_index) {
+        if token.span.start >= end {
+            break;
+        }
+
+        if token.span.end <= start {
+            continue;
+        }
+
+        if !token_type_is_whitespace_trivia(token.token.ty) {
+            return false;
+        }
+    }
+
+    true
 }
 
 struct FormatterTokenNeighborIndex {
@@ -562,6 +645,13 @@ fn normalize_trailing_object_member_comment_attachment(
         return attachment;
     }
 
+    // inline block comments before object-literal argument values stay on the object expression
+    if let Some(attachment) =
+        normalize_inline_object_argument_prefix_comment_attachment(tree, seam, owner_id)
+    {
+        return attachment;
+    }
+
     // own-line line comments between a closing delimiter and comma belong to the preceding value boundary
     if let Some(attachment) =
         normalize_own_line_closing_delimiter_comma_attachment(tree, seam, owner_id)
@@ -614,6 +704,31 @@ fn normalize_empty_object_argument_own_line_comment_attachment(
 
     let value_owner = normalize_formatter_trivia_target_owner(tree, value_id.id);
     Some((Some(value_owner), AnnotationPosition::BlockInfix))
+}
+
+/// Attach inline block comments before object-literal argument values to the object expression.
+fn normalize_inline_object_argument_prefix_comment_attachment(
+    tree: &NodeTree,
+    seam: &CommentSeamData,
+    owner_id: u32,
+) -> Option<CommentAttachment> {
+    if !seam.comment_is_star
+        || seam.has_leading_newline
+        || seam.has_trailing_newline
+        || !seam.token_after_is(TokenType::OpenBrace)
+        || tree.get_node_type(owner_id) != NodeType::Argument
+    {
+        return None;
+    }
+
+    let argument_id = LocalNodeId::<Argument>::new(owner_id);
+    let value_id = argument_value_expression_id(tree, argument_id);
+    if !matches!(tree.get(value_id), Expression::ObjectExpression { .. }) {
+        return None;
+    }
+
+    let value_owner = normalize_formatter_trivia_target_owner(tree, value_id.id);
+    Some((Some(value_owner), AnnotationPosition::LinePrefix))
 }
 
 /// Attach own-line line comments between closing delimiter and comma to the preceding boundary owner.
@@ -933,6 +1048,11 @@ pub(crate) fn formatter_annotation_projection(
                 {
                     target_node_id = trailing_owner;
                     doc_position_override = Some(trailing_position);
+                } else if let Some((parenthesized_owner, parenthesized_position)) =
+                    parenthesized_rhs_owner_for_doc_annotation(file, tree, tokens, annotation_span)
+                {
+                    target_node_id = parenthesized_owner;
+                    doc_position_override = Some(parenthesized_position);
                 } else if let Some((rhs_owner, rhs_position)) =
                     assignment_like_rhs_owner_for_doc_annotation(
                         file,
@@ -1087,6 +1207,67 @@ pub(crate) fn formatter_annotation_projection(
 
     // add blank trivia with formatter-side placement resolution
     for trivia in tree.blank_trivia().iter().copied() {
+        let token_before_index = decode_token_index(trivia.boundary.token_before);
+        let token_before_type = token_before_index
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.token.ty);
+        let token_before_is_statement_end = matches!(
+            token_before_type,
+            Some(TokenType::Semicolon | TokenType::CloseBrace | TokenType::CloseParenthesis)
+        );
+        let token_before_is_if_without_else = token_before_index
+            .and_then(|index| tokens.get(index))
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+            .and_then(|owner| {
+                if tree.get_node_type(owner) == NodeType::Expression {
+                    Some(owner)
+                } else {
+                    promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Expression)
+                }
+            })
+            .is_some_and(|owner| {
+                let expression_id = LocalNodeId::<Expression>::new(owner);
+                matches!(
+                    tree.get(expression_id),
+                    Expression::If {
+                        else_expression: None,
+                        ..
+                    }
+                )
+            });
+
+        let next_comment = comment_targets
+            .iter()
+            .find(|(span, _)| span.start >= trivia.span.end)
+            .copied();
+        let next_comment_following_token_type = next_comment.and_then(|(comment_span, _)| {
+            let token_index = tokens.partition_point(|token| token.span.start < comment_span.end);
+            tokens.iter().skip(token_index).find_map(|token| {
+                let token_type = token.token.ty;
+                (!matches!(token_type, TokenType::Whitespace | TokenType::Newline))
+                    .then_some(token_type)
+            })
+        });
+        let next_comment_starts_semicolon_guard_boundary = matches!(
+            next_comment_following_token_type,
+            Some(TokenType::OpenBracket | TokenType::OpenParenthesis)
+        );
+        if token_before_is_statement_end
+            && next_comment_starts_semicolon_guard_boundary
+            && !token_before_is_if_without_else
+            && let Some((next_comment_span, _)) = next_comment
+            && trivia.span.end <= next_comment_span.start
+        {
+            let between_is_whitespace_only = token_range_is_whitespace_trivia_only(
+                tokens,
+                trivia.span.end,
+                next_comment_span.start,
+            );
+            if between_is_whitespace_only {
+                continue;
+            }
+        }
+
         let (mut target_id, mut position) = blank_trivia_attachment(
             tree,
             tokens,
@@ -1098,10 +1279,6 @@ pub(crate) fn formatter_annotation_projection(
         );
 
         if target_id.is_none() {
-            let next_comment = comment_targets
-                .iter()
-                .find(|(span, _)| span.start >= trivia.span.end)
-                .copied();
             let previous_comment = comment_targets
                 .iter()
                 .rev()
@@ -1398,6 +1575,39 @@ fn attach_to_enclosing_owner_infix(
     Some((Some(enclosing_owner), AnnotationPosition::BlockInfix))
 }
 
+/// Return one trailing expression owner that shares one seam-end token.
+fn trailing_expression_owner_for_seam_end(
+    tree: &NodeTree,
+    mut target_owner: u32,
+    seam_end: u32,
+) -> u32 {
+    loop {
+        if tree.get_node_type(target_owner) != NodeType::Expression {
+            break;
+        }
+
+        let expression_id = LocalNodeId::<Expression>::new(target_owner);
+        let next_owner = match tree.get(expression_id) {
+            Expression::Binary { right, .. } | Expression::TypeBinary { right, .. } => {
+                Some(right.id)
+            }
+            Expression::Parenthesized { expression } => Some(expression.id),
+            _ => None,
+        };
+
+        let Some(next_owner) = next_owner else {
+            break;
+        };
+        if tree.get_span_by_id(next_owner).end != seam_end {
+            break;
+        }
+
+        target_owner = next_owner;
+    }
+
+    target_owner
+}
+
 /// Attach one preceding owner for end-of-line fallback with terminal-owner normalization rules.
 fn attach_end_of_line_preceding_owner(
     context: &CommentSeamContext<'_>,
@@ -1408,20 +1618,27 @@ fn attach_end_of_line_preceding_owner(
     let target_node = owners.preceding?;
     let token_before_span = context.token_before_span.map(|token| token.span);
 
-    let keep_literal_before_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis)
-        && seam.token_before_is(TokenType::Literal)
-        && !seam.token_before_is(TokenType::Comma);
-    let should_keep_terminal_preceding_owner = keep_literal_before_close_parenthesis;
-    let target_node = if should_keep_terminal_preceding_owner {
-        target_node
-    } else {
-        normalize_owner_with_shared_end(tree, context.parents, target_node, token_before_span)
-    };
-    let position = if keep_literal_before_close_parenthesis {
-        AnnotationPosition::LinePostfix
-    } else {
-        AnnotationPosition::LinePostfixBoundary
-    };
+    // trailing line comments before `)` stay on the trailing expression operand
+    if seam.comment_is_line && seam.token_after_is(TokenType::CloseParenthesis) {
+        let target_node = token_before_span.map_or(target_node, |span| {
+            trailing_expression_owner_for_seam_end(tree, target_node, span.end)
+        });
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    // trailing block comments between `}` and `)` are callback/body postfix seams
+    if seam.comment_is_star
+        && seam.token_before_is(TokenType::CloseBrace)
+        && seam.token_after_is(TokenType::CloseParenthesis)
+    {
+        let target_node =
+            normalize_owner_with_shared_end(tree, context.parents, target_node, token_before_span);
+        return Some((Some(target_node), AnnotationPosition::BlockPostfix));
+    }
+
+    let target_node =
+        normalize_owner_with_shared_end(tree, context.parents, target_node, token_before_span);
+    let position = AnnotationPosition::LinePostfixBoundary;
 
     Some((Some(target_node), position))
 }

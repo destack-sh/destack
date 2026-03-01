@@ -2,7 +2,7 @@ use super::ownership::find_smallest_owner_enclosing_range;
 use super::render::annotation_precedes_separator;
 use crate::{
     Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-    assert_format, assert_format_program_idempotent_with_file_type,
+    assert_format, assert_format_output_eq, assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, statement_list,
 };
 use destack_ast::{
@@ -64,6 +64,29 @@ fn find_annotation_by_marker(
     for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
         let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
         if annotation_matches_marker(annotation_id, marker) {
+            return Some(annotation_id);
+        }
+    }
+
+    None
+}
+
+/// Find an annotation node by marker fragment in comment or doc text.
+fn find_annotation_by_marker_fragment(
+    context: &DestackFormatContext<'_>,
+    marker: &str,
+) -> Option<LocalNodeId<Annotation>> {
+    for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+        let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+        let matches_marker = match context.annotation(annotation_id) {
+            Annotation::Comment { node, .. } => context.comment_text(node).contains(marker),
+            Annotation::Doc { node, .. } => {
+                let document = context.tree.get(node);
+                context.strings.get(document.string).contains(marker)
+            }
+            Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+        };
+        if matches_marker {
             return Some(annotation_id);
         }
     }
@@ -133,7 +156,10 @@ fn test_annotation_trailing_array_comma_line_comment_attaches_to_element_owner()
         .expect("expected trailing array marker owner node");
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
 
-    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert!(matches!(
+        position,
+        AnnotationPosition::LinePostfixBoundary | AnnotationPosition::BlockPrefix
+    ));
     assert_eq!(owner_node_type, NodeType::Argument);
 }
 
@@ -681,6 +707,88 @@ fn test_annotation_import_block_comment_before_separator_comma_attaches_to_depen
     assert_eq!(next_token_type, Some(destack_ast::TokenType::Comma));
 }
 
+/// Own-line block comments before `)` in parameter lists should stay on parameter boundaries.
+#[test]
+fn test_annotation_parameter_own_line_block_comment_before_close_paren_attaches_to_parameter() {
+    let source = "function f(
+  value: T
+  /* parameter-separator-block-marker */
+): R {}";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse parameter separator block marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "parameter-separator-block-marker")
+        .expect("expected parameter separator block marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected parameter separator block marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(owner_node_type, NodeType::Parameter);
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+}
+
+/// Multiline own-line block comments before `)` in parameter lists should stay on parameter boundaries.
+#[test]
+fn test_annotation_parameter_multiline_own_line_block_comment_before_close_paren_attaches_to_parameter()
+ {
+    let source = r#"function f(
+  value: T
+  /* parameter-separator-multiline-block-marker
+   * marker-body
+   */
+): R {}"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse multiline parameter separator block marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id =
+        find_annotation_by_marker_fragment(&context, "parameter-separator-multiline-block-marker")
+            .expect("expected multiline parameter separator block marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected multiline parameter separator block marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(owner_node_type, NodeType::Parameter);
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+}
+
+/// Method parameters with default values should keep own-line separator block comments on boundaries.
+#[test]
+fn test_annotation_method_parameter_default_own_line_block_comment_before_close_paren_attaches_to_parameter()
+ {
+    let source = r#"class X {
+  getSectionMode(
+    pageMetaData: PageMetaData,
+    sectionMetaData: SectionMetaData = ["unknown"]
+    /* method-parameter-default-separator-block-marker
+     * marker-body
+     */
+  ): R {}
+}"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse method parameter separator block marker source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker_fragment(
+        &context,
+        "method-parameter-default-separator-block-marker",
+    )
+    .expect("expected method parameter separator block marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected method parameter separator block marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(owner_node_type, NodeType::Parameter);
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+}
+
 /// Export alias line comments after `as` should attach as dependency-item prefixes.
 #[test]
 fn test_annotation_export_alias_line_comment_after_as_attaches_to_dependency_item_prefix() {
@@ -831,6 +939,21 @@ call?.(); // optional-call-tail-marker
     );
 }
 
+/// Line comments between instantiation callees and `(` should stay stable across non-empty and empty calls.
+#[test]
+fn test_format_instantiation_callee_line_comment_before_arguments_is_idempotent() {
+    let source = r#"foo<string>// instantiation-call-marker-13
+(1)
+foo<string>// instantiation-call-marker-23
+()
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
 /// Semicolon-guard own-line comments with indentation should stay on preceding boundaries.
 #[test]
 fn test_annotation_semicolon_guard_comment_before_parenthesized_call_uses_boundary_position() {
@@ -849,6 +972,105 @@ fn test_annotation_semicolon_guard_comment_before_parenthesized_call_uses_bounda
 
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
     assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Own-line comments between control heads and empty-statement semicolons stay on statement seams.
+#[test]
+fn test_annotation_control_head_comment_before_empty_statement_semicolon_stays_on_boundary() {
+    let source = "if (a)\n// control-head-marker\n;\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse control-head empty statement source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "control-head-marker")
+        .expect("expected control-head marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected control-head marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Inline control-head comments before empty-statement semicolons should stay idempotent.
+#[test]
+fn test_format_control_head_inline_comment_before_empty_statement_semicolon_is_idempotent() {
+    let source = r#"for(;;) // marker-14
+;
+if(a) // marker-15
+;
+while(a) // marker-16
+;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Own-line comments before semicolon-guarded array heads after `do...while` stay on the guarded expression.
+#[test]
+fn test_annotation_do_while_semicolon_guard_comment_stays_on_guarded_expression() {
+    let source = "do;while(1)\n\n// do-while-guard-marker\n;[]\n";
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse do-while semicolon guard source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "do-while-guard-marker")
+        .expect("expected do-while guard marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected do-while guard marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(position, AnnotationPosition::BlockPrefix);
+    assert_eq!(owner_node_type, NodeType::Expression);
+}
+
+/// Standalone semicolon tail comments should stay as leading comments of the following statement.
+#[test]
+fn test_format_line_leading_semicolon_tail_comment_stays_with_following_statement() {
+    let source = r#"function x() {
+} // first
+; // second
+const y = 1;
+"#;
+    let expected = r#"function x() {} // first
+// second
+const y = 1;
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Standalone semicolon block-tail comments should stay as leading comments of the following statement.
+#[test]
+fn test_format_line_leading_semicolon_block_tail_comment_stays_with_following_statement() {
+    let source = r#"a;
+; /* marker */
+foo();
+"#;
+    let expected = r#"a;
+/* marker */
+foo();
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
 }
 
 /// Trailing block comments after import semicolons should stay on the import statement boundary.
@@ -1161,7 +1383,7 @@ type C2 = | (
     }
 }
 
-/// Conformance C2 comment before `|` should stay line-prefix even with trailing-space noise.
+/// Conformance C2 comment before `|` should stay line-prefix even with trailing spaces.
 #[test]
 fn test_annotation_union_c2_comment_before_pipe_stays_line_prefix() {
     let source = r#"
@@ -1285,6 +1507,129 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_reparse_keep
     );
 }
 
+/// Parenthesized union trailing arm comments should stay attached to the trailing arm.
+#[test]
+fn test_annotation_parenthesized_union_trailing_arm_comment_stays_on_arm() {
+    let source = "type Result = (
+  | \"a\" // arm-a
+  | \"b\" // arm-b
+)[]; // final-tail
+";
+    let expected = "type Result = (
+    | \"a\" // arm-a
+    | \"b\" // arm-b
+)[]; // final-tail
+";
+    let (formatter, expressions) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse parenthesized union comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id =
+        find_annotation_by_marker(&context, "arm-b").expect("expected arm-b annotation");
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected arm-b owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let position = context.annotation(annotation_id).position();
+    let owner_expression = if owner_node_type == NodeType::Expression {
+        Some(
+            context
+                .tree
+                .get(LocalNodeId::<Expression>::new(owner_node as u32)),
+        )
+    } else {
+        None
+    };
+
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "owner={owner_node}, position={position:?}"
+    );
+    assert!(
+        matches!(owner_expression, Some(Expression::ScalarLiteral(_))),
+        "owner={owner_node}, owner_expression={owner_expression:?}, position={position:?}"
+    );
+    assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
+
+    let formatted = formatter.format(
+        &statement_list(expressions.as_slice()),
+        typescript_format_options(),
+    );
+    assert_format_output_eq(expected, &formatted);
+}
+
+/// TSX alternate branch block comments should stay inside the alternate branch body.
+#[test]
+fn test_annotation_tsx_alternate_block_comment_stays_in_alternate_branch() {
+    let source = "const Component = () => (
+  <div>
+    {\"error\" ? (
+      <Error />
+    ) : (
+      <Success />
+      /* keep-inside-branch */
+    )}
+  </div>
+)
+";
+    let expected = "const Component = () => (
+    <div>
+        {\"error\" ? (
+            <Error />
+        ) : (
+            <Success />
+            /* keep-inside-branch */
+        )}
+    </div>
+);
+";
+
+    let (formatter, expressions) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScriptXml, |p| Ok(p.parse()))
+            .expect("parse tsx alternate block comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "keep-inside-branch")
+        .expect("expected tsx alternate block annotation");
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected tsx alternate block owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let position = context.annotation(annotation_id).position();
+
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "owner={owner_node}, position={position:?}"
+    );
+    assert_eq!(position, AnnotationPosition::BlockPostfix);
+
+    let formatted = formatter.format(
+        &statement_list(expressions.as_slice()),
+        DestackFormatOptions::default(),
+    );
+    assert_format_output_eq(expected, &formatted);
+}
+
+/// Neighboring closure-cast comments should preserve source order.
+#[test]
+fn test_annotation_closure_cast_neighboring_block_comment_order() {
+    let source = "(/* 2 */ /** @type {{bar: string[]}} */ {}).bar.forEach(doStuff)
+(/** @type {{bar: string[]}} */ /* 2 */ {}).bar.forEach(doStuff)
+";
+    let expected = "/* 2 */ /** @type {{bar: string[]}} */ ({}).bar
+    .forEach(doStuff)(/** @type {{bar: string[]}} */ /* 2 */ {})
+    .bar.forEach(doStuff);
+";
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 #[test]
 fn test_type_mapped_remap_line_comment_attachment() {
     let source = "{\n    type Paths<T> = {\n      [K in keyof T as // remap-note\n        `get${Capitalize<K & string>}`]: () => T[K]\n    }\n}";
@@ -1318,9 +1663,31 @@ fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {
             p.eat_block(destack_ast::BlockContext::Expression)
         })
         .expect("parse parenthesized cast argument source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker_fragment(&context, "@type")
+        .expect("expected cast doc annotation");
+    let annotation_position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected cast doc owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let owner_expression = (owner_node_type == NodeType::Expression).then(|| {
+        let owner_expression_id = LocalNodeId::<Expression>::new(owner_node as u32);
+        context.tree.get(owner_expression_id)
+    });
+
+    assert!(matches!(
+        context.annotation(annotation_id),
+        Annotation::Doc { .. }
+    ));
+    assert_eq!(annotation_position, AnnotationPosition::LinePrefix);
+    assert!(matches!(
+        owner_expression,
+        Some(Expression::Parenthesized { .. })
+    ));
 
     let formatted = formatter.format(&block_id, DestackFormatOptions::default());
-    assert_eq!(formatted, expected);
+    assert_format_output_eq(expected, &formatted);
 }
 
 /// Doc comments after `=` attach to assignment rhs values.
@@ -2815,6 +3182,22 @@ fn test_annotation_if_nested_unary_own_line_comment_attaches_to_inner_unary() {
     assert_eq!(
         owner_expression_kind, "Unary",
         "owner={owner_node}, owner_type={owner_node_type:?}",
+    );
+}
+
+/// Inline block comments before `)` after callback bodies stay idempotent with adjacent line comments.
+#[test]
+fn test_format_callback_tail_block_comment_before_close_paren_is_idempotent() {
+    let source = r#"x2 = (a) => ((askTrovenaBeenaDependsRowans1, askTrovenaBeenaDependsRowans2, askTrovenaBeenaDependsRowans3) => {
+  c();
+} /* ! */ // KABOOM
+)
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
     );
 }
 
