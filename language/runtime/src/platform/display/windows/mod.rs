@@ -1,11 +1,20 @@
+mod backend;
 mod core;
+mod event;
 mod monitor;
-mod monitor_event;
 mod win32;
 mod window;
-mod window_event;
 
+use crate::platform::display::DisplayBackendDescriptor;
+use crate::runtime::BindingCallContext;
+
+pub(crate) use event::*;
 pub(crate) use monitor::*;
-pub(crate) use monitor_event::*;
 pub(crate) use window::*;
-pub(crate) use window_event::*;
+
+/// List windows display backend descriptors for the active host.
+pub(super) fn display_backend_descriptors(
+    context: &BindingCallContext,
+) -> Vec<DisplayBackendDescriptor> {
+    core::backend_descriptors(context)
+}

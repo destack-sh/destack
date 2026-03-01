@@ -1,31 +1,30 @@
+mod backend;
 mod core;
+mod event;
 mod monitor;
-mod monitor_event;
 mod window;
-mod window_event;
 
 #[cfg(target_os = "android")]
 mod android;
 #[cfg(target_os = "ios")]
 mod ios;
-#[cfg(target_os = "linux")]
-mod linux_wayland;
-#[cfg(target_os = "linux")]
-mod linux_x11;
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(all(
-    unix,
-    not(any(
-        target_os = "android",
-        target_os = "ios",
-        target_os = "linux",
-        target_os = "macos"
-    ))
-))]
-mod other;
+#[cfg(target_os = "linux")]
+mod wayland;
+#[cfg(target_os = "linux")]
+mod x11;
 
+use crate::platform::display::DisplayBackendDescriptor;
+use crate::runtime::BindingCallContext;
+
+pub(crate) use event::*;
 pub(crate) use monitor::*;
-pub(crate) use monitor_event::*;
 pub(crate) use window::*;
-pub(crate) use window_event::*;
+
+/// List unix display backend descriptors for the active host.
+pub(super) fn display_backend_descriptors(
+    context: &BindingCallContext,
+) -> Vec<DisplayBackendDescriptor> {
+    core::backend_descriptors(context)
+}

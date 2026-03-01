@@ -39,92 +39,27 @@ pub(crate) unsafe fn destack_display_backend_list(
 
 /// Build backend descriptors for the current target.
 fn display_backend_descriptors(context: &BindingCallContext) -> Vec<DisplayBackendDescriptor> {
-    let mut descriptors = Vec::new();
-
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::X11,
-            name: context.store_string("x11"),
-            available: true,
-            priority: 100,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
+        let descriptors = unix::display_backend_descriptors(context);
+        if !descriptors.is_empty() {
+            return descriptors;
+        }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(windows)]
     {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::AppKit,
-            name: context.store_string("appkit"),
-            available: true,
-            priority: 100,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
+        let descriptors = windows::display_backend_descriptors(context);
+        if !descriptors.is_empty() {
+            return descriptors;
+        }
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::Win32,
-            name: context.store_string("win32"),
-            available: true,
-            priority: 100,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
-    }
-
-    #[cfg(target_os = "android")]
-    {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::Android,
-            name: context.store_string("android"),
-            available: true,
-            priority: 100,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
-    }
-
-    #[cfg(target_os = "ios")]
-    {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::UIKit,
-            name: context.store_string("uikit"),
-            available: true,
-            priority: 100,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
-    }
-
-    #[cfg(all(
-        unix,
-        not(any(
-            target_os = "android",
-            target_os = "ios",
-            target_os = "linux",
-            target_os = "macos"
-        ))
-    ))]
-    {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::Null,
-            name: context.store_string("null"),
-            available: false,
-            priority: 0,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
-    }
-
-    #[cfg(not(any(unix, windows)))]
-    {
-        descriptors.push(DisplayBackendDescriptor {
-            backend: DisplayBackend::Null,
-            name: context.store_string("null"),
-            available: false,
-            priority: 0,
-            capability_flags: DisplayBackendCapabilityFlags(0),
-        });
-    }
-
-    descriptors
+    vec![DisplayBackendDescriptor {
+        backend: DisplayBackend::Null,
+        name: context.store_string("null"),
+        available: false,
+        priority: 0,
+        capability_flags: DisplayBackendCapabilityFlags(0),
+    }]
 }

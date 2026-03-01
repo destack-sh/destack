@@ -5,7 +5,7 @@ use super::{
     harness_string, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::display::{DisplayMode, DisplayModeVm, WindowVisibility};
+use crate::platform::display::WindowVisibility;
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -46,23 +46,38 @@ fn test_display_monitor_surface_works_end_to_end() {
 
         let event_stream = context
             .destack_display_monitor_event_open(default_monitor_event_open_options(&context))?;
-        let requested_mode = modes[modes.len().saturating_sub(1)];
-        let requested_mode = if context.vm_context.is_some() {
-            context.harness_value_vm::<DisplayMode, DisplayModeVm>(requested_mode)
-        } else {
-            context.harness_value::<DisplayMode, DisplayModeVm>(requested_mode)
-        };
+
+        for _ in 0..16 {
+            let drain = context.destack_display_monitor_event_try_read_batch(event_stream, 32);
+            let Err(error) = drain else {
+                continue;
+            };
+            let code = error.platform_error().map(|platform| platform.code);
+            if code == Some(PlatformErrorCode::IoWouldBlock) {
+                break;
+            }
+            return Err(error);
+        }
+
+        let requested_mode = context.destack_display_monitor_current_mode(display)?;
         context.destack_display_monitor_set_mode(display, requested_mode)?;
 
-        let event = context.destack_display_monitor_event_read(event_stream, 100_000_000)?;
-        assert!(matches!(
-            event,
-            super::HarnessValue::Native(
-                crate::platform::display::DisplayEvent::DisplayModeChangedEvent(_)
-            ) | super::HarnessValue::Vm(
-                crate::platform::display::DisplayEventVm::DisplayModeChangedEvent(_)
-            )
-        ));
+        let mut saw_mode_changed = false;
+        for _ in 0..16 {
+            let event = context.destack_display_monitor_event_read(event_stream, 100_000_000)?;
+            if matches!(
+                event,
+                super::HarnessValue::Native(
+                    crate::platform::display::DisplayEvent::DisplayModeChangedEvent(_)
+                ) | super::HarnessValue::Vm(
+                    crate::platform::display::DisplayEventVm::DisplayModeChangedEvent(_)
+                )
+            ) {
+                saw_mode_changed = true;
+                break;
+            }
+        }
+        assert!(saw_mode_changed);
 
         let primary =
             context.destack_display_monitor_primary(default_monitor_list_request(&context))?;

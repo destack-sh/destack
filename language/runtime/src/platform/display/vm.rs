@@ -42,6 +42,7 @@ fn display_descriptor_to_vm(
     let name = unsafe { value.name.as_str()? };
 
     Ok(DisplayDescriptorVm {
+        backend: value.backend,
         id: vm::StringHandle::new(context.intern_string(id)),
         name: vm::StringHandle::new(context.intern_string(name)),
         primary: value.primary,
@@ -170,6 +171,7 @@ fn display_event_metadata_to_vm(
     };
 
     Ok(crate::platform::display::DisplayEventMetadataVm {
+        backend: value.backend,
         display_id,
         timestamp_ns: value.timestamp_ns,
         sequence: value.sequence,
@@ -185,6 +187,7 @@ fn window_descriptor_to_vm(
     let title = unsafe { value.title.as_str()? };
 
     Ok(WindowDescriptorVm {
+        backend: value.backend,
         id: vm::StringHandle::new(context.intern_string(id)),
         title: vm::StringHandle::new(context.intern_string(title)),
         mode: value.mode,
