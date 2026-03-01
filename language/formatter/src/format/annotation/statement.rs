@@ -8,12 +8,15 @@ use super::boundary::{
     CommentSeamData, CommentSeamKeyword, comment_enclosing_owner,
 };
 use super::declaration::try_attach_comment_declaration_return_type_seam;
+use super::facts::{next_non_trivia_token_index, previous_non_trivia_token_index};
 use super::ownership::{
     block_leading_comment_target, find_smallest_owner_enclosing_token,
     lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
     promote_owner_to_node_type_ancestor,
 };
-use super::semicolon::attach_semicolon_guard_own_line_comment;
+use super::semicolon::{
+    attach_semicolon_guard_own_line_comment, try_attach_comment_before_empty_statement_semicolon,
+};
 
 /// Normalize one owner to its parameter or argument container owner.
 fn normalize_parameter_or_argument_owner(
@@ -32,6 +35,51 @@ fn normalize_parameter_or_argument_owner(
 fn normalize_argument_owner(tree: &NodeTree, parents: &NodeParentIndex, owner_id: u32) -> u32 {
     promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Argument)
         .unwrap_or(owner_id)
+}
+
+/// Return whether one argument owner belongs to one call-like expression.
+fn owner_is_call_like_argument(tree: &NodeTree, parents: &NodeParentIndex, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Argument {
+        return false;
+    }
+
+    let Some(parent_id) = parents.get_by_id(owner_id) else {
+        return false;
+    };
+    if tree.get_node_type(parent_id) != NodeType::Expression {
+        return false;
+    }
+
+    matches!(
+        tree.get(LocalNodeId::<Expression>::new(parent_id)),
+        Expression::Call { .. } | Expression::New { .. }
+    )
+}
+
+/// Resolve one separator seam owner from preceding owners and token boundaries.
+fn separator_preceding_owner(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    preceding_owner: Option<u32>,
+) -> Option<u32> {
+    if let Some(preceding_owner) = preceding_owner {
+        return Some(preceding_owner);
+    }
+
+    if seam.token_before_is(TokenType::Comma)
+        && let Some(comma_token_index) = context.token_before
+        && let Some(previous_token_index) =
+            previous_non_trivia_token_index(context.semantic_tokens, comma_token_index)
+        && let Some(previous_token) = context.semantic_tokens.get(previous_token_index)
+        && let Some(owner_id) = find_smallest_owner_enclosing_token(tree, previous_token.span)
+    {
+        return Some(owner_id);
+    }
+
+    context
+        .token_before_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
 }
 
 /// Return whether one owner token sits inside one decorator expression ancestry.
@@ -78,22 +126,54 @@ fn else_body_comment_target_owner(
     Some(target_owner)
 }
 
-/// Attach one separator line comment before `)` to its parameter or argument owner.
+/// Attach one separator comment before `)` to its parameter or argument owner.
 fn try_attach_parameter_or_argument_separator_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     target_owner: Option<u32>,
 ) -> Option<CommentAttachment> {
-    if !seam.comment_is_line
-        || !seam.token_before_is(TokenType::Comma)
-        || !seam.token_after_is(TokenType::CloseParenthesis)
-    {
+    let token_after_is_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis);
+    let has_following_separator_before_close_parenthesis = seam.token_after_is(TokenType::Comma)
+        && context
+            .token_after
+            .and_then(|token_index| {
+                next_non_trivia_token_index(context.semantic_tokens, token_index)
+            })
+            .and_then(|token_index| context.semantic_tokens.get(token_index))
+            .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
+    if !token_after_is_close_parenthesis && !has_following_separator_before_close_parenthesis {
+        return None;
+    }
+
+    // separator seams include line comments and own-line block comments
+    let supports_separator_comment = seam.comment_is_line
+        || (seam.comment_is_star && seam.has_leading_newline && seam.has_trailing_newline);
+    if !supports_separator_comment {
+        return None;
+    }
+
+    // separator seams also include last-item comments before `)` with no explicit comma
+    let has_last_item_close_parenthesis_seam = token_after_is_close_parenthesis;
+    if !has_last_item_close_parenthesis_seam && !has_following_separator_before_close_parenthesis {
         return None;
     }
 
     let target_owner = target_owner?;
     let target_owner = normalize_parameter_or_argument_owner(tree, parents, target_owner);
+    let target_owner_type = tree.get_node_type(target_owner);
+    if target_owner_type != NodeType::Parameter && target_owner_type != NodeType::Argument {
+        return None;
+    }
+
+    // argument separator seams only apply to call/new argument lists
+    if target_owner_type == NodeType::Argument
+        && !owner_is_call_like_argument(tree, parents, target_owner)
+    {
+        return None;
+    }
+
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
     Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }
@@ -385,9 +465,29 @@ pub(crate) fn try_attach_comment_statement_prefix(
     }
 
     // own line trailing separator comments before `)` should stay on the container item
+    let separator_preceding_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
     if seam.has_leading_newline
-        && let Some(attachment) =
-            try_attach_parameter_or_argument_separator_comment(tree, parents, seam, preceding_owner)
+        && let Some(attachment) = try_attach_parameter_or_argument_separator_comment(
+            tree,
+            parents,
+            context,
+            seam,
+            separator_preceding_owner,
+        )
+    {
+        return Some(attachment);
+    }
+
+    // comments before empty-statement body semicolons stay on the control-statement boundary
+    if seam.token_after_is(TokenType::Semicolon)
+        && let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
+            tree,
+            parents,
+            context,
+            seam,
+            preceding_owner,
+            following_owner,
+        )
     {
         return Some(attachment);
     }
@@ -508,6 +608,7 @@ pub(crate) fn try_attach_comment_statement_suffix(
 ) -> Option<CommentAttachment> {
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
+    let separator_preceding_owner = separator_preceding_owner(tree, context, seam, preceding_owner);
 
     // inline line comments between `else` and its body stay with the else body
     if !seam.has_leading_newline
@@ -657,8 +758,13 @@ pub(crate) fn try_attach_comment_statement_suffix(
     // parameter and argument trailing comments before `)` should stay on the container item
     if !seam.has_leading_newline
         && seam.has_trailing_newline
-        && let Some(attachment) =
-            try_attach_parameter_or_argument_separator_comment(tree, parents, seam, preceding_owner)
+        && let Some(attachment) = try_attach_parameter_or_argument_separator_comment(
+            tree,
+            parents,
+            context,
+            seam,
+            separator_preceding_owner,
+        )
     {
         return Some(attachment);
     }

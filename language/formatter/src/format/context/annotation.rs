@@ -125,6 +125,18 @@ impl<'a> DestackFormatContext<'a> {
             .map(|token| token.token.ty)
     }
 
+    /// Return whether one annotation starts after at least one leading indentation column.
+    #[inline]
+    pub fn annotation_starts_indented(&self, annotation_id: LocalNodeId<Annotation>) -> bool {
+        let annotation_span = self.annotation_span(annotation_id);
+        let annotation_column = self
+            .file
+            .get_position(annotation_span.start)
+            .map_or(1, |(_, column)| column);
+
+        annotation_column > 1
+    }
+
     /// Record one annotation cache hit when instrumentation is enabled.
     #[inline]
     fn increment_annotation_cache_hits(&self) {

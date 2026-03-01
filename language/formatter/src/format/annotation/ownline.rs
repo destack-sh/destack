@@ -250,9 +250,8 @@ fn attach_separator_or_closer_comment(
         return None;
     }
 
-    if seam.token_after_prefers_preceding
-        && let Some(target_node) = preceding_owner
-    {
+    if seam.token_after_prefers_preceding {
+        let target_node = preceding_owner?;
         let target_node =
             normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
 
@@ -344,7 +343,9 @@ pub(crate) fn attach_own_line_comment(
     if let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
         tree,
         parents,
+        context,
         seam,
+        preceding_owner,
         following_owner_with_token_fallback,
     ) {
         return Some(attachment);
