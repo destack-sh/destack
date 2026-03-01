@@ -1,9 +1,8 @@
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 /// Simulation state for runtime-backed and OS-backed simulation worlds.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SimulationState {
+pub struct Simulation {
     /// Simulation schema version.
     pub version: u32,
     /// Simulation clock subsystem state.
@@ -43,6 +42,3 @@ pub struct SimulationNetState {}
 /// Simulation process subsystem state.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SimulationProcessState {}
-
-/// Shared simulation state container.
-pub type SharedSimulationState = RwLock<SimulationState>;

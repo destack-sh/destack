@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::time::{ClockId, ClockMetadata, ClockSource, SleepClock};
 use crate::runtime::time::core as time_core;
-use crate::runtime::{BindingCallContext, RuntimeHookState};
+use crate::runtime::{BindingCallContext, HookState};
 
 #[cfg(unix)]
 #[path = "../unix/mod.rs"]
@@ -145,7 +145,7 @@ pub(crate) unsafe fn host_process_cpu_nanos(
 
     context
         .hooks()
-        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
+        .on_time_read(HookState::from_engine(Some(context.engine())));
 
     // sample process cpu time from the host backend
     let value = host_time::host_process_cpu_nanos()?;
@@ -170,7 +170,7 @@ pub(crate) unsafe fn host_thread_cpu_nanos(
 
     context
         .hooks()
-        .on_time_read(RuntimeHookState::from_engine(Some(context.engine())));
+        .on_time_read(HookState::from_engine(Some(context.engine())));
 
     // sample thread cpu time from the host backend
     let value = host_time::host_thread_cpu_nanos()?;

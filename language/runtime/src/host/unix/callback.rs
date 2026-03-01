@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostLifecycleState;
 use crate::host::core::{
-    HostBridge, HostMemoryPressureLevel, HostPlatform, HostPowerMode, HostThermalState,
-    HostWindowEvent, host_bridge_for_runtime,
+    HostMemoryPressureLevel, HostPlatform, HostPowerMode, HostState, HostThermalState,
+    HostWindowEvent, host_state_for_runtime,
 };
 
 /// Unix application lifecycle transitions from native callbacks.
@@ -22,9 +22,9 @@ pub enum UnixApplicationLifecycle {
     Destroyed,
 }
 
-/// Return the active Unix host bridge for this process and platform.
-fn unix_host_bridge(runtime_id: u64, platform: HostPlatform) -> RuntimeResult<Arc<HostBridge>> {
-    host_bridge_for_runtime(runtime_id, platform)
+/// Return the active Unix host state for this process and platform.
+fn unix_host_bridge(runtime_id: u64, platform: HostPlatform) -> RuntimeResult<Arc<HostState>> {
+    host_state_for_runtime(runtime_id, platform)
 }
 
 /// Submit one Unix application lifecycle callback.

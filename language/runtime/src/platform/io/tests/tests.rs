@@ -1111,7 +1111,7 @@ fn test_io_event_attach_accepts_known_target() {
     });
 }
 
-/// Keep event attachment state scoped to the runtime instance.
+/// Keep event attachment state scoped to the current runtime.
 #[test]
 fn test_io_event_attachment_state_is_runtime_scoped() {
     let first = IoHarnessHandle::Native(NativeIoHarness::new());

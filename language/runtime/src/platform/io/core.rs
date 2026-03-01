@@ -162,15 +162,15 @@ impl PollResource {
     }
 }
 
-/// Runtime-scoped key for event attachment routing.
+/// Agent-scoped key for event attachment routing.
 type EventAttachmentKey = (usize, ResourceId);
 /// Attachment targets keyed by poll resource id.
 type EventAttachmentTargets = HashMap<ResourceId, u64>;
-/// Global event attachment registry keyed by runtime and token.
+/// Global event attachment registry keyed by agent and token.
 type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
 
-/// Return a stable identity key for the current runtime instance.
-pub(super) fn runtime_instance_key(context: &BindingCallContext) -> usize {
+/// Return a stable identity key for the current agent.
+pub(super) fn agent_key(context: &BindingCallContext) -> usize {
     context.runtime() as *const _ as usize
 }
 
@@ -344,10 +344,10 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let runtime_key = runtime_instance_key(context);
+        let current_agent_key = agent_key(context);
         let mut attachments_by_token = event_attachment_map().lock();
         attachments_by_token.retain(|(key, _), attachments| {
-            if *key != runtime_key {
+            if *key != current_agent_key {
                 return true;
             }
 
@@ -623,9 +623,9 @@ fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
     ATTACHMENTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Return the attachment key for one event token in one runtime instance.
+/// Return the attachment key for one event token in one agent.
 fn event_attachment_key(context: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
-    (runtime_instance_key(context), ResourceId(token.0))
+    (agent_key(context), ResourceId(token.0))
 }
 
 /// Resolve one io_uring payload from one uring handle.

@@ -222,7 +222,7 @@ impl<'call> NetHarnessContext<'call> {
         // load the captured runtime error
         let error = self
             .runtime
-            .runtime
+            .agent
             .state
             .errors
             .take(RuntimeErrorId::from_raw(status.error_id))

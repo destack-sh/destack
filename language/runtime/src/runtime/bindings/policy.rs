@@ -3,10 +3,9 @@ use crate::runtime::bindings::{
     BindingDescriptor, BindingEffectMask, BindingId, BindingReplayPayload, BindingScope,
 };
 use crate::runtime::capability::PlatformCapabilitySet;
-use crate::runtime::rules::matches_runtime_filter;
+use crate::runtime::policy::{Effect, Policy, Rule, Selector, matches_selector};
 use destack_workspace::{
-    BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeAction, RuntimeFilter,
-    RuntimeOptions, RuntimeRule, RuntimeWorld,
+    BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeOptions, RuntimeWorld,
 };
 use rustc_hash::FxHashMap;
 
@@ -14,7 +13,7 @@ use rustc_hash::FxHashMap;
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AccessRule {
     /// Filter clause for this rule.
-    when: RuntimeFilter,
+    when: Selector,
     /// Access action when the rule matches.
     access: RuntimeAccess,
 }
@@ -23,7 +22,7 @@ struct AccessRule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct WorldRule {
     /// Filter clause for this rule.
-    when: RuntimeFilter,
+    when: Selector,
     /// World action when the rule matches.
     world: RuntimeWorld,
 }
@@ -32,7 +31,7 @@ struct WorldRule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ReplayPayloadRule {
     /// Filter clause for this rule.
-    when: RuntimeFilter,
+    when: Selector,
     /// Replay payload policy when the rule matches.
     payload: BindingReplayPayload,
 }
@@ -111,8 +110,8 @@ impl BindingPolicy {
         }
     }
 
-    /// Apply runtime options to this policy.
-    pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
+    /// Apply runtime defaults to this policy without loading control rules.
+    pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
         // align execution mode derived behavior
         self.mode = options.execution;
         self.allowed = allowed_effects_for_mode(self.mode);
@@ -120,22 +119,38 @@ impl BindingPolicy {
         // apply default access policy
         self.default_access = options.access;
         self.default_world = options.world;
-        self.default_replay_payload = replay_payload_from_mode(options.replay_log.payload);
+        self.default_replay_payload = replay_payload_from_mode(options.replay.payload);
+
+        // defaults can change compiled outcomes for unmatched descriptors
+        self.clear_compiled();
+    }
+
+    /// Apply runtime options to this policy.
+    pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
+        self.apply_runtime_defaults(options);
+        let policy = Policy::from_workspace_policy_rules(&options.rules);
+        self.apply_policy(&policy);
+    }
+
+    /// Apply one runtime control set to this policy.
+    pub fn apply_policy(&mut self, control: &Policy) {
+        // materialize startup rules from runtime actions
+        let rules = control.startup_rules();
 
         // rebuild ordered access rules
         self.access_rules.clear();
         self.access_rules
-            .extend(options.rules.iter().filter_map(rule_to_access_rule));
+            .extend(rules.iter().filter_map(rule_to_access_rule));
 
         // rebuild ordered world rules
         self.world_rules.clear();
         self.world_rules
-            .extend(options.rules.iter().filter_map(rule_to_world_rule));
+            .extend(rules.iter().filter_map(rule_to_world_rule));
 
         // rebuild ordered replay payload rules
         self.replay_payload_rules.clear();
         self.replay_payload_rules
-            .extend(options.rules.iter().filter_map(rule_to_replay_payload_rule));
+            .extend(rules.iter().filter_map(rule_to_replay_payload_rule));
 
         // clear compiled lookups and rebuild from caller supplied descriptors
         self.clear_compiled();
@@ -386,7 +401,7 @@ impl BindingPolicy {
     ) -> RuntimeAccess {
         // apply matching rules in declaration order
         for rule in &self.access_rules {
-            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
+            if matches_selector(&rule.when, Some(spec), self.mode, engine, None) {
                 return rule.access;
             }
         }
@@ -408,7 +423,7 @@ impl BindingPolicy {
 
         // apply matching world rules in declaration order
         for rule in &self.world_rules {
-            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
+            if matches_selector(&rule.when, Some(spec), self.mode, engine, None) {
                 return rule.world;
             }
         }
@@ -425,7 +440,7 @@ impl BindingPolicy {
     ) -> BindingReplayPayload {
         // apply matching replay payload rules in declaration order
         for rule in &self.replay_payload_rules {
-            if matches_runtime_filter(&rule.when, Some(spec), self.mode, engine) {
+            if matches_selector(&rule.when, Some(spec), self.mode, engine, None) {
                 return rule.payload;
             }
         }
@@ -499,9 +514,9 @@ impl Default for BindingPolicy {
 }
 
 /// Convert one rule into an access rule when the action sets access.
-fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
+fn rule_to_access_rule(rule: &Rule) -> Option<AccessRule> {
     // keep only access action rules for policy checks
-    let RuntimeAction::SetAccess { access } = &rule.action else {
+    let Effect::SetAccess { access } = &rule.action else {
         return None;
     };
 
@@ -512,9 +527,9 @@ fn rule_to_access_rule(rule: &RuntimeRule) -> Option<AccessRule> {
 }
 
 /// Convert one rule into a world rule when the action sets world.
-fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
+fn rule_to_world_rule(rule: &Rule) -> Option<WorldRule> {
     // keep only world action rules for world routing
-    let RuntimeAction::SetWorld { world } = &rule.action else {
+    let Effect::SetWorld { world } = &rule.action else {
         return None;
     };
 
@@ -525,9 +540,9 @@ fn rule_to_world_rule(rule: &RuntimeRule) -> Option<WorldRule> {
 }
 
 /// Convert one rule into a replay payload rule when the action sets replay payload.
-fn rule_to_replay_payload_rule(rule: &RuntimeRule) -> Option<ReplayPayloadRule> {
+fn rule_to_replay_payload_rule(rule: &Rule) -> Option<ReplayPayloadRule> {
     // keep only replay payload policy rules
-    let RuntimeAction::SetReplay { payload } = &rule.action else {
+    let Effect::SetReplay { payload } = &rule.action else {
         return None;
     };
 

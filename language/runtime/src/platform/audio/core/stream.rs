@@ -163,7 +163,7 @@ pub(crate) fn stream_timing_snapshot(
         } else {
             None
         },
-        monotonic_clock_ns: context.runtime().time.mono_nanos(),
+        monotonic_clock_ns: context.world().clock().mono_nanos(),
         drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
@@ -233,7 +233,7 @@ pub(crate) fn stream_availability_snapshot(
         writable_frames,
         min_transfer_frames: binding.period_frames,
         max_transfer_frames: binding.period_frames,
-        timestamp_ns: context.runtime().time.mono_nanos(),
+        timestamp_ns: context.world().clock().mono_nanos(),
     }
 }
 

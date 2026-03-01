@@ -20,7 +20,7 @@ pub struct HostPollOutcome {
 }
 
 /// Shared host contract for runtime integrations.
-pub trait Host: std::fmt::Debug + Send + Sync {
+pub trait HostAdapter: std::fmt::Debug + Send + Sync {
     /// Return the host platform for this host.
     fn platform(&self) -> HostPlatform;
 

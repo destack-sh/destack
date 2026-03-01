@@ -8,7 +8,7 @@ use super::abi::{
 };
 use super::bindings::AndroidHostBindings;
 use crate::host::HostPlatform;
-use crate::host::core::host_bridge_for_runtime;
+use crate::host::core::host_state_for_runtime;
 
 /// Shared Android bindings registry state.
 #[derive(Debug, Default)]
@@ -25,9 +25,9 @@ fn android_bindings_registry() -> &'static RwLock<AndroidBindingsRegistryState> 
     ANDROID_BINDINGS_REGISTRY.get_or_init(|| RwLock::new(AndroidBindingsRegistryState::default()))
 }
 
-/// Return whether one runtime id currently resolves to one Android host bridge.
+/// Return whether one runtime id currently resolves to one Android host state.
 fn has_android_host_bridge(runtime_id: u64) -> bool {
-    host_bridge_for_runtime(runtime_id, HostPlatform::Android).is_ok()
+    host_state_for_runtime(runtime_id, HostPlatform::Android).is_ok()
 }
 
 /// Register one runtime-scoped Android bindings payload.
@@ -56,7 +56,7 @@ pub(crate) fn unregister_android_bindings(runtime_id: u64) {
 
 /// Resolve one runtime-scoped Android bindings snapshot.
 pub(crate) fn resolve_android_bindings(runtime_id: u64) -> Result<AndroidHostBindings, u32> {
-    // drop stale entries when the runtime bridge is already gone
+    // drop stale entries when the runtime state is already gone
     if !has_android_host_bridge(runtime_id) {
         let mut registry = android_bindings_registry().write();
         registry.bindings_by_runtime_id.remove(&runtime_id);

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use destack_workspace::{
     DsConfigRuntimeOptionsJson, ExecutionModeJson, GcLoggingJson, GcOptionsJson, RandomModeJson,
-    RandomOptionsJson, ReplayLogOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
+    RandomOptionsJson, ReplayOptionsJson, RuntimeAccessJson, RuntimeWorldJson,
     SchedulerOptionsJson, SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
 };
 
@@ -22,17 +22,17 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-access", value_enum)]
     pub access: Option<RuntimeAccessArg>,
 
-    /// Replay log path (file or directory).
-    #[arg(long = "runtime-replay-log")]
-    pub replay_log_path: Option<PathBuf>,
+    /// Replay path (file or directory).
+    #[arg(long = "runtime-replay-path")]
+    pub replay_path: Option<PathBuf>,
 
     /// Replay log filename template.
     #[arg(long = "runtime-replay-template")]
-    pub replay_log_template: Option<String>,
+    pub replay_template: Option<String>,
 
     /// Replay log chunk size in megabytes.
     #[arg(long = "runtime-replay-chunk-mb")]
-    pub replay_log_chunk_mb: Option<u64>,
+    pub replay_chunk_mb: Option<u64>,
 
     /// Runtime time mode.
     #[arg(long = "runtime-time-mode", value_enum)]
@@ -137,9 +137,9 @@ impl RuntimeArgs {
         self.execution_mode.is_none()
             && self.world.is_none()
             && self.access.is_none()
-            && self.replay_log_path.is_none()
-            && self.replay_log_template.is_none()
-            && self.replay_log_chunk_mb.is_none()
+            && self.replay_path.is_none()
+            && self.replay_template.is_none()
+            && self.replay_chunk_mb.is_none()
             && self.time_mode.is_none()
             && self.time_epoch_ns.is_none()
             && self.time_tick_ns.is_none()
@@ -172,17 +172,17 @@ impl RuntimeArgs {
             return None;
         }
 
-        let replay_log = if self.replay_log_path.is_some()
-            || self.replay_log_template.is_some()
-            || self.replay_log_chunk_mb.is_some()
+        let replay = if self.replay_path.is_some()
+            || self.replay_template.is_some()
+            || self.replay_chunk_mb.is_some()
         {
-            Some(ReplayLogOptionsJson {
+            Some(ReplayOptionsJson {
                 path: self
-                    .replay_log_path
+                    .replay_path
                     .as_ref()
                     .map(|path| path.to_string_lossy().into()),
-                template: self.replay_log_template.clone(),
-                chunk_size_mb: self.replay_log_chunk_mb,
+                template: self.replay_template.clone(),
+                chunk_size_mb: self.replay_chunk_mb,
                 payload: None,
             })
         } else {
@@ -272,12 +272,11 @@ impl RuntimeArgs {
             execution: self.execution_mode.map(Into::into),
             world: self.world.map(Into::into),
             access: self.access.map(Into::into),
-            replay_log,
+            replay,
             time,
             random,
             scheduler,
             gc,
-            rules: None,
             platform: None,
             ..Default::default()
         })

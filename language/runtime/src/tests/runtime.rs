@@ -11,13 +11,13 @@ use crate::platform::random::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{PlatformContext, PlatformError};
-use crate::runtime::{BindingCallContext, Runtime, RuntimeState, enter_binding_call_context};
+use crate::runtime::{Agent, BindingCallContext, RuntimeContext, enter_binding_call_context};
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
 pub(crate) struct TestRuntime {
-    /// Runtime under test.
-    pub runtime: Runtime,
+    /// Agent under test.
+    pub agent: Agent,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
 }
@@ -67,18 +67,18 @@ impl TestRuntime {
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
-        let state = Arc::new(RuntimeState::from_options(
+        let state = Arc::new(RuntimeContext::from_options(
             PlatformContext::new(Vec::new()),
             &options,
         ));
-        let runtime = Runtime::new(state);
+        let agent = Agent::new(state);
 
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
         let vm_isolate = vm::Isolate::new(tree, strings).expect("test vm isolate should build");
 
         Self {
-            runtime,
+            agent,
             vm_isolate: std::cell::RefCell::new(vm_isolate),
         }
     }
@@ -90,9 +90,9 @@ impl TestRuntime {
     ) -> T {
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
-            &self.runtime.state,
-            self.runtime.event_loop.as_ref(),
-            self.runtime.bindings.policy_snapshot(),
+            &self.agent.state,
+            self.agent.event_loop.as_ref(),
+            self.agent.bindings.policy_snapshot(),
         );
         let _guard = enter_binding_call_context(&call_context);
 
@@ -109,9 +109,9 @@ impl TestRuntime {
         let mut isolate = self.vm_isolate.borrow_mut();
         isolate.with_runtime_context(|context| {
             let call_context = BindingCallContext::new(
-                &self.runtime.state,
-                self.runtime.event_loop.as_ref(),
-                self.runtime.bindings.policy_snapshot(),
+                &self.agent.state,
+                self.agent.event_loop.as_ref(),
+                self.agent.bindings.policy_snapshot(),
             );
             let _guard = enter_binding_call_context(&call_context);
             run(&call_context, context)
@@ -159,7 +159,7 @@ impl TestRuntime {
 
         // take the stored runtime error
         let error_id = RuntimeErrorId::from_raw(status.error_id);
-        let error = self.runtime.state.errors.take(error_id).unwrap_or_else(|| {
+        let error = self.agent.state.errors.take(error_id).unwrap_or_else(|| {
             RuntimeError::from(PlatformError::io(format!(
                 "{label} failed with missing runtime error",
             )))
@@ -173,7 +173,7 @@ impl TestRuntime {
     #[cfg(unix)]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         let fd = self
-            .runtime
+            .agent
             .state
             .resources
             .with_entry(handle.0, |entry| {
@@ -212,7 +212,7 @@ impl TestRuntime {
         };
 
         let socket = self
-            .runtime
+            .agent
             .state
             .resources
             .with_entry(handle.0, |entry| {

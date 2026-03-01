@@ -5,7 +5,7 @@ use crate::platform::random::{
 };
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::{BindingCallContext, RuntimeHookState};
+use crate::runtime::{BindingCallContext, HookState};
 use destack_vm as vm;
 
 /// Convert a platform stream handle into a runtime stream id.
@@ -20,10 +20,10 @@ fn stream_handle(stream_id: RandomStreamId) -> RandomStream {
 
 /// Record one random read hook for runtime hooks.
 fn on_random_read(runtime: &BindingCallContext, stream_id: Option<RandomStreamId>) {
-    runtime.hooks().on_random_read(RuntimeHookState {
+    runtime.hooks().on_random_read(HookState {
         engine: Some(runtime.engine()),
         random_stream_id: stream_id,
-        ..RuntimeHookState::empty()
+        ..HookState::empty()
     });
 }
 
@@ -203,8 +203,8 @@ pub(crate) fn destack_random_fill_bytes(
     // fill bytes from the runtime stream for this call context
     let stream_id = runtime.random_stream_id();
     runtime
-        .runtime()
-        .random
+        .world()
+        .random()
         .fill_stream_bytes(stream_id, &mut bytes);
 
     // write the filled bytes back into the VM buffer
@@ -241,8 +241,8 @@ pub(crate) fn destack_random_fill_bytes_from(
 
     // fill bytes from the requested runtime stream
     runtime
-        .runtime()
-        .random
+        .world()
+        .random()
         .fill_stream_bytes(stream_id(stream), &mut bytes);
 
     // write the filled bytes back into the VM buffer
@@ -304,10 +304,10 @@ pub(crate) fn destack_random_stream_in(
 ) -> RuntimeResult<RandomStream> {
     // allocate the stream by domain
     let stream_id = match domain {
-        RandomStreamDomain::Process => runtime.runtime().random.new_stream_id(),
+        RandomStreamDomain::Process => runtime.world().random().new_stream_id(),
         RandomStreamDomain::Task => runtime
-            .runtime()
-            .random
+            .world()
+            .random()
             .split_stream(runtime.random_stream_id()),
     };
     Ok(stream_handle(stream_id))
@@ -338,8 +338,8 @@ pub(crate) fn destack_random_stream_jump(
 ) -> RuntimeResult<()> {
     // advance the deterministic stream state
     runtime
-        .runtime()
-        .random
+        .world()
+        .random()
         .jump_stream(stream_id(stream), jump);
 
     Ok(())
@@ -369,7 +369,7 @@ pub(crate) fn destack_random_next_u64(
     on_random_read(runtime, Some(runtime.random_stream_id()));
 
     let stream_id = runtime.random_stream_id();
-    let value = runtime.runtime().random.next_stream_u64(stream_id);
+    let value = runtime.world().random().next_stream_u64(stream_id);
 
     Ok(value)
 }
@@ -398,7 +398,7 @@ pub(crate) fn destack_random_next_u64_from(
 ) -> RuntimeResult<u64> {
     on_random_read(runtime, Some(stream_id(stream)));
 
-    let value = runtime.runtime().random.next_stream_u64(stream_id(stream));
+    let value = runtime.world().random().next_stream_u64(stream_id(stream));
 
     Ok(value)
 }
@@ -425,7 +425,7 @@ pub(crate) fn destack_random_stream_split(
     _context: &mut vm::ExternalCallContext<'_>,
     parent: RandomStream,
 ) -> RuntimeResult<RandomStream> {
-    let child_stream_id = runtime.runtime().random.split_stream(stream_id(parent));
+    let child_stream_id = runtime.world().random().split_stream(stream_id(parent));
     Ok(stream_handle(child_stream_id))
 }
 
@@ -450,6 +450,6 @@ pub(crate) fn destack_random_stream(
     runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<RandomStream> {
-    let stream_id = runtime.runtime().random.new_stream_id();
+    let stream_id = runtime.world().random().new_stream_id();
     Ok(stream_handle(stream_id))
 }

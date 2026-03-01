@@ -2,108 +2,48 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::diagnostic::RuntimeErrorStore;
-use crate::host::HostRuntime;
+use crate::host::Host;
 use crate::platform::{PlatformContext, ResourceTable};
-use crate::runtime::RuntimeHooks;
+use crate::runtime::Hooks;
 use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::policy::Policy;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::time::{Clock, HostClockSource};
-use crate::simulation::{SharedSimulationState, SimulationState};
+use crate::runtime::world::World;
 use destack_workspace::{
-    ExecutionMode, GcOptions, PlatformAudioOptions, PlatformCryptoOptions, PlatformDebugOptions,
-    PlatformDeviceOptions, PlatformDisplayOptions, PlatformErrorOptions, PlatformFfiOptions,
-    PlatformFsOptions, PlatformGpuOptions, PlatformInputOptions, PlatformIoOptions,
-    PlatformIpcOptions, PlatformMemoryOptions, PlatformNetOptions, PlatformOptions,
-    PlatformOsOptions, PlatformProcessOptions, PlatformResourceOptions, PlatformSecurityOptions,
-    PlatformThreadOptions, PlatformTlsOptions, PlatformTtyOptions, RandomMode, ReplayLogOptions,
-    ReplayPayloadMode, RuntimeOptions, TimeMode,
+    ExecutionMode, RandomMode, ReplayOptions, ReplayPayloadMode, RuntimeOptions, TimeMode,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
-/// Global runtime-state id sequence for stable per-runtime identity.
-static NEXT_RUNTIME_STATE_ID: AtomicU64 = AtomicU64::new(1);
-
-/// Resolved module runtime options for the current compile target.
-#[derive(Debug, Clone)]
-pub struct ResolvedModuleOptions {
-    /// Filesystem module options for this runtime target.
-    pub fs: PlatformFsOptions,
-    /// Network module options for this runtime target.
-    pub net: PlatformNetOptions,
-    /// Process module options for this runtime target.
-    pub process: PlatformProcessOptions,
-    /// Audio module options for this runtime target.
-    pub audio: PlatformAudioOptions,
-    /// Input module options for this runtime target.
-    pub input: PlatformInputOptions,
-    /// GPU module options for this runtime target.
-    pub gpu: PlatformGpuOptions,
-    /// TLS module options for this runtime target.
-    pub tls: PlatformTlsOptions,
-    /// Security module options for this runtime target.
-    pub security: PlatformSecurityOptions,
-    /// OS service module options for this runtime target.
-    pub os: PlatformOsOptions,
-    /// Device service module options for this runtime target.
-    pub device: PlatformDeviceOptions,
-    /// Crypto module options for this runtime target.
-    pub crypto: PlatformCryptoOptions,
-    /// Debug module options for this runtime target.
-    pub debug: PlatformDebugOptions,
-    /// Display module options for this runtime target.
-    pub display: PlatformDisplayOptions,
-    /// Error module options for this runtime target.
-    pub error: PlatformErrorOptions,
-    /// FFI module options for this runtime target.
-    pub ffi: PlatformFfiOptions,
-    /// I/O module options for this runtime target.
-    pub io: PlatformIoOptions,
-    /// IPC module options for this runtime target.
-    pub ipc: PlatformIpcOptions,
-    /// Memory module options for this runtime target.
-    pub memory: PlatformMemoryOptions,
-    /// Resource module options for this runtime target.
-    pub resource: PlatformResourceOptions,
-    /// Thread module options for this runtime target.
-    pub thread: PlatformThreadOptions,
-    /// TTY module options for this runtime target.
-    pub tty: PlatformTtyOptions,
-}
+/// Global agent id sequence for stable per-agent identity.
+static NEXT_AGENT_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Shared runtime state for platform bindings and execution.
 #[derive(Debug)]
-pub struct RuntimeState {
-    /// Monotonic process-local runtime identity.
-    pub instance_id: u64,
+pub struct RuntimeContext {
+    /// Monotonic process-local agent identity.
+    pub agent_id: u64,
     /// Platform context for host integrations.
     pub platform: PlatformContext,
-    /// Runtime GC options for heap policy.
-    pub gc: GcOptions,
-    /// Platform-specific runtime configuration options.
-    pub platform_options: PlatformOptions,
-    /// Resolved module options for the current compile target.
-    pub module_options: ResolvedModuleOptions,
-    /// Virtual time and clock policy.
-    pub time: Clock,
-    /// Deterministic randomness streams.
-    pub random: Random,
+    /// Immutable runtime options.
+    pub options: RuntimeOptions,
     /// External resource table and finalizers.
     pub resources: ResourceTable,
     /// Replay log and record/replay state.
     pub replay: ReplayController,
     /// Runtime hooks and effect state.
-    pub hooks: RuntimeHooks,
+    pub hooks: Hooks,
     /// Host integration state.
-    pub host: HostRuntime,
-    /// Simulation world state shared across simulation bindings.
-    pub simulation: SharedSimulationState,
+    pub host: Host,
+    /// Shared deterministic world for policy, simulation, clock, and randomness.
+    pub world: World,
     /// Runtime error storage for native bindings.
     pub errors: RuntimeErrorStore,
 }
 
-impl RuntimeState {
+impl RuntimeContext {
     /// Create runtime state from explicit platform context.
     pub fn new(platform: PlatformContext) -> Self {
         Self::from_options(platform, &RuntimeOptions::default())
@@ -112,8 +52,24 @@ impl RuntimeState {
     /// Create runtime state from runtime options.
     pub fn from_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
         let header = Self::replay_header_from_runtime_options(options);
-        Self::from_runtime_options_and_header_with_host_clock_source(
-            platform, options, header, None,
+        Self::from_runtime_options_and_header_with_host_clock_source_and_world(
+            platform, options, header, None, None,
+        )
+    }
+
+    /// Create runtime state from runtime options and one shared world.
+    pub fn from_options_in_world(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+        world: World,
+    ) -> Self {
+        let header = Self::replay_header_from_runtime_options(options);
+        Self::from_runtime_options_and_header_with_host_clock_source_and_world(
+            platform,
+            options,
+            header,
+            None,
+            Some(world),
         )
     }
 
@@ -125,11 +81,12 @@ impl RuntimeState {
         host_clock_source: Arc<dyn HostClockSource>,
     ) -> Self {
         let header = Self::replay_header_from_runtime_options(options);
-        Self::from_runtime_options_and_header_with_host_clock_source(
+        Self::from_runtime_options_and_header_with_host_clock_source_and_world(
             platform,
             options,
             header,
             Some(host_clock_source),
+            None,
         )
     }
 
@@ -145,8 +102,8 @@ impl RuntimeState {
             ..RuntimeOptions::default()
         };
 
-        Self::from_runtime_options_and_header_with_host_clock_source(
-            platform, &options, header, None,
+        Self::from_runtime_options_and_header_with_host_clock_source_and_world(
+            platform, &options, header, None, None,
         )
     }
 
@@ -156,17 +113,18 @@ impl RuntimeState {
         options: &RuntimeOptions,
         header: ReplayHeader,
     ) -> Self {
-        Self::from_runtime_options_and_header_with_host_clock_source(
-            platform, options, header, None,
+        Self::from_runtime_options_and_header_with_host_clock_source_and_world(
+            platform, options, header, None, None,
         )
     }
 
-    /// Create runtime state from options, header, and optional host clock source.
-    fn from_runtime_options_and_header_with_host_clock_source(
+    /// Create runtime state from options, header, and optional host clock source and world.
+    fn from_runtime_options_and_header_with_host_clock_source_and_world(
         platform: PlatformContext,
         options: &RuntimeOptions,
         header: ReplayHeader,
         host_clock_source: Option<Arc<dyn HostClockSource>>,
+        world: Option<World>,
     ) -> Self {
         // build runtime subsystems from options
         let replay_mode = options.execution == ExecutionMode::Replay;
@@ -181,42 +139,52 @@ impl RuntimeState {
             options.random.mode
         };
 
-        let time = if let Some(host_clock_source) = host_clock_source {
-            Clock::from_mode_and_options_with_host_clock_source(
-                resolved_time_mode,
-                &options.time,
-                host_clock_source,
-            )
-        } else {
-            Clock::from_mode_and_options(resolved_time_mode, &options.time)
-        };
-        let random = Random::new(options.random.seed.unwrap_or(0), resolved_random_mode);
         let execution_mode = options.execution;
         let replay_payload = if replay_mode {
             header.replay_payload
         } else {
             Self::resolved_replay_payload_from_options(options)
         };
+        let agent_id = NEXT_AGENT_ID.fetch_add(1, Ordering::Relaxed);
+        let (world, policy) = if let Some(world) = world {
+            let policy = world.policy();
+            (world, policy)
+        } else {
+            let clock = if let Some(host_clock_source) = host_clock_source {
+                Clock::from_mode_and_options_with_host_clock_source(
+                    resolved_time_mode,
+                    &options.time,
+                    host_clock_source,
+                )
+            } else {
+                Clock::from_mode_and_options(resolved_time_mode, &options.time)
+            };
+            let random = Random::new(options.random.seed.unwrap_or(0), resolved_random_mode);
+            let policy = Policy::from_workspace_policy_rules(&options.rules);
+            let world = World::for_runtime(policy.clone(), clock, random);
+            (world, policy)
+        };
 
         Self {
-            instance_id: NEXT_RUNTIME_STATE_ID.fetch_add(1, Ordering::Relaxed),
+            agent_id,
             platform,
-            gc: options.gc.clone(),
-            platform_options: options.platform.clone(),
-            module_options: ResolvedModuleOptions::from_runtime_options(options),
-            time,
-            random,
+            options: options.clone(),
             resources: ResourceTable::default(),
             replay: ReplayController::new(execution_mode, replay_payload, header),
-            hooks: RuntimeHooks::from_runtime_options(options),
-            host: HostRuntime::from_runtime_options(options),
-            simulation: SharedSimulationState::new(SimulationState::default()),
+            hooks: Hooks::from_runtime_options_and_policy_in_world(
+                options,
+                &policy,
+                world.clone(),
+                agent_id,
+            ),
+            host: Host::from_runtime_options(options),
+            world,
             errors: RuntimeErrorStore::default(),
         }
     }
 
     fn resolved_replay_payload_from_options(options: &RuntimeOptions) -> BindingReplayPayload {
-        match options.replay_log.payload {
+        match options.replay.payload {
             ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
         }
@@ -231,48 +199,19 @@ impl RuntimeState {
             ..ReplayHeader::default()
         };
 
-        // apply replay log chunk sizing
-        Self::apply_replay_log_overrides(&options.replay_log, &mut header);
+        // apply replay chunk sizing
+        Self::apply_replay_overrides(&options.replay, &mut header);
 
         header
     }
 
-    fn apply_replay_log_overrides(options: &ReplayLogOptions, header: &mut ReplayHeader) {
+    fn apply_replay_overrides(options: &ReplayOptions, header: &mut ReplayHeader) {
         // update chunk sizing from runtime options
         if let Some(chunk_size_mb) = options.chunk_size_mb {
             let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);
             if chunk_bytes > 0 {
                 header.max_chunk_bytes = chunk_bytes;
             }
-        }
-    }
-}
-
-impl ResolvedModuleOptions {
-    /// Resolve global module options for the current compile target.
-    fn from_runtime_options(options: &RuntimeOptions) -> Self {
-        Self {
-            fs: options.fs.clone(),
-            net: options.net.clone(),
-            process: options.process.clone(),
-            audio: options.audio.clone(),
-            input: options.input.clone(),
-            gpu: options.gpu.clone(),
-            tls: options.tls.clone(),
-            security: options.security.clone(),
-            os: options.os.clone(),
-            device: options.device.clone(),
-            crypto: options.crypto.clone(),
-            debug: options.debug.clone(),
-            display: options.display.clone(),
-            error: options.error.clone(),
-            ffi: options.ffi.clone(),
-            io: options.io.clone(),
-            ipc: options.ipc.clone(),
-            memory: options.memory.clone(),
-            resource: options.resource.clone(),
-            thread: options.thread.clone(),
-            tty: options.tty.clone(),
         }
     }
 }

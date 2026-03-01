@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_vm as vm;
 use destack_vm::Isolate;
+use parking_lot::RwLock;
 
 use crate::platform;
 use crate::runtime::bindings::{
@@ -10,22 +11,23 @@ use crate::runtime::bindings::{
     VmBindingSet,
 };
 use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::policy::Policy;
 use crate::runtime::scheduler::EventLoop;
-use crate::runtime::{BindingCallContext, RuntimeState, enter_binding_call_context};
+use crate::runtime::{BindingCallContext, RuntimeContext, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
 
 /// Raw pointers captured for binding calls.
 #[derive(Debug, Clone, Copy)]
 struct BindingRuntimeHandle {
     /// Pointer to the shared runtime state.
-    runtime: *const RuntimeState,
+    runtime: *const RuntimeContext,
     /// Pointer to the event loop instance.
     event_loop: *const EventLoop,
 }
 
 impl BindingRuntimeHandle {
     /// Return the runtime state pointer.
-    pub(crate) const fn runtime_ptr(self) -> *const RuntimeState {
+    pub(crate) const fn runtime_ptr(self) -> *const RuntimeContext {
         self.runtime
     }
 
@@ -52,7 +54,7 @@ pub struct BindingRegistry {
     /// Native binding metadata for linking.
     native_bindings: Vec<NativeBinding>,
     /// Policy configuration for external bindings.
-    policy: BindingPolicy,
+    policy: Arc<RwLock<BindingPolicy>>,
     /// Runtime handles for binding calls.
     binding_runtime_handles: Option<BindingRuntimeHandle>,
 }
@@ -66,38 +68,54 @@ impl BindingRegistry {
     /// Set the binding policy for this registry.
     pub fn set_policy(&mut self, policy: BindingPolicy) {
         // store the binding policy
-        self.policy = policy;
+        *self.policy.write() = policy;
 
         // compile policy lookups for currently registered descriptors
-        self.policy.compile_descriptors(&self.descriptors);
+        self.policy.write().compile_descriptors(&self.descriptors);
     }
 
     /// Get the binding policy for this registry.
     pub fn policy_snapshot(&self) -> BindingPolicy {
-        self.policy.clone()
+        self.policy.read().clone()
     }
 
     /// Apply runtime options to binding policy.
     pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
-        self.policy.apply_runtime_options(options);
-        self.policy.compile_descriptors(&self.descriptors);
+        let mut policy = self.policy.write();
+        policy.apply_runtime_options(options);
+        policy.compile_descriptors(&self.descriptors);
+    }
+
+    /// Apply runtime defaults to binding policy without loading control rules.
+    pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
+        let mut policy = self.policy.write();
+        policy.apply_runtime_defaults(options);
+        policy.compile_descriptors(&self.descriptors);
+    }
+
+    /// Apply runtime control rules to binding policy checks.
+    pub fn apply_runtime_policy(&mut self, control: &Policy) {
+        let mut policy = self.policy.write();
+        policy.apply_policy(control);
+        policy.compile_descriptors(&self.descriptors);
     }
 
     /// Apply a capability set to policy checks and recompile descriptor decisions.
     pub fn set_capabilities(&mut self, capabilities: PlatformCapabilitySet) {
-        self.policy.set_capabilities(capabilities);
-        self.policy.compile_descriptors(&self.descriptors);
+        let mut policy = self.policy.write();
+        policy.set_capabilities(capabilities);
+        policy.compile_descriptors(&self.descriptors);
     }
 
     /// Set capability requirement enforcement mode and recompile descriptor decisions.
     pub fn set_capability_requirements_enforced(&mut self, is_enforced: bool) {
-        self.policy
-            .set_capability_requirements_enforced(is_enforced);
-        self.policy.compile_descriptors(&self.descriptors);
+        let mut policy = self.policy.write();
+        policy.set_capability_requirements_enforced(is_enforced);
+        policy.compile_descriptors(&self.descriptors);
     }
 
     /// Set runtime handles for binding calls.
-    pub fn set_runtime_handles(&mut self, runtime: &Arc<RuntimeState>, event_loop: &EventLoop) {
+    pub fn set_runtime_handles(&mut self, runtime: &Arc<RuntimeContext>, event_loop: &EventLoop) {
         self.binding_runtime_handles = Some(BindingRuntimeHandle {
             runtime: Arc::as_ptr(runtime),
             event_loop: event_loop as *const EventLoop,
@@ -153,7 +171,7 @@ impl BindingRegistry {
         self.descriptors.push(binding.spec);
         self.native_by_id.insert(binding.spec.id, binding);
         self.native_bindings.push(binding);
-        self.policy.compile_descriptor(binding.spec);
+        self.policy.write().compile_descriptor(binding.spec);
     }
 
     /// Register a VM binding handler with metadata.
@@ -172,8 +190,8 @@ impl BindingRegistry {
             has_descriptor = true;
         }
 
-        // snapshot policy for the installed handler
-        let policy = Arc::new(self.policy.clone());
+        // capture one shared policy handle for live checks
+        let policy = Arc::clone(&self.policy);
         let handles = self.binding_runtime_handles.unwrap_or_else(|| {
             panic!(
                 "binding registry missing runtime handles for {}",
@@ -184,11 +202,13 @@ impl BindingRegistry {
         // NOTE #Incomplete: serialize args/results for replay payloads
         // register the external handler with policy enforcement
         isolate.register_vm_binding(descriptor.name, move |context, args| {
-            policy.check_for_engine(descriptor, Some(BindingEngine::Vm))?;
+            policy
+                .read()
+                .check_for_engine(descriptor, Some(BindingEngine::Vm))?;
             let call_context = BindingCallContext::from_raw(
                 handles.runtime_ptr(),
                 handles.event_loop_ptr(),
-                policy.clone(),
+                Arc::clone(&policy),
                 BindingEngine::Vm,
             );
             let _guard = enter_binding_call_context(&call_context);
@@ -199,7 +219,7 @@ impl BindingRegistry {
         if !has_descriptor {
             self.descriptor_by_id.insert(descriptor.id, descriptor);
             self.descriptors.push(descriptor);
-            self.policy.compile_descriptor(descriptor);
+            self.policy.write().compile_descriptor(descriptor);
         }
     }
 

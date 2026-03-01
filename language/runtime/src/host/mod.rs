@@ -52,9 +52,9 @@ mod unsupported;
 mod windows;
 
 pub use core::{
-    Host, HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
-    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPlatform,
-    HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostRuntime, HostState, HostThermalEvent,
+    Host, HostAdapter, HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent,
+    HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent,
+    HostPlatform, HostPollOutcome, HostPowerMode, HostPowerModeEvent, HostState, HostThermalEvent,
     HostThermalState, HostWallClockEvent, HostWindowEvent, HostWindowFocusEvent, default_host,
 };
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostBridge, HostPlatform, HostWindowEvent, host_bridge_for_runtime};
+use crate::host::core::{HostPlatform, HostState, HostWindowEvent, host_state_for_runtime};
 use crate::host::{HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 /// Android activity lifecycle transitions from native callbacks.
@@ -21,9 +21,9 @@ pub enum AndroidActivityLifecycle {
     Destroyed,
 }
 
-/// Return the active Android host bridge for this process.
-fn android_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostBridge>> {
-    host_bridge_for_runtime(runtime_id, HostPlatform::Android)
+/// Return the active Android host state for this process.
+fn android_host_bridge(runtime_id: u64) -> RuntimeResult<Arc<HostState>> {
+    host_state_for_runtime(runtime_id, HostPlatform::Android)
 }
 
 /// Submit one Android activity lifecycle callback.
@@ -90,9 +90,7 @@ pub fn android_notify_permission_request_in_flight(
     is_in_flight: bool,
 ) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
-    bridge
-        .state()
-        .set_permission_request_in_flight(permission, is_in_flight);
+    bridge.set_permission_request_in_flight(permission, is_in_flight);
 
     Ok(())
 }

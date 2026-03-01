@@ -2,30 +2,27 @@ use std::sync::Arc;
 
 use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
-use super::adapter::{Host, HostPlatform, HostPollOutcome};
+use super::adapter::{HostAdapter, HostPlatform, HostPollOutcome};
 use super::event::HostEvent;
 use super::select::{compile_target_host_platform, default_host};
-use super::state::HostState;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::HostPollerWakeHandle;
 
 /// Runtime host integration container.
 #[derive(Clone)]
-pub struct HostRuntime {
+pub struct Host {
     /// Active host implementation for this runtime instance.
-    host: Arc<dyn Host>,
+    adapter: Arc<dyn HostAdapter>,
     /// Host capability set reported by the host implementation.
     host_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
-    /// Host state service for this runtime target.
-    state: Arc<HostState>,
 }
 
-impl std::fmt::Debug for HostRuntime {
+impl std::fmt::Debug for Host {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HostRuntime")
+        f.debug_struct("Host")
             .field("platform", &self.platform())
             .field("host_capability_count", &self.host_capabilities.len())
             .field(
@@ -53,23 +50,24 @@ impl std::fmt::Debug for HostRuntime {
     }
 }
 
-impl HostRuntime {
+impl Host {
     /// Create one host runtime from one explicit host.
-    pub fn new(host: Arc<dyn Host>) -> Self {
-        Self::new_with_options(host, PlatformHostOptions::default())
+    pub fn new(adapter: Arc<dyn HostAdapter>) -> Self {
+        Self::new_with_options(adapter, PlatformHostOptions::default())
     }
 
     /// Create one host runtime from one explicit host and host options.
-    pub fn new_with_options(host: Arc<dyn Host>, host_options: PlatformHostOptions) -> Self {
-        host.configure_host_options(&host_options);
-        let host_capabilities = host.host_capabilities();
-        let state = Arc::clone(host.state());
+    pub fn new_with_options(
+        adapter: Arc<dyn HostAdapter>,
+        host_options: PlatformHostOptions,
+    ) -> Self {
+        adapter.configure_host_options(&host_options);
+        let host_capabilities = adapter.host_capabilities();
 
         Self {
-            host,
+            adapter,
             host_capabilities,
             host_options,
-            state,
         }
     }
 
@@ -84,12 +82,12 @@ impl HostRuntime {
 
     /// Return the active host platform.
     pub fn platform(&self) -> HostPlatform {
-        self.host.platform()
+        self.adapter.platform()
     }
 
     /// Return the active host implementation.
-    pub fn host(&self) -> &Arc<dyn Host> {
-        &self.host
+    pub fn adapter(&self) -> &Arc<dyn HostAdapter> {
+        &self.adapter
     }
 
     /// Return host platform capabilities reported by this runtime target.
@@ -119,14 +117,9 @@ impl HostRuntime {
         self.host_capabilities.contains_capability(capability)
     }
 
-    /// Return host state service for this runtime target.
-    pub fn state(&self) -> &Arc<HostState> {
-        &self.state
-    }
-
     /// Poll host events using the active host.
     pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
-        let poll_result = self.host.poll_events(timeout_nanos)?;
+        let poll_result = self.adapter.poll_events(timeout_nanos)?;
         let events = filter_events(poll_result.events, &self.host_options);
 
         Ok(HostPollOutcome {
@@ -137,16 +130,16 @@ impl HostRuntime {
 
     /// Return one shared host wake handle when supported.
     pub fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
-        self.host.wake_handle()
+        self.adapter.wake_handle()
     }
 
     /// Return the callback runtime id for native host callback routing.
     pub fn callback_runtime_id(&self) -> Option<u64> {
-        self.host.callback_runtime_id()
+        self.adapter.callback_runtime_id()
     }
 }
 
-impl Default for HostRuntime {
+impl Default for Host {
     fn default() -> Self {
         Self::new(default_host())
     }

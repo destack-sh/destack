@@ -70,8 +70,8 @@ impl ResourceFinalizer for UnixDescriptorFinalizer {
 #[cfg(all(unix, not(target_os = "linux")))]
 #[derive(Debug)]
 struct UnixEventPipeFinalizer {
-    /// Runtime identity key used for descriptor-map routing.
-    runtime_key: usize,
+    /// Agent identity key used for descriptor-map routing.
+    agent_key: usize,
     /// Read descriptor stored in the runtime resource table.
     read_descriptor: c_int,
     /// Write descriptor used for event signal writes.
@@ -82,7 +82,7 @@ struct UnixEventPipeFinalizer {
 impl ResourceFinalizer for UnixEventPipeFinalizer {
     /// Clear descriptor routing state and close one pipe descriptor pair.
     fn finalize(self: Box<Self>, resource_id: ResourceId) {
-        let descriptor_key = (self.runtime_key, resource_id);
+        let descriptor_key = (self.agent_key, resource_id);
         event_signal_descriptor_map().lock().remove(&descriptor_key);
 
         unsafe {
@@ -99,13 +99,13 @@ fn event_signal_descriptor_map() -> &'static Mutex<HashMap<(usize, ResourceId), 
     DESCRIPTORS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Return the descriptor-map key for one event token in one runtime instance.
+/// Return the descriptor-map key for one event token in one agent.
 #[cfg(all(unix, not(target_os = "linux")))]
 fn event_signal_descriptor_key(
     context: &BindingCallContext,
     token: EventToken,
 ) -> (usize, ResourceId) {
-    (io_core::runtime_instance_key(context), ResourceId(token.0))
+    (io_core::agent_key(context), ResourceId(token.0))
 }
 
 /// Create one nonblocking close-on-exec pipe pair for events.
@@ -518,12 +518,12 @@ pub(crate) fn host_event_open(
         }
 
         // store one runtime event token resource
-        let runtime_key = io_core::runtime_instance_key(context);
+        let agent_key = io_core::agent_key(context);
         let entry = ResourceEntry::new(ResourceKind::Event)
             .with_label(io_core::EVENT_RESOURCE_LABEL)
             .with_fd(read_descriptor)
             .with_finalizer(UnixEventPipeFinalizer {
-                runtime_key,
+                agent_key,
                 read_descriptor,
                 write_descriptor,
             });

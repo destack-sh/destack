@@ -2,57 +2,29 @@ use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingEffect, BindingEffectClass, BindingEngine,
     BindingScope,
 };
+use crate::runtime::policy::Selector;
 use destack_source::matches as glob_matches;
-use destack_workspace::{ExecutionMode, RuntimeFilter};
+use destack_workspace::ExecutionMode;
 
 /// Match one binding descriptor against one runtime filter.
-pub(crate) fn matches_runtime_filter(
-    filter: &RuntimeFilter,
+pub(crate) fn matches_selector(
+    filter: &Selector,
     descriptor: Option<BindingDescriptor>,
     mode: ExecutionMode,
     engine: Option<BindingEngine>,
+    agent_id: Option<u64>,
 ) -> bool {
     // descriptor-aware filters require a binding descriptor
     if descriptor.is_none() && filter_has_binding_clauses(filter) {
         return false;
     }
-    let descriptor = descriptor.unwrap_or_else(|| {
-        unreachable!("descriptor-aware filters must have returned false before this point")
-    });
 
-    // match binding name glob
-    if let Some(pattern) = &filter.binding
-        && !glob_match(pattern, descriptor.name)
-    {
-        return false;
-    }
-
-    // match module name glob
-    if let Some(pattern) = &filter.module {
-        let module_name = descriptor
-            .name
-            .strip_prefix("destack.")
-            .unwrap_or(descriptor.name);
-        if !glob_match(pattern, module_name) {
+    // match agent selector when present
+    if let Some(agent_ids) = &filter.agent_ids {
+        let Some(agent_id) = agent_id else {
             return false;
-        }
-    }
-
-    // match component name glob
-    if let Some(pattern) = &filter.component {
-        let component_name = binding_component_name(descriptor.name);
-        if !glob_match(pattern, component_name) {
-            return false;
-        }
-    }
-
-    // match any required capability
-    if let Some(pattern) = &filter.capability {
-        let has_match = descriptor
-            .requires()
-            .iter()
-            .any(|capability| glob_match(pattern, capability));
-        if !has_match {
+        };
+        if !agent_ids.contains(&agent_id) {
             return false;
         }
     }
@@ -86,32 +58,72 @@ pub(crate) fn matches_runtime_filter(
         }
     }
 
-    // match binding scope selector when present
-    if let Some(scope) = filter.scope
-        && !matches_scope(scope, descriptor.scope())
-    {
-        return false;
-    }
+    // match descriptor-aware selectors when descriptor is available
+    if let Some(descriptor) = descriptor {
+        // match binding name glob
+        if let Some(pattern) = &filter.binding
+            && !glob_match(pattern, descriptor.name)
+        {
+            return false;
+        }
 
-    // match blocking selector when present
-    if let Some(blocking) = filter.blocking
-        && !matches_blocking(blocking, descriptor.blocking())
-    {
-        return false;
-    }
+        // match module name glob
+        if let Some(pattern) = &filter.module {
+            let module_name = descriptor
+                .name
+                .strip_prefix("destack.")
+                .unwrap_or(descriptor.name);
+            if !glob_match(pattern, module_name) {
+                return false;
+            }
+        }
 
-    // match effect selector when present
-    if let Some(effect) = filter.effect
-        && !matches_effect(effect, descriptor.effect_class)
-    {
-        return false;
+        // match component name glob
+        if let Some(pattern) = &filter.component {
+            let component_name = binding_component_name(descriptor.name);
+            if !glob_match(pattern, component_name) {
+                return false;
+            }
+        }
+
+        // match any required capability
+        if let Some(pattern) = &filter.capability {
+            let has_match = descriptor
+                .requires()
+                .iter()
+                .any(|capability| glob_match(pattern, capability));
+            if !has_match {
+                return false;
+            }
+        }
+
+        // match binding scope selector when present
+        if let Some(scope) = filter.scope
+            && !matches_scope(scope, descriptor.scope())
+        {
+            return false;
+        }
+
+        // match blocking selector when present
+        if let Some(blocking) = filter.blocking
+            && !matches_blocking(blocking, descriptor.blocking())
+        {
+            return false;
+        }
+
+        // match effect selector when present
+        if let Some(effect) = filter.effect
+            && !matches_effect(effect, descriptor.effect_class)
+        {
+            return false;
+        }
     }
 
     true
 }
 
 /// Return true when a filter depends on descriptor fields.
-fn filter_has_binding_clauses(filter: &RuntimeFilter) -> bool {
+fn filter_has_binding_clauses(filter: &Selector) -> bool {
     filter.binding.is_some()
         || filter.capability.is_some()
         || filter.component.is_some()

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::host::core::{HostBridge, HostBridgeRegistration, HostState, register_host_bridge};
+use crate::host::core::{HostState, HostStateRegistration, register_host_state};
 use crate::host::{
     AndroidHostBindings, AndroidHostCredentialsCallbacks, AndroidHostCryptoCallbacks, HostPlatform,
     destack_host_android_register_bindings,
@@ -13,14 +13,13 @@ pub(crate) fn callback_test_lock() -> &'static Mutex<()> {
     TEST_LOCK.get_or_init(|| Mutex::new(()))
 }
 
-/// Register one temporary Android bridge and keep registration state alive.
-pub(crate) fn register_android_runtime() -> (Arc<HostBridge>, HostBridgeRegistration, u64) {
+/// Register one temporary Android host state and keep registration state alive.
+pub(crate) fn register_android_runtime() -> (Arc<HostState>, HostStateRegistration, u64) {
     let state = Arc::new(HostState::new());
-    let bridge = Arc::new(HostBridge::new(state));
-    let registration = register_host_bridge(HostPlatform::Android, &bridge);
+    let registration = register_host_state(HostPlatform::Android, &state);
     let runtime_id = registration.runtime_id();
 
-    (bridge, registration, runtime_id)
+    (state, registration, runtime_id)
 }
 
 /// Register one runtime-scoped Android host bindings payload.

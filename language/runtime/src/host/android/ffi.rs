@@ -42,7 +42,7 @@ pub(super) const ANDROID_POWER_MODE_NORMAL: u32 = 0;
 /// Android power mode code for low power state.
 pub(super) const ANDROID_POWER_MODE_LOW_POWER: u32 = 1;
 
-/// Notify the runtime host bridge about one Android activity lifecycle transition.
+/// Notify the runtime host state about one Android activity lifecycle transition.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_activity_lifecycle(
     runtime_id: u64,
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn destack_host_android_notify_activity_lifecycle(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that one Android window became available.
+/// Notify the runtime host state that one Android window became available.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_available(
     runtime_id: u64,
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn destack_host_android_notify_window_available(
     runtime_status(android_notify_window_available(runtime_id, window_id))
 }
 
-/// Notify the runtime host bridge that one Android window terminated.
+/// Notify the runtime host state that one Android window terminated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_terminated(
     runtime_id: u64,
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn destack_host_android_notify_window_terminated(
     runtime_status(android_notify_window_terminated(runtime_id, window_id))
 }
 
-/// Notify the runtime host bridge that one Android window resized.
+/// Notify the runtime host state that one Android window resized.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_resized(
     runtime_id: u64,
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn destack_host_android_notify_window_resized(
     ))
 }
 
-/// Notify the runtime host bridge that one Android window focus changed.
+/// Notify the runtime host state that one Android window focus changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_window_focus_changed(
     runtime_id: u64,
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn destack_host_android_notify_window_focus_changed(
     ))
 }
 
-/// Notify the runtime host bridge that one Android permission request changed state.
+/// Notify the runtime host state that one Android permission request changed state.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_permission_request_in_flight(
     runtime_id: u64,
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn destack_host_android_notify_permission_request_in_fligh
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge with one Android permission result.
+/// Notify the runtime host state with one Android permission result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_permission_result(
     runtime_id: u64,
@@ -125,7 +125,7 @@ pub unsafe extern "C" fn destack_host_android_notify_permission_result(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that interruption state changed.
+/// Notify the runtime host state that interruption state changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_interruption_changed(
     runtime_id: u64,
@@ -134,7 +134,7 @@ pub unsafe extern "C" fn destack_host_android_notify_interruption_changed(
     runtime_status(android_notify_interruption_changed(runtime_id, interrupted))
 }
 
-/// Notify the runtime host bridge that memory pressure changed.
+/// Notify the runtime host state that memory pressure changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_memory_pressure_changed(
     runtime_id: u64,
@@ -146,7 +146,7 @@ pub unsafe extern "C" fn destack_host_android_notify_memory_pressure_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that thermal state changed.
+/// Notify the runtime host state that thermal state changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_thermal_state_changed(
     runtime_id: u64,
@@ -158,7 +158,7 @@ pub unsafe extern "C" fn destack_host_android_notify_thermal_state_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that power mode changed.
+/// Notify the runtime host state that power mode changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_power_mode_changed(
     runtime_id: u64,
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn destack_host_android_notify_power_mode_changed(
     runtime_status(result)
 }
 
-/// Notify the runtime host bridge that wall clock changed.
+/// Notify the runtime host state that wall clock changed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_wall_clock_changed(
     runtime_id: u64,
