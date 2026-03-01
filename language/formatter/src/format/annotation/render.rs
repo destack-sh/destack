@@ -24,6 +24,7 @@ pub enum AnnotationCapture {
 
     AnyPrefix,
     AnyPostfix,
+    AnyPostfixExceptLinePostfixBoundary,
     AnyInfixOrPostfix,
     AnyInfixOrPostfixExceptLinePostfixBoundary,
     DeclarationPrefix,
@@ -1013,6 +1014,18 @@ impl<'ast> DestackFormatContext<'ast> {
         }
     }
 
+    /// Format the line and block postfix annotations for a node, excluding line boundary comments.
+    #[inline]
+    pub fn any_postfix_except_line_postfix_boundary_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::AnyPostfixExceptLinePostfixBoundary,
+            node_id,
+        }
+    }
+
     /// Format the line and block infix or postfix annotations for a node.
     #[inline]
     pub fn any_infix_or_postfix_annotations<T: Node>(
@@ -1098,6 +1111,7 @@ pub(crate) fn annotation_capture_includes_position(
             capture,
             AnnotationCapture::BlockPostfix
                 | AnnotationCapture::AnyPostfix
+                | AnnotationCapture::AnyPostfixExceptLinePostfixBoundary
                 | AnnotationCapture::AnyInfixOrPostfix
                 | AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary
         ),
@@ -1114,6 +1128,7 @@ pub(crate) fn annotation_capture_includes_position(
             capture,
             AnnotationCapture::LinePostfix
                 | AnnotationCapture::AnyPostfix
+                | AnnotationCapture::AnyPostfixExceptLinePostfixBoundary
                 | AnnotationCapture::AnyInfixOrPostfix
                 | AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary
         ),
@@ -1167,6 +1182,11 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
     annotation: Annotation,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
+    let position = annotation.position();
+    if !annotation_capture_includes_position(capture, position) {
+        return false;
+    }
+
     let node_raw_id = node_id.id;
     let is_delimited_interior_comment =
         annotation_is_delimited_interior_comment(context, annotation, annotation_id);
@@ -1250,7 +1270,7 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
             ) && !(T::TYPE == NodeType::Pattern && is_delimited_interior_comment)
         }
         AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary => {
-            annotation.position() != AnnotationPosition::LinePostfixBoundary
+            position != AnnotationPosition::LinePostfixBoundary
                 && !any_infix_or_postfix_skips_tagged_template_head_comment(
                     context,
                     LocalNodeId::<T>::new(node_raw_id),
@@ -1258,6 +1278,9 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
                     annotation_id,
                 )
                 && !(T::TYPE == NodeType::Pattern && is_delimited_interior_comment)
+        }
+        AnnotationCapture::AnyPostfixExceptLinePostfixBoundary => {
+            position != AnnotationPosition::LinePostfixBoundary
         }
         _ => true,
     }
@@ -1299,15 +1322,10 @@ where
             Annotation::Decorator { position, .. } => (NodeType::Decorator, position),
         };
 
-        if !annotation_capture_includes_position(capture, position) {
-            continue;
-        }
-
-        let node_id_for_capture = LocalNodeId::<T>::new(node_raw_id);
         if !annotation_is_included_for_capture(
             context,
             capture,
-            node_id_for_capture,
+            LocalNodeId::<T>::new(node_raw_id),
             annotation,
             annotation_id,
         ) {

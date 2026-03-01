@@ -1912,6 +1912,79 @@ fn test_format_comment_in_object() {
     );
 }
 
+/// Own-line comments inside empty object literals should stay object infix comments.
+#[test]
+fn test_annotation_empty_object_line_comment_stays_object_infix() {
+    let source = r#"func({
+  // empty-object-line-marker
+});"#;
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+        p.eat_expression(Default::default())
+    })
+    .expect("parse empty object line comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "empty-object-line-marker")
+        .expect("expected empty object line marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected empty object line marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    assert_eq!(
+        position,
+        AnnotationPosition::BlockInfix,
+        "owner={owner_node}, owner_type={owner_node_type:?}, position={position:?}"
+    );
+    assert!(
+        matches!(owner_node_type, NodeType::Argument | NodeType::Expression),
+        "expected empty object line marker owner to be argument or expression, got owner={owner_node}, owner_type={owner_node_type:?}"
+    );
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
+/// Own-line comments between a closing delimiter and comma should stay trailing boundary comments.
+#[test]
+fn test_annotation_closing_delimiter_comma_own_line_comment_is_line_postfix_boundary() {
+    let source = r#"foo(
+  {}
+  // closing-delimiter-comma-marker
+  ,
+)"#;
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+        p.eat_expression(Default::default())
+    })
+    .expect("parse closing delimiter comma comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "closing-delimiter-comma-marker")
+        .expect("expected closing delimiter comma marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected closing delimiter comma marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "owner={owner_node}, owner_type={owner_node_type:?}, position={position:?}"
+    );
+    assert!(
+        matches!(owner_node_type, NodeType::Argument | NodeType::Expression),
+        "expected closing delimiter comma marker owner to be argument or expression, got owner={owner_node}, owner_type={owner_node_type:?}"
+    );
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
 /// Format trailing comments on array elements to stay with the comma.
 #[test]
 fn test_format_trailing_comment_array() {

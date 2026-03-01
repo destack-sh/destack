@@ -224,20 +224,7 @@ pub(crate) fn previous_non_whitespace_token_before_span(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> Option<TokenSpan> {
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.end <= span.start);
-
-    while index > 0 {
-        index -= 1;
-        let token = tokens[index];
-        if is_ignored_span_neighbor_token(token.token.ty) {
-            continue;
-        }
-
-        return Some(token);
-    }
-
-    None
+    context.previous_non_whitespace_token_before_span(span)
 }
 
 /// Return the nearest non-whitespace token after one span.
@@ -245,23 +232,7 @@ pub(crate) fn next_non_whitespace_token_after_span(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> Option<TokenSpan> {
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-    while let Some(token) = tokens.get(index).copied() {
-        if is_ignored_span_neighbor_token(token.token.ty) {
-            index += 1;
-            continue;
-        }
-
-        if token.token.ty == TokenType::End {
-            return None;
-        }
-
-        return Some(token);
-    }
-
-    None
+    context.next_non_whitespace_token_after_span(span)
 }
 
 /// Return the Nth non-trivia token that intersects one span.

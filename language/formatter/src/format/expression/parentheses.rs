@@ -1179,17 +1179,7 @@ pub(crate) fn parenthesized_has_leading_type_cast_comment(
 
 /// Return whether one comment span is one doc-block comment token.
 fn comment_token_is_doc_block(context: &DestackFormatContext<'_>, comment_span: Span) -> bool {
-    let comment_tokens = context.comment_tokens();
-    let token_index = comment_tokens.partition_point(|token| token.span.start < comment_span.start);
-    let comment_token_type = comment_tokens.get(token_index).and_then(|token| {
-        if token.span == comment_span {
-            Some(token.token.ty)
-        } else {
-            None
-        }
-    });
-
-    comment_token_type == Some(TokenType::DocBlockComment)
+    context.comment_token_type_at_span(comment_span) == Some(TokenType::DocBlockComment)
 }
 
 /// Return whether one expression ends in static instantiation arguments.
@@ -1257,39 +1247,6 @@ fn tree_expression_has_parenthesized_ternary_branch(
     })
 }
 
-/// Store signals for generic parenthesized-wrapper drop mode.
-#[derive(Debug, Clone, Copy)]
-struct ParenthesizedExpressionDrop {
-    /// Whether wrapper is one decorated class extends head.
-    wraps_decorated_class_extends_head: bool,
-    /// Whether wrapper is one prefix-annotated class extends head.
-    wraps_prefix_annotated_class_extends_head: bool,
-    /// Whether type-wrapper drop mode allows dropping.
-    should_drop_type_parentheses: bool,
-    /// Whether wrapper has any parent.
-    has_parent: bool,
-    /// Whether wrapper parent is one expression.
-    parent_is_expression: bool,
-    /// Whether argument parent allows decorated class wrapper drop.
-    should_drop_argument_decorated_class_wrapper: bool,
-    /// Whether declarator parent allows tree wrapper drop.
-    should_drop_declarator_tree_wrapper: bool,
-    /// Whether declarator parent allows prefix wrapper drop.
-    should_drop_declarator_prefix_wrapper: bool,
-    /// Whether expression parent allows statement type-binary wrapper drop.
-    should_drop_statement_type_binary_wrapper: bool,
-    /// Whether expression parent allows assignment-must wrapper drop.
-    should_drop_assignment_must: bool,
-    /// Whether expression parent allows statement lambda wrapper drop.
-    should_drop_statement_lambda: bool,
-    /// Whether expression parent allows call-callee instantiation wrapper drop.
-    should_drop_call_callee_instantiation_wrapper: bool,
-    /// Whether one optional-chain wrapper must stay grouped in postfix parent contexts.
-    should_keep_optional_chain_postfix_wrapper: bool,
-    /// Whether declaration wrappers must stay grouped in postfix parent contexts.
-    should_keep_declaration_postfix_wrapper: bool,
-}
-
 /// Return whether one parenthesized optional-chain wrapper must stay grouped in a postfix parent.
 fn should_keep_optional_chain_postfix_wrapper(
     context: &DestackFormatContext<'_>,
@@ -1339,90 +1296,50 @@ fn should_keep_declaration_postfix_wrapper(
     }
 }
 
-/// Collect generic parenthesized-wrapper drop signals.
-fn parenthesized_expression_drop(
+/// Return whether one non-expression parent allows dropping the parenthesized wrapper.
+fn should_drop_parenthesized_non_expression_parent(
     context: &DestackFormatContext<'_>,
+    parent_type: NodeType,
     node_id: LocalNodeId<Expression>,
     inner_expression_id: LocalNodeId<Expression>,
-) -> ParenthesizedExpressionDrop {
-    // wrapper and type-drop signals
-    let wraps_decorated_class_extends_head =
-        parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_expression_id);
-    let wraps_prefix_annotated_class_extends_head =
-        parenthesized_wraps_prefix_annotated_class_extends_head(
+) -> bool {
+    let should_drop_argument_decorated_class_wrapper = parent_type == NodeType::Argument
+        && !context.has_annotation(node_id)
+        && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+        && expression_is_decorated_class_declaration(context, inner_expression_id);
+    let should_drop_declarator_tree_wrapper = parent_type == NodeType::Declarator
+        && !context.has_annotation(node_id)
+        && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+        && !context.node_has_newline(inner_expression_id)
+        && !tree_expression_has_parenthesized_ternary_branch(context.tree, inner_expression_id)
+        && matches!(
+            context.tree.get(inner_expression_id),
+            Expression::TreeExpression {
+                arguments,
+                elements,
+                ..
+            } if !tree_literal_should_expand(context, arguments, elements)
+        );
+    let should_drop_declarator_prefix_wrapper = parent_type == NodeType::Declarator
+        && !context.has_annotation(node_id)
+        && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+        && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
             context,
-            node_id,
             inner_expression_id,
         );
-    let should_drop_type_parentheses =
-        should_drop_parenthesized_type_expression(context, node_id, inner_expression_id);
 
-    // parent signals
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return ParenthesizedExpressionDrop {
-            wraps_decorated_class_extends_head,
-            wraps_prefix_annotated_class_extends_head,
-            should_drop_type_parentheses,
-            has_parent: false,
-            parent_is_expression: false,
-            should_drop_argument_decorated_class_wrapper: false,
-            should_drop_declarator_tree_wrapper: false,
-            should_drop_declarator_prefix_wrapper: false,
-            should_drop_statement_type_binary_wrapper: false,
-            should_drop_assignment_must: false,
-            should_drop_statement_lambda: false,
-            should_drop_call_callee_instantiation_wrapper: false,
-            should_keep_optional_chain_postfix_wrapper: false,
-            should_keep_declaration_postfix_wrapper: false,
-        };
-    };
+    should_drop_argument_decorated_class_wrapper
+        || should_drop_declarator_tree_wrapper
+        || should_drop_declarator_prefix_wrapper
+}
 
-    if parent_type != NodeType::Expression {
-        let should_drop_argument_decorated_class_wrapper = parent_type == NodeType::Argument
-            && !context.has_annotation(node_id)
-            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
-            && expression_is_decorated_class_declaration(context, inner_expression_id);
-        let should_drop_declarator_tree_wrapper = parent_type == NodeType::Declarator
-            && !context.has_annotation(node_id)
-            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
-            && !context.node_has_newline(inner_expression_id)
-            && !tree_expression_has_parenthesized_ternary_branch(context.tree, inner_expression_id)
-            && matches!(
-                context.tree.get(inner_expression_id),
-                Expression::TreeExpression {
-                    arguments,
-                    elements,
-                    ..
-                } if !tree_literal_should_expand(context, arguments, elements)
-            );
-        let should_drop_declarator_prefix_wrapper = parent_type == NodeType::Declarator
-            && !context.has_annotation(node_id)
-            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
-            && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
-                context,
-                inner_expression_id,
-            );
-
-        return ParenthesizedExpressionDrop {
-            wraps_decorated_class_extends_head,
-            wraps_prefix_annotated_class_extends_head,
-            should_drop_type_parentheses,
-            has_parent: true,
-            parent_is_expression: false,
-            should_drop_argument_decorated_class_wrapper,
-            should_drop_declarator_tree_wrapper,
-            should_drop_declarator_prefix_wrapper,
-            should_drop_statement_type_binary_wrapper: false,
-            should_drop_assignment_must: false,
-            should_drop_statement_lambda: false,
-            should_drop_call_callee_instantiation_wrapper: false,
-            should_keep_optional_chain_postfix_wrapper: false,
-            should_keep_declaration_postfix_wrapper: false,
-        };
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let parent_expression = context.tree.get(parent_id);
+/// Return whether one expression parent allows dropping the parenthesized wrapper.
+fn should_drop_parenthesized_expression_parent(
+    context: &DestackFormatContext<'_>,
+    parent_expression: &Expression,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
     let inner_expression = context.tree.get(inner_expression_id);
     let should_drop_statement_type_binary_wrapper = matches!(
         parent_expression,
@@ -1455,79 +1372,11 @@ fn parenthesized_expression_drop(
         node_id,
         inner_expression_id,
     );
-    let should_keep_optional_chain_postfix_wrapper = should_keep_optional_chain_postfix_wrapper(
-        context,
-        parent_expression,
-        node_id,
-        inner_expression_id,
-    );
-    let should_keep_declaration_postfix_wrapper = should_keep_declaration_postfix_wrapper(
-        context,
-        parent_expression,
-        node_id,
-        inner_expression_id,
-    );
 
-    ParenthesizedExpressionDrop {
-        wraps_decorated_class_extends_head,
-        wraps_prefix_annotated_class_extends_head,
-        should_drop_type_parentheses,
-        has_parent: true,
-        parent_is_expression: true,
-        should_drop_argument_decorated_class_wrapper: false,
-        should_drop_declarator_tree_wrapper: false,
-        should_drop_declarator_prefix_wrapper: false,
-        should_drop_statement_type_binary_wrapper,
-        should_drop_assignment_must,
-        should_drop_statement_lambda,
-        should_drop_call_callee_instantiation_wrapper,
-        should_keep_optional_chain_postfix_wrapper,
-        should_keep_declaration_postfix_wrapper,
-    }
-}
-
-/// Decide generic parenthesized-wrapper drop mode from collected signals.
-fn should_drop_parenthesized_expression(signals: ParenthesizedExpressionDrop) -> bool {
-    // decorated class extends heads must keep explicit grouping
-    if signals.wraps_decorated_class_extends_head {
-        return false;
-    }
-
-    // closure-style cast wrappers in class heritage should stay explicit
-    if signals.wraps_prefix_annotated_class_extends_head {
-        return false;
-    }
-
-    // optional chain wrappers preserve non optional continuation semantics
-    if signals.should_keep_optional_chain_postfix_wrapper {
-        return false;
-    }
-
-    // function and class declarations require explicit grouping in postfix continuations
-    if signals.should_keep_declaration_postfix_wrapper {
-        return false;
-    }
-
-    if !signals.has_parent {
-        return signals.should_drop_type_parentheses;
-    }
-
-    if !signals.parent_is_expression {
-        if signals.should_drop_argument_decorated_class_wrapper
-            || signals.should_drop_declarator_tree_wrapper
-            || signals.should_drop_declarator_prefix_wrapper
-        {
-            return true;
-        }
-
-        return signals.should_drop_type_parentheses;
-    }
-
-    signals.should_drop_statement_type_binary_wrapper
-        || signals.should_drop_assignment_must
-        || signals.should_drop_statement_lambda
-        || signals.should_drop_call_callee_instantiation_wrapper
-        || signals.should_drop_type_parentheses
+    should_drop_statement_type_binary_wrapper
+        || should_drop_assignment_must
+        || should_drop_statement_lambda
+        || should_drop_call_callee_instantiation_wrapper
 }
 
 /// Decide whether a parenthesized expression should drop wrappers in generic expression contexts.
@@ -1540,7 +1389,68 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
         return false;
     }
 
+    // decorated class extends heads must keep explicit grouping
+    if parenthesized_wraps_decorated_class_extends_head(context, node_id, inner_expression_id) {
+        return false;
+    }
+
+    // closure-style cast wrappers in class heritage should stay explicit
+    if parenthesized_wraps_prefix_annotated_class_extends_head(
+        context,
+        node_id,
+        inner_expression_id,
+    ) {
+        return false;
+    }
+
+    let should_drop_type_parentheses =
+        should_drop_parenthesized_type_expression(context, node_id, inner_expression_id);
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return should_drop_type_parentheses;
+    };
+
+    // non-expression parents use structural argument or declarator wrapper rules
+    if parent_type != NodeType::Expression {
+        if should_drop_parenthesized_non_expression_parent(
+            context,
+            parent_type,
+            node_id,
+            inner_expression_id,
+        ) {
+            return true;
+        }
+
+        return should_drop_type_parentheses;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_expression = context.tree.get(parent_expression_id);
+
+    // optional chain wrappers preserve non optional continuation semantics
+    if should_keep_optional_chain_postfix_wrapper(
+        context,
+        parent_expression,
+        node_id,
+        inner_expression_id,
+    ) {
+        return false;
+    }
+
+    // function and class declarations require explicit grouping in postfix continuations
+    if should_keep_declaration_postfix_wrapper(
+        context,
+        parent_expression,
+        node_id,
+        inner_expression_id,
+    ) {
+        return false;
+    }
+
     let _timing = context.timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES_DROP_MODE);
-    let signals = parenthesized_expression_drop(context, node_id, inner_expression_id);
-    should_drop_parenthesized_expression(signals)
+    should_drop_parenthesized_expression_parent(
+        context,
+        parent_expression,
+        node_id,
+        inner_expression_id,
+    ) || should_drop_type_parentheses
 }

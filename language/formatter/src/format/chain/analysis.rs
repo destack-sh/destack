@@ -564,31 +564,9 @@ pub(crate) fn chain_parent_operator_start(
         return None;
     }
 
-    let mut token_index = context
-        .tokens
-        .partition_point(|token| token.span.start < node_anchor_end);
-    while let Some(token) = context.tokens.get(token_index).copied() {
-        if token.span.start >= parent_span.end {
-            return None;
-        }
-
-        if matches!(
-            token.token.ty,
-            TokenType::Whitespace
-                | TokenType::Newline
-                | TokenType::LineComment
-                | TokenType::BlockComment
-                | TokenType::DocLineComment
-                | TokenType::DocBlockComment
-        ) {
-            token_index += 1;
-            continue;
-        }
-
-        return Some(token.span.start);
-    }
-
-    None
+    context
+        .first_non_trivia_token_between(node_anchor_end, parent_span.end)
+        .map(|token| token.span.start)
 }
 
 /// Check if a chain node has source breaks or comments before its parent operator.
@@ -670,18 +648,7 @@ pub(crate) fn member_is_private_hash(
         return false;
     };
 
-    let token_idx = context
-        .tokens
-        .iter()
-        .position(|token| token.span.start == property_span.start);
-    let Some(token_idx) = token_idx else {
-        return false;
-    };
-
-    let prev_token = token_idx
-        .checked_sub(1)
-        .and_then(|index| context.tokens.get(index));
-    let Some(prev_token) = prev_token else {
+    let Some(prev_token) = context.token_before_token_start(property_span.start) else {
         return false;
     };
 
@@ -742,23 +709,7 @@ pub(crate) fn path_last_segment_start(
     }
 
     let span = context.span(node_id);
-    let mut count = 0usize;
-    for token in context.tokens.iter() {
-        if token.span.start < span.start {
-            continue;
-        }
-        if token.span.start >= span.end {
-            break;
-        }
-        if token.token.ty == TokenType::Identifier {
-            count += 1;
-            if count == segments_len {
-                return Some(token.span.start);
-            }
-        }
-    }
-
-    None
+    context.nth_token_type_start_in_span(span, TokenType::Identifier, segments_len)
 }
 
 /// Return whether a chain call can stay in the head even when its arguments expand.
@@ -933,20 +884,5 @@ pub(crate) fn should_force_multiline_mapped_type(
 
 /// Return whether one span contains a semicolon token.
 fn span_has_semicolon_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    let tokens = context.tokens;
-    let mut index = tokens.partition_point(|token| token.span.start < span.start);
-
-    while let Some(token) = tokens.get(index).copied() {
-        if token.span.start >= span.end {
-            break;
-        }
-
-        if token.token.ty == TokenType::Semicolon {
-            return true;
-        }
-
-        index += 1;
-    }
-
-    false
+    context.span_has_token_type(span, TokenType::Semicolon)
 }

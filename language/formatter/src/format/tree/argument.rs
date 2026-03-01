@@ -243,20 +243,6 @@ enum TreeNamedAttributeSyntaxStyle {
     EqualsBraced,
 }
 
-/// Return whether one token kind is ignorable when recovering tree attribute syntax.
-#[inline]
-fn is_ignored_tree_attribute_syntax_token(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::Whitespace
-            | TokenType::Newline
-            | TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment
-    )
-}
-
 /// Return whether one tree argument source span is wrapped with `{ ... }`.
 pub(crate) fn tree_argument_is_wrapped_in_braces(
     context: &DestackFormatContext<'_>,
@@ -375,44 +361,19 @@ fn tree_named_attribute_syntax_style(
     argument_id: LocalNodeId<Argument>,
 ) -> TreeNamedAttributeSyntaxStyle {
     let argument_span = context.span(argument_id);
-    let tokens = context.tokens;
-    let mut token_index = tokens.partition_point(|token| token.span.end <= argument_span.start);
-    let mut saw_equals = false;
-
-    while let Some(token) = tokens.get(token_index).copied() {
-        if token.span.start >= argument_span.end {
-            break;
-        }
-        token_index += 1;
-        if is_ignored_tree_attribute_syntax_token(token.token.ty) {
-            continue;
-        }
-
-        if token.token.ty != TokenType::Assign {
-            continue;
-        }
-
-        saw_equals = true;
-        break;
-    }
-
-    if !saw_equals {
+    let tokens = context.non_trivia_tokens_in_span(argument_span);
+    let Some(assign_index) = tokens
+        .iter()
+        .position(|token| token.token.ty == TokenType::Assign)
+    else {
         return TreeNamedAttributeSyntaxStyle::Shorthand;
-    }
+    };
 
-    while let Some(token) = tokens.get(token_index).copied() {
-        if token.span.start >= argument_span.end {
-            break;
-        }
-        token_index += 1;
-        if is_ignored_tree_attribute_syntax_token(token.token.ty) {
-            continue;
-        }
-
-        if token.token.ty == TokenType::OpenBrace {
-            return TreeNamedAttributeSyntaxStyle::EqualsBraced;
-        }
-        return TreeNamedAttributeSyntaxStyle::EqualsUnbraced;
+    if tokens
+        .get(assign_index + 1)
+        .is_some_and(|token| token.token.ty == TokenType::OpenBrace)
+    {
+        return TreeNamedAttributeSyntaxStyle::EqualsBraced;
     }
 
     TreeNamedAttributeSyntaxStyle::EqualsUnbraced

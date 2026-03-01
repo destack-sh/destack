@@ -114,25 +114,18 @@ pub(crate) fn assignment_seam_has_line_comment_between(
     let Some(between_span) = left_span.gap_to(right_span) else {
         return false;
     };
-    context
-        .comment_tokens()
-        .iter()
-        .copied()
-        .any(|comment_token| {
-            if !between_span.intersects(comment_token.span) {
-                return false;
-            }
+    let comment_tokens = context.comment_tokens_intersecting_span(between_span);
+    comment_tokens.into_iter().any(|comment_token| {
+        if !matches!(
+            comment_token.token.ty,
+            TokenType::LineComment | TokenType::DocLineComment
+        ) {
+            return false;
+        }
 
-            if !matches!(
-                comment_token.token.ty,
-                TokenType::LineComment | TokenType::DocLineComment
-            ) {
-                return false;
-            }
-
-            previous_non_whitespace_token_before_span(context, comment_token.span)
-                .is_some_and(|token| is_assignment_operator_token(token.token.ty))
-        })
+        previous_non_whitespace_token_before_span(context, comment_token.span)
+            .is_some_and(|token| is_assignment_operator_token(token.token.ty))
+    })
 }
 
 /// Walk left-linked assignment parents and return the outermost chain node.

@@ -14,7 +14,6 @@ js/if/condition-break/unary-expression.js
 js/ignore/issue-10661.js
 js/import/comments.js
 js/last-argument-expansion/edge_case.js
-js/last-argument-expansion/empty-object.js
 js/last-argument-expansion/overflow.js
 js/line-suffix-boundary/boundary.js
 js/logical-expressions/in-unary-expression.js
