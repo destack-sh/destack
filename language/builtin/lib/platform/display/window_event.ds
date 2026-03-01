@@ -1,0 +1,298 @@
+import { Array } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
+import {
+    DisplayBackend,
+    DisplayBackendSelectionPolicy,
+    DisplayEventQueueOptions,
+} from "./backend.ds";
+import {
+    WindowLogicalSize,
+    WindowModeOptions,
+    WindowPhysicalSize,
+    WindowPosition,
+    WindowTheme,
+    WindowVisibility,
+} from "./window.ds";
+
+/// Window event kind.
+export enum WindowEventKind {
+    /// Window was created.
+    Created = 1,
+    /// Window close was requested by host policy or user action.
+    CloseRequested = 2,
+    /// Window was destroyed.
+    Destroyed = 3,
+    /// Window focus changed.
+    FocusChanged = 4,
+    /// Window visibility changed.
+    VisibilityChanged = 5,
+    /// Window occlusion changed.
+    OcclusionChanged = 6,
+    /// Window position changed.
+    PositionChanged = 7,
+    /// Window size changed.
+    SizeChanged = 8,
+    /// Window scale factor changed.
+    ScaleFactorChanged = 9,
+    /// Window redraw was requested.
+    RefreshRequested = 10,
+    /// Window mode changed.
+    ModeChanged = 11,
+    /// Window display association changed.
+    DisplayChanged = 12,
+    /// Window theme changed.
+    ThemeChanged = 13,
+}
+
+/// Window focus-change payload.
+export struct WindowFocusPayload {
+    /// Whether the window is focused after this event.
+    focused: boolean;
+}
+
+/// Window visibility-change payload.
+export struct WindowVisibilityPayload {
+    /// Visibility state after this event.
+    visibility: WindowVisibility;
+}
+
+/// Window occlusion-change payload.
+export struct WindowOcclusionPayload {
+    /// Whether the window is occluded after this event.
+    occluded: boolean;
+}
+
+/// Window position-change payload.
+export struct WindowPositionPayload {
+    /// Position after this event.
+    position: WindowPosition;
+}
+
+/// Window size-change payload.
+export struct WindowSizePayload {
+    /// Logical size after this event.
+    sizeLogical: WindowLogicalSize;
+    /// Physical size after this event.
+    sizePhysical: WindowPhysicalSize;
+}
+
+/// Window scale-factor payload.
+export struct WindowScaleFactorPayload {
+    /// Scale factor in milli-scale units.
+    scaleFactorMilli: uint32;
+}
+
+/// Window mode-change payload.
+export struct WindowModePayload {
+    /// Mode after this event.
+    mode: WindowModeOptions;
+}
+
+/// Window display-change payload.
+export struct WindowDisplayPayload {
+    /// Display after this event.
+    display: DisplayHandle | void;
+}
+
+/// Window theme-change payload.
+export struct WindowThemePayload {
+    /// Theme value after this event.
+    theme: WindowTheme;
+}
+
+/// Typed payload for one window event.
+export newtype WindowEventPayload = WindowFocusPayload | WindowVisibilityPayload | WindowOcclusionPayload | WindowPositionPayload | WindowSizePayload | WindowScaleFactorPayload | WindowModePayload | WindowDisplayPayload | WindowThemePayload;
+
+/// Window event payload.
+export struct WindowEvent {
+    /// Window handle associated with this event.
+    window: WindowHandle;
+    /// Event kind selector.
+    kind: WindowEventKind;
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic event sequence number.
+    sequence: uint64;
+    /// Typed event payload when this event kind carries payload data.
+    payload: WindowEventPayload | void;
+}
+
+/// Window event stream open options.
+export struct WindowEventOpenOptions {
+    /// Preferred backend selector.
+    backend: DisplayBackend;
+    /// Backend selection policy.
+    backendPolicy: DisplayBackendSelectionPolicy;
+    /// Event queue configuration.
+    queue: DisplayEventQueueOptions;
+}
+
+/// Window event bindings.
+declare namespace display {
+    /// Open one global window-event stream.
+    ///
+    /// Open one host window-event stream for all windows in this runtime.
+    /// Event ordering follows host event-loop delivery behavior.
+    /// This stream should be consumed from one runtime event-loop thread.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses one host event-loop stream model aligned with winit and SDL style window id routing.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>;
+
+    /// Close one global window-event stream.
+    ///
+    /// Close one opened window-event stream and release host event routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific event-stream close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>;
+
+    /// Wait for one window event.
+    ///
+    /// Wait for one event from one opened host window-event stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowEventRead(handle: WindowEventHandle, timeoutNs: uint64): Result<WindowEvent, PlatformError>;
+
+    /// Poll one window event without blocking.
+    ///
+    /// Poll one pending event from one opened host window-event stream without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>;
+
+    /// Wait for one batch of window events.
+    ///
+    /// Wait for pending events from one opened host window-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue batch wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventReadBatch", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowEventReadBatch(
+        handle: WindowEventHandle,
+        maxEvents: uint32,
+        timeoutNs: uint64,
+    ): Result<Array<WindowEvent>, PlatformError>;
+
+    /// Poll one batch of window events without blocking.
+    ///
+    /// Poll pending events from one opened host window-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue batch polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.eventTryReadBatch", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.events"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function windowEventTryReadBatch(
+        handle: WindowEventHandle,
+        maxEvents: uint32,
+    ): Result<Array<WindowEvent>, PlatformError>;
+}

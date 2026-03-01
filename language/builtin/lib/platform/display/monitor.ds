@@ -1,8 +1,39 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { DisplayHandle } from "../resource/index.ds";
+import { DisplayBackend, DisplayBackendSelectionPolicy } from "./backend.ds";
 
-/// Display mode information.
+/// Display output orientation.
+export enum DisplayOrientation {
+    /// Unknown or backend-unspecified orientation.
+    Unknown = 0,
+    /// Landscape orientation.
+    Landscape = 1,
+    /// Portrait orientation.
+    Portrait = 2,
+    /// Inverted landscape orientation.
+    LandscapeFlipped = 3,
+    /// Inverted portrait orientation.
+    PortraitFlipped = 4,
+}
+
+/// Display descriptor metric bit flags.
+export enum DisplayMetricChanged {
+    /// Display name changed.
+    Name = 1,
+    /// Primary display status changed.
+    Primary = 2,
+    /// Display desktop bounds changed.
+    Bounds = 4,
+    /// Display work-area bounds changed.
+    WorkArea = 8,
+    /// Scale factor changed.
+    ScaleFactor = 16,
+    /// Display orientation changed.
+    Orientation = 32,
+}
+
+/// One display mode descriptor.
 export struct DisplayMode {
     /// Pixel width.
     width: uint32;
@@ -12,20 +43,64 @@ export struct DisplayMode {
     refreshMilliHz: uint32;
     /// Color format identifier.
     format: uint32;
+    /// Color depth in bits per pixel.
+    bitDepth: uint16;
 }
 
-/// Display device information.
+/// One monitor descriptor snapshot.
 export struct DisplayDescriptor {
     /// Stable runtime display identifier.
     id: string;
     /// Host display name.
     name: string;
-    /// Physical width in millimeters.
-    widthMm: uint32;
-    /// Physical height in millimeters.
-    heightMm: uint32;
     /// Whether this display is primary.
     primary: boolean;
+    /// Display origin x coordinate in desktop space.
+    x: int32;
+    /// Display origin y coordinate in desktop space.
+    y: int32;
+    /// Display width in physical pixels.
+    widthPx: uint32;
+    /// Display height in physical pixels.
+    heightPx: uint32;
+    /// Work-area origin x coordinate in desktop space.
+    workAreaX: int32;
+    /// Work-area origin y coordinate in desktop space.
+    workAreaY: int32;
+    /// Work-area width in physical pixels.
+    workAreaWidthPx: uint32;
+    /// Work-area height in physical pixels.
+    workAreaHeightPx: uint32;
+    /// Physical width in millimeters when reported by the backend.
+    widthMm: uint32;
+    /// Physical height in millimeters when reported by the backend.
+    heightMm: uint32;
+    /// Scale factor in milli-scale units.
+    scaleFactorMilli: uint32;
+    /// Current orientation.
+    orientation: DisplayOrientation;
+    /// Whether this display is one built-in panel.
+    isBuiltin: boolean;
+    /// Whether this display reports variable refresh support.
+    supportsVariableRefresh: boolean;
+    /// Whether this display reports hdr support.
+    supportsHdr: boolean;
+}
+
+/// Display monitor list request.
+export struct DisplayMonitorListRequest {
+    /// Preferred backend selector.
+    backend: DisplayBackend;
+    /// Backend selection policy.
+    backendPolicy: DisplayBackendSelectionPolicy;
+}
+
+/// Display monitor open options.
+export struct DisplayMonitorOpenOptions {
+    /// Preferred backend selector.
+    backend: DisplayBackend;
+    /// Backend selection policy.
+    backendPolicy: DisplayBackendSelectionPolicy;
 }
 
 /// Display monitor bindings.
@@ -55,7 +130,38 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function list(): Result<Slice<DisplayDescriptor>, PlatformError>;
+    export function monitorList(
+        request: DisplayMonitorListRequest,
+    ): Result<Slice<DisplayDescriptor>, PlatformError>;
+
+    /// Read the current primary display handle.
+    ///
+    /// Return one opened display handle for the current primary display when available.
+    /// Returns `void` when the backend has no discoverable primary display.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses compositor and system-display primary-output selection.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.primary", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorPrimary(
+        request: DisplayMonitorListRequest,
+    ): Result<DisplayHandle | void, PlatformError>;
 
     /// Open one display endpoint.
     ///
@@ -82,7 +188,10 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function open(id: string): Result<DisplayHandle, PlatformError>;
+    export function monitorOpen(
+        id: string,
+        options: DisplayMonitorOpenOptions,
+    ): Result<DisplayHandle, PlatformError>;
 
     /// Close one display endpoint.
     ///
@@ -109,7 +218,33 @@ declare namespace display {
         scope: "host",
         blocking: "never",
     })
-    export function close(handle: DisplayHandle): Result<void, PlatformError>;
+    export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>;
+
+    /// Read descriptor metadata for one opened display.
+    ///
+    /// Read one normalized descriptor snapshot for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific monitor metadata queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.descriptor", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function monitorDescriptor(handle: DisplayHandle): Result<DisplayDescriptor, PlatformError>;
 
     /// Read available display modes.
     ///
@@ -136,7 +271,90 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function modes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
+    export function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
+
+    /// Read the current mode for one opened display.
+    ///
+    /// Read one point-in-time active mode for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific current-mode queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.currentMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.mode"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
+
+    /// Read the desktop-preferred mode for one opened display.
+    ///
+    /// Read one platform desktop mode for one opened display endpoint.
+    /// This aligns with SDL desktop-mode and Unreal desktop-resolution semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend desktop-mode queries where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.desktopMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.mode"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorDesktopMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
+
+    /// Resolve one requested mode to the closest supported mode.
+    ///
+    /// Return one backend-selected closest mode for one requested mode.
+    /// Mode-matching behavior follows host backend selection policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend mode-matching queries where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.closestMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.mode"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorClosestMode(
+        handle: DisplayHandle,
+        requested: DisplayMode,
+    ): Result<DisplayMode, PlatformError>;
 
     /// Apply one display mode.
     ///
@@ -163,5 +381,6 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function setMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
+    export function monitorSetMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
+
 }
