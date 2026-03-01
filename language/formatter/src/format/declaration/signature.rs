@@ -1,4 +1,7 @@
-use crate::format::analysis::previous_non_whitespace_token_before_annotation;
+use crate::format::analysis::{
+    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
+};
+use crate::format::call::{SeparatorLineCommentSource, write_separator_line_comment_after_comma};
 use crate::format::collection::list_like;
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -13,6 +16,8 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::Span;
+use destack_workspace::TrailingComma;
 
 // signature expansion thresholds
 const CONSTRUCTOR_PARAMETER_EXPAND_MIN_COUNT: usize = 2;
@@ -75,128 +80,152 @@ fn parameter_prefix_annotations_follow_spread(
     has_prefix_annotation
 }
 
+/// Format one parameter node with optional separator-boundary annotation suppression.
+fn format_parameter_node<'ast>(
+    parameter: &Parameter,
+    node_id: LocalNodeId<Parameter>,
+    f: &mut DestackFormatter<'ast, '_>,
+    suppress_separator_boundary_annotations: bool,
+) -> FormatResult<()> {
+    let is_variadic_parameter = matches!(
+        parameter,
+        Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
+    );
+    let defer_prefix_annotations_after_spread =
+        is_variadic_parameter && parameter_prefix_annotations_follow_spread(f.context(), node_id);
+    if !defer_prefix_annotations_after_spread {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    }
+
+    let is_typescript = f.context().options.language_type.is_typescript();
+    let is_static_parameter = is_typescript && parameter_is_static(f.context(), node_id);
+    let wrote_type_infix = match parameter {
+        Parameter::Named {
+            modifiers,
+            name,
+            ty,
+            default,
+        } => {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            // name
+            write!(f, [name])?;
+
+            // modifiers
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+            // type
+            let wrote_type_infix =
+                write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
+
+            // default
+            if let Some(default) = default {
+                write!(f, [space(), token("="), space(), default])?;
+            }
+            wrote_type_infix
+        }
+        Parameter::Pattern {
+            modifiers,
+            pattern,
+            ty,
+            default,
+        } => {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            // pattern
+            write!(f, [pattern])?;
+
+            // modifiers
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+
+            // type
+            let wrote_type_infix =
+                write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
+
+            // default
+            if let Some(default) = default {
+                write!(f, [space(), token("="), space(), default])?;
+            }
+            wrote_type_infix
+        }
+        Parameter::VariadicNamed {
+            modifiers,
+            name,
+            ty,
+        } => {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            // keyword
+            write!(f, [token("...")])?;
+
+            // spread seam prefix annotations
+            if defer_prefix_annotations_after_spread {
+                write!(f, [f.context().any_prefix_annotations(node_id)])?;
+            }
+
+            // name
+            write!(f, [name])?;
+
+            // type
+            write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
+        }
+        Parameter::VariadicPattern {
+            modifiers,
+            pattern,
+            ty,
+        } => {
+            // modifiers
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            // keyword
+            write!(f, [token("...")])?;
+
+            // spread seam prefix annotations
+            if defer_prefix_annotations_after_spread {
+                write!(f, [f.context().any_prefix_annotations(node_id)])?;
+            }
+
+            // pattern
+            write!(f, [pattern])?;
+
+            // type
+            write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
+        }
+    };
+
+    if wrote_type_infix {
+        if suppress_separator_boundary_annotations {
+            write!(
+                f,
+                [f.context()
+                    .any_postfix_except_line_postfix_boundary_annotations(node_id)]
+            )?;
+        } else {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        }
+    } else if suppress_separator_boundary_annotations {
+        write!(
+            f,
+            [f.context()
+                .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
+        )?;
+    } else {
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+    }
+
+    Ok(())
+}
+
 impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<Parameter>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let is_variadic_parameter = matches!(
-            self,
-            Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
-        );
-        let defer_prefix_annotations_after_spread = is_variadic_parameter
-            && parameter_prefix_annotations_follow_spread(f.context(), node_id);
-        if !defer_prefix_annotations_after_spread {
-            write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        }
-
-        let is_typescript = f.context().options.language_type.is_typescript();
-        let is_static_parameter = is_typescript && parameter_is_static(f.context(), node_id);
-        let wrote_type_infix = match self {
-            Parameter::Named {
-                modifiers,
-                name,
-                ty,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // name
-                write!(f, [name])?;
-
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                // type
-                let wrote_type_infix =
-                    write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
-
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-                wrote_type_infix
-            }
-            Parameter::Pattern {
-                modifiers,
-                pattern,
-                ty,
-                default,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // pattern
-                write!(f, [pattern])?;
-
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-
-                // type
-                let wrote_type_infix =
-                    write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
-
-                // default
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-                wrote_type_infix
-            }
-            Parameter::VariadicNamed {
-                modifiers,
-                name,
-                ty,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // keyword
-                write!(f, [token("...")])?;
-
-                // spread seam prefix annotations
-                if defer_prefix_annotations_after_spread {
-                    write!(f, [f.context().any_prefix_annotations(node_id)])?;
-                }
-
-                // name
-                write!(f, [name])?;
-
-                // type
-                write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
-            }
-            Parameter::VariadicPattern {
-                modifiers,
-                pattern,
-                ty,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-
-                // keyword
-                write!(f, [token("...")])?;
-
-                // spread seam prefix annotations
-                if defer_prefix_annotations_after_spread {
-                    write!(f, [f.context().any_prefix_annotations(node_id)])?;
-                }
-
-                // pattern
-                write!(f, [pattern])?;
-
-                // type
-                write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
-            }
-        };
-
-        if wrote_type_infix {
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
-        } else {
-            write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-        }
-
-        Ok(())
+        format_parameter_node(self, node_id, f, false)
     }
 }
 
@@ -310,6 +339,271 @@ fn parameter_has_line_comment_annotation(
             })
         })
         .unwrap_or(false)
+}
+
+/// Return separator-comment facts for one parameter annotation.
+fn parameter_separator_line_comment_annotation_info(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<(LocalNodeId<Comment>, bool, bool)> {
+    let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+        return None;
+    };
+
+    if !matches!(
+        position,
+        AnnotationPosition::LinePostfixBoundary | AnnotationPosition::LinePostfix
+    ) {
+        return None;
+    }
+
+    let comment = context.tree.get::<Comment>(node);
+    if comment.style != CommentStyle::Slash {
+        return None;
+    }
+
+    let annotation_span = context.annotation_span(annotation_id);
+    let previous_token = previous_non_whitespace_token_before_annotation(context, annotation_id);
+    let next_token = next_non_whitespace_token_after_annotation(context, annotation_id);
+    let has_preceding_separator =
+        previous_token.is_some_and(|token| token.token.ty == TokenType::Comma);
+    let has_following_separator =
+        next_token.is_some_and(|token| token.token.ty == TokenType::Comma);
+    let has_following_close_parenthesis =
+        next_token.is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
+    let has_virtual_trailing_separator = !has_preceding_separator
+        && !has_following_separator
+        && has_following_close_parenthesis
+        && position == AnnotationPosition::LinePostfixBoundary
+        && context.annotation_starts_on_own_line(annotation_id);
+    if !has_preceding_separator && !has_following_separator && !has_virtual_trailing_separator {
+        return None;
+    }
+
+    let is_own_line = if let Some(separator_token) = previous_token {
+        if separator_token.token.ty != TokenType::Comma {
+            false
+        } else {
+            let before_comment_span = Span::new(
+                annotation_span.file,
+                separator_token.span.end,
+                annotation_span.start,
+            );
+            context.has_newline(before_comment_span)
+        }
+    } else if let Some(separator_token) = next_token {
+        if separator_token.token.ty != TokenType::Comma {
+            false
+        } else {
+            let after_comment_span = Span::new(
+                annotation_span.file,
+                annotation_span.end,
+                separator_token.span.start,
+            );
+            context.has_newline(after_comment_span)
+        }
+    } else {
+        context.annotation_starts_on_own_line(annotation_id)
+    };
+
+    let has_blank_line_before_first_comment = if let Some(separator_token) = previous_token {
+        if separator_token.token.ty != TokenType::Comma {
+            false
+        } else {
+            let before_comment_span = Span::new(
+                annotation_span.file,
+                separator_token.span.end,
+                annotation_span.start,
+            );
+            context.has_blank_line(before_comment_span)
+        }
+    } else if let Some(separator_token) = next_token {
+        if separator_token.token.ty != TokenType::Comma {
+            false
+        } else {
+            let before_separator_span = Span::new(
+                annotation_span.file,
+                annotation_span.end,
+                separator_token.span.start,
+            );
+            context.has_blank_line(before_separator_span)
+        }
+    } else {
+        false
+    };
+
+    Some((node, is_own_line, has_blank_line_before_first_comment))
+}
+
+/// Return one separator line-comment source for one parameter.
+fn parameter_separator_line_comment_source(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> Option<SeparatorLineCommentSource> {
+    let annotations = context.annotations(parameter_id)?;
+    for (index, annotation_id) in annotations.iter().copied().enumerate() {
+        let Some((comment_id, is_own_line, has_blank_line_before_first_comment)) =
+            parameter_separator_line_comment_annotation_info(context, annotation_id)
+        else {
+            continue;
+        };
+
+        let mut comment_ids = vec![comment_id];
+        for next_annotation_id in annotations.iter().skip(index + 1).copied() {
+            if matches!(
+                context.annotation(next_annotation_id),
+                Annotation::Blank { .. }
+            ) {
+                continue;
+            }
+
+            let Some((next_comment_id, _, _)) =
+                parameter_separator_line_comment_annotation_info(context, next_annotation_id)
+            else {
+                break;
+            };
+
+            comment_ids.push(next_comment_id);
+        }
+
+        return Some(SeparatorLineCommentSource {
+            comment_ids,
+            is_own_line,
+            has_blank_line_before_first_comment,
+            detached_from_following_prefix: false,
+        });
+    }
+
+    None
+}
+
+/// Return whether one parameter has boundary-postfix annotations that are not separator comments.
+fn parameter_has_non_separator_boundary_postfix_annotation(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    context
+        .visit_annotations(parameter_id, |annotations| {
+            annotations.iter().any(|annotation_id| {
+                let position = context.annotation(*annotation_id).position();
+                if position != AnnotationPosition::LinePostfixBoundary {
+                    return false;
+                }
+
+                if matches!(context.annotation(*annotation_id), Annotation::Blank { .. }) {
+                    return false;
+                }
+
+                parameter_separator_line_comment_annotation_info(context, *annotation_id).is_none()
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one parameter supports separator-comment detachment rendering.
+fn parameter_can_render_without_separator_line_comment(
+    context: &DestackFormatContext<'_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> bool {
+    !parameter_has_non_separator_boundary_postfix_annotation(context, parameter_id)
+}
+
+/// Write one parameter without separator-boundary comments when detachment is allowed.
+fn write_parameter_without_separator_line_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> FormatResult<bool> {
+    if !parameter_can_render_without_separator_line_comment(f.context(), parameter_id) {
+        return Ok(false);
+    }
+
+    let parameter = f.context().tree.get(parameter_id);
+    format_parameter_node(parameter, parameter_id, f, true)?;
+
+    Ok(true)
+}
+
+/// Collect separator-comment sources for parameters in source order.
+fn collect_parameter_separator_line_comment_sources(
+    context: &DestackFormatContext<'_>,
+    parameters: &[LocalNodeId<Parameter>],
+) -> Vec<Option<SeparatorLineCommentSource>> {
+    parameters
+        .iter()
+        .copied()
+        .map(|parameter_id| parameter_separator_line_comment_source(context, parameter_id))
+        .collect::<Vec<_>>()
+}
+
+/// Return whether one blank line should be preserved between adjacent parameters.
+fn preserve_blank_line_before_parameter_with_separator_comments(
+    context: &DestackFormatContext<'_>,
+    parameters: &[LocalNodeId<Parameter>],
+    separator_line_comment_sources: &[Option<SeparatorLineCommentSource>],
+    parameter_index: usize,
+) -> bool {
+    let left_parameter_id = parameters[parameter_index - 1];
+    let right_parameter_id = parameters[parameter_index];
+
+    // when separator comments are rendered after the previous comma,
+    // preserve blank lines between that cluster and the next parameter
+    if let Some(previous_separator_source) =
+        separator_line_comment_sources[parameter_index - 1].as_ref()
+        && previous_separator_source.is_own_line
+        && let Some(last_comment_id) = previous_separator_source.comment_ids.last().copied()
+    {
+        let last_comment_span = context.span(last_comment_id);
+        let right_parameter_span = context.span(right_parameter_id);
+        if let Some(between_span) = last_comment_span.gap_to(right_parameter_span) {
+            return context.has_blank_line(between_span);
+        }
+    }
+
+    let left_parameter_span = context.span(left_parameter_id);
+    let right_parameter_span = context.span(right_parameter_id);
+    let Some(between_span) = left_parameter_span.gap_to(right_parameter_span) else {
+        return false;
+    };
+
+    context.has_blank_line(between_span)
+}
+
+/// Write one separator-comment aware multiline parameter list body.
+fn write_signature_separator_comment_multiline_parameter_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parameters: &[LocalNodeId<Parameter>],
+    separator_line_comment_sources: &[Option<SeparatorLineCommentSource>],
+    should_emit_trailing_separator: bool,
+) -> FormatResult<()> {
+    for (index, parameter_id) in parameters.iter().enumerate() {
+        if index > 0 {
+            if preserve_blank_line_before_parameter_with_separator_comments(
+                f.context(),
+                parameters,
+                separator_line_comment_sources,
+                index,
+            ) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
+        }
+
+        if let Some(comment_source) = separator_line_comment_sources[index].as_ref()
+            && !parameter_is_variadic(f.context(), *parameter_id)
+            && write_parameter_without_separator_line_comment(f, *parameter_id)?
+        {
+            write_separator_line_comment_after_comma(f, comment_source)?;
+            continue;
+        }
+
+        write!(f, [group(parameter_id)])?;
+        if index + 1 < parameters.len() || should_emit_trailing_separator {
+            write!(f, [token(",")])?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Return whether a single parameter should keep compact outer parentheses.
@@ -592,6 +886,44 @@ pub(crate) fn write_signature_dynamic_parameter_list(
     should_expand: bool,
     disallow_trailing_separator: bool,
 ) -> FormatResult<()> {
+    let has_variadic_tail = parameters
+        .last()
+        .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
+    let should_emit_trailing_separator = !disallow_trailing_separator
+        && f.context().options.trailing_comma == TrailingComma::All
+        && !has_variadic_tail;
+    let separator_line_comment_sources =
+        collect_parameter_separator_line_comment_sources(f.context(), parameters);
+    let use_separator_comment_multiline = should_expand
+        && separator_line_comment_sources
+            .iter()
+            .zip(parameters.iter())
+            .any(|(source, parameter_id)| {
+                source.is_some()
+                    && parameter_can_render_without_separator_line_comment(
+                        f.context(),
+                        *parameter_id,
+                    )
+            });
+    if use_separator_comment_multiline {
+        write!(f, [token("("), hard_line_break()])?;
+        write!(
+            f,
+            [block_indent(&format_with(
+                |f: &mut DestackFormatter<'_, '_>| {
+                    write_signature_separator_comment_multiline_parameter_list(
+                        f,
+                        parameters,
+                        &separator_line_comment_sources,
+                        should_emit_trailing_separator,
+                    )
+                }
+            ))]
+        )?;
+        write!(f, [hard_line_break(), token(")")])?;
+        return Ok(());
+    }
+
     let mut parameters_list = list_like("(", ")", ",", parameters);
     parameters_list.should_expand(should_expand);
     if disallow_trailing_separator {
@@ -683,7 +1015,11 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use crate::{
+        DestackFormatOptions, TestFormatter, assert_format,
+        assert_format_program_idempotent_with_file_type,
+    };
+    use destack_source::FileType;
 
     #[test]
     fn test_format_parameter() {
@@ -732,6 +1068,21 @@ mod tests {
             "/* a */ x: number",
             |p| p.eat_parameter(),
             DestackFormatOptions::default()
+        );
+    }
+
+    /// Trailing separator line comments in parameter lists should stay idempotent.
+    #[test]
+    fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
+        let source = "f2 = (
+  currentRequest: {a: number},
+  // TODO this is a very very very very long comment that makes it go > 80 columns
+): number => {};
+";
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::TypeScript,
+            DestackFormatOptions::default(),
         );
     }
 }

@@ -57,6 +57,184 @@ fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> 
 }
 
 impl<'a> DestackFormatContext<'a> {
+    /// Return the token immediately before one token that starts at the given offset.
+    pub fn token_before_token_start(&self, token_start: u32) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let token_index = tokens.partition_point(|token| token.span.start < token_start);
+        let token = tokens.get(token_index).copied()?;
+        if token.span.start != token_start {
+            return None;
+        }
+
+        token_index
+            .checked_sub(1)
+            .and_then(|previous_index| tokens.get(previous_index).copied())
+    }
+
+    /// Return the first non-trivia token between two offsets.
+    pub fn first_non_trivia_token_between(&self, start: u32, end: u32) -> Option<TokenSpan> {
+        if end <= start {
+            return None;
+        }
+
+        let mut token_index = self
+            .tokens
+            .partition_point(|token| token.span.start < start);
+        while let Some(token) = self.tokens.get(token_index).copied() {
+            if token.span.start >= end {
+                return None;
+            }
+
+            token_index += 1;
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
+    /// Return whether one span contains at least one token of the given type.
+    pub fn span_has_token_type(&self, span: Span, token_type: TokenType) -> bool {
+        if span.start >= span.end {
+            return false;
+        }
+
+        let mut token_index = self
+            .tokens
+            .partition_point(|token| token.span.start < span.start);
+        while let Some(token) = self.tokens.get(token_index).copied() {
+            if token.span.start >= span.end {
+                return false;
+            }
+
+            if token.token.ty == token_type {
+                return true;
+            }
+
+            token_index += 1;
+        }
+
+        false
+    }
+
+    /// Return the start offset of the Nth token of the given type within one span.
+    pub fn nth_token_type_start_in_span(
+        &self,
+        span: Span,
+        token_type: TokenType,
+        nth: usize,
+    ) -> Option<u32> {
+        if nth == 0 || span.start >= span.end {
+            return None;
+        }
+
+        let mut token_index = self
+            .tokens
+            .partition_point(|token| token.span.start < span.start);
+        let mut seen = 0usize;
+        while let Some(token) = self.tokens.get(token_index).copied() {
+            if token.span.start >= span.end {
+                return None;
+            }
+
+            if token.token.ty == token_type {
+                seen += 1;
+                if seen == nth {
+                    return Some(token.span.start);
+                }
+            }
+
+            token_index += 1;
+        }
+
+        None
+    }
+
+    /// Return non-trivia tokens that intersect one span.
+    pub fn non_trivia_tokens_in_span(&self, span: Span) -> Vec<TokenSpan> {
+        if span.start >= span.end {
+            return Vec::new();
+        }
+
+        let mut tokens_in_span = Vec::new();
+        let mut token_index = self
+            .tokens
+            .partition_point(|token| token.span.end <= span.start);
+        while let Some(token) = self.tokens.get(token_index).copied() {
+            if token.span.start >= span.end {
+                break;
+            }
+
+            token_index += 1;
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            tokens_in_span.push(token);
+        }
+
+        tokens_in_span
+    }
+
+    /// Return the comment token type at one exact comment span.
+    pub fn comment_token_type_at_span(&self, comment_span: Span) -> Option<TokenType> {
+        let comment_tokens = self.comment_tokens();
+        let token_index =
+            comment_tokens.partition_point(|token| token.span.start < comment_span.start);
+        let comment_token = comment_tokens.get(token_index).copied()?;
+        if comment_token.span != comment_span {
+            return None;
+        }
+
+        Some(comment_token.token.ty)
+    }
+
+    /// Return comment tokens that intersect one span.
+    pub fn comment_tokens_intersecting_span(&self, span: Span) -> Vec<TokenSpan> {
+        self.comment_tokens()
+            .iter()
+            .copied()
+            .filter(|token| span.intersects(token.span))
+            .collect()
+    }
+
+    /// Return the nearest non-whitespace token before one span.
+    pub fn previous_non_whitespace_token_before_span(&self, span: Span) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+
+        while index > 0 {
+            index -= 1;
+            let token = tokens[index];
+            if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
     /// Return the nearest non-whitespace token after one span.
     pub fn next_non_whitespace_token_after_span(&self, span: Span) -> Option<TokenSpan> {
         let tokens = self.tokens;

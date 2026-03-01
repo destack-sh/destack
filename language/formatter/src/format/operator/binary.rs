@@ -1580,15 +1580,31 @@ fn format_oxc_intersection_layout<'ast>(
 }
 
 /// Write one non-head default flattened operand with selected mode.
-pub(crate) fn write_default_flattened_non_head_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+#[derive(Debug, Clone, Copy)]
+struct DefaultNonHeadOperandFacts {
+    is_type_binary: bool,
+    has_postfix: bool,
+    previous_has_prefix_annotation: bool,
+    previous_has_line_prefix_slash_comment: bool,
+    previous_is_parenthesized_multiline: bool,
+    previous_is_parenthesized_or_grouped_multiline: bool,
+    previous_has_line_postfix_slash_comment: bool,
+    previous_requires_type_grouping_break: bool,
+    current_has_line_prefix_slash_comment: bool,
+    current_prefers_trailing_operator: bool,
+    left_postfix_comment_allows_space: bool,
+}
+
+/// Build one default non-head binary seam facts snapshot.
+fn default_non_head_operand_facts(
+    f: &DestackFormatter<'_, '_>,
     root_operator: BinaryOperator,
     operand_operator: BinaryOperator,
     operand_expression: LocalNodeId<Expression>,
     previous_expression: Option<LocalNodeId<Expression>>,
     is_type_union: bool,
     is_type_intersection: bool,
-) -> FormatResult<()> {
+) -> DefaultNonHeadOperandFacts {
     let is_type_binary = is_type_union || is_type_intersection;
     let has_postfix = previous_expression
         .is_some_and(|expression_id| f.context().has_postfix_annotation(expression_id));
@@ -1631,9 +1647,239 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     let left_postfix_comment_allows_space =
         left_inline_block_postfix_comment_allows_space && !previous_has_line_postfix_slash_comment;
 
+    DefaultNonHeadOperandFacts {
+        is_type_binary,
+        has_postfix,
+        previous_has_prefix_annotation,
+        previous_has_line_prefix_slash_comment,
+        previous_is_parenthesized_multiline,
+        previous_is_parenthesized_or_grouped_multiline,
+        previous_has_line_postfix_slash_comment,
+        previous_requires_type_grouping_break,
+        current_has_line_prefix_slash_comment,
+        current_prefers_trailing_operator,
+        left_postfix_comment_allows_space,
+    }
+}
+
+/// Write one leading separator before one non-head seam using prefix-comment spacing rules.
+fn write_non_head_prefix_spacing<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    allow_space_when_postfix: bool,
+) -> FormatResult<()> {
+    if !facts.has_postfix || (allow_space_when_postfix && facts.left_postfix_comment_allows_space) {
+        write!(f, [space()])?;
+        return Ok(());
+    }
+
+    if facts.previous_requires_type_grouping_break || facts.previous_has_line_postfix_slash_comment
+    {
+        write!(f, [hard_line_break()])?;
+    }
+
+    Ok(())
+}
+
+/// Write one type-binary seam after one current line-prefix slash comment.
+fn write_type_binary_current_prefix_seam<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    write_non_head_prefix_spacing(f, facts, false)?;
+
+    write!(
+        f,
+        [
+            operand_operator,
+            space(),
+            indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                format_binary_operand_with_grouping_parentheses(
+                    f,
+                    root_operator,
+                    operand_expression,
+                )
+            }))
+        ]
+    )?;
+
+    Ok(())
+}
+
+/// Write one type-binary seam after one previous line-prefix slash comment.
+fn write_type_binary_previous_prefix_seam<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+    is_type_intersection: bool,
+) -> FormatResult<()> {
+    write_non_head_prefix_spacing(f, facts, false)?;
+
+    if is_type_intersection {
+        write!(
+            f,
+            [
+                operand_operator,
+                indent(&format_args![
+                    hard_line_break(),
+                    format_with(|f| {
+                        format_binary_operand_with_grouping_parentheses(
+                            f,
+                            root_operator,
+                            operand_expression,
+                        )
+                    })
+                ])
+            ]
+        )?;
+
+        return Ok(());
+    }
+
+    write!(
+        f,
+        [
+            operand_operator,
+            space(),
+            indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                format_binary_operand_with_grouping_parentheses(
+                    f,
+                    root_operator,
+                    operand_expression,
+                )
+            }))
+        ]
+    )?;
+
+    Ok(())
+}
+
+/// Write one logical seam with trailing operator placement.
+fn write_trailing_logical_non_head_seam<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    write_non_head_prefix_spacing(f, facts, true)?;
+
+    write!(
+        f,
+        [
+            operand_operator,
+            indent(&format_args![
+                hard_line_break(),
+                format_with(|f| {
+                    format_binary_operand_with_grouping_parentheses(
+                        f,
+                        root_operator,
+                        operand_expression,
+                    )
+                })
+            ])
+        ]
+    )?;
+
+    Ok(())
+}
+
+/// Write one seam after one previous prefix annotation.
+fn write_previous_prefix_annotation_non_head_seam<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    write_non_head_prefix_spacing(f, facts, !facts.is_type_binary)?;
+
+    if facts.is_type_binary {
+        write!(
+            f,
+            [
+                operand_operator,
+                indent(&format_args![
+                    hard_line_break(),
+                    format_with(|f| {
+                        format_binary_operand_with_grouping_parentheses(
+                            f,
+                            root_operator,
+                            operand_expression,
+                        )
+                    })
+                ])
+            ]
+        )?;
+    } else {
+        write!(f, [operand_operator, space()])?;
+        format_binary_operand_with_grouping_parentheses(f, root_operator, operand_expression)?;
+    }
+
+    Ok(())
+}
+
+/// Write one generic non-head seam when no specialized seam rule applies.
+fn write_generic_non_head_seam<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    facts: DefaultNonHeadOperandFacts,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let seam_document = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if !facts.has_postfix {
+            if facts.previous_is_parenthesized_multiline
+                && is_logical_binary_operator(operand_operator)
+            {
+                write!(f, [space()])?;
+            } else {
+                write!(f, [soft_line_break_or_space()])?;
+            }
+        } else if facts.left_postfix_comment_allows_space {
+            write!(f, [space()])?;
+        } else if facts.previous_requires_type_grouping_break
+            || facts.previous_has_line_postfix_slash_comment
+        {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write!(f, [operand_operator, space()])?;
+        format_binary_operand_with_grouping_parentheses(f, root_operator, operand_expression)
+    });
+
+    write!(f, [indent(&seam_document)])?;
+
+    Ok(())
+}
+
+pub(crate) fn write_default_flattened_non_head_operand<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    root_operator: BinaryOperator,
+    operand_operator: BinaryOperator,
+    operand_expression: LocalNodeId<Expression>,
+    previous_expression: Option<LocalNodeId<Expression>>,
+    is_type_union: bool,
+    is_type_intersection: bool,
+) -> FormatResult<()> {
+    let facts = default_non_head_operand_facts(
+        f,
+        root_operator,
+        operand_operator,
+        operand_expression,
+        previous_expression,
+        is_type_union,
+        is_type_intersection,
+    );
+
     // elementwise intersections with grouped multiline left operand
     if operand_operator == BinaryOperator::ElementwiseAnd
-        && previous_is_parenthesized_or_grouped_multiline
+        && facts.previous_is_parenthesized_or_grouped_multiline
     {
         write!(
             f,
@@ -1657,156 +1903,66 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
     }
 
     // type-binary seams with line-prefix current operand comments
-    if is_type_binary && current_has_line_prefix_slash_comment {
-        if !has_postfix {
-            write!(f, [space()])?;
-        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-        write!(
+    if facts.is_type_binary && facts.current_has_line_prefix_slash_comment {
+        write_type_binary_current_prefix_seam(
             f,
-            [
-                operand_operator,
-                space(),
-                indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    format_binary_operand_with_grouping_parentheses(
-                        f,
-                        root_operator,
-                        operand_expression,
-                    )
-                }))
-            ]
+            facts,
+            root_operator,
+            operand_operator,
+            operand_expression,
         )?;
 
         return Ok(());
     }
 
     // logical operators that should trail current seams
-    if current_prefers_trailing_operator {
-        if !has_postfix || left_postfix_comment_allows_space {
-            write!(f, [space()])?;
-        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-        write!(
+    if facts.current_prefers_trailing_operator {
+        write_trailing_logical_non_head_seam(
             f,
-            [
-                operand_operator,
-                indent(&format_args![
-                    hard_line_break(),
-                    format_with(|f| {
-                        format_binary_operand_with_grouping_parentheses(
-                            f,
-                            root_operator,
-                            operand_expression,
-                        )
-                    })
-                ])
-            ]
+            facts,
+            root_operator,
+            operand_operator,
+            operand_expression,
         )?;
 
         return Ok(());
     }
 
     // type-binary seams after previous line-prefix comments
-    if is_type_binary && previous_has_line_prefix_slash_comment {
-        if !has_postfix {
-            write!(f, [space()])?;
-        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-
-        if is_type_intersection {
-            write!(
-                f,
-                [
-                    operand_operator,
-                    indent(&format_args![
-                        hard_line_break(),
-                        format_with(|f| {
-                            format_binary_operand_with_grouping_parentheses(
-                                f,
-                                root_operator,
-                                operand_expression,
-                            )
-                        })
-                    ])
-                ]
-            )?;
-        } else {
-            write!(
-                f,
-                [
-                    operand_operator,
-                    space(),
-                    indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        format_binary_operand_with_grouping_parentheses(
-                            f,
-                            root_operator,
-                            operand_expression,
-                        )
-                    }))
-                ]
-            )?;
-        }
+    if facts.is_type_binary && facts.previous_has_line_prefix_slash_comment {
+        write_type_binary_previous_prefix_seam(
+            f,
+            facts,
+            root_operator,
+            operand_operator,
+            operand_expression,
+            is_type_intersection,
+        )?;
 
         return Ok(());
     }
 
     // seams after previous prefix annotations
-    if previous_has_prefix_annotation {
-        if !has_postfix || (!is_type_binary && left_postfix_comment_allows_space) {
-            write!(f, [space()])?;
-        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-
-        if is_type_binary {
-            write!(
-                f,
-                [
-                    operand_operator,
-                    indent(&format_args![
-                        hard_line_break(),
-                        format_with(|f| {
-                            format_binary_operand_with_grouping_parentheses(
-                                f,
-                                root_operator,
-                                operand_expression,
-                            )
-                        })
-                    ])
-                ]
-            )?;
-        } else {
-            write!(f, [operand_operator, space()])?;
-            format_binary_operand_with_grouping_parentheses(f, root_operator, operand_expression)?;
-        }
+    if facts.previous_has_prefix_annotation {
+        write_previous_prefix_annotation_non_head_seam(
+            f,
+            facts,
+            root_operator,
+            operand_operator,
+            operand_expression,
+        )?;
 
         return Ok(());
     }
 
     // generic seam rendering
-    let seam_document = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !has_postfix {
-            if previous_is_parenthesized_multiline && is_logical_binary_operator(operand_operator) {
-                write!(f, [space()])?;
-            } else {
-                write!(f, [soft_line_break_or_space()])?;
-            }
-        } else if left_postfix_comment_allows_space {
-            write!(f, [space()])?;
-        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
-            write!(f, [hard_line_break()])?;
-        }
-
-        write!(f, [operand_operator, space()])?;
-        format_binary_operand_with_grouping_parentheses(f, root_operator, operand_expression)
-    });
-
-    write!(f, [indent(&seam_document)])?;
-
-    Ok(())
+    write_generic_non_head_seam(
+        f,
+        facts,
+        root_operator,
+        operand_operator,
+        operand_expression,
+    )
 }
 
 /// Render default flattened binary layout after specialized layouts are excluded.

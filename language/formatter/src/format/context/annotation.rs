@@ -1,7 +1,3 @@
-use crate::format::analysis::{
-    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
-    token_is_keyword,
-};
 use crate::format::context::{
     ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, Annotation,
     AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationCache,
@@ -49,7 +45,8 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         annotation_id: LocalNodeId<Annotation>,
     ) -> Option<ast::TokenSpan> {
-        previous_non_whitespace_token_before_annotation(self, annotation_id)
+        let annotation_span = self.annotation_span(annotation_id);
+        self.previous_non_whitespace_token_before_span(annotation_span)
     }
 
     /// Return the nearest non-whitespace token after one annotation span.
@@ -58,7 +55,8 @@ impl<'a> DestackFormatContext<'a> {
         &self,
         annotation_id: LocalNodeId<Annotation>,
     ) -> Option<ast::TokenSpan> {
-        next_non_whitespace_token_after_annotation(self, annotation_id)
+        let annotation_span = self.annotation_span(annotation_id);
+        self.next_non_whitespace_token_after_span(annotation_span)
     }
 
     /// Return the previous non-whitespace token type before one annotation span.
@@ -96,7 +94,10 @@ impl<'a> DestackFormatContext<'a> {
         keyword: ast::Keyword,
     ) -> bool {
         self.annotation_next_non_whitespace_token(annotation_id)
-            .is_some_and(|token| token_is_keyword(self, token, keyword))
+            .is_some_and(|token| {
+                self.token_keyword(token)
+                    .is_some_and(|value| value == keyword)
+            })
     }
 
     /// Return the next non-whitespace token type after one annotation span.
