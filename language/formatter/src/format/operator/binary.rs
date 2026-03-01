@@ -813,39 +813,10 @@ fn union_has_block_prefix_comment(
         .unwrap_or(false)
 }
 
-/// Return whether one union expression is wrapped by transparent parenthesized ancestors.
-fn union_has_parenthesized_wrapper(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let mut current_expression_id = node_id;
-    while let Some((parent_id, parent_type)) = context.parent(current_expression_id) {
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        match context.tree.get(parent_expression_id) {
-            Expression::Parenthesized { expression } if *expression == current_expression_id => {
-                return true;
-            }
-            Expression::Statement(inner_expression_id)
-                if *inner_expression_id == current_expression_id =>
-            {
-                current_expression_id = parent_expression_id;
-            }
-            _ => return false,
-        }
-    }
-
-    false
-}
-
 /// Return whether one type union should apply its own indentation.
 fn type_union_should_indent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-    root_owns_prefix_annotation: bool,
 ) -> bool {
     if is_in_type_template_literal_interpolation(context, node_id) {
         return true;
@@ -853,16 +824,6 @@ fn type_union_should_indent(
 
     let is_type_declaration_value = union_is_type_declaration_value(context, node_id);
     if !is_type_declaration_value {
-        return false;
-    }
-
-    if union_has_parenthesized_wrapper(context, node_id) && !context.has_annotation(node_id) {
-        return true;
-    }
-
-    if root_owns_prefix_annotation
-        && union_has_trailing_own_line_doc_prefix_annotation(context, node_id)
-    {
         return false;
     }
 
@@ -891,10 +852,29 @@ fn union_is_type_declaration_value(
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
         match context.tree.get(parent_expression_id) {
-            Expression::Parenthesized { expression } if *expression == current_expression_id => {
+            Expression::Statement(inner_expression_id)
+                if *inner_expression_id == current_expression_id =>
+            {
                 current_expression_id = parent_expression_id;
             }
-            Expression::Statement(expression) if *expression == current_expression_id => {
+            Expression::Parenthesized {
+                expression: inner_expression_id,
+            } if *inner_expression_id == current_expression_id => {
+                current_expression_id = parent_expression_id;
+            }
+            Expression::Binary { operator, .. }
+                if is_type_context(context, parent_expression_id)
+                    && matches!(
+                        operator,
+                        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+                    ) =>
+            {
+                let operands =
+                    flatten_type_binary_expression(context, parent_expression_id, *operator);
+                if operands.len() != 1 || operands[0].expression != current_expression_id {
+                    return false;
+                }
+
                 current_expression_id = parent_expression_id;
             }
             _ => return false,
@@ -943,10 +923,37 @@ pub(crate) fn format_leading_pipe_union<'ast>(
     operands: &BinaryOperands,
     should_force_expand: bool,
 ) -> FormatResult<()> {
+    format_leading_pipe_union_internal(f, node_id, operands, should_force_expand, false)
+}
+
+/// Format one type union with optional external dropped-prefix comment seam behavior.
+pub(crate) fn format_leading_pipe_union_with_external_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    operands: &BinaryOperands,
+    should_force_expand: bool,
+    has_external_line_prefix_pipe_comment: bool,
+) -> FormatResult<()> {
+    format_leading_pipe_union_internal(
+        f,
+        node_id,
+        operands,
+        should_force_expand,
+        has_external_line_prefix_pipe_comment,
+    )
+}
+
+/// Format one type union with inline-or-leading-pipe behavior.
+fn format_leading_pipe_union_internal<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    operands: &BinaryOperands,
+    should_force_expand: bool,
+    has_external_line_prefix_pipe_comment: bool,
+) -> FormatResult<()> {
     let root_owns_prefix_annotation = union_owns_prefix_annotations(f.context(), node_id);
     let union_group_id = f.group_id("type_union");
-    let should_indent_union =
-        type_union_should_indent(f.context(), node_id, root_owns_prefix_annotation);
+    let should_indent_union = type_union_should_indent(f.context(), node_id);
     let root_has_block_prefix_comment =
         root_owns_prefix_annotation && union_has_block_prefix_comment(f.context(), node_id);
     let first_operand_has_own_line_prefix_comment = operands.first().is_some_and(|operand| {
@@ -958,7 +965,10 @@ pub(crate) fn format_leading_pipe_union<'ast>(
 
             // first operand: print a leading `|` only in broken groups
             if is_first_operand {
-                if first_operand_has_own_line_prefix_comment || root_has_block_prefix_comment {
+                if first_operand_has_own_line_prefix_comment
+                    || root_has_block_prefix_comment
+                    || has_external_line_prefix_pipe_comment
+                {
                     write!(
                         f,
                         [if_group_breaks(&format_args![token("|"), space()])
