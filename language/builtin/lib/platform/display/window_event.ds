@@ -15,36 +15,6 @@ import {
     WindowVisibility,
 } from "./window.ds";
 
-/// Window event kind.
-export enum WindowEventKind {
-    /// Window was created.
-    Created = 1,
-    /// Window close was requested by host policy or user action.
-    CloseRequested = 2,
-    /// Window was destroyed.
-    Destroyed = 3,
-    /// Window focus changed.
-    FocusChanged = 4,
-    /// Window visibility changed.
-    VisibilityChanged = 5,
-    /// Window occlusion changed.
-    OcclusionChanged = 6,
-    /// Window position changed.
-    PositionChanged = 7,
-    /// Window size changed.
-    SizeChanged = 8,
-    /// Window scale factor changed.
-    ScaleFactorChanged = 9,
-    /// Window redraw was requested.
-    RefreshRequested = 10,
-    /// Window mode changed.
-    ModeChanged = 11,
-    /// Window display association changed.
-    DisplayChanged = 12,
-    /// Window theme changed.
-    ThemeChanged = 13,
-}
-
 /// Window focus-change payload.
 export struct WindowFocusPayload {
     /// Whether the window is focused after this event.
@@ -101,22 +71,140 @@ export struct WindowThemePayload {
     theme: WindowTheme;
 }
 
-/// Typed payload for one window event.
-export newtype WindowEventPayload = WindowFocusPayload | WindowVisibilityPayload | WindowOcclusionPayload | WindowPositionPayload | WindowSizePayload | WindowScaleFactorPayload | WindowModePayload | WindowDisplayPayload | WindowThemePayload;
-
-/// Window event payload.
-export struct WindowEvent {
+/// Shared metadata for all window events.
+export struct WindowEventMetadata {
     /// Window handle associated with this event.
     window: WindowHandle;
-    /// Event kind selector.
-    kind: WindowEventKind;
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic event sequence number.
     sequence: uint64;
-    /// Typed event payload when this event kind carries payload data.
-    payload: WindowEventPayload | void;
 }
+
+/// Window-created event.
+export struct WindowCreatedEvent {
+    /// Discriminator for this window event variant.
+    kind: "created";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window-close-requested event.
+export struct WindowCloseRequestedEvent {
+    /// Discriminator for this window event variant.
+    kind: "closeRequested";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window-destroyed event.
+export struct WindowDestroyedEvent {
+    /// Discriminator for this window event variant.
+    kind: "destroyed";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window-focus-changed event.
+export struct WindowFocusChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "focusChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Focus-change payload.
+    payload: WindowFocusPayload;
+}
+
+/// Window-visibility-changed event.
+export struct WindowVisibilityChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "visibilityChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Visibility-change payload.
+    payload: WindowVisibilityPayload;
+}
+
+/// Window-occlusion-changed event.
+export struct WindowOcclusionChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "occlusionChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Occlusion-change payload.
+    payload: WindowOcclusionPayload;
+}
+
+/// Window-position-changed event.
+export struct WindowPositionChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "positionChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Position-change payload.
+    payload: WindowPositionPayload;
+}
+
+/// Window-size-changed event.
+export struct WindowSizeChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "sizeChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Size-change payload.
+    payload: WindowSizePayload;
+}
+
+/// Window-scale-factor-changed event.
+export struct WindowScaleFactorChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "scaleFactorChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Scale-factor payload.
+    payload: WindowScaleFactorPayload;
+}
+
+/// Window-refresh-requested event.
+export struct WindowRefreshRequestedEvent {
+    /// Discriminator for this window event variant.
+    kind: "refreshRequested";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window-mode-changed event.
+export struct WindowModeChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "modeChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Mode-change payload.
+    payload: WindowModePayload;
+}
+
+/// Window-display-changed event.
+export struct WindowDisplayChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "displayChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Display-change payload.
+    payload: WindowDisplayPayload;
+}
+
+/// Window-theme-changed event.
+export struct WindowThemeChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "themeChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Theme-change payload.
+    payload: WindowThemePayload;
+}
+
+/// Window event payload.
+export newtype WindowEvent = WindowCreatedEvent | WindowCloseRequestedEvent | WindowDestroyedEvent | WindowFocusChangedEvent | WindowVisibilityChangedEvent | WindowOcclusionChangedEvent | WindowPositionChangedEvent | WindowSizeChangedEvent | WindowScaleFactorChangedEvent | WindowRefreshRequestedEvent | WindowModeChangedEvent | WindowDisplayChangedEvent | WindowThemeChangedEvent;
 
 /// Window event stream open options.
 export struct WindowEventOpenOptions {

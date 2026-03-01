@@ -88,18 +88,8 @@ export struct UsbIsochronousTransferResult {
     packetStatuses: Slice<int32>;
 }
 
-/// USB hotplug event kind.
-export enum UsbHotplugEventKind {
-    /// USB device was attached.
-    Attached = 1,
-    /// USB device was detached.
-    Detached = 2,
-}
-
-/// USB hotplug event payload.
-export struct UsbHotplugEvent {
-    /// Event kind selector.
-    kind: UsbHotplugEventKind;
+/// Shared metadata for all USB hotplug events.
+export struct UsbHotplugEventMetadata {
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this watch stream.
@@ -107,6 +97,25 @@ export struct UsbHotplugEvent {
     /// Hotplug device descriptor payload.
     device: UsbDeviceDescriptor;
 }
+
+/// USB-attached hotplug event.
+export struct UsbHotplugAttachedEvent {
+    /// Discriminator for this usb hotplug event variant.
+    kind: "attached";
+    /// Shared event metadata.
+    metadata: UsbHotplugEventMetadata;
+}
+
+/// USB-detached hotplug event.
+export struct UsbHotplugDetachedEvent {
+    /// Discriminator for this usb hotplug event variant.
+    kind: "detached";
+    /// Shared event metadata.
+    metadata: UsbHotplugEventMetadata;
+}
+
+/// USB hotplug event payload.
+export newtype UsbHotplugEvent = UsbHotplugAttachedEvent | UsbHotplugDetachedEvent;
 
 /// USB string descriptor payload.
 export struct UsbStringDescriptor {

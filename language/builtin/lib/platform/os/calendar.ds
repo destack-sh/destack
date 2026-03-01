@@ -61,25 +61,24 @@ export struct CalendarAttendee {
     responseStatus: CalendarParticipantStatus;
 }
 
-/// Calendar reminder payload.
-///
-/// Exactly one reminder selector should be set according to `kind`.
-export enum CalendarReminderKind {
-    /// Relative reminder before event start.
-    Relative = 1,
-    /// Absolute reminder timestamp.
-    Absolute = 2,
+/// Relative calendar reminder payload.
+export struct CalendarRelativeReminder {
+    /// Discriminator for this calendar reminder variant.
+    kind: "relative";
+    /// Minutes before start time for one relative reminder.
+    minutesBeforeStart: int32;
+}
+
+/// Absolute calendar reminder payload.
+export struct CalendarAbsoluteReminder {
+    /// Discriminator for this calendar reminder variant.
+    kind: "absolute";
+    /// Absolute reminder timestamp in UTC nanoseconds.
+    absoluteUnixNs: uint64;
 }
 
 /// Calendar reminder payload.
-export struct CalendarReminder {
-    /// Reminder selector.
-    kind: CalendarReminderKind;
-    /// Minutes before start time for one relative reminder.
-    minutesBeforeStart?: int32;
-    /// Absolute reminder timestamp in UTC nanoseconds when provided.
-    absoluteUnixNs?: uint64;
-}
+export newtype CalendarReminder = CalendarRelativeReminder | CalendarAbsoluteReminder;
 
 /// Calendar recurrence rule payload.
 export struct CalendarRecurrenceRule {

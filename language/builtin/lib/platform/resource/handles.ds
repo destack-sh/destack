@@ -150,6 +150,9 @@ export newtype WindowHandle = ResourceId;
 /// Handle for one display window-event stream.
 export newtype WindowEventHandle = ResourceId;
 
+/// Handle for one display monitor-event stream.
+export newtype DisplayEventHandle = ResourceId;
+
 /// Handle for one inbound intent event stream.
 export newtype IntentHandle = ResourceId;
 

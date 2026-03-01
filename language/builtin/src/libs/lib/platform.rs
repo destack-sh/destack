@@ -200,10 +200,22 @@ builtin_lib_sources_targeted!(
             "monitor.ds"
         ),
         (
+            LIB_PLATFORM_DISPLAY_MONITOR_EVENT_DS,
+            "lib",
+            "platform/display",
+            "monitor_event.ds"
+        ),
+        (
             LIB_PLATFORM_DISPLAY_WINDOW_DS,
             "lib",
             "platform/display",
             "window.ds"
+        ),
+        (
+            LIB_PLATFORM_DISPLAY_WINDOW_EVENT_DS,
+            "lib",
+            "platform/display",
+            "window_event.ds"
         ),
         (
             LIB_PLATFORM_ERROR_ERROR_DS,
@@ -845,7 +857,9 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_DEVICE_USB_DS,
         LIB_PLATFORM_DISPLAY_INDEX_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_DS,
+        LIB_PLATFORM_DISPLAY_MONITOR_EVENT_DS,
         LIB_PLATFORM_DISPLAY_WINDOW_DS,
+        LIB_PLATFORM_DISPLAY_WINDOW_EVENT_DS,
         LIB_PLATFORM_ERROR_ERROR_DS,
         LIB_PLATFORM_ERROR_INDEX_DS,
         LIB_PLATFORM_FFI_CALL_DS,

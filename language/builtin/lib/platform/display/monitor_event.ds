@@ -8,20 +8,6 @@ import {
 } from "./backend.ds";
 import { DisplayDescriptor, DisplayMode } from "./monitor.ds";
 
-/// Monitor event kind.
-export enum DisplayEventKind {
-    /// One display became available.
-    Added = 1,
-    /// One display was removed.
-    Removed = 2,
-    /// Primary display selection changed.
-    PrimaryChanged = 3,
-    /// One display descriptor changed.
-    DescriptorChanged = 4,
-    /// One display mode changed.
-    ModeChanged = 5,
-}
-
 /// Display added-event payload.
 export struct DisplayAddedPayload {
     /// Descriptor after this event.
@@ -54,22 +40,68 @@ export struct DisplayModeChangedPayload {
     mode: DisplayMode;
 }
 
-/// Typed payload for one monitor event.
-export newtype DisplayEventPayload = DisplayAddedPayload | DisplayRemovedPayload | DisplayPrimaryPayload | DisplayDescriptorChangedPayload | DisplayModeChangedPayload;
-
-/// Monitor event payload.
-export struct DisplayEvent {
+/// Shared metadata for all display monitor events.
+export struct DisplayEventMetadata {
     /// Display identifier associated with this event.
     displayId: string | void;
-    /// Event kind selector.
-    kind: DisplayEventKind;
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic event sequence number.
     sequence: uint64;
-    /// Typed event payload.
-    payload: DisplayEventPayload;
 }
+
+/// Display-added event.
+export struct DisplayAddedEvent {
+    /// Discriminator for this display event variant.
+    kind: "added";
+    /// Shared event metadata.
+    metadata: DisplayEventMetadata;
+    /// Added payload.
+    payload: DisplayAddedPayload;
+}
+
+/// Display-removed event.
+export struct DisplayRemovedEvent {
+    /// Discriminator for this display event variant.
+    kind: "removed";
+    /// Shared event metadata.
+    metadata: DisplayEventMetadata;
+    /// Removed payload.
+    payload: DisplayRemovedPayload;
+}
+
+/// Display-primary-changed event.
+export struct DisplayPrimaryChangedEvent {
+    /// Discriminator for this display event variant.
+    kind: "primaryChanged";
+    /// Shared event metadata.
+    metadata: DisplayEventMetadata;
+    /// Primary-change payload.
+    payload: DisplayPrimaryPayload;
+}
+
+/// Display-descriptor-changed event.
+export struct DisplayDescriptorChangedEvent {
+    /// Discriminator for this display event variant.
+    kind: "descriptorChanged";
+    /// Shared event metadata.
+    metadata: DisplayEventMetadata;
+    /// Descriptor-change payload.
+    payload: DisplayDescriptorChangedPayload;
+}
+
+/// Display-mode-changed event.
+export struct DisplayModeChangedEvent {
+    /// Discriminator for this display event variant.
+    kind: "modeChanged";
+    /// Shared event metadata.
+    metadata: DisplayEventMetadata;
+    /// Mode-change payload.
+    payload: DisplayModeChangedPayload;
+}
+
+/// Monitor event payload.
+export newtype DisplayEvent = DisplayAddedEvent | DisplayRemovedEvent | DisplayPrimaryChangedEvent | DisplayDescriptorChangedEvent | DisplayModeChangedEvent;
 
 /// Monitor event stream open options.
 export struct DisplayMonitorEventOpenOptions {

@@ -35,38 +35,6 @@ export enum AudioEventSource {
     SyntheticPoll = 2,
 }
 
-/// Audio event kind.
-export enum AudioEventKind {
-    /// One device became available.
-    DeviceAdded = 1,
-    /// One device became unavailable.
-    DeviceRemoved = 2,
-    /// Default playback device changed.
-    DefaultPlaybackChanged = 3,
-    /// Default capture device changed.
-    DefaultCaptureChanged = 4,
-    /// Default loopback device changed.
-    DefaultLoopbackChanged = 5,
-    /// Device format capabilities changed.
-    DeviceFormatChanged = 6,
-    /// Device stream route changed.
-    DeviceRerouted = 7,
-    /// Host interruption started.
-    InterruptionBegan = 8,
-    /// Host interruption ended.
-    InterruptionEnded = 9,
-    /// Backend disconnected.
-    BackendDisconnected = 10,
-    /// Stream reported one xrun.
-    StreamXRun = 11,
-    /// Stream device changed.
-    StreamDeviceChanged = 12,
-    /// Stream state changed.
-    StreamStateChanged = 13,
-    /// Backend session reset occurred.
-    BackendReset = 14,
-}
-
 /// Device-added event payload.
 export struct AudioDeviceAddedPayload {
     /// Target device identifier when present.
@@ -163,8 +131,161 @@ export struct AudioBackendResetPayload {
     stream: AudioStreamHandle | void;
 }
 
-/// Typed audio event payload.
-export newtype AudioEventPayload = AudioDeviceAddedPayload | AudioDeviceRemovedPayload | AudioDefaultPlaybackChangedPayload | AudioDefaultCaptureChangedPayload | AudioDefaultLoopbackChangedPayload | AudioDeviceFormatChangedPayload | AudioDeviceReroutedPayload | AudioInterruptionBeganPayload | AudioInterruptionEndedPayload | AudioBackendDisconnectedPayload | AudioStreamXRunPayload | AudioStreamDeviceChangedPayload | AudioStreamStateChangedPayload | AudioBackendResetPayload;
+/// Shared metadata for all audio events.
+export struct AudioEventMetadata {
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number for one subscription queue.
+    sequence: uint64;
+    /// Number of events dropped before this event.
+    droppedCount: uint64;
+    /// Event source selector.
+    source: AudioEventSource;
+    /// Backend selector for this event.
+    backend: AudioBackend;
+    /// Event flags.
+    flags: uint32;
+}
+
+/// Device-added event.
+export struct AudioDeviceAddedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "deviceAdded";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Device-added payload.
+    payload: AudioDeviceAddedPayload;
+}
+
+/// Device-removed event.
+export struct AudioDeviceRemovedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "deviceRemoved";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Device-removed payload.
+    payload: AudioDeviceRemovedPayload;
+}
+
+/// Default-playback-changed event.
+export struct AudioDefaultPlaybackChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "defaultPlaybackChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Default-playback-changed payload.
+    payload: AudioDefaultPlaybackChangedPayload;
+}
+
+/// Default-capture-changed event.
+export struct AudioDefaultCaptureChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "defaultCaptureChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Default-capture-changed payload.
+    payload: AudioDefaultCaptureChangedPayload;
+}
+
+/// Default-loopback-changed event.
+export struct AudioDefaultLoopbackChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "defaultLoopbackChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Default-loopback-changed payload.
+    payload: AudioDefaultLoopbackChangedPayload;
+}
+
+/// Device-format-changed event.
+export struct AudioDeviceFormatChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "deviceFormatChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Device-format-changed payload.
+    payload: AudioDeviceFormatChangedPayload;
+}
+
+/// Device-rerouted event.
+export struct AudioDeviceReroutedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "deviceRerouted";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Device-rerouted payload.
+    payload: AudioDeviceReroutedPayload;
+}
+
+/// Interruption-began event.
+export struct AudioInterruptionBeganEvent {
+    /// Discriminator for this audio event variant.
+    kind: "interruptionBegan";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Interruption-began payload.
+    payload: AudioInterruptionBeganPayload;
+}
+
+/// Interruption-ended event.
+export struct AudioInterruptionEndedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "interruptionEnded";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Interruption-ended payload.
+    payload: AudioInterruptionEndedPayload;
+}
+
+/// Backend-disconnected event.
+export struct AudioBackendDisconnectedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "backendDisconnected";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Backend-disconnected payload.
+    payload: AudioBackendDisconnectedPayload;
+}
+
+/// Stream-xrun event.
+export struct AudioStreamXRunEvent {
+    /// Discriminator for this audio event variant.
+    kind: "streamXRun";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Stream-xrun payload.
+    payload: AudioStreamXRunPayload;
+}
+
+/// Stream-device-changed event.
+export struct AudioStreamDeviceChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "streamDeviceChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Stream-device-changed payload.
+    payload: AudioStreamDeviceChangedPayload;
+}
+
+/// Stream-state-changed event.
+export struct AudioStreamStateChangedEvent {
+    /// Discriminator for this audio event variant.
+    kind: "streamStateChanged";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Stream-state-changed payload.
+    payload: AudioStreamStateChangedPayload;
+}
+
+/// Backend-reset event.
+export struct AudioBackendResetEvent {
+    /// Discriminator for this audio event variant.
+    kind: "backendReset";
+    /// Shared event metadata.
+    metadata: AudioEventMetadata;
+    /// Backend-reset payload.
+    payload: AudioBackendResetPayload;
+}
 
 /// Event subscription options.
 export struct AudioEventSubscriptionOptions {
@@ -187,24 +308,7 @@ export struct AudioEventSubscriptionOptions {
 }
 
 /// Audio event payload.
-export struct AudioEvent {
-    /// Event kind selector.
-    kind: AudioEventKind;
-    /// Event timestamp in nanoseconds.
-    timestampNs: uint64;
-    /// Event sequence number for one subscription queue.
-    sequence: uint64;
-    /// Number of events dropped before this event.
-    droppedCount: uint64;
-    /// Event source selector.
-    source: AudioEventSource;
-    /// Backend selector for this event.
-    backend: AudioBackend;
-    /// Event flags.
-    flags: uint32;
-    /// Typed event payload.
-    payload: AudioEventPayload;
-}
+export newtype AudioEvent = AudioDeviceAddedEvent | AudioDeviceRemovedEvent | AudioDefaultPlaybackChangedEvent | AudioDefaultCaptureChangedEvent | AudioDefaultLoopbackChangedEvent | AudioDeviceFormatChangedEvent | AudioDeviceReroutedEvent | AudioInterruptionBeganEvent | AudioInterruptionEndedEvent | AudioBackendDisconnectedEvent | AudioStreamXRunEvent | AudioStreamDeviceChangedEvent | AudioStreamStateChangedEvent | AudioBackendResetEvent;
 
 /// Audio event bindings.
 declare namespace audio {

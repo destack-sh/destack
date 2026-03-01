@@ -3,30 +3,35 @@ import { ListenerHandle, SocketHandle } from "../resource/index.ds";
 import { OsPath } from "../fs/path.ds";
 import { SocketPair, SocketType } from "./socket.ds";
 
-/// Address kind for unix domain sockets.
-export enum UdsAddressKind {
-    /// Filesystem-backed socket path.
-    Path = 1,
-    /// Linux abstract socket namespace.
-    Abstract = 2,
-    /// Unnamed address.
-    Unnamed = 3,
+/// Filesystem-backed unix domain socket address payload.
+export struct UdsPathAddress {
+    /// Discriminator for this uds address variant.
+    kind: "path";
+    /// Filesystem socket path.
+    path: OsPath;
 }
 
-/// Unix domain socket address payload.
-export struct UdsAddress {
-    /// Address payload kind.
-    kind: UdsAddressKind;
-    /// Filesystem path when `kind` is Path.
-    path: OsPath;
-    /// Abstract namespace name when `kind` is Abstract.
+/// Linux abstract unix domain socket address payload.
+export struct UdsAbstractAddress {
+    /// Discriminator for this uds address variant.
+    kind: "abstract";
+    /// Abstract namespace name.
     abstractName: uint8[];
 }
 
+/// Unnamed unix domain socket address payload.
+export struct UdsUnnamedAddress {
+    /// Discriminator for this uds address variant.
+    kind: "unnamed";
+}
+
+/// Unix domain socket address payload.
+export newtype UdsAddress = UdsPathAddress | UdsAbstractAddress | UdsUnnamedAddress;
+
 /// Unix domain socket (UDS) bindings for the native runtime.
 ///
-/// On byte path targets, `OsPath.Utf16` inputs are transcoded before syscall dispatch.
-/// Use `OsPath.Bytes` when socket paths contain non-UTF-8 bytes.
+/// On byte path targets, `kind: "utf16"` inputs are transcoded before syscall dispatch.
+/// Use `kind: "bytes"` when socket paths contain non-UTF-8 bytes.
 declare namespace net {
     /// Connect to a UDS endpoint.
     ///

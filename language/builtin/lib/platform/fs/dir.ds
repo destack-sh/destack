@@ -32,11 +32,22 @@ export struct Dirent {
     kind: DirentKind;
 }
 
-/// Result payload for incremental directory iteration.
-export struct DirentNext {
-    /// The current entry when one was returned.
-    entry: Dirent | void;
+/// Incremental directory iteration payload when one entry was returned.
+export struct DirentNextEntry {
+    /// Discriminator for this incremental-read variant.
+    kind: "entry";
+    /// The current entry.
+    entry: Dirent;
 }
+
+/// Incremental directory iteration payload when end-of-directory was reached.
+export struct DirentNextEnd {
+    /// Discriminator for this incremental-read variant.
+    kind: "end";
+}
+
+/// Result payload for incremental directory iteration.
+export newtype DirentNext = DirentNextEntry | DirentNextEnd;
 
 /// Directory bindings for the native runtime.
 declare namespace fs {
@@ -147,7 +158,7 @@ declare namespace fs {
     /// Read a single directory entry from an open directory handle.
     ///
     /// Read at most one entry from the current directory cursor and advance the host iterator.
-    /// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
+    /// Callers can iterate deterministically by repeatedly invoking this operation until `kind` is `"end"`.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.

@@ -6,33 +6,56 @@ import { Signal } from "./signals.ds";
 /// Wait flags for process waits.
 export newtype ProcessWaitFlags = uint32;
 
-/// Child process status kind.
-export enum ProcessWaitKind {
-    /// Process is still running.
-    Running = 0,
-    /// Process exited with an exit code.
-    Exited = 1,
-    /// Process exited due to a signal.
-    Signaled = 2,
-    /// Process is stopped.
-    Stopped = 3,
-    /// Process was resumed after stop.
-    Continued = 4,
-}
-
-/// Child process status payload.
-export struct ProcessWaitStatus {
+/// Child process running status payload.
+export struct ProcessWaitRunningStatus {
+    /// Discriminator for this wait-status variant.
+    kind: "running";
     /// Child process identifier.
     pid: ProcessId;
-    /// Status kind.
-    kind: ProcessWaitKind;
+}
+
+/// Child process exited status payload.
+export struct ProcessWaitExitedStatus {
+    /// Discriminator for this wait-status variant.
+    kind: "exited";
+    /// Child process identifier.
+    pid: ProcessId;
     /// Exit code when available.
     exitCode: int32;
+}
+
+/// Child process signaled status payload.
+export struct ProcessWaitSignaledStatus {
+    /// Discriminator for this wait-status variant.
+    kind: "signaled";
+    /// Child process identifier.
+    pid: ProcessId;
     /// Signal number when available.
     signal: Signal;
     /// Whether a core file was produced.
     coreDumped: boolean;
 }
+
+/// Child process stopped status payload.
+export struct ProcessWaitStoppedStatus {
+    /// Discriminator for this wait-status variant.
+    kind: "stopped";
+    /// Child process identifier.
+    pid: ProcessId;
+    /// Signal number when available.
+    signal: Signal;
+}
+
+/// Child process continued status payload.
+export struct ProcessWaitContinuedStatus {
+    /// Discriminator for this wait-status variant.
+    kind: "continued";
+    /// Child process identifier.
+    pid: ProcessId;
+}
+
+/// Child process status payload.
+export newtype ProcessWaitStatus = ProcessWaitRunningStatus | ProcessWaitExitedStatus | ProcessWaitSignaledStatus | ProcessWaitStoppedStatus | ProcessWaitContinuedStatus;
 
 /// Process wait bindings for the native runtime.
 declare namespace process {
