@@ -673,13 +673,13 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KeepAliveConfig {
-    /// The enabled field.
+    /// Whether keepalive probes are enabled.
     pub enabled: bool,
-    /// The idle_seconds field.
+    /// Idle time before probes begin, in seconds.
     pub idle_seconds: u32,
-    /// The interval_seconds field.
+    /// Interval between probes, in seconds.
     pub interval_seconds: u32,
-    /// The probe_count field.
+    /// Number of failed probes before timeout.
     pub probe_count: u32,
 }
 
@@ -738,9 +738,9 @@ impl VmAggregateCodec for KeepAliveConfig {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Linger {
-    /// The enabled field.
+    /// Whether linger is enabled.
     pub enabled: bool,
-    /// The seconds field.
+    /// Linger duration in seconds.
     pub seconds: u32,
 }
 
@@ -790,17 +790,17 @@ impl VmAggregateCodec for Linger {
 /// ABI struct for NetInterface.
 #[repr(C)]
 pub struct NetInterfaceAbi<A: BindingAbi> {
-    /// The name field.
+    /// Interface name.
     pub name: A::String,
-    /// The index field.
+    /// Interface index.
     pub index: u32,
-    /// The flags field.
+    /// Interface flags.
     pub flags: NetInterfaceFlags,
-    /// The mtu field.
+    /// Interface mtu in bytes.
     pub mtu: u32,
-    /// The mac_address field.
+    /// Interface hardware address.
     pub mac_address: A::Array<u8>,
-    /// The addresses field.
+    /// Interface addresses.
     pub addresses: A::Array<platform_net::SocketAddressAbi<A>>,
 }
 
@@ -892,15 +892,15 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
 /// ABI struct for PacketBackendDescriptor.
 #[repr(C)]
 pub struct PacketBackendDescriptorAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Backend selector.
     pub backend: PacketBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: A::String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend capability flags.
     pub capability_flags: PacketBackendCapabilityFlags,
 }
 
@@ -991,17 +991,17 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketCaptureOptions {
-    /// The backend field.
+    /// Preferred packet backend selector.
     pub backend: PacketBackend,
-    /// The backend_policy field.
+    /// Packet backend selection policy.
     pub backend_policy: PacketBackendSelectionPolicy,
-    /// The interface_index field.
+    /// Interface index for capture.
     pub interface_index: u32,
-    /// The snap_length field.
+    /// Maximum frame bytes per packet.
     pub snap_length: u32,
-    /// The timeout_ms field.
+    /// Capture timeout in milliseconds.
     pub timeout_ms: i32,
-    /// The promiscuous field.
+    /// Whether promiscuous mode is requested.
     pub promiscuous: bool,
 }
 
@@ -1073,13 +1073,13 @@ impl VmAggregateCodec for PacketCaptureOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketCaptureRecord {
-    /// The bytes field.
+    /// Number of packet bytes written to the target buffer.
     pub bytes: u64,
-    /// The interface_index field.
+    /// Interface index that produced the packet.
     pub interface_index: u32,
-    /// The timestamp_ns field.
+    /// Capture timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The truncated field.
+    /// Whether packet bytes were truncated.
     pub truncated: bool,
 }
 
@@ -1138,11 +1138,11 @@ impl VmAggregateCodec for PacketCaptureRecord {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketCaptureStats {
-    /// The received_packets field.
+    /// Number of packets received by the backend.
     pub received_packets: u64,
-    /// The dropped_packets field.
+    /// Number of packets dropped by the backend.
     pub dropped_packets: u64,
-    /// The interface_dropped_packets field.
+    /// Number of packets dropped by the interface.
     pub interface_dropped_packets: u64,
 }
 
@@ -1203,11 +1203,11 @@ impl VmAggregateCodec for PacketCaptureStats {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketFanoutOptions {
-    /// The group_id field.
+    /// Fanout group identifier.
     pub group_id: u16,
-    /// The mode field.
+    /// Fanout algorithm mode.
     pub mode: PacketFanoutMode,
-    /// The flags field.
+    /// Mode-specific fanout flags.
     pub flags: u16,
 }
 
@@ -1263,15 +1263,15 @@ impl VmAggregateCodec for PacketFanoutOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacketRingOptions {
-    /// The block_size field.
+    /// Ring block size in bytes.
     pub block_size: u32,
-    /// The block_count field.
+    /// Number of blocks in the ring.
     pub block_count: u32,
-    /// The frame_size field.
+    /// Frame size in bytes.
     pub frame_size: u32,
-    /// The frame_count field.
+    /// Number of frames in the ring.
     pub frame_count: u32,
-    /// The retire_timeout_ms field.
+    /// Block retire timeout in milliseconds.
     pub retire_timeout_ms: u32,
 }
 
@@ -1332,13 +1332,13 @@ impl VmAggregateCodec for PacketRingOptions {
 /// ABI struct for ResolveQuery.
 #[repr(C)]
 pub struct ResolveQueryAbi<A: BindingAbi> {
-    /// The host field.
+    /// Hostname or numeric host literal when provided.
     pub host: Option<A::String>,
-    /// The service field.
+    /// Service name or numeric port string when provided.
     pub service: Option<A::String>,
-    /// The family field.
+    /// Requested address family filter.
     pub family: SocketFamily,
-    /// The flags field.
+    /// Native resolver flags.
     pub flags: ResolveFlags,
 }
 
@@ -1426,9 +1426,9 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
 /// ABI struct for ReverseLookupName.
 #[repr(C)]
 pub struct ReverseLookupNameAbi<A: BindingAbi> {
-    /// The host field.
+    /// Resolved host value.
     pub host: A::String,
-    /// The service field.
+    /// Resolved service value.
     pub service: A::String,
 }
 
@@ -1503,19 +1503,19 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
 /// ABI struct for RouteEntry.
 #[repr(C)]
 pub struct RouteEntryAbi<A: BindingAbi> {
-    /// The family field.
+    /// Route family.
     pub family: SocketFamily,
-    /// The destination field.
+    /// Destination prefix address.
     pub destination: platform_net::SocketAddressAbi<A>,
-    /// The prefix_length field.
+    /// Prefix length in bits.
     pub prefix_length: u8,
-    /// The gateway field.
+    /// Next-hop gateway address.
     pub gateway: platform_net::SocketAddressAbi<A>,
-    /// The interface_index field.
+    /// Output interface index.
     pub interface_index: u32,
-    /// The metric field.
+    /// Route metric.
     pub metric: u32,
-    /// The kind field.
+    /// Route kind.
     pub kind: RouteKind,
 }
 
@@ -1607,11 +1607,11 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
 /// ABI struct for SocketAddress.
 #[repr(C)]
 pub struct SocketAddressAbi<A: BindingAbi> {
-    /// The family field.
+    /// Native address family.
     pub family: u16,
-    /// The length field.
+    /// Length of the valid sockaddr payload in bytes.
     pub length: u32,
-    /// The bytes field.
+    /// Raw sockaddr bytes.
     pub bytes: A::Array<u8>,
 }
 
@@ -1689,11 +1689,11 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SocketCredentials {
-    /// The pid field.
+    /// Process identifier.
     pub pid: u32,
-    /// The uid field.
+    /// User identifier.
     pub uid: u32,
-    /// The gid field.
+    /// Group identifier.
     pub gid: u32,
 }
 
@@ -1748,9 +1748,9 @@ impl VmAggregateCodec for SocketCredentials {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SocketPair {
-    /// The first field.
+    /// First socket in the pair.
     pub first: resource::SocketHandle,
-    /// The second field.
+    /// Second socket in the pair.
     pub second: resource::SocketHandle,
 }
 
@@ -1806,9 +1806,9 @@ impl VmAggregateCodec for SocketPair {
 /// ABI struct for SocketRecvBatchRequest.
 #[repr(C)]
 pub struct SocketRecvBatchRequestAbi<A: BindingAbi> {
-    /// The payload field.
+    /// Payload buffer for this message.
     pub payload: A::Slice<u8>,
-    /// The recv_flags field.
+    /// Per-message receive flags.
     pub recv_flags: SocketMessageFlags,
 }
 
@@ -1886,11 +1886,11 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
 /// ABI struct for SocketRecvFrom.
 #[repr(C)]
 pub struct SocketRecvFromAbi<A: BindingAbi> {
-    /// The bytes field.
+    /// Number of payload bytes received.
     pub bytes: u64,
-    /// The address field.
+    /// Source address.
     pub address: platform_net::SocketAddressAbi<A>,
-    /// The recv_flags field.
+    /// Flags returned by recvfrom-style calls.
     pub recv_flags: SocketMessageFlags,
 }
 
@@ -1971,21 +1971,21 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
 /// ABI struct for SocketRecvMessage.
 #[repr(C)]
 pub struct SocketRecvMessageAbi<A: BindingAbi> {
-    /// The bytes field.
+    /// Number of payload bytes received.
     pub bytes: u64,
-    /// The address field.
+    /// Source address when returned by the host.
     pub address: Option<platform_net::SocketAddressAbi<A>>,
-    /// The recv_flags field.
+    /// Flags returned by recvmsg.
     pub recv_flags: SocketMessageFlags,
-    /// The payload_truncated field.
+    /// Whether payload bytes were truncated.
     pub payload_truncated: bool,
-    /// The control_truncated field.
+    /// Whether ancillary data was truncated.
     pub control_truncated: bool,
-    /// The control field.
+    /// Raw ancillary control payload.
     pub control: platform_net::SocketControlBufferAbi<A>,
-    /// The fds field.
+    /// Resource handles received from the peer.
     pub fds: A::Array<resource::TransferredHandle>,
-    /// The credentials field.
+    /// Credentials captured from the peer when available.
     pub credentials: Option<SocketCredentials>,
 }
 
@@ -2101,9 +2101,9 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
 /// ABI struct for SocketSendBatchEntry.
 #[repr(C)]
 pub struct SocketSendBatchEntryAbi<A: BindingAbi> {
-    /// The payload field.
+    /// Payload bytes for this message.
     pub payload: A::Slice<u8>,
-    /// The message field.
+    /// Message metadata for this payload.
     pub message: platform_net::SocketSendMessageAbi<A>,
 }
 
@@ -2178,15 +2178,15 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
 /// ABI struct for SocketSendMessage.
 #[repr(C)]
 pub struct SocketSendMessageAbi<A: BindingAbi> {
-    /// The address field.
+    /// Destination address for explicit routing.
     pub address: Option<platform_net::SocketAddressAbi<A>>,
-    /// The fds field.
+    /// Resource handles to pass.
     pub fds: A::Array<resource::TransferredHandle>,
-    /// The control field.
+    /// Raw ancillary control payload.
     pub control: platform_net::SocketControlBufferAbi<A>,
-    /// The flags field.
+    /// Per-send flags passed to sendmsg.
     pub flags: SocketMessageFlags,
-    /// The credentials field.
+    /// Credentials to send when enabled.
     pub credentials: Option<SocketCredentials>,
 }
 
@@ -2288,9 +2288,9 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
 /// ABI struct for SocketSendTo.
 #[repr(C)]
 pub struct SocketSendToAbi<A: BindingAbi> {
-    /// The address field.
+    /// Destination address.
     pub address: platform_net::SocketAddressAbi<A>,
-    /// The flags field.
+    /// Per-send flags passed to sendto.
     pub flags: SocketMessageFlags,
 }
 
@@ -2365,11 +2365,11 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
 /// ABI struct for UdpReceive.
 #[repr(C)]
 pub struct UdpReceiveAbi<A: BindingAbi> {
-    /// The address field.
+    /// Remote socket address.
     pub address: platform_net::SocketAddressAbi<A>,
-    /// The bytes field.
+    /// Number of bytes read.
     pub bytes: u64,
-    /// The recv_flags field.
+    /// Flags returned by recvfrom-style calls.
     pub recv_flags: UdpMessageFlags,
 }
 
@@ -2447,11 +2447,11 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
 /// ABI struct for UdpSourceMembershipV4.
 #[repr(C)]
 pub struct UdpSourceMembershipV4Abi<A: BindingAbi> {
-    /// The group field.
+    /// Multicast group address.
     pub group: A::String,
-    /// The source field.
+    /// Source address.
     pub source: A::String,
-    /// The interface_address field.
+    /// Local interface address.
     pub interface_address: A::String,
 }
 
@@ -2533,11 +2533,11 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
 /// ABI struct for UdpSourceMembershipV6.
 #[repr(C)]
 pub struct UdpSourceMembershipV6Abi<A: BindingAbi> {
-    /// The group field.
+    /// Multicast group address.
     pub group: A::String,
-    /// The source field.
+    /// Source address.
     pub source: A::String,
-    /// The interface_index field.
+    /// Local interface index.
     pub interface_index: u32,
 }
 
@@ -2616,9 +2616,9 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
 /// ABI struct for UdsAbstractAddress.
 #[repr(C)]
 pub struct UdsAbstractAddressAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: A::String,
-    /// The abstract_name field.
+    /// Abstract namespace name.
     pub abstract_name: A::Array<u8>,
 }
 
@@ -2693,9 +2693,9 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
 /// ABI struct for UdsPathAddress.
 #[repr(C)]
 pub struct UdsPathAddressAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: A::String,
-    /// The path field.
+    /// Filesystem socket path.
     pub path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2770,7 +2770,7 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
 /// ABI struct for UdsUnnamedAddress.
 #[repr(C)]
 pub struct UdsUnnamedAddressAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: A::String,
 }
 
@@ -2839,216 +2839,216 @@ impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
 /// Replay struct for NetInterface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NetInterfaceReplayRecord {
-    /// The name field.
+    /// Interface name.
     pub name: String,
-    /// The index field.
+    /// Interface index.
     pub index: u32,
-    /// The flags field.
+    /// Interface flags.
     pub flags: NetInterfaceFlags,
-    /// The mtu field.
+    /// Interface mtu in bytes.
     pub mtu: u32,
-    /// The mac_address field.
+    /// Interface hardware address.
     pub mac_address: Vec<u8>,
-    /// The addresses field.
+    /// Interface addresses.
     pub addresses: Vec<SocketAddressReplayRecord>,
 }
 
 /// Replay struct for PacketBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PacketBackendDescriptorReplayRecord {
-    /// The backend field.
+    /// Backend selector.
     pub backend: PacketBackend,
-    /// The name field.
+    /// Stable backend name.
     pub name: String,
-    /// The available field.
+    /// Whether this backend is currently available on this host.
     pub available: bool,
-    /// The priority field.
+    /// Priority in default auto-selection order.
     pub priority: u16,
-    /// The capability_flags field.
+    /// Backend capability flags.
     pub capability_flags: PacketBackendCapabilityFlags,
 }
 
 /// Replay struct for ResolveQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ResolveQueryReplayRecord {
-    /// The host field.
+    /// Hostname or numeric host literal when provided.
     pub host: Option<String>,
-    /// The service field.
+    /// Service name or numeric port string when provided.
     pub service: Option<String>,
-    /// The family field.
+    /// Requested address family filter.
     pub family: SocketFamily,
-    /// The flags field.
+    /// Native resolver flags.
     pub flags: ResolveFlags,
 }
 
 /// Replay struct for ReverseLookupName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReverseLookupNameReplayRecord {
-    /// The host field.
+    /// Resolved host value.
     pub host: String,
-    /// The service field.
+    /// Resolved service value.
     pub service: String,
 }
 
 /// Replay struct for RouteEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RouteEntryReplayRecord {
-    /// The family field.
+    /// Route family.
     pub family: SocketFamily,
-    /// The destination field.
+    /// Destination prefix address.
     pub destination: SocketAddressReplayRecord,
-    /// The prefix_length field.
+    /// Prefix length in bits.
     pub prefix_length: u8,
-    /// The gateway field.
+    /// Next-hop gateway address.
     pub gateway: SocketAddressReplayRecord,
-    /// The interface_index field.
+    /// Output interface index.
     pub interface_index: u32,
-    /// The metric field.
+    /// Route metric.
     pub metric: u32,
-    /// The kind field.
+    /// Route kind.
     pub kind: RouteKind,
 }
 
 /// Replay struct for SocketAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketAddressReplayRecord {
-    /// The family field.
+    /// Native address family.
     pub family: u16,
-    /// The length field.
+    /// Length of the valid sockaddr payload in bytes.
     pub length: u32,
-    /// The bytes field.
+    /// Raw sockaddr bytes.
     pub bytes: Vec<u8>,
 }
 
 /// Replay struct for SocketRecvBatchRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketRecvBatchRequestReplayRecord {
-    /// The payload field.
+    /// Payload buffer for this message.
     pub payload: Vec<u8>,
-    /// The recv_flags field.
+    /// Per-message receive flags.
     pub recv_flags: SocketMessageFlags,
 }
 
 /// Replay struct for SocketRecvFrom.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketRecvFromReplayRecord {
-    /// The bytes field.
+    /// Number of payload bytes received.
     pub bytes: u64,
-    /// The address field.
+    /// Source address.
     pub address: SocketAddressReplayRecord,
-    /// The recv_flags field.
+    /// Flags returned by recvfrom-style calls.
     pub recv_flags: SocketMessageFlags,
 }
 
 /// Replay struct for SocketRecvMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketRecvMessageReplayRecord {
-    /// The bytes field.
+    /// Number of payload bytes received.
     pub bytes: u64,
-    /// The address field.
+    /// Source address when returned by the host.
     pub address: Option<SocketAddressReplayRecord>,
-    /// The recv_flags field.
+    /// Flags returned by recvmsg.
     pub recv_flags: SocketMessageFlags,
-    /// The payload_truncated field.
+    /// Whether payload bytes were truncated.
     pub payload_truncated: bool,
-    /// The control_truncated field.
+    /// Whether ancillary data was truncated.
     pub control_truncated: bool,
-    /// The control field.
+    /// Raw ancillary control payload.
     pub control: Vec<u8>,
-    /// The fds field.
+    /// Resource handles received from the peer.
     pub fds: Vec<resource::TransferredHandle>,
-    /// The credentials field.
+    /// Credentials captured from the peer when available.
     pub credentials: Option<SocketCredentials>,
 }
 
 /// Replay struct for SocketSendBatchEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendBatchEntryReplayRecord {
-    /// The payload field.
+    /// Payload bytes for this message.
     pub payload: Vec<u8>,
-    /// The message field.
+    /// Message metadata for this payload.
     pub message: SocketSendMessageReplayRecord,
 }
 
 /// Replay struct for SocketSendMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendMessageReplayRecord {
-    /// The address field.
+    /// Destination address for explicit routing.
     pub address: Option<SocketAddressReplayRecord>,
-    /// The fds field.
+    /// Resource handles to pass.
     pub fds: Vec<resource::TransferredHandle>,
-    /// The control field.
+    /// Raw ancillary control payload.
     pub control: Vec<u8>,
-    /// The flags field.
+    /// Per-send flags passed to sendmsg.
     pub flags: SocketMessageFlags,
-    /// The credentials field.
+    /// Credentials to send when enabled.
     pub credentials: Option<SocketCredentials>,
 }
 
 /// Replay struct for SocketSendTo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SocketSendToReplayRecord {
-    /// The address field.
+    /// Destination address.
     pub address: SocketAddressReplayRecord,
-    /// The flags field.
+    /// Per-send flags passed to sendto.
     pub flags: SocketMessageFlags,
 }
 
 /// Replay struct for UdpReceive.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdpReceiveReplayRecord {
-    /// The address field.
+    /// Remote socket address.
     pub address: SocketAddressReplayRecord,
-    /// The bytes field.
+    /// Number of bytes read.
     pub bytes: u64,
-    /// The recv_flags field.
+    /// Flags returned by recvfrom-style calls.
     pub recv_flags: UdpMessageFlags,
 }
 
 /// Replay struct for UdpSourceMembershipV4.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdpSourceMembershipV4ReplayRecord {
-    /// The group field.
+    /// Multicast group address.
     pub group: String,
-    /// The source field.
+    /// Source address.
     pub source: String,
-    /// The interface_address field.
+    /// Local interface address.
     pub interface_address: String,
 }
 
 /// Replay struct for UdpSourceMembershipV6.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdpSourceMembershipV6ReplayRecord {
-    /// The group field.
+    /// Multicast group address.
     pub group: String,
-    /// The source field.
+    /// Source address.
     pub source: String,
-    /// The interface_index field.
+    /// Local interface index.
     pub interface_index: u32,
 }
 
 /// Replay struct for UdsAbstractAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdsAbstractAddressReplayRecord {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: String,
-    /// The abstract_name field.
+    /// Abstract namespace name.
     pub abstract_name: Vec<u8>,
 }
 
 /// Replay struct for UdsPathAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdsPathAddressReplayRecord {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: String,
-    /// The path field.
+    /// Filesystem socket path.
     pub path: fs::OsPathReplayRecord,
 }
 
 /// Replay struct for UdsUnnamedAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UdsUnnamedAddressReplayRecord {
-    /// The kind field.
+    /// Discriminator for this uds address variant.
     pub kind: String,
 }
 

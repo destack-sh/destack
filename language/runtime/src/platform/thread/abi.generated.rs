@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ThreadOptions {
-    /// The stack_bytes field.
+    /// Requested stack size in bytes.
     pub stack_bytes: u64,
-    /// The flags field.
+    /// Thread creation flags.
     pub flags: u32,
 }
 

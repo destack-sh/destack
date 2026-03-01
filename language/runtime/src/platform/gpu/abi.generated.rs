@@ -1615,17 +1615,17 @@ impl VmAggregateCodec for GpuBindGroupResourceAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuAdapterFormatCapabilities {
-    /// The format field.
+    /// Texture format identifier.
     pub format: u32,
-    /// The usage_mask field.
+    /// Supported usage bitset for this format.
     pub usage_mask: u64,
-    /// The renderable field.
+    /// Whether this format can be used as render attachment.
     pub renderable: bool,
-    /// The blendable field.
+    /// Whether this format can be blended when used as render attachment.
     pub blendable: bool,
-    /// The multisample field.
+    /// Whether this format supports multisampling.
     pub multisample: bool,
-    /// The sample_count_mask field.
+    /// Supported sample-count bitset.
     pub sample_count_mask: u32,
 }
 
@@ -1689,33 +1689,33 @@ impl VmAggregateCodec for GpuAdapterFormatCapabilities {
 /// ABI struct for GpuAdapterInfo.
 #[repr(C)]
 pub struct GpuAdapterInfoAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable runtime adapter identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host adapter name.
     pub name: A::String,
-    /// The vendor field.
+    /// Host vendor name when available.
     pub vendor: A::String,
-    /// The driver field.
+    /// Host driver name when available.
     pub driver: A::String,
-    /// The driver_version field.
+    /// Host driver version when available.
     pub driver_version: A::String,
-    /// The backend field.
+    /// Backend API kind.
     pub backend: GpuBackend,
-    /// The adapter_type field.
+    /// Adapter category.
     pub adapter_type: GpuAdapterType,
-    /// The vendor_id field.
+    /// Vendor identifier when available.
     pub vendor_id: u32,
-    /// The device_id field.
+    /// Device identifier when available.
     pub device_id: u32,
-    /// The subgroup_min_size field.
+    /// Minimum subgroup size when available.
     pub subgroup_min_size: u32,
-    /// The subgroup_max_size field.
+    /// Maximum subgroup size when available.
     pub subgroup_max_size: u32,
-    /// The is_fallback field.
+    /// Whether this adapter is a fallback implementation.
     pub is_fallback: bool,
-    /// The features field.
+    /// Supported feature identifiers.
     pub features: A::Slice<GpuFeatureId>,
-    /// The limits field.
+    /// Supported adapter limits.
     pub limits: GpuAdapterLimits,
 }
 
@@ -1843,69 +1843,69 @@ impl VmAggregateCodec for GpuAdapterInfoAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuAdapterLimits {
-    /// The max_bind_groups field.
+    /// Maximum bind groups.
     pub max_bind_groups: u32,
-    /// The max_bindings_per_bind_group field.
+    /// Maximum bindings allowed in one bind group.
     pub max_bindings_per_bind_group: u32,
-    /// The max_push_constant_bytes field.
+    /// Maximum push constant bytes.
     pub max_push_constant_bytes: u32,
-    /// The max_texture_dimension1_d field.
+    /// Maximum 1D texture dimension.
     pub max_texture_dimension1_d: u32,
-    /// The max_texture_dimension2_d field.
+    /// Maximum 2D texture dimension.
     pub max_texture_dimension2_d: u32,
-    /// The max_texture_dimension3_d field.
+    /// Maximum 3D texture dimension.
     pub max_texture_dimension3_d: u32,
-    /// The max_texture_array_layers field.
+    /// Maximum texture array layers.
     pub max_texture_array_layers: u32,
-    /// The max_color_attachments field.
+    /// Maximum color attachments in one render pass.
     pub max_color_attachments: u32,
-    /// The max_color_attachment_bytes_per_sample field.
+    /// Maximum color-attachment bytes written per sample.
     pub max_color_attachment_bytes_per_sample: u32,
-    /// The max_sampled_textures_per_stage field.
+    /// Maximum sampled textures per shader stage.
     pub max_sampled_textures_per_stage: u32,
-    /// The max_samplers_per_stage field.
+    /// Maximum samplers per shader stage.
     pub max_samplers_per_stage: u32,
-    /// The max_storage_buffers_per_stage field.
+    /// Maximum storage buffers per shader stage.
     pub max_storage_buffers_per_stage: u32,
-    /// The max_storage_textures_per_stage field.
+    /// Maximum storage textures per shader stage.
     pub max_storage_textures_per_stage: u32,
-    /// The max_uniform_buffers_per_stage field.
+    /// Maximum uniform buffers per shader stage.
     pub max_uniform_buffers_per_stage: u32,
-    /// The max_dynamic_uniform_buffers_per_pipeline_layout field.
+    /// Maximum dynamic uniform buffers per pipeline layout.
     pub max_dynamic_uniform_buffers_per_pipeline_layout: u32,
-    /// The max_dynamic_storage_buffers_per_pipeline_layout field.
+    /// Maximum dynamic storage buffers per pipeline layout.
     pub max_dynamic_storage_buffers_per_pipeline_layout: u32,
-    /// The max_uniform_buffer_binding_size field.
+    /// Maximum uniform buffer binding size.
     pub max_uniform_buffer_binding_size: u64,
-    /// The max_storage_buffer_binding_size field.
+    /// Maximum storage buffer binding size.
     pub max_storage_buffer_binding_size: u64,
-    /// The min_storage_buffer_offset_alignment field.
+    /// Minimum storage buffer offset alignment.
     pub min_storage_buffer_offset_alignment: u32,
-    /// The min_uniform_buffer_offset_alignment field.
+    /// Minimum uniform buffer offset alignment.
     pub min_uniform_buffer_offset_alignment: u32,
-    /// The max_vertex_buffers field.
+    /// Maximum vertex buffers.
     pub max_vertex_buffers: u32,
-    /// The max_vertex_attributes field.
+    /// Maximum vertex attributes.
     pub max_vertex_attributes: u32,
-    /// The max_vertex_buffer_array_stride field.
+    /// Maximum vertex-buffer array stride in bytes.
     pub max_vertex_buffer_array_stride: u32,
-    /// The max_buffer_size field.
+    /// Maximum storage for one GPU buffer in bytes.
     pub max_buffer_size: u64,
-    /// The max_inter_stage_shader_components field.
+    /// Maximum inter-stage shader components.
     pub max_inter_stage_shader_components: u32,
-    /// The max_inter_stage_shader_variables field.
+    /// Maximum inter-stage shader variables.
     pub max_inter_stage_shader_variables: u32,
-    /// The max_compute_workgroup_storage_size field.
+    /// Maximum compute workgroup storage in bytes.
     pub max_compute_workgroup_storage_size: u32,
-    /// The max_compute_invocations_per_workgroup field.
+    /// Maximum compute invocations per workgroup.
     pub max_compute_invocations_per_workgroup: u32,
-    /// The max_compute_workgroup_size_x field.
+    /// Maximum compute workgroup size on x axis.
     pub max_compute_workgroup_size_x: u32,
-    /// The max_compute_workgroup_size_y field.
+    /// Maximum compute workgroup size on y axis.
     pub max_compute_workgroup_size_y: u32,
-    /// The max_compute_workgroup_size_z field.
+    /// Maximum compute workgroup size on z axis.
     pub max_compute_workgroup_size_z: u32,
-    /// The max_compute_workgroups_per_dimension field.
+    /// Maximum compute workgroups per dispatch dimension.
     pub max_compute_workgroups_per_dimension: u32,
 }
 
@@ -2144,15 +2144,15 @@ impl VmAggregateCodec for GpuAdapterLimits {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuAdapterRequest {
-    /// The backend field.
+    /// Preferred backend.
     pub backend: GpuBackend,
-    /// The power_preference field.
+    /// Preferred power profile.
     pub power_preference: GpuPowerPreference,
-    /// The force_fallback_adapter field.
+    /// Whether only one fallback adapter should be selected.
     pub force_fallback_adapter: bool,
-    /// The compatible_surface field.
+    /// Surface compatibility constraint when provided.
     pub compatible_surface: Option<resource::GpuSurfaceHandle>,
-    /// The flags field.
+    /// Request flags.
     pub flags: u32,
 }
 
@@ -2224,13 +2224,13 @@ impl VmAggregateCodec for GpuAdapterRequest {
 /// ABI struct for GpuBindGroupBufferResource.
 #[repr(C)]
 pub struct GpuBindGroupBufferResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: A::String,
-    /// The buffer field.
+    /// Buffer handle.
     pub buffer: resource::GpuBufferHandle,
-    /// The offset field.
+    /// Buffer byte offset.
     pub offset: u64,
-    /// The size field.
+    /// Buffer byte length.
     pub size: u64,
 }
 
@@ -2315,11 +2315,11 @@ impl VmAggregateCodec for GpuBindGroupBufferResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupEntry.
 #[repr(C)]
 pub struct GpuBindGroupEntryAbi<A: BindingAbi> {
-    /// The binding field.
+    /// Binding index.
     pub binding: u32,
-    /// The binding_array_element field.
+    /// Binding array element index, zero when not array-indexed.
     pub binding_array_element: u32,
-    /// The resource field.
+    /// Typed resource payload.
     pub resource: platform_gpu::GpuBindGroupResourceAbi<A>,
 }
 
@@ -2400,13 +2400,13 @@ impl VmAggregateCodec for GpuBindGroupEntryAbi<VmAbi> {
 /// ABI struct for GpuBindGroupLayoutBufferResource.
 #[repr(C)]
 pub struct GpuBindGroupLayoutBufferResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: A::String,
-    /// The binding_type field.
+    /// Buffer binding layout selector.
     pub binding_type: GpuBufferBindingType,
-    /// The has_dynamic_offset field.
+    /// Whether this binding uses dynamic offsets.
     pub has_dynamic_offset: bool,
-    /// The min_binding_size field.
+    /// Minimum binding size in bytes when applicable.
     pub min_binding_size: u64,
 }
 
@@ -2492,13 +2492,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutBufferResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupLayoutEntry.
 #[repr(C)]
 pub struct GpuBindGroupLayoutEntryAbi<A: BindingAbi> {
-    /// The binding field.
+    /// Binding index.
     pub binding: u32,
-    /// The visibility field.
+    /// Shader stage visibility mask.
     pub visibility: GpuShaderVisibilityMask,
-    /// The binding_array_count field.
+    /// Binding array length, zero when not an array binding.
     pub binding_array_count: u32,
-    /// The resource field.
+    /// Typed resource payload.
     pub resource: platform_gpu::GpuBindGroupLayoutResourceAbi<A>,
 }
 
@@ -2588,13 +2588,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutEntryAbi<VmAbi> {
 /// ABI struct for GpuBindGroupLayoutSampledTextureResource.
 #[repr(C)]
 pub struct GpuBindGroupLayoutSampledTextureResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: A::String,
-    /// The texture_sample_type field.
+    /// Texture sample type selector.
     pub texture_sample_type: GpuTextureSampleType,
-    /// The texture_view_dimension field.
+    /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
-    /// The multisampled field.
+    /// Whether multisampled textures are required.
     pub multisampled: bool,
 }
 
@@ -2685,9 +2685,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutSampledTextureResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupLayoutSamplerResource.
 #[repr(C)]
 pub struct GpuBindGroupLayoutSamplerResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: A::String,
-    /// The sampler_binding_type field.
+    /// Sampler binding layout selector.
     pub sampler_binding_type: GpuSamplerBindingType,
 }
 
@@ -2765,13 +2765,13 @@ impl VmAggregateCodec for GpuBindGroupLayoutSamplerResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupLayoutStorageTextureResource.
 #[repr(C)]
 pub struct GpuBindGroupLayoutStorageTextureResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: A::String,
-    /// The storage_texture_access field.
+    /// Storage-texture access selector.
     pub storage_texture_access: GpuStorageTextureAccess,
-    /// The storage_texture_format field.
+    /// Storage-texture format identifier.
     pub storage_texture_format: u32,
-    /// The texture_view_dimension field.
+    /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
 }
 
@@ -2862,9 +2862,9 @@ impl VmAggregateCodec for GpuBindGroupLayoutStorageTextureResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupSamplerResource.
 #[repr(C)]
 pub struct GpuBindGroupSamplerResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: A::String,
-    /// The sampler field.
+    /// Sampler handle.
     pub sampler: resource::GpuSamplerHandle,
 }
 
@@ -2943,9 +2943,9 @@ impl VmAggregateCodec for GpuBindGroupSamplerResourceAbi<VmAbi> {
 /// ABI struct for GpuBindGroupTextureResource.
 #[repr(C)]
 pub struct GpuBindGroupTextureResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: A::String,
-    /// The texture field.
+    /// Texture-view handle.
     pub texture: resource::GpuTextureViewHandle,
 }
 
@@ -3026,11 +3026,11 @@ impl VmAggregateCodec for GpuBindGroupTextureResourceAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBlendComponent {
-    /// The src_factor field.
+    /// Source factor selector.
     pub src_factor: GpuBlendFactor,
-    /// The dst_factor field.
+    /// Destination factor selector.
     pub dst_factor: GpuBlendFactor,
-    /// The operation field.
+    /// Blend operation selector.
     pub operation: GpuBlendOperation,
 }
 
@@ -3088,9 +3088,9 @@ impl VmAggregateCodec for GpuBlendComponent {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBlendState {
-    /// The color field.
+    /// Color blend component.
     pub color: GpuBlendComponent,
-    /// The alpha field.
+    /// Alpha blend component.
     pub alpha: GpuBlendComponent,
 }
 
@@ -3144,9 +3144,9 @@ impl VmAggregateCodec for GpuBlendState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBufferCopy {
-    /// The buffer field.
+    /// Buffer handle.
     pub buffer: resource::GpuBufferHandle,
-    /// The layout field.
+    /// Buffer layout metadata.
     pub layout: GpuBufferCopyLayout,
 }
 
@@ -3204,11 +3204,11 @@ impl VmAggregateCodec for GpuBufferCopy {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBufferCopyLayout {
-    /// The offset field.
+    /// Byte offset in the buffer.
     pub offset: u64,
-    /// The bytes_per_row field.
+    /// Bytes per row.
     pub bytes_per_row: u32,
-    /// The rows_per_image field.
+    /// Rows per image.
     pub rows_per_image: u32,
 }
 
@@ -3265,11 +3265,11 @@ impl VmAggregateCodec for GpuBufferCopyLayout {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBufferInfo {
-    /// The size field.
+    /// Buffer size in bytes.
     pub size: u64,
-    /// The usage field.
+    /// Buffer usage bitset.
     pub usage: u64,
-    /// The map_state field.
+    /// Current map-state selector.
     pub map_state: GpuBufferMapState,
 }
 
@@ -3325,13 +3325,13 @@ impl VmAggregateCodec for GpuBufferInfo {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuBufferOptions {
-    /// The size field.
+    /// Buffer size in bytes.
     pub size: u64,
-    /// The usage field.
+    /// Buffer usage bitset.
     pub usage: u64,
-    /// The mapped_at_creation field.
+    /// Whether the buffer starts mapped for host access.
     pub mapped_at_creation: bool,
-    /// The flags field.
+    /// Buffer option flags.
     pub flags: u32,
 }
 
@@ -3389,9 +3389,9 @@ impl VmAggregateCodec for GpuBufferOptions {
 /// ABI struct for GpuCapturedError.
 #[repr(C)]
 pub struct GpuCapturedErrorAbi<A: BindingAbi> {
-    /// The message field.
+    /// Human-readable error message when one error was captured.
     pub message: Option<A::String>,
-    /// The backend_code field.
+    /// Backend-specific status code when one error was captured.
     pub backend_code: Option<i32>,
 }
 
@@ -3470,11 +3470,11 @@ impl VmAggregateCodec for GpuCapturedErrorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuColorTargetState {
-    /// The format field.
+    /// Render-target texture format identifier.
     pub format: u32,
-    /// The blend field.
+    /// Blend-state descriptor when provided.
     pub blend: Option<GpuBlendState>,
-    /// The write_mask field.
+    /// Color-write channel mask.
     pub write_mask: GpuColorWriteMask,
 }
 
@@ -3533,7 +3533,7 @@ impl VmAggregateCodec for GpuColorTargetState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuCommandEncoderOptions {
-    /// The flags field.
+    /// Encoder option flags.
     pub flags: u32,
 }
 
@@ -3579,7 +3579,7 @@ impl VmAggregateCodec for GpuCommandEncoderOptions {
 /// ABI struct for GpuCompilationInfo.
 #[repr(C)]
 pub struct GpuCompilationInfoAbi<A: BindingAbi> {
-    /// The messages field.
+    /// Compilation diagnostics emitted by backend validation or translation.
     pub messages: A::Slice<platform_gpu::GpuCompilationMessageAbi<A>>,
 }
 
@@ -3655,17 +3655,17 @@ impl VmAggregateCodec for GpuCompilationInfoAbi<VmAbi> {
 /// ABI struct for GpuCompilationMessage.
 #[repr(C)]
 pub struct GpuCompilationMessageAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Message kind.
     pub kind: GpuCompilationMessageKind,
-    /// The message field.
+    /// Human-readable message text.
     pub message: A::String,
-    /// The line field.
+    /// One-indexed source line number when available.
     pub line: u32,
-    /// The column field.
+    /// One-indexed source column number when available.
     pub column: u32,
-    /// The offset field.
+    /// Zero-based source byte offset when available.
     pub offset: u32,
-    /// The length field.
+    /// Source span length in bytes when available.
     pub length: u32,
 }
 
@@ -3756,9 +3756,9 @@ impl VmAggregateCodec for GpuCompilationMessageAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputePassOptions {
-    /// The timestamp_writes field.
+    /// Timestamp-write descriptor when enabled.
     pub timestamp_writes: Option<GpuPassTimestampWrites>,
-    /// The flags field.
+    /// Compute-pass option flags.
     pub flags: u32,
 }
 
@@ -3815,13 +3815,13 @@ impl VmAggregateCodec for GpuComputePassOptions {
 /// ABI struct for GpuComputePipelineOptions.
 #[repr(C)]
 pub struct GpuComputePipelineOptionsAbi<A: BindingAbi> {
-    /// The layout field.
+    /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
-    /// The compute field.
+    /// Compute stage descriptor.
     pub compute: platform_gpu::GpuComputeStateAbi<A>,
-    /// The metadata field.
+    /// Pipeline creation metadata.
     pub metadata: platform_gpu::GpuPipelineMetadataAbi<A>,
-    /// The flags field.
+    /// Pipeline option flags.
     pub flags: u32,
 }
 
@@ -3911,11 +3911,11 @@ impl VmAggregateCodec for GpuComputePipelineOptionsAbi<VmAbi> {
 /// ABI struct for GpuComputeState.
 #[repr(C)]
 pub struct GpuComputeStateAbi<A: BindingAbi> {
-    /// The module field.
+    /// Compute shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Compute entry point when provided.
     pub entry: Option<A::String>,
-    /// The constants field.
+    /// Compute-stage specialization constants.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
 }
 
@@ -4006,25 +4006,25 @@ impl VmAggregateCodec for GpuComputeStateAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuDepthStencilState {
-    /// The format field.
+    /// Depth-stencil texture format identifier.
     pub format: u32,
-    /// The depth_write_enabled field.
+    /// Whether depth writes are enabled.
     pub depth_write_enabled: bool,
-    /// The depth_compare field.
+    /// Depth compare selector.
     pub depth_compare: GpuCompareFunction,
-    /// The stencil_front field.
+    /// Front-face stencil-state descriptor.
     pub stencil_front: GpuStencilFaceState,
-    /// The stencil_back field.
+    /// Back-face stencil-state descriptor.
     pub stencil_back: GpuStencilFaceState,
-    /// The stencil_read_mask field.
+    /// Stencil read mask.
     pub stencil_read_mask: u32,
-    /// The stencil_write_mask field.
+    /// Stencil write mask.
     pub stencil_write_mask: u32,
-    /// The depth_bias field.
+    /// Constant depth-bias value.
     pub depth_bias: i32,
-    /// The depth_bias_slope_scale field.
+    /// Depth-bias slope scale.
     pub depth_bias_slope_scale: f64,
-    /// The depth_bias_clamp field.
+    /// Depth-bias clamp value.
     pub depth_bias_clamp: f64,
 }
 
@@ -4116,19 +4116,19 @@ impl VmAggregateCodec for GpuDepthStencilState {
 /// ABI struct for GpuDeviceInfo.
 #[repr(C)]
 pub struct GpuDeviceInfoAbi<A: BindingAbi> {
-    /// The backend field.
+    /// Chosen backend for this device.
     pub backend: GpuBackend,
-    /// The enabled_features field.
+    /// Feature identifiers enabled on this device.
     pub enabled_features: A::Slice<GpuFeatureId>,
-    /// The effective_limits field.
+    /// Effective device limits.
     pub effective_limits: GpuAdapterLimits,
-    /// The queue_count field.
+    /// Default queue count visible to the runtime.
     pub queue_count: u32,
-    /// The has_timeline_sync field.
+    /// Whether timeline synchronization is available.
     pub has_timeline_sync: bool,
-    /// The has_timestamp_queries field.
+    /// Whether timestamp queries are available.
     pub has_timestamp_queries: bool,
-    /// The has_push_constants field.
+    /// Whether push constants are available.
     pub has_push_constants: bool,
 }
 
@@ -4228,13 +4228,13 @@ impl VmAggregateCodec for GpuDeviceInfoAbi<VmAbi> {
 /// ABI struct for GpuDeviceOptions.
 #[repr(C)]
 pub struct GpuDeviceOptionsAbi<A: BindingAbi> {
-    /// The required_features field.
+    /// Required feature identifiers.
     pub required_features: A::Slice<GpuFeatureId>,
-    /// The required_limits field.
+    /// Required minimum limits.
     pub required_limits: GpuAdapterLimits,
-    /// The backend field.
+    /// Preferred backend override.
     pub backend: GpuBackend,
-    /// The flags field.
+    /// Device option flags.
     pub flags: u32,
 }
 
@@ -4322,13 +4322,13 @@ impl VmAggregateCodec for GpuDeviceOptionsAbi<VmAbi> {
 /// ABI struct for GpuDeviceStatus.
 #[repr(C)]
 pub struct GpuDeviceStatusAbi<A: BindingAbi> {
-    /// The healthy field.
+    /// Whether the device is currently operational.
     pub healthy: bool,
-    /// The loss_reason field.
+    /// Device-loss reason category.
     pub loss_reason: GpuDeviceLossReason,
-    /// The backend_code field.
+    /// Backend-specific status code.
     pub backend_code: i32,
-    /// The message field.
+    /// Human-readable status message.
     pub message: A::String,
 }
 
@@ -4413,11 +4413,11 @@ impl VmAggregateCodec for GpuDeviceStatusAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuExtent3D {
-    /// The width field.
+    /// Width in texels.
     pub width: u32,
-    /// The height field.
+    /// Height in texels.
     pub height: u32,
-    /// The depth_or_array_layers field.
+    /// Depth or array layer count.
     pub depth_or_array_layers: u32,
 }
 
@@ -4473,11 +4473,11 @@ impl VmAggregateCodec for GpuExtent3D {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuFenceOptions {
-    /// The mode field.
+    /// Fence mode selector.
     pub mode: GpuFenceMode,
-    /// The initial_value field.
+    /// Initial timeline value in timeline mode.
     pub initial_value: u64,
-    /// The flags field.
+    /// Fence option flags.
     pub flags: u32,
 }
 
@@ -4533,13 +4533,13 @@ impl VmAggregateCodec for GpuFenceOptions {
 /// ABI struct for GpuFragmentState.
 #[repr(C)]
 pub struct GpuFragmentStateAbi<A: BindingAbi> {
-    /// The module field.
+    /// Fragment shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Fragment entry point when provided.
     pub entry: Option<A::String>,
-    /// The constants field.
+    /// Fragment-stage specialization constants.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
-    /// The targets field.
+    /// Color-target states.
     pub targets: A::Slice<GpuColorTargetState>,
 }
 
@@ -4639,11 +4639,11 @@ impl VmAggregateCodec for GpuFragmentStateAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuMappedBufferRange {
-    /// The address field.
+    /// Host-visible pointer address represented as integer.
     pub address: u64,
-    /// The length field.
+    /// Mapped byte length.
     pub length: u64,
-    /// The coherent field.
+    /// Whether cache coherence is guaranteed for this mapping.
     pub coherent: bool,
 }
 
@@ -4698,11 +4698,11 @@ impl VmAggregateCodec for GpuMappedBufferRange {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuMultisampleState {
-    /// The count field.
+    /// Sample count.
     pub count: u32,
-    /// The mask field.
+    /// Active sample mask.
     pub mask: u32,
-    /// The alpha_to_coverage_enabled field.
+    /// Whether alpha-to-coverage is enabled.
     pub alpha_to_coverage_enabled: bool,
 }
 
@@ -4761,11 +4761,11 @@ impl VmAggregateCodec for GpuMultisampleState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuPassTimestampWrites {
-    /// The query_set field.
+    /// Query set receiving pass timestamps.
     pub query_set: resource::GpuQuerySetHandle,
-    /// The beginning_write_index field.
+    /// Beginning-of-pass query index when enabled.
     pub beginning_write_index: Option<u32>,
-    /// The end_write_index field.
+    /// End-of-pass query index when enabled.
     pub end_write_index: Option<u32>,
 }
 
@@ -4830,9 +4830,9 @@ impl VmAggregateCodec for GpuPassTimestampWrites {
 /// ABI struct for GpuPipelineConstant.
 #[repr(C)]
 pub struct GpuPipelineConstantAbi<A: BindingAbi> {
-    /// The key field.
+    /// Constant identifier key.
     pub key: A::String,
-    /// The value field.
+    /// Constant value as float64.
     pub value: f64,
 }
 
@@ -4906,11 +4906,11 @@ impl VmAggregateCodec for GpuPipelineConstantAbi<VmAbi> {
 /// ABI struct for GpuPipelineLayoutOptions.
 #[repr(C)]
 pub struct GpuPipelineLayoutOptionsAbi<A: BindingAbi> {
-    /// The bind_group_layouts field.
+    /// Ordered bind group layouts for this pipeline layout.
     pub bind_group_layouts: A::Slice<resource::GpuBindGroupLayoutHandle>,
-    /// The immediate_size field.
+    /// Immediate-data byte size when supported.
     pub immediate_size: u32,
-    /// The flags field.
+    /// Pipeline layout option flags.
     pub flags: u32,
 }
 
@@ -4993,7 +4993,7 @@ impl VmAggregateCodec for GpuPipelineLayoutOptionsAbi<VmAbi> {
 /// ABI struct for GpuPipelineMetadata.
 #[repr(C)]
 pub struct GpuPipelineMetadataAbi<A: BindingAbi> {
-    /// The label field.
+    /// Human-readable debug label, empty when unspecified.
     pub label: A::String,
 }
 
@@ -5063,9 +5063,9 @@ impl VmAggregateCodec for GpuPipelineMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuPresentOptions {
-    /// The frame_id field.
+    /// Frame identifier returned by one successful `surfaceAcquire`.
     pub frame_id: u64,
-    /// The flags field.
+    /// Present option flags.
     pub flags: u32,
 }
 
@@ -5117,15 +5117,15 @@ impl VmAggregateCodec for GpuPresentOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuPrimitiveState {
-    /// The topology field.
+    /// Primitive topology selector.
     pub topology: GpuPrimitiveTopology,
-    /// The strip_index_format field.
+    /// Strip index format selector, zero when not used.
     pub strip_index_format: u32,
-    /// The front_face field.
+    /// Front-face winding selector.
     pub front_face: GpuFrontFace,
-    /// The cull_mode field.
+    /// Face-culling selector.
     pub cull_mode: GpuCullMode,
-    /// The unclipped_depth field.
+    /// Whether unclipped depth is enabled.
     pub unclipped_depth: bool,
 }
 
@@ -5194,11 +5194,12 @@ impl VmAggregateCodec for GpuPrimitiveState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuQuerySetInfo {
-    /// The query_type field.
+    /// Query set type.
     pub query_type: GpuQueryType,
-    /// The count field.
+    /// Query count.
     pub count: u32,
-    /// The pipeline_statistics_mask field.
+    /// Pipeline-statistics bitset for statistics query type.
+    /// The enabled-flag order defines value ordering in resolved query data.
     pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
 }
 
@@ -5260,13 +5261,14 @@ impl VmAggregateCodec for GpuQuerySetInfo {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuQuerySetOptions {
-    /// The query_type field.
+    /// Query set type.
     pub query_type: GpuQueryType,
-    /// The count field.
+    /// Query count.
     pub count: u32,
-    /// The pipeline_statistics_mask field.
+    /// Pipeline-statistics bitset for statistics query type.
+    /// The enabled-flag order defines value ordering in resolved query data.
     pub pipeline_statistics_mask: GpuPipelineStatisticsMask,
-    /// The flags field.
+    /// Query set option flags.
     pub flags: u32,
 }
 
@@ -5330,13 +5332,13 @@ impl VmAggregateCodec for GpuQuerySetOptions {
 /// ABI struct for GpuRenderBundleEncoderOptions.
 #[repr(C)]
 pub struct GpuRenderBundleEncoderOptionsAbi<A: BindingAbi> {
-    /// The color_formats field.
+    /// Color attachment format identifiers.
     pub color_formats: A::Slice<u32>,
-    /// The depth_stencil_format field.
+    /// Depth-stencil format identifier, zero when unused.
     pub depth_stencil_format: u32,
-    /// The sample_count field.
+    /// Sample count.
     pub sample_count: u32,
-    /// The flags field.
+    /// Bundle-encoder option flags.
     pub flags: u32,
 }
 
@@ -5418,21 +5420,21 @@ impl VmAggregateCodec for GpuRenderBundleEncoderOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPassColorAttachment {
-    /// The view field.
+    /// Render-target texture-view handle.
     pub view: resource::GpuTextureViewHandle,
-    /// The resolve_target field.
+    /// Resolve-target texture-view handle when provided.
     pub resolve_target: Option<resource::GpuTextureViewHandle>,
-    /// The load_op field.
+    /// Color load operation.
     pub load_op: GpuLoadOp,
-    /// The store_op field.
+    /// Color store operation.
     pub store_op: GpuStoreOp,
-    /// The clear_color_r field.
+    /// Clear color red component.
     pub clear_color_r: f64,
-    /// The clear_color_g field.
+    /// Clear color green component.
     pub clear_color_g: f64,
-    /// The clear_color_b field.
+    /// Clear color blue component.
     pub clear_color_b: f64,
-    /// The clear_color_a field.
+    /// Clear color alpha component.
     pub clear_color_a: f64,
 }
 
@@ -5518,23 +5520,23 @@ impl VmAggregateCodec for GpuRenderPassColorAttachment {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPassDepthStencilAttachment {
-    /// The view field.
+    /// Depth-stencil texture-view handle.
     pub view: resource::GpuTextureViewHandle,
-    /// The depth_load_op field.
+    /// Depth load operation.
     pub depth_load_op: GpuLoadOp,
-    /// The depth_store_op field.
+    /// Depth store operation.
     pub depth_store_op: GpuStoreOp,
-    /// The clear_depth field.
+    /// Clear depth value.
     pub clear_depth: f64,
-    /// The depth_read_only field.
+    /// Whether depth attachment is read-only.
     pub depth_read_only: bool,
-    /// The stencil_load_op field.
+    /// Stencil load operation.
     pub stencil_load_op: GpuLoadOp,
-    /// The stencil_store_op field.
+    /// Stencil store operation.
     pub stencil_store_op: GpuStoreOp,
-    /// The clear_stencil field.
+    /// Clear stencil value.
     pub clear_stencil: u32,
-    /// The stencil_read_only field.
+    /// Whether stencil attachment is read-only.
     pub stencil_read_only: bool,
 }
 
@@ -5617,13 +5619,13 @@ impl VmAggregateCodec for GpuRenderPassDepthStencilAttachment {
 /// ABI struct for GpuRenderPassOptions.
 #[repr(C)]
 pub struct GpuRenderPassOptionsAbi<A: BindingAbi> {
-    /// The color_attachments field.
+    /// Render-pass color attachments.
     pub color_attachments: A::Slice<GpuRenderPassColorAttachment>,
-    /// The depth_stencil field.
+    /// Render-pass depth-stencil attachment descriptor when provided.
     pub depth_stencil: Option<GpuRenderPassDepthStencilAttachment>,
-    /// The timestamp_writes field.
+    /// Timestamp-write descriptor when enabled.
     pub timestamp_writes: Option<GpuPassTimestampWrites>,
-    /// The occlusion_query_set field.
+    /// Pass-wide occlusion query set when enabled.
     pub occlusion_query_set: Option<resource::GpuQuerySetHandle>,
 }
 
@@ -5711,19 +5713,19 @@ impl VmAggregateCodec for GpuRenderPassOptionsAbi<VmAbi> {
 /// ABI struct for GpuRenderPipelineOptions.
 #[repr(C)]
 pub struct GpuRenderPipelineOptionsAbi<A: BindingAbi> {
-    /// The layout field.
+    /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
-    /// The vertex field.
+    /// Vertex stage descriptor.
     pub vertex: platform_gpu::GpuVertexStateAbi<A>,
-    /// The fragment field.
+    /// Fragment stage descriptor when configured.
     pub fragment: Option<platform_gpu::GpuFragmentStateAbi<A>>,
-    /// The render field.
+    /// Render-state descriptor.
     pub render: GpuRenderState,
-    /// The multiview_mask field.
+    /// Multiview mask when configured.
     pub multiview_mask: Option<u32>,
-    /// The metadata field.
+    /// Pipeline creation metadata.
     pub metadata: platform_gpu::GpuPipelineMetadataAbi<A>,
-    /// The flags field.
+    /// Pipeline option flags.
     pub flags: u32,
 }
 
@@ -5830,11 +5832,11 @@ impl VmAggregateCodec for GpuRenderPipelineOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderState {
-    /// The primitive field.
+    /// Primitive-state descriptor.
     pub primitive: GpuPrimitiveState,
-    /// The depth_stencil field.
+    /// Depth-stencil-state descriptor when enabled.
     pub depth_stencil: Option<GpuDepthStencilState>,
-    /// The multisample field.
+    /// Multisample-state descriptor.
     pub multisample: GpuMultisampleState,
 }
 
@@ -5903,27 +5905,27 @@ impl VmAggregateCodec for GpuRenderState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuSamplerOptions {
-    /// The min_filter field.
+    /// Minification filter selector.
     pub min_filter: u32,
-    /// The mag_filter field.
+    /// Magnification filter selector.
     pub mag_filter: u32,
-    /// The mip_filter field.
+    /// Mipmap filter selector.
     pub mip_filter: u32,
-    /// The address_u field.
+    /// Address mode u selector.
     pub address_u: u32,
-    /// The address_v field.
+    /// Address mode v selector.
     pub address_v: u32,
-    /// The address_w field.
+    /// Address mode w selector.
     pub address_w: u32,
-    /// The lod_min_clamp field.
+    /// Sampler LOD minimum clamp.
     pub lod_min_clamp: f64,
-    /// The lod_max_clamp field.
+    /// Sampler LOD maximum clamp.
     pub lod_max_clamp: f64,
-    /// The compare field.
+    /// Compare-function selector, zero when comparison is disabled.
     pub compare: u32,
-    /// The max_anisotropy field.
+    /// Maximum anisotropy level.
     pub max_anisotropy: u16,
-    /// The flags field.
+    /// Sampler option flags.
     pub flags: u32,
 }
 
@@ -6004,11 +6006,11 @@ impl VmAggregateCodec for GpuSamplerOptions {
 /// ABI struct for GpuShaderOptions.
 #[repr(C)]
 pub struct GpuShaderOptionsAbi<A: BindingAbi> {
-    /// The format field.
+    /// Shader binary format selector.
     pub format: GpuShaderFormat,
-    /// The flags field.
+    /// Shader option flags.
     pub flags: u32,
-    /// The label field.
+    /// Human-readable debug label, empty when unspecified.
     pub label: A::String,
 }
 
@@ -6087,13 +6089,13 @@ impl VmAggregateCodec for GpuShaderOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuStencilFaceState {
-    /// The compare field.
+    /// Compare selector for this face.
     pub compare: GpuCompareFunction,
-    /// The fail_op field.
+    /// Operation when stencil test fails.
     pub fail_op: GpuStencilOperation,
-    /// The depth_fail_op field.
+    /// Operation when depth test fails.
     pub depth_fail_op: GpuStencilOperation,
-    /// The pass_op field.
+    /// Operation when both tests pass.
     pub pass_op: GpuStencilOperation,
 }
 
@@ -6158,9 +6160,9 @@ impl VmAggregateCodec for GpuStencilFaceState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuSubmitOptions {
-    /// The flags field.
+    /// Submit option flags.
     pub flags: u32,
-    /// The timeout_ns field.
+    /// Optional wait timeout in nanoseconds.
     pub timeout_ns: u64,
 }
 
@@ -6211,13 +6213,13 @@ impl VmAggregateCodec for GpuSubmitOptions {
 /// ABI struct for GpuSurfaceCapabilities.
 #[repr(C)]
 pub struct GpuSurfaceCapabilitiesAbi<A: BindingAbi> {
-    /// The usage_mask field.
+    /// Supported texture usage bitset.
     pub usage_mask: u64,
-    /// The formats field.
+    /// Supported texture format identifiers.
     pub formats: A::Slice<u32>,
-    /// The present_modes field.
+    /// Supported present mode selectors.
     pub present_modes: A::Slice<GpuPresentMode>,
-    /// The alpha_modes field.
+    /// Supported alpha mode selectors.
     pub alpha_modes: A::Slice<GpuSurfaceAlphaMode>,
 }
 
@@ -6308,11 +6310,11 @@ impl VmAggregateCodec for GpuSurfaceCapabilitiesAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuSurfaceFrame {
-    /// The status field.
+    /// Acquire status selector.
     pub status: GpuSurfaceAcquireStatus,
-    /// The texture field.
+    /// Acquired surface texture handle when presentable.
     pub texture: Option<resource::GpuTextureHandle>,
-    /// The frame_id field.
+    /// Surface frame identifier when one texture was acquired.
     pub frame_id: Option<u64>,
 }
 
@@ -6377,23 +6379,23 @@ impl VmAggregateCodec for GpuSurfaceFrame {
 /// ABI struct for GpuSurfaceOptions.
 #[repr(C)]
 pub struct GpuSurfaceOptionsAbi<A: BindingAbi> {
-    /// The usage field.
+    /// Surface texture usage bitset.
     pub usage: u64,
-    /// The view_formats field.
+    /// Additional compatible surface view formats.
     pub view_formats: A::Slice<u32>,
-    /// The width field.
+    /// Surface width in pixels.
     pub width: u32,
-    /// The height field.
+    /// Surface height in pixels.
     pub height: u32,
-    /// The format field.
+    /// Surface texture format identifier.
     pub format: u32,
-    /// The present_mode field.
+    /// Present mode selector.
     pub present_mode: GpuPresentMode,
-    /// The alpha_mode field.
+    /// Alpha mode selector.
     pub alpha_mode: GpuSurfaceAlphaMode,
-    /// The desired_max_frame_latency field.
+    /// Requested maximum frame latency in monitor refresh units.
     pub desired_max_frame_latency: u32,
-    /// The flags field.
+    /// Surface option flags.
     pub flags: u32,
 }
 
@@ -6498,17 +6500,17 @@ impl VmAggregateCodec for GpuSurfaceOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuTextureCopy {
-    /// The texture field.
+    /// Texture handle.
     pub texture: resource::GpuTextureHandle,
-    /// The mip_level field.
+    /// Mip level index.
     pub mip_level: u32,
-    /// The origin_x field.
+    /// Origin x coordinate.
     pub origin_x: u32,
-    /// The origin_y field.
+    /// Origin y coordinate.
     pub origin_y: u32,
-    /// The origin_z field.
+    /// Origin z coordinate.
     pub origin_z: u32,
-    /// The aspect field.
+    /// Texture aspect selector.
     pub aspect: u32,
 }
 
@@ -6577,21 +6579,21 @@ impl VmAggregateCodec for GpuTextureCopy {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuTextureInfo {
-    /// The width field.
+    /// Texture width in texels.
     pub width: u32,
-    /// The height field.
+    /// Texture height in texels.
     pub height: u32,
-    /// The depth_or_layers field.
+    /// Texture depth or layer count.
     pub depth_or_layers: u32,
-    /// The mip_levels field.
+    /// Texture mip-level count.
     pub mip_levels: u32,
-    /// The samples field.
+    /// Texture sample count.
     pub samples: u32,
-    /// The format field.
+    /// Texture format identifier.
     pub format: u32,
-    /// The usage field.
+    /// Texture usage bitset.
     pub usage: u64,
-    /// The dimension field.
+    /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
 }
 
@@ -6665,25 +6667,25 @@ impl VmAggregateCodec for GpuTextureInfo {
 /// ABI struct for GpuTextureOptions.
 #[repr(C)]
 pub struct GpuTextureOptionsAbi<A: BindingAbi> {
-    /// The width field.
+    /// Texture width in texels.
     pub width: u32,
-    /// The height field.
+    /// Texture height in texels.
     pub height: u32,
-    /// The depth_or_layers field.
+    /// Texture depth or layer count.
     pub depth_or_layers: u32,
-    /// The mip_levels field.
+    /// Texture mip level count.
     pub mip_levels: u32,
-    /// The samples field.
+    /// Texture sample count.
     pub samples: u32,
-    /// The format field.
+    /// Texture format identifier.
     pub format: u32,
-    /// The dimension field.
+    /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
-    /// The usage field.
+    /// Texture usage bitset.
     pub usage: u64,
-    /// The view_formats field.
+    /// Additional compatible texture-view format identifiers.
     pub view_formats: A::Slice<u32>,
-    /// The flags field.
+    /// Texture option flags.
     pub flags: u32,
 }
 
@@ -6787,21 +6789,21 @@ impl VmAggregateCodec for GpuTextureOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuTextureViewOptions {
-    /// The format field.
+    /// View format identifier, zero to inherit the texture format.
     pub format: u32,
-    /// The dimension field.
+    /// View dimension selector.
     pub dimension: u32,
-    /// The base_mip_level field.
+    /// Base mip-level index.
     pub base_mip_level: u32,
-    /// The mip_level_count field.
+    /// Mip-level count, zero for all remaining levels.
     pub mip_level_count: u32,
-    /// The base_array_layer field.
+    /// Base array-layer index.
     pub base_array_layer: u32,
-    /// The array_layer_count field.
+    /// Array-layer count, zero for all remaining layers.
     pub array_layer_count: u32,
-    /// The aspect field.
+    /// Texture aspect selector.
     pub aspect: u32,
-    /// The flags field.
+    /// Texture-view option flags.
     pub flags: u32,
 }
 
@@ -6875,11 +6877,11 @@ impl VmAggregateCodec for GpuTextureViewOptions {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GpuVertexAttribute {
-    /// The format field.
+    /// Vertex attribute format selector.
     pub format: u32,
-    /// The offset field.
+    /// Byte offset for this attribute within one vertex element.
     pub offset: u64,
-    /// The shader_location field.
+    /// Shader location index.
     pub shader_location: u32,
 }
 
@@ -6934,13 +6936,13 @@ impl VmAggregateCodec for GpuVertexAttribute {
 /// ABI struct for GpuVertexBufferLayout.
 #[repr(C)]
 pub struct GpuVertexBufferLayoutAbi<A: BindingAbi> {
-    /// The slot field.
+    /// Vertex buffer slot index.
     pub slot: u32,
-    /// The array_stride field.
+    /// Vertex buffer stride in bytes.
     pub array_stride: u64,
-    /// The step_mode field.
+    /// Vertex layout step mode selector.
     pub step_mode: GpuVertexStepMode,
-    /// The attributes field.
+    /// Vertex attributes consumed from this buffer.
     pub attributes: A::Slice<GpuVertexAttribute>,
 }
 
@@ -7026,13 +7028,13 @@ impl VmAggregateCodec for GpuVertexBufferLayoutAbi<VmAbi> {
 /// ABI struct for GpuVertexState.
 #[repr(C)]
 pub struct GpuVertexStateAbi<A: BindingAbi> {
-    /// The module field.
+    /// Vertex shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Vertex entry point when provided.
     pub entry: Option<A::String>,
-    /// The constants field.
+    /// Vertex-stage specialization constants.
     pub constants: A::Slice<platform_gpu::GpuPipelineConstantAbi<A>>,
-    /// The buffers field.
+    /// Vertex buffer layouts.
     pub buffers: A::Slice<platform_gpu::GpuVertexBufferLayoutAbi<A>>,
 }
 
@@ -7131,421 +7133,421 @@ impl VmAggregateCodec for GpuVertexStateAbi<VmAbi> {
 /// Replay struct for GpuAdapterInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuAdapterInfoReplayRecord {
-    /// The id field.
+    /// Stable runtime adapter identifier.
     pub id: String,
-    /// The name field.
+    /// Host adapter name.
     pub name: String,
-    /// The vendor field.
+    /// Host vendor name when available.
     pub vendor: String,
-    /// The driver field.
+    /// Host driver name when available.
     pub driver: String,
-    /// The driver_version field.
+    /// Host driver version when available.
     pub driver_version: String,
-    /// The backend field.
+    /// Backend API kind.
     pub backend: GpuBackend,
-    /// The adapter_type field.
+    /// Adapter category.
     pub adapter_type: GpuAdapterType,
-    /// The vendor_id field.
+    /// Vendor identifier when available.
     pub vendor_id: u32,
-    /// The device_id field.
+    /// Device identifier when available.
     pub device_id: u32,
-    /// The subgroup_min_size field.
+    /// Minimum subgroup size when available.
     pub subgroup_min_size: u32,
-    /// The subgroup_max_size field.
+    /// Maximum subgroup size when available.
     pub subgroup_max_size: u32,
-    /// The is_fallback field.
+    /// Whether this adapter is a fallback implementation.
     pub is_fallback: bool,
-    /// The features field.
+    /// Supported feature identifiers.
     pub features: Vec<GpuFeatureId>,
-    /// The limits field.
+    /// Supported adapter limits.
     pub limits: GpuAdapterLimits,
 }
 
 /// Replay struct for GpuBindGroupBufferResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupBufferResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: String,
-    /// The buffer field.
+    /// Buffer handle.
     pub buffer: resource::GpuBufferHandle,
-    /// The offset field.
+    /// Buffer byte offset.
     pub offset: u64,
-    /// The size field.
+    /// Buffer byte length.
     pub size: u64,
 }
 
 /// Replay struct for GpuBindGroupEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupEntryReplayRecord {
-    /// The binding field.
+    /// Binding index.
     pub binding: u32,
-    /// The binding_array_element field.
+    /// Binding array element index, zero when not array-indexed.
     pub binding_array_element: u32,
-    /// The resource field.
+    /// Typed resource payload.
     pub resource: GpuBindGroupResourceReplayRecord,
 }
 
 /// Replay struct for GpuBindGroupLayoutBufferResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutBufferResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: String,
-    /// The binding_type field.
+    /// Buffer binding layout selector.
     pub binding_type: GpuBufferBindingType,
-    /// The has_dynamic_offset field.
+    /// Whether this binding uses dynamic offsets.
     pub has_dynamic_offset: bool,
-    /// The min_binding_size field.
+    /// Minimum binding size in bytes when applicable.
     pub min_binding_size: u64,
 }
 
 /// Replay struct for GpuBindGroupLayoutEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutEntryReplayRecord {
-    /// The binding field.
+    /// Binding index.
     pub binding: u32,
-    /// The visibility field.
+    /// Shader stage visibility mask.
     pub visibility: GpuShaderVisibilityMask,
-    /// The binding_array_count field.
+    /// Binding array length, zero when not an array binding.
     pub binding_array_count: u32,
-    /// The resource field.
+    /// Typed resource payload.
     pub resource: GpuBindGroupLayoutResourceReplayRecord,
 }
 
 /// Replay struct for GpuBindGroupLayoutSampledTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutSampledTextureResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: String,
-    /// The texture_sample_type field.
+    /// Texture sample type selector.
     pub texture_sample_type: GpuTextureSampleType,
-    /// The texture_view_dimension field.
+    /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
-    /// The multisampled field.
+    /// Whether multisampled textures are required.
     pub multisampled: bool,
 }
 
 /// Replay struct for GpuBindGroupLayoutSamplerResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutSamplerResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: String,
-    /// The sampler_binding_type field.
+    /// Sampler binding layout selector.
     pub sampler_binding_type: GpuSamplerBindingType,
 }
 
 /// Replay struct for GpuBindGroupLayoutStorageTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupLayoutStorageTextureResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group-layout resource variant.
     pub kind: String,
-    /// The storage_texture_access field.
+    /// Storage-texture access selector.
     pub storage_texture_access: GpuStorageTextureAccess,
-    /// The storage_texture_format field.
+    /// Storage-texture format identifier.
     pub storage_texture_format: u32,
-    /// The texture_view_dimension field.
+    /// Texture view dimension selector.
     pub texture_view_dimension: GpuTextureViewDimension,
 }
 
 /// Replay struct for GpuBindGroupSamplerResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupSamplerResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: String,
-    /// The sampler field.
+    /// Sampler handle.
     pub sampler: resource::GpuSamplerHandle,
 }
 
 /// Replay struct for GpuBindGroupTextureResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuBindGroupTextureResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this bind-group resource variant.
     pub kind: String,
-    /// The texture field.
+    /// Texture-view handle.
     pub texture: resource::GpuTextureViewHandle,
 }
 
 /// Replay struct for GpuCapturedError.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuCapturedErrorReplayRecord {
-    /// The message field.
+    /// Human-readable error message when one error was captured.
     pub message: Option<String>,
-    /// The backend_code field.
+    /// Backend-specific status code when one error was captured.
     pub backend_code: Option<i32>,
 }
 
 /// Replay struct for GpuCompilationInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuCompilationInfoReplayRecord {
-    /// The messages field.
+    /// Compilation diagnostics emitted by backend validation or translation.
     pub messages: Vec<GpuCompilationMessageReplayRecord>,
 }
 
 /// Replay struct for GpuCompilationMessage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuCompilationMessageReplayRecord {
-    /// The kind field.
+    /// Message kind.
     pub kind: GpuCompilationMessageKind,
-    /// The message field.
+    /// Human-readable message text.
     pub message: String,
-    /// The line field.
+    /// One-indexed source line number when available.
     pub line: u32,
-    /// The column field.
+    /// One-indexed source column number when available.
     pub column: u32,
-    /// The offset field.
+    /// Zero-based source byte offset when available.
     pub offset: u32,
-    /// The length field.
+    /// Source span length in bytes when available.
     pub length: u32,
 }
 
 /// Replay struct for GpuComputePipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputePipelineOptionsReplayRecord {
-    /// The layout field.
+    /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
-    /// The compute field.
+    /// Compute stage descriptor.
     pub compute: GpuComputeStateReplayRecord,
-    /// The metadata field.
+    /// Pipeline creation metadata.
     pub metadata: GpuPipelineMetadataReplayRecord,
-    /// The flags field.
+    /// Pipeline option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuComputeState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuComputeStateReplayRecord {
-    /// The module field.
+    /// Compute shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Compute entry point when provided.
     pub entry: Option<String>,
-    /// The constants field.
+    /// Compute-stage specialization constants.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
 }
 
 /// Replay struct for GpuDeviceInfo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceInfoReplayRecord {
-    /// The backend field.
+    /// Chosen backend for this device.
     pub backend: GpuBackend,
-    /// The enabled_features field.
+    /// Feature identifiers enabled on this device.
     pub enabled_features: Vec<GpuFeatureId>,
-    /// The effective_limits field.
+    /// Effective device limits.
     pub effective_limits: GpuAdapterLimits,
-    /// The queue_count field.
+    /// Default queue count visible to the runtime.
     pub queue_count: u32,
-    /// The has_timeline_sync field.
+    /// Whether timeline synchronization is available.
     pub has_timeline_sync: bool,
-    /// The has_timestamp_queries field.
+    /// Whether timestamp queries are available.
     pub has_timestamp_queries: bool,
-    /// The has_push_constants field.
+    /// Whether push constants are available.
     pub has_push_constants: bool,
 }
 
 /// Replay struct for GpuDeviceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceOptionsReplayRecord {
-    /// The required_features field.
+    /// Required feature identifiers.
     pub required_features: Vec<GpuFeatureId>,
-    /// The required_limits field.
+    /// Required minimum limits.
     pub required_limits: GpuAdapterLimits,
-    /// The backend field.
+    /// Preferred backend override.
     pub backend: GpuBackend,
-    /// The flags field.
+    /// Device option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuDeviceStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuDeviceStatusReplayRecord {
-    /// The healthy field.
+    /// Whether the device is currently operational.
     pub healthy: bool,
-    /// The loss_reason field.
+    /// Device-loss reason category.
     pub loss_reason: GpuDeviceLossReason,
-    /// The backend_code field.
+    /// Backend-specific status code.
     pub backend_code: i32,
-    /// The message field.
+    /// Human-readable status message.
     pub message: String,
 }
 
 /// Replay struct for GpuFragmentState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuFragmentStateReplayRecord {
-    /// The module field.
+    /// Fragment shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Fragment entry point when provided.
     pub entry: Option<String>,
-    /// The constants field.
+    /// Fragment-stage specialization constants.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
-    /// The targets field.
+    /// Color-target states.
     pub targets: Vec<GpuColorTargetState>,
 }
 
 /// Replay struct for GpuPipelineConstant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuPipelineConstantReplayRecord {
-    /// The key field.
+    /// Constant identifier key.
     pub key: String,
-    /// The value field.
+    /// Constant value as float64.
     pub value: f64,
 }
 
 /// Replay struct for GpuPipelineLayoutOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuPipelineLayoutOptionsReplayRecord {
-    /// The bind_group_layouts field.
+    /// Ordered bind group layouts for this pipeline layout.
     pub bind_group_layouts: Vec<resource::GpuBindGroupLayoutHandle>,
-    /// The immediate_size field.
+    /// Immediate-data byte size when supported.
     pub immediate_size: u32,
-    /// The flags field.
+    /// Pipeline layout option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuPipelineMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuPipelineMetadataReplayRecord {
-    /// The label field.
+    /// Human-readable debug label, empty when unspecified.
     pub label: String,
 }
 
 /// Replay struct for GpuRenderBundleEncoderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderBundleEncoderOptionsReplayRecord {
-    /// The color_formats field.
+    /// Color attachment format identifiers.
     pub color_formats: Vec<u32>,
-    /// The depth_stencil_format field.
+    /// Depth-stencil format identifier, zero when unused.
     pub depth_stencil_format: u32,
-    /// The sample_count field.
+    /// Sample count.
     pub sample_count: u32,
-    /// The flags field.
+    /// Bundle-encoder option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuRenderPassOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPassOptionsReplayRecord {
-    /// The color_attachments field.
+    /// Render-pass color attachments.
     pub color_attachments: Vec<GpuRenderPassColorAttachment>,
-    /// The depth_stencil field.
+    /// Render-pass depth-stencil attachment descriptor when provided.
     pub depth_stencil: Option<GpuRenderPassDepthStencilAttachment>,
-    /// The timestamp_writes field.
+    /// Timestamp-write descriptor when enabled.
     pub timestamp_writes: Option<GpuPassTimestampWrites>,
-    /// The occlusion_query_set field.
+    /// Pass-wide occlusion query set when enabled.
     pub occlusion_query_set: Option<resource::GpuQuerySetHandle>,
 }
 
 /// Replay struct for GpuRenderPipelineOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuRenderPipelineOptionsReplayRecord {
-    /// The layout field.
+    /// Explicit pipeline layout handle when provided.
     pub layout: Option<resource::GpuPipelineLayoutHandle>,
-    /// The vertex field.
+    /// Vertex stage descriptor.
     pub vertex: GpuVertexStateReplayRecord,
-    /// The fragment field.
+    /// Fragment stage descriptor when configured.
     pub fragment: Option<GpuFragmentStateReplayRecord>,
-    /// The render field.
+    /// Render-state descriptor.
     pub render: GpuRenderState,
-    /// The multiview_mask field.
+    /// Multiview mask when configured.
     pub multiview_mask: Option<u32>,
-    /// The metadata field.
+    /// Pipeline creation metadata.
     pub metadata: GpuPipelineMetadataReplayRecord,
-    /// The flags field.
+    /// Pipeline option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuShaderOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuShaderOptionsReplayRecord {
-    /// The format field.
+    /// Shader binary format selector.
     pub format: GpuShaderFormat,
-    /// The flags field.
+    /// Shader option flags.
     pub flags: u32,
-    /// The label field.
+    /// Human-readable debug label, empty when unspecified.
     pub label: String,
 }
 
 /// Replay struct for GpuSurfaceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuSurfaceCapabilitiesReplayRecord {
-    /// The usage_mask field.
+    /// Supported texture usage bitset.
     pub usage_mask: u64,
-    /// The formats field.
+    /// Supported texture format identifiers.
     pub formats: Vec<u32>,
-    /// The present_modes field.
+    /// Supported present mode selectors.
     pub present_modes: Vec<GpuPresentMode>,
-    /// The alpha_modes field.
+    /// Supported alpha mode selectors.
     pub alpha_modes: Vec<GpuSurfaceAlphaMode>,
 }
 
 /// Replay struct for GpuSurfaceOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuSurfaceOptionsReplayRecord {
-    /// The usage field.
+    /// Surface texture usage bitset.
     pub usage: u64,
-    /// The view_formats field.
+    /// Additional compatible surface view formats.
     pub view_formats: Vec<u32>,
-    /// The width field.
+    /// Surface width in pixels.
     pub width: u32,
-    /// The height field.
+    /// Surface height in pixels.
     pub height: u32,
-    /// The format field.
+    /// Surface texture format identifier.
     pub format: u32,
-    /// The present_mode field.
+    /// Present mode selector.
     pub present_mode: GpuPresentMode,
-    /// The alpha_mode field.
+    /// Alpha mode selector.
     pub alpha_mode: GpuSurfaceAlphaMode,
-    /// The desired_max_frame_latency field.
+    /// Requested maximum frame latency in monitor refresh units.
     pub desired_max_frame_latency: u32,
-    /// The flags field.
+    /// Surface option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuTextureOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuTextureOptionsReplayRecord {
-    /// The width field.
+    /// Texture width in texels.
     pub width: u32,
-    /// The height field.
+    /// Texture height in texels.
     pub height: u32,
-    /// The depth_or_layers field.
+    /// Texture depth or layer count.
     pub depth_or_layers: u32,
-    /// The mip_levels field.
+    /// Texture mip level count.
     pub mip_levels: u32,
-    /// The samples field.
+    /// Texture sample count.
     pub samples: u32,
-    /// The format field.
+    /// Texture format identifier.
     pub format: u32,
-    /// The dimension field.
+    /// Texture dimension selector.
     pub dimension: GpuTextureDimension,
-    /// The usage field.
+    /// Texture usage bitset.
     pub usage: u64,
-    /// The view_formats field.
+    /// Additional compatible texture-view format identifiers.
     pub view_formats: Vec<u32>,
-    /// The flags field.
+    /// Texture option flags.
     pub flags: u32,
 }
 
 /// Replay struct for GpuVertexBufferLayout.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuVertexBufferLayoutReplayRecord {
-    /// The slot field.
+    /// Vertex buffer slot index.
     pub slot: u32,
-    /// The array_stride field.
+    /// Vertex buffer stride in bytes.
     pub array_stride: u64,
-    /// The step_mode field.
+    /// Vertex layout step mode selector.
     pub step_mode: GpuVertexStepMode,
-    /// The attributes field.
+    /// Vertex attributes consumed from this buffer.
     pub attributes: Vec<GpuVertexAttribute>,
 }
 
 /// Replay struct for GpuVertexState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GpuVertexStateReplayRecord {
-    /// The module field.
+    /// Vertex shader-module handle.
     pub module: resource::GpuShaderHandle,
-    /// The entry field.
+    /// Vertex entry point when provided.
     pub entry: Option<String>,
-    /// The constants field.
+    /// Vertex-stage specialization constants.
     pub constants: Vec<GpuPipelineConstantReplayRecord>,
-    /// The buffers field.
+    /// Vertex buffer layouts.
     pub buffers: Vec<GpuVertexBufferLayoutReplayRecord>,
 }
 

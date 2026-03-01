@@ -89,9 +89,9 @@ impl VmValueCodec for TraceLevel {
 /// ABI struct for InspectorEndpoint.
 #[repr(C)]
 pub struct InspectorEndpointAbi<A: BindingAbi> {
-    /// The url field.
+    /// Transport URL for the inspector session.
     pub url: A::String,
-    /// The process_id field.
+    /// Host process identifier that owns the session.
     pub process_id: u32,
 }
 
@@ -165,8 +165,8 @@ impl VmAggregateCodec for InspectorEndpointAbi<VmAbi> {
 /// Replay struct for InspectorEndpoint.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InspectorEndpointReplayRecord {
-    /// The url field.
+    /// Transport URL for the inspector session.
     pub url: String,
-    /// The process_id field.
+    /// Host process identifier that owns the session.
     pub process_id: u32,
 }

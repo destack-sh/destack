@@ -957,17 +957,17 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputAxisMetadata {
-    /// The code field.
+    /// Backend-native axis code.
     pub code: u32,
-    /// The minimum field.
+    /// Minimum normalized axis value.
     pub minimum: f64,
-    /// The maximum field.
+    /// Maximum normalized axis value.
     pub maximum: f64,
-    /// The flat field.
+    /// Neutral deadzone width when reported by backend.
     pub flat: f64,
-    /// The fuzz field.
+    /// Noise threshold when reported by backend.
     pub fuzz: f64,
-    /// The resolution field.
+    /// Unit resolution when reported by backend.
     pub resolution: f64,
 }
 
@@ -1031,9 +1031,9 @@ impl VmAggregateCodec for InputAxisMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputButtonMetadata {
-    /// The code field.
+    /// Backend-native button code.
     pub code: u32,
-    /// The analog field.
+    /// Whether this button reports analog values.
     pub analog: bool,
 }
 
@@ -1084,11 +1084,11 @@ impl VmAggregateCodec for InputButtonMetadata {
 /// ABI struct for InputCompositionEvent.
 #[repr(C)]
 pub struct InputCompositionEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Composition payload.
     pub payload: platform_input::InputCompositionEventPayloadAbi<A>,
 }
 
@@ -1175,13 +1175,13 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
 /// ABI struct for InputCompositionEventPayload.
 #[repr(C)]
 pub struct InputCompositionEventPayloadAbi<A: BindingAbi> {
-    /// The action field.
+    /// Composition action.
     pub action: InputEventAction,
-    /// The text field.
+    /// UTF-8 composition text.
     pub text: A::String,
-    /// The selection_start field.
+    /// Selection start offset when available.
     pub selection_start: i32,
-    /// The selection_end field.
+    /// Selection end offset when available.
     pub selection_end: i32,
 }
 
@@ -1264,43 +1264,43 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
 /// ABI struct for InputDeviceCapabilities.
 #[repr(C)]
 pub struct InputDeviceCapabilitiesAbi<A: BindingAbi> {
-    /// The kinds field.
+    /// High-level capability categories for the device.
     pub kinds: A::Array<InputDeviceCapabilityKind>,
-    /// The axes field.
+    /// Axis capability entries when reported by backend.
     pub axes: A::Array<InputAxisMetadata>,
-    /// The buttons field.
+    /// Button capability entries when reported by backend.
     pub buttons: A::Array<InputButtonMetadata>,
-    /// The metadata_origin field.
+    /// Aggregate metadata origin for this capability snapshot.
     pub metadata_origin: InputCapabilityMetadataOrigin,
-    /// The axis_metadata_fidelity field.
+    /// Aggregate axis metadata fidelity for this capability snapshot.
     pub axis_metadata_fidelity: InputCapabilityMetadataFidelity,
-    /// The button_metadata_fidelity field.
+    /// Aggregate button metadata fidelity for this capability snapshot.
     pub button_metadata_fidelity: InputCapabilityMetadataFidelity,
-    /// The supports_relative_pointer field.
+    /// Whether relative-pointer mode can be enabled.
     pub supports_relative_pointer: bool,
-    /// The supports_pointer_grab field.
+    /// Whether pointer confinement or locking is supported.
     pub supports_pointer_grab: bool,
-    /// The supports_pointer_capture field.
+    /// Whether pointer capture outside one window is supported.
     pub supports_pointer_capture: bool,
-    /// The supports_pointer_warp field.
+    /// Whether pointer warping is supported.
     pub supports_pointer_warp: bool,
-    /// The supports_text_input field.
+    /// Whether text input activation is supported.
     pub supports_text_input: bool,
-    /// The supports_composition field.
+    /// Whether composition events are supported.
     pub supports_composition: bool,
-    /// The supports_rumble field.
+    /// Whether whole-device rumble is supported.
     pub supports_rumble: bool,
-    /// The supports_trigger_rumble field.
+    /// Whether trigger rumble is supported.
     pub supports_trigger_rumble: bool,
-    /// The supports_sensors field.
+    /// Whether device-side sensors are supported.
     pub supports_sensors: bool,
-    /// The supports_battery_state field.
+    /// Whether gamepad or controller battery state is supported.
     pub supports_battery_state: bool,
-    /// The supports_light_control field.
+    /// Whether controller or device light-control output is supported.
     pub supports_light_control: bool,
-    /// The supports_raw_hid field.
+    /// Whether raw-hid reports are supported.
     pub supports_raw_hid: bool,
-    /// The supports_player_index field.
+    /// Whether player-index assignment is supported.
     pub supports_player_index: bool,
 }
 
@@ -1476,47 +1476,52 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
 /// ABI struct for InputDeviceDescriptor.
 #[repr(C)]
 pub struct InputDeviceDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable runtime input device identifier.
     pub id: A::String,
-    /// The instance_id field.
+    /// Stable runtime instance identifier for this connection.
     pub instance_id: A::String,
-    /// The hardware_id field.
+    /// Stable backend hardware identifier when available.
     pub hardware_id: A::String,
-    /// The name field.
+    /// Host device name.
     pub name: A::String,
-    /// The transport field.
+    /// Backend transport name when available.
     pub transport: A::String,
-    /// The kind field.
+    /// Device kind.
     pub kind: InputDeviceKind,
-    /// The vendor_id field.
+    /// Vendor identifier when available.
+    /// Zero when the backend does not report one vendor id.
     pub vendor_id: u16,
-    /// The product_id field.
+    /// Product identifier when available.
+    /// Zero when the backend does not report one product id.
     pub product_id: u16,
-    /// The key_count field.
+    /// Number of logical keys when reported by the backend.
+    /// Zero when the backend does not report key topology.
     pub key_count: u16,
-    /// The button_count field.
+    /// Number of logical buttons when reported by the backend.
+    /// Zero when the backend does not report button topology.
     pub button_count: u16,
-    /// The axis_count field.
+    /// Number of logical axes when reported by the backend.
+    /// Zero when the backend does not report axis topology.
     pub axis_count: u16,
-    /// The connected field.
+    /// Whether this device is currently connected.
     pub connected: bool,
-    /// The supports_exclusive_grab field.
+    /// Whether this endpoint supports exclusive-grab mode.
     pub supports_exclusive_grab: bool,
-    /// The supports_raw field.
+    /// Whether this endpoint can emit raw host-native events.
     pub supports_raw: bool,
-    /// The supports_text field.
+    /// Whether this endpoint can emit text events.
     pub supports_text: bool,
-    /// The supports_rumble field.
+    /// Whether this endpoint can provide haptic output.
     pub supports_rumble: bool,
-    /// The supports_battery field.
+    /// Whether this endpoint reports battery metadata.
     pub supports_battery: bool,
-    /// The supports_light field.
+    /// Whether this endpoint supports light-control output.
     pub supports_light: bool,
-    /// The supports_raw_hid field.
+    /// Whether this endpoint supports raw-hid reports.
     pub supports_raw_hid: bool,
-    /// The is_virtual field.
+    /// Whether this endpoint is virtual or emulated.
     pub is_virtual: bool,
-    /// The is_system field.
+    /// Whether this endpoint is provided by the system stack.
     pub is_system: bool,
 }
 
@@ -1659,11 +1664,11 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
 /// ABI struct for InputDeviceEvent.
 #[repr(C)]
 pub struct InputDeviceEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Device payload.
     pub payload: InputDeviceEventPayload,
 }
 
@@ -1750,11 +1755,11 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceEventPayload {
-    /// The action field.
+    /// Device action.
     pub action: InputEventAction,
-    /// The backend_code field.
+    /// Backend-native device code.
     pub backend_code: u32,
-    /// The backend_value field.
+    /// Backend-native device value.
     pub backend_value: i64,
 }
 
@@ -1810,11 +1815,11 @@ impl VmAggregateCodec for InputDeviceEventPayload {
 /// ABI struct for InputEventMetadata.
 #[repr(C)]
 pub struct InputEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: A::String,
 }
 
@@ -1892,9 +1897,9 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadBatteryStatus {
-    /// The state field.
+    /// Battery state.
     pub state: InputGamepadBatteryState,
-    /// The level field.
+    /// Battery level in the range [0, 1] when available.
     pub level: f64,
 }
 
@@ -1949,11 +1954,11 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadButtonState {
-    /// The pressed field.
+    /// Whether the button is currently pressed.
     pub pressed: bool,
-    /// The touched field.
+    /// Whether the button is currently touched.
     pub touched: bool,
-    /// The value field.
+    /// Analog button value in the normalized range [0, 1].
     pub value: f64,
 }
 
@@ -2007,11 +2012,11 @@ impl VmAggregateCodec for InputGamepadButtonState {
 /// ABI struct for InputGamepadEvent.
 #[repr(C)]
 pub struct InputGamepadEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Gamepad payload.
     pub payload: InputGamepadEventPayload,
 }
 
@@ -2098,11 +2103,11 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadEventPayload {
-    /// The action field.
+    /// Gamepad action.
     pub action: InputEventAction,
-    /// The backend_code field.
+    /// Backend-native control code.
     pub backend_code: u32,
-    /// The backend_value field.
+    /// Backend-native control value.
     pub backend_value: i64,
 }
 
@@ -2158,27 +2163,27 @@ impl VmAggregateCodec for InputGamepadEventPayload {
 /// ABI struct for InputGamepadState.
 #[repr(C)]
 pub struct InputGamepadStateAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The connected field.
+    /// Whether the gamepad is currently connected.
     pub connected: bool,
-    /// The mapping field.
+    /// Active gamepad mapping type.
     pub mapping: InputGamepadMappingType,
-    /// The connection_type field.
+    /// Connection type when available.
     pub connection_type: InputGamepadConnectionType,
-    /// The player_index field.
+    /// Player index in the range [0, 15] when available, otherwise 255.
     pub player_index: u8,
-    /// The battery field.
+    /// Battery information snapshot.
     pub battery: InputGamepadBatteryStatus,
-    /// The supports_rumble field.
+    /// Whether this device supports whole-device rumble.
     pub supports_rumble: bool,
-    /// The supports_trigger_rumble field.
+    /// Whether this device supports trigger rumble.
     pub supports_trigger_rumble: bool,
-    /// The axes field.
+    /// Axis values in normalized backend order.
     pub axes: A::Array<f64>,
-    /// The buttons field.
+    /// Button values in normalized backend order.
     pub buttons: A::Array<InputGamepadButtonState>,
-    /// The touches field.
+    /// Touch contacts when the device exposes touch surfaces.
     pub touches: A::Array<InputGamepadTouchState>,
 }
 
@@ -2309,15 +2314,15 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadTouchState {
-    /// The touch_id field.
+    /// Touch identifier in backend contact space.
     pub touch_id: u32,
-    /// The surface_id field.
+    /// Touch surface identifier.
     pub surface_id: u32,
-    /// The x field.
+    /// Normalized x coordinate in the range [-1, 1] when reported by backend.
     pub x: f64,
-    /// The y field.
+    /// Normalized y coordinate in the range [-1, 1] when reported by backend.
     pub y: f64,
-    /// The pressure field.
+    /// Normalized pressure in the range [0, 1] when reported by backend.
     pub pressure: f64,
 }
 
@@ -2378,17 +2383,17 @@ impl VmAggregateCodec for InputGamepadTouchState {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputHapticEffectParameters {
-    /// The duration_ms field.
+    /// Effect duration in milliseconds.
     pub duration_ms: u64,
-    /// The start_delay_ms field.
+    /// Effect start delay in milliseconds.
     pub start_delay_ms: u64,
-    /// The strong_magnitude field.
+    /// Low-frequency or strong-motor magnitude in the range [0, 1].
     pub strong_magnitude: f64,
-    /// The weak_magnitude field.
+    /// High-frequency or weak-motor magnitude in the range [0, 1].
     pub weak_magnitude: f64,
-    /// The left_trigger field.
+    /// Left trigger rumble magnitude in the range [0, 1].
     pub left_trigger: f64,
-    /// The right_trigger field.
+    /// Right trigger rumble magnitude in the range [0, 1].
     pub right_trigger: f64,
 }
 
@@ -2455,11 +2460,11 @@ impl VmAggregateCodec for InputHapticEffectParameters {
 /// ABI struct for InputKeyEvent.
 #[repr(C)]
 pub struct InputKeyEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Key payload.
     pub payload: InputKeyEventPayload,
 }
 
@@ -2545,17 +2550,17 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputKeyEventPayload {
-    /// The action field.
+    /// Key action.
     pub action: InputEventAction,
-    /// The backend_code field.
+    /// Backend-native key code.
     pub backend_code: u32,
-    /// The backend_scan_code field.
+    /// Backend-native scan code when available.
     pub backend_scan_code: u32,
-    /// The backend_value field.
+    /// Backend-native key value.
     pub backend_value: i64,
-    /// The modifiers field.
+    /// Backend modifier bitset.
     pub modifiers: u32,
-    /// The repeat field.
+    /// Whether this key event is a repeat.
     pub repeat: bool,
 }
 
@@ -2621,17 +2626,17 @@ impl VmAggregateCodec for InputKeyEventPayload {
 /// ABI struct for InputKeyboardState.
 #[repr(C)]
 pub struct InputKeyboardStateAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: A::String,
-    /// The modifiers field.
+    /// Backend modifier bitset for active modifiers.
     pub modifiers: u32,
-    /// The pressed_codes field.
+    /// Backend key codes currently pressed.
     pub pressed_codes: A::Array<u32>,
-    /// The pressed_scan_codes field.
+    /// Backend hardware scan codes currently pressed when available.
     pub pressed_scan_codes: A::Array<u32>,
 }
 
@@ -2722,9 +2727,9 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
 /// ABI struct for InputMonitorChangeEvent.
 #[repr(C)]
 pub struct InputMonitorChangeEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
 }
 
@@ -2804,9 +2809,9 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
 /// ABI struct for InputMonitorConnectEvent.
 #[repr(C)]
 pub struct InputMonitorConnectEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
 }
 
@@ -2886,9 +2891,9 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
 /// ABI struct for InputMonitorDisconnectEvent.
 #[repr(C)]
 pub struct InputMonitorDisconnectEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: platform_input::InputMonitorEventMetadataAbi<A>,
 }
 
@@ -2968,15 +2973,15 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
 /// ABI struct for InputMonitorEventMetadata.
 #[repr(C)]
 pub struct InputMonitorEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the monitor stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: A::String,
-    /// The device_kind field.
+    /// Device kind when available.
     pub device_kind: InputDeviceKind,
-    /// The connected field.
+    /// Whether the device is connected after this event.
     pub connected: bool,
 }
 
@@ -3061,19 +3066,19 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputPenState {
-    /// The pressure field.
+    /// Pen pressure in the normalized range [0, 1] when available.
     pub pressure: f64,
-    /// The tangential_pressure field.
+    /// Pen tangential pressure in the normalized range [-1, 1] when available.
     pub tangential_pressure: f64,
-    /// The tilt_x field.
+    /// Pen tilt around x axis in degrees when available.
     pub tilt_x: f64,
-    /// The tilt_y field.
+    /// Pen tilt around y axis in degrees when available.
     pub tilt_y: f64,
-    /// The twist field.
+    /// Pen barrel rotation in degrees when available.
     pub twist: f64,
-    /// The in_contact field.
+    /// Whether the pen tip is currently in contact with the surface.
     pub in_contact: bool,
-    /// The in_range field.
+    /// Whether the pen is currently in proximity range.
     pub in_range: bool,
 }
 
@@ -3140,11 +3145,11 @@ impl VmAggregateCodec for InputPenState {
 /// ABI struct for InputPointerButtonEvent.
 #[repr(C)]
 pub struct InputPointerButtonEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Pointer-button payload.
     pub payload: InputPointerButtonEventPayload,
 }
 
@@ -3232,17 +3237,17 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputPointerButtonEventPayload {
-    /// The action field.
+    /// Button action.
     pub action: InputEventAction,
-    /// The backend_code field.
+    /// Backend-native button code.
     pub backend_code: u32,
-    /// The backend_value field.
+    /// Backend-native button value.
     pub backend_value: i64,
-    /// The x field.
+    /// Pointer x coordinate.
     pub x: f64,
-    /// The y field.
+    /// Pointer y coordinate.
     pub y: f64,
-    /// The modifiers field.
+    /// Backend modifier bitset.
     pub modifiers: u32,
 }
 
@@ -3307,11 +3312,11 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
 /// ABI struct for InputPointerMotionEvent.
 #[repr(C)]
 pub struct InputPointerMotionEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Pointer-motion payload.
     pub payload: InputPointerMotionEventPayload,
 }
 
@@ -3399,13 +3404,13 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputPointerMotionEventPayload {
-    /// The x field.
+    /// Pointer x coordinate or delta.
     pub x: f64,
-    /// The y field.
+    /// Pointer y coordinate or delta.
     pub y: f64,
-    /// The buttons field.
+    /// Backend button bitset.
     pub buttons: u32,
-    /// The modifiers field.
+    /// Backend modifier bitset.
     pub modifiers: u32,
 }
 
@@ -3463,15 +3468,15 @@ impl VmAggregateCodec for InputPointerMotionEventPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputPointerState {
-    /// The x field.
+    /// Pointer position or delta x value.
     pub x: f64,
-    /// The y field.
+    /// Pointer position or delta y value.
     pub y: f64,
-    /// The buttons field.
+    /// Backend button bitset for currently pressed buttons.
     pub buttons: u32,
-    /// The modifiers field.
+    /// Backend modifier bitset.
     pub modifiers: u32,
-    /// The pen field.
+    /// Pen-specific state when available.
     pub pen: Option<InputPenState>,
 }
 
@@ -3532,13 +3537,13 @@ impl VmAggregateCodec for InputPointerState {
 /// ABI struct for InputRawHidReport.
 #[repr(C)]
 pub struct InputRawHidReportAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic report timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The report_id field.
+    /// Report identifier, zero when the backend report format omits explicit report ids.
     pub report_id: u8,
-    /// The data field.
+    /// Raw report bytes.
     pub data: A::Slice<u8>,
 }
 
@@ -3617,11 +3622,11 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
 /// ABI struct for InputScrollEvent.
 #[repr(C)]
 pub struct InputScrollEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Scroll payload.
     pub payload: InputScrollEventPayload,
 }
 
@@ -3708,15 +3713,15 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputScrollEventPayload {
-    /// The wheel_x field.
+    /// Horizontal wheel delta.
     pub wheel_x: f64,
-    /// The wheel_y field.
+    /// Vertical wheel delta.
     pub wheel_y: f64,
-    /// The x field.
+    /// Pointer x coordinate.
     pub x: f64,
-    /// The y field.
+    /// Pointer y coordinate.
     pub y: f64,
-    /// The modifiers field.
+    /// Backend modifier bitset.
     pub modifiers: u32,
 }
 
@@ -3777,13 +3782,13 @@ impl VmAggregateCodec for InputScrollEventPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorConfig {
-    /// The enabled field.
+    /// Whether the sensor stream is enabled.
     pub enabled: bool,
-    /// The sample_rate_hz field.
+    /// Requested sample rate in hertz.
     pub sample_rate_hz: f64,
-    /// The batch_latency_ms field.
+    /// Requested maximum batching latency in milliseconds.
     pub batch_latency_ms: u32,
-    /// The flags field.
+    /// Sensor option flags.
     pub flags: u32,
 }
 
@@ -3843,15 +3848,15 @@ impl VmAggregateCodec for InputSensorConfig {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorDescriptor {
-    /// The kind field.
+    /// Sensor kind.
     pub kind: InputSensorKind,
-    /// The min_sample_rate_hz field.
+    /// Minimum supported sample rate in hertz.
     pub min_sample_rate_hz: f64,
-    /// The max_sample_rate_hz field.
+    /// Maximum supported sample rate in hertz.
     pub max_sample_rate_hz: f64,
-    /// The resolution field.
+    /// Nominal sensor resolution.
     pub resolution: f64,
-    /// The supports_wake field.
+    /// Whether this sensor can wake one suspended backend queue.
     pub supports_wake: bool,
 }
 
@@ -3916,13 +3921,13 @@ impl VmAggregateCodec for InputSensorDescriptor {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorEffectiveConfig {
-    /// The enabled field.
+    /// Whether the sensor stream is enabled.
     pub enabled: bool,
-    /// The sample_rate_hz field.
+    /// Effective sample rate in hertz.
     pub sample_rate_hz: f64,
-    /// The batch_latency_ms field.
+    /// Effective batching latency in milliseconds.
     pub batch_latency_ms: u32,
-    /// The flags field.
+    /// Effective sensor option flags.
     pub flags: u32,
 }
 
@@ -3981,11 +3986,11 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
 /// ABI struct for InputSensorEvent.
 #[repr(C)]
 pub struct InputSensorEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Sensor payload.
     pub payload: InputSensorEventPayload,
 }
 
@@ -4072,17 +4077,17 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorEventPayload {
-    /// The action field.
+    /// Sensor action.
     pub action: InputEventAction,
-    /// The backend_code field.
+    /// Backend-native sensor code.
     pub backend_code: u32,
-    /// The backend_value field.
+    /// Backend-native sensor value.
     pub backend_value: i64,
-    /// The x field.
+    /// Sensor x component when available.
     pub x: f64,
-    /// The y field.
+    /// Sensor y component when available.
     pub y: f64,
-    /// The z field.
+    /// Sensor z component when available.
     pub z: f64,
 }
 
@@ -4148,19 +4153,19 @@ impl VmAggregateCodec for InputSensorEventPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorSample {
-    /// The kind field.
+    /// Sensor kind.
     pub kind: InputSensorKind,
-    /// The timestamp_ns field.
+    /// Monotonic sample timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The x field.
+    /// Vector or quaternion x component.
     pub x: f64,
-    /// The y field.
+    /// Vector or quaternion y component.
     pub y: f64,
-    /// The z field.
+    /// Vector or quaternion z component.
     pub z: f64,
-    /// The w field.
+    /// Quaternion w component for orientation samples, zero for vector samples.
     pub w: f64,
-    /// The flags field.
+    /// Backend-specific sample status bits.
     pub flags: u32,
 }
 
@@ -4227,11 +4232,11 @@ impl VmAggregateCodec for InputSensorSample {
 /// ABI struct for InputTextEvent.
 #[repr(C)]
 pub struct InputTextEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Text payload.
     pub payload: platform_input::InputTextEventPayloadAbi<A>,
 }
 
@@ -4316,7 +4321,7 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
 /// ABI struct for InputTextEventPayload.
 #[repr(C)]
 pub struct InputTextEventPayloadAbi<A: BindingAbi> {
-    /// The text field.
+    /// UTF-8 text payload.
     pub text: A::String,
 }
 
@@ -4386,15 +4391,15 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputTextInputArea {
-    /// The x field.
+    /// Area left coordinate in backend-native units.
     pub x: i32,
-    /// The y field.
+    /// Area top coordinate in backend-native units.
     pub y: i32,
-    /// The width field.
+    /// Area width in backend-native units.
     pub width: u32,
-    /// The height field.
+    /// Area height in backend-native units.
     pub height: u32,
-    /// The cursor field.
+    /// Cursor offset inside the text area.
     pub cursor: i32,
 }
 
@@ -4455,23 +4460,23 @@ impl VmAggregateCodec for InputTextInputArea {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputTouchContactState {
-    /// The contact_id field.
+    /// Backend contact identifier.
     pub contact_id: u32,
-    /// The phase field.
+    /// Contact phase.
     pub phase: InputTouchContactPhase,
-    /// The x field.
+    /// Contact x coordinate in backend-native units.
     pub x: f64,
-    /// The y field.
+    /// Contact y coordinate in backend-native units.
     pub y: f64,
-    /// The pressure field.
+    /// Contact pressure in the normalized range [0, 1] when available.
     pub pressure: f64,
-    /// The radius_x field.
+    /// Contact major radius in backend-native units when available.
     pub radius_x: f64,
-    /// The radius_y field.
+    /// Contact minor radius in backend-native units when available.
     pub radius_y: f64,
-    /// The tilt_x field.
+    /// Contact tilt around x axis in degrees when available.
     pub tilt_x: f64,
-    /// The tilt_y field.
+    /// Contact tilt around y axis in degrees when available.
     pub tilt_y: f64,
 }
 
@@ -4544,11 +4549,11 @@ impl VmAggregateCodec for InputTouchContactState {
 /// ABI struct for InputTouchEvent.
 #[repr(C)]
 pub struct InputTouchEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_input::InputEventMetadataAbi<A>,
-    /// The payload field.
+    /// Touch payload.
     pub payload: InputTouchEventPayload,
 }
 
@@ -4634,15 +4639,15 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputTouchEventPayload {
-    /// The action field.
+    /// Touch action.
     pub action: InputEventAction,
-    /// The contact_id field.
+    /// Backend contact identifier.
     pub contact_id: u32,
-    /// The x field.
+    /// Contact x coordinate.
     pub x: f64,
-    /// The y field.
+    /// Contact y coordinate.
     pub y: f64,
-    /// The pressure field.
+    /// Contact pressure when available.
     pub pressure: f64,
 }
 
@@ -4703,13 +4708,13 @@ impl VmAggregateCodec for InputTouchEventPayload {
 /// ABI struct for InputTouchState.
 #[repr(C)]
 pub struct InputTouchStateAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: A::String,
-    /// The contacts field.
+    /// Active contacts for this snapshot.
     pub contacts: A::Array<InputTouchContactState>,
 }
 
@@ -4796,7 +4801,8 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InputWindowTarget {
-    /// The window field.
+    /// Window target handle when one explicit window scope is required.
+    /// When omitted, the active backend input focus context is used.
     pub window: resource::WindowHandle,
 }
 
@@ -4848,343 +4854,348 @@ impl VmAggregateCodec for InputWindowTarget {
 /// Replay struct for InputCompositionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputCompositionEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Composition payload.
     pub payload: InputCompositionEventPayloadReplayRecord,
 }
 
 /// Replay struct for InputCompositionEventPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputCompositionEventPayloadReplayRecord {
-    /// The action field.
+    /// Composition action.
     pub action: InputEventAction,
-    /// The text field.
+    /// UTF-8 composition text.
     pub text: String,
-    /// The selection_start field.
+    /// Selection start offset when available.
     pub selection_start: i32,
-    /// The selection_end field.
+    /// Selection end offset when available.
     pub selection_end: i32,
 }
 
 /// Replay struct for InputDeviceCapabilities.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceCapabilitiesReplayRecord {
-    /// The kinds field.
+    /// High-level capability categories for the device.
     pub kinds: Vec<InputDeviceCapabilityKind>,
-    /// The axes field.
+    /// Axis capability entries when reported by backend.
     pub axes: Vec<InputAxisMetadata>,
-    /// The buttons field.
+    /// Button capability entries when reported by backend.
     pub buttons: Vec<InputButtonMetadata>,
-    /// The metadata_origin field.
+    /// Aggregate metadata origin for this capability snapshot.
     pub metadata_origin: InputCapabilityMetadataOrigin,
-    /// The axis_metadata_fidelity field.
+    /// Aggregate axis metadata fidelity for this capability snapshot.
     pub axis_metadata_fidelity: InputCapabilityMetadataFidelity,
-    /// The button_metadata_fidelity field.
+    /// Aggregate button metadata fidelity for this capability snapshot.
     pub button_metadata_fidelity: InputCapabilityMetadataFidelity,
-    /// The supports_relative_pointer field.
+    /// Whether relative-pointer mode can be enabled.
     pub supports_relative_pointer: bool,
-    /// The supports_pointer_grab field.
+    /// Whether pointer confinement or locking is supported.
     pub supports_pointer_grab: bool,
-    /// The supports_pointer_capture field.
+    /// Whether pointer capture outside one window is supported.
     pub supports_pointer_capture: bool,
-    /// The supports_pointer_warp field.
+    /// Whether pointer warping is supported.
     pub supports_pointer_warp: bool,
-    /// The supports_text_input field.
+    /// Whether text input activation is supported.
     pub supports_text_input: bool,
-    /// The supports_composition field.
+    /// Whether composition events are supported.
     pub supports_composition: bool,
-    /// The supports_rumble field.
+    /// Whether whole-device rumble is supported.
     pub supports_rumble: bool,
-    /// The supports_trigger_rumble field.
+    /// Whether trigger rumble is supported.
     pub supports_trigger_rumble: bool,
-    /// The supports_sensors field.
+    /// Whether device-side sensors are supported.
     pub supports_sensors: bool,
-    /// The supports_battery_state field.
+    /// Whether gamepad or controller battery state is supported.
     pub supports_battery_state: bool,
-    /// The supports_light_control field.
+    /// Whether controller or device light-control output is supported.
     pub supports_light_control: bool,
-    /// The supports_raw_hid field.
+    /// Whether raw-hid reports are supported.
     pub supports_raw_hid: bool,
-    /// The supports_player_index field.
+    /// Whether player-index assignment is supported.
     pub supports_player_index: bool,
 }
 
 /// Replay struct for InputDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceDescriptorReplayRecord {
-    /// The id field.
+    /// Stable runtime input device identifier.
     pub id: String,
-    /// The instance_id field.
+    /// Stable runtime instance identifier for this connection.
     pub instance_id: String,
-    /// The hardware_id field.
+    /// Stable backend hardware identifier when available.
     pub hardware_id: String,
-    /// The name field.
+    /// Host device name.
     pub name: String,
-    /// The transport field.
+    /// Backend transport name when available.
     pub transport: String,
-    /// The kind field.
+    /// Device kind.
     pub kind: InputDeviceKind,
-    /// The vendor_id field.
+    /// Vendor identifier when available.
+    /// Zero when the backend does not report one vendor id.
     pub vendor_id: u16,
-    /// The product_id field.
+    /// Product identifier when available.
+    /// Zero when the backend does not report one product id.
     pub product_id: u16,
-    /// The key_count field.
+    /// Number of logical keys when reported by the backend.
+    /// Zero when the backend does not report key topology.
     pub key_count: u16,
-    /// The button_count field.
+    /// Number of logical buttons when reported by the backend.
+    /// Zero when the backend does not report button topology.
     pub button_count: u16,
-    /// The axis_count field.
+    /// Number of logical axes when reported by the backend.
+    /// Zero when the backend does not report axis topology.
     pub axis_count: u16,
-    /// The connected field.
+    /// Whether this device is currently connected.
     pub connected: bool,
-    /// The supports_exclusive_grab field.
+    /// Whether this endpoint supports exclusive-grab mode.
     pub supports_exclusive_grab: bool,
-    /// The supports_raw field.
+    /// Whether this endpoint can emit raw host-native events.
     pub supports_raw: bool,
-    /// The supports_text field.
+    /// Whether this endpoint can emit text events.
     pub supports_text: bool,
-    /// The supports_rumble field.
+    /// Whether this endpoint can provide haptic output.
     pub supports_rumble: bool,
-    /// The supports_battery field.
+    /// Whether this endpoint reports battery metadata.
     pub supports_battery: bool,
-    /// The supports_light field.
+    /// Whether this endpoint supports light-control output.
     pub supports_light: bool,
-    /// The supports_raw_hid field.
+    /// Whether this endpoint supports raw-hid reports.
     pub supports_raw_hid: bool,
-    /// The is_virtual field.
+    /// Whether this endpoint is virtual or emulated.
     pub is_virtual: bool,
-    /// The is_system field.
+    /// Whether this endpoint is provided by the system stack.
     pub is_system: bool,
 }
 
 /// Replay struct for InputDeviceEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputDeviceEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Device payload.
     pub payload: InputDeviceEventPayload,
 }
 
 /// Replay struct for InputEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: String,
 }
 
 /// Replay struct for InputGamepadEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Gamepad payload.
     pub payload: InputGamepadEventPayload,
 }
 
 /// Replay struct for InputGamepadState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputGamepadStateReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The connected field.
+    /// Whether the gamepad is currently connected.
     pub connected: bool,
-    /// The mapping field.
+    /// Active gamepad mapping type.
     pub mapping: InputGamepadMappingType,
-    /// The connection_type field.
+    /// Connection type when available.
     pub connection_type: InputGamepadConnectionType,
-    /// The player_index field.
+    /// Player index in the range [0, 15] when available, otherwise 255.
     pub player_index: u8,
-    /// The battery field.
+    /// Battery information snapshot.
     pub battery: InputGamepadBatteryStatus,
-    /// The supports_rumble field.
+    /// Whether this device supports whole-device rumble.
     pub supports_rumble: bool,
-    /// The supports_trigger_rumble field.
+    /// Whether this device supports trigger rumble.
     pub supports_trigger_rumble: bool,
-    /// The axes field.
+    /// Axis values in normalized backend order.
     pub axes: Vec<f64>,
-    /// The buttons field.
+    /// Button values in normalized backend order.
     pub buttons: Vec<InputGamepadButtonState>,
-    /// The touches field.
+    /// Touch contacts when the device exposes touch surfaces.
     pub touches: Vec<InputGamepadTouchState>,
 }
 
 /// Replay struct for InputKeyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputKeyEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Key payload.
     pub payload: InputKeyEventPayload,
 }
 
 /// Replay struct for InputKeyboardState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputKeyboardStateReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: String,
-    /// The modifiers field.
+    /// Backend modifier bitset for active modifiers.
     pub modifiers: u32,
-    /// The pressed_codes field.
+    /// Backend key codes currently pressed.
     pub pressed_codes: Vec<u32>,
-    /// The pressed_scan_codes field.
+    /// Backend hardware scan codes currently pressed when available.
     pub pressed_scan_codes: Vec<u32>,
 }
 
 /// Replay struct for InputMonitorChangeEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorChangeEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: InputMonitorEventMetadataReplayRecord,
 }
 
 /// Replay struct for InputMonitorConnectEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorConnectEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: InputMonitorEventMetadataReplayRecord,
 }
 
 /// Replay struct for InputMonitorDisconnectEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorDisconnectEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input monitor event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared monitor event metadata.
     pub metadata: InputMonitorEventMetadataReplayRecord,
 }
 
 /// Replay struct for InputMonitorEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputMonitorEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the monitor stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: String,
-    /// The device_kind field.
+    /// Device kind when available.
     pub device_kind: InputDeviceKind,
-    /// The connected field.
+    /// Whether the device is connected after this event.
     pub connected: bool,
 }
 
 /// Replay struct for InputPointerButtonEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputPointerButtonEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Pointer-button payload.
     pub payload: InputPointerButtonEventPayload,
 }
 
 /// Replay struct for InputPointerMotionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputPointerMotionEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Pointer-motion payload.
     pub payload: InputPointerMotionEventPayload,
 }
 
 /// Replay struct for InputRawHidReport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputRawHidReportReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic report timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The report_id field.
+    /// Report identifier, zero when the backend report format omits explicit report ids.
     pub report_id: u8,
-    /// The data field.
+    /// Raw report bytes.
     pub data: Vec<u8>,
 }
 
 /// Replay struct for InputScrollEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputScrollEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Scroll payload.
     pub payload: InputScrollEventPayload,
 }
 
 /// Replay struct for InputSensorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputSensorEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Sensor payload.
     pub payload: InputSensorEventPayload,
 }
 
 /// Replay struct for InputTextEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputTextEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Text payload.
     pub payload: InputTextEventPayloadReplayRecord,
 }
 
 /// Replay struct for InputTextEventPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputTextEventPayloadReplayRecord {
-    /// The text field.
+    /// UTF-8 text payload.
     pub text: String,
 }
 
 /// Replay struct for InputTouchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputTouchEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this input event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: InputEventMetadataReplayRecord,
-    /// The payload field.
+    /// Touch payload.
     pub payload: InputTouchEventPayload,
 }
 
 /// Replay struct for InputTouchState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputTouchStateReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic update timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number generated by the backend stream.
     pub sequence: u64,
-    /// The device_id field.
+    /// Stable source device identifier.
     pub device_id: String,
-    /// The contacts field.
+    /// Active contacts for this snapshot.
     pub contacts: Vec<InputTouchContactState>,
 }
 

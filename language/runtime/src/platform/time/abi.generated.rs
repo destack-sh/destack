@@ -182,13 +182,13 @@ impl VmValueCodec for TimerClock {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ClockMetadata {
-    /// The id field.
+    /// Clock identifier.
     pub id: ClockId,
-    /// The source field.
+    /// Host clock source kind.
     pub source: ClockSource,
-    /// The resolution_ns field.
+    /// Reported resolution in nanoseconds.
     pub resolution_ns: u64,
-    /// The is_monotonic field.
+    /// Whether the clock is monotonic.
     pub is_monotonic: bool,
 }
 
@@ -249,9 +249,9 @@ impl VmAggregateCodec for ClockMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TimerOptions {
-    /// The clock field.
+    /// Clock domain used for delay and deadline interpretation.
     pub clock: TimerClock,
-    /// The flags field.
+    /// Timer behavior flags.
     pub flags: TimerFlags,
 }
 

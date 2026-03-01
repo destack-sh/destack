@@ -109,9 +109,9 @@ impl VmValueCodec for SecureRandomSource {
 /// ABI struct for RandomStreamState.
 #[repr(C)]
 pub struct RandomStreamStateAbi<A: BindingAbi> {
-    /// The version field.
+    /// Stream state version for compatibility checks.
     pub version: u32,
-    /// The bytes field.
+    /// Encoded state payload bytes.
     pub bytes: A::Array<u8>,
 }
 
@@ -185,19 +185,19 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
 /// ABI struct for SecureRandomMetadata.
 #[repr(C)]
 pub struct SecureRandomMetadataAbi<A: BindingAbi> {
-    /// The source field.
+    /// Source kind for secure randomness.
     pub source: SecureRandomSource,
-    /// The backend_name field.
+    /// Source backend label.
     pub backend_name: A::String,
-    /// The may_block field.
+    /// Whether calls may block waiting for entropy.
     pub may_block: bool,
-    /// The is_cryptographic field.
+    /// Whether the source is considered cryptographic.
     pub is_cryptographic: bool,
-    /// The is_seeded field.
+    /// Whether the source is currently seeded.
     pub is_seeded: bool,
-    /// The is_fips_approved field.
+    /// Whether the source is validated for FIPS mode.
     pub is_fips_approved: bool,
-    /// The entropy_bits_per_byte field.
+    /// Estimated entropy bits per output byte.
     pub entropy_bits_per_byte: f64,
 }
 
@@ -293,27 +293,27 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
 /// Replay struct for RandomStreamState.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RandomStreamStateReplayRecord {
-    /// The version field.
+    /// Stream state version for compatibility checks.
     pub version: u32,
-    /// The bytes field.
+    /// Encoded state payload bytes.
     pub bytes: Vec<u8>,
 }
 
 /// Replay struct for SecureRandomMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecureRandomMetadataReplayRecord {
-    /// The source field.
+    /// Source kind for secure randomness.
     pub source: SecureRandomSource,
-    /// The backend_name field.
+    /// Source backend label.
     pub backend_name: String,
-    /// The may_block field.
+    /// Whether calls may block waiting for entropy.
     pub may_block: bool,
-    /// The is_cryptographic field.
+    /// Whether the source is considered cryptographic.
     pub is_cryptographic: bool,
-    /// The is_seeded field.
+    /// Whether the source is currently seeded.
     pub is_seeded: bool,
-    /// The is_fips_approved field.
+    /// Whether the source is validated for FIPS mode.
     pub is_fips_approved: bool,
-    /// The entropy_bits_per_byte field.
+    /// Estimated entropy bits per output byte.
     pub entropy_bits_per_byte: f64,
 }

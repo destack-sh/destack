@@ -260,11 +260,11 @@ impl VmValueCodec for TimerFdClock {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CompletionEvent {
-    /// The key field.
+    /// User-assigned completion key.
     pub key: u64,
-    /// The result field.
+    /// Operation result payload.
     pub result: i64,
-    /// The flags field.
+    /// Completion flags.
     pub flags: u32,
 }
 
@@ -319,21 +319,21 @@ impl VmAggregateCodec for CompletionEvent {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CompletionOperation {
-    /// The kind field.
+    /// Operation kind.
     pub kind: CompletionOperationKind,
-    /// The target field.
+    /// Operation target resource identifier.
     pub target: resource::ResourceId,
-    /// The key field.
+    /// User-assigned completion key.
     pub key: u64,
-    /// The offset field.
+    /// Primary operation offset or position.
     pub offset: u64,
-    /// The length field.
+    /// Primary operation length.
     pub length: u32,
-    /// The flags field.
+    /// Operation flags.
     pub flags: u32,
-    /// The argument0 field.
+    /// Opaque argument lane 0.
     pub argument0: u64,
-    /// The argument1 field.
+    /// Opaque argument lane 1.
     pub argument1: u64,
 }
 
@@ -404,13 +404,13 @@ impl VmAggregateCodec for CompletionOperation {
 /// ABI struct for DescriptorRequest.
 #[repr(C)]
 pub struct DescriptorRequestAbi<A: BindingAbi> {
-    /// The code field.
+    /// Request code.
     pub code: u64,
-    /// The input field.
+    /// Opaque input payload forwarded to the host.
     pub input: A::Slice<u8>,
-    /// The output_size field.
+    /// Maximum output payload size requested from the host.
     pub output_size: u32,
-    /// The flags field.
+    /// Request flags.
     pub flags: u32,
 }
 
@@ -490,9 +490,9 @@ impl VmAggregateCodec for DescriptorRequestAbi<VmAbi> {
 /// ABI struct for DescriptorResult.
 #[repr(C)]
 pub struct DescriptorResultAbi<A: BindingAbi> {
-    /// The return_value field.
+    /// Host return value for the request.
     pub return_value: i64,
-    /// The output field.
+    /// Opaque output payload returned by the host.
     pub output: A::Slice<u8>,
 }
 
@@ -567,11 +567,11 @@ impl VmAggregateCodec for DescriptorResultAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PollEvent {
-    /// The key field.
+    /// User-assigned event key.
     pub key: u64,
-    /// The ready field.
+    /// Ready interest mask.
     pub ready: PollInterest,
-    /// The data field.
+    /// Backend event payload value for this event.
     pub data: i32,
 }
 
@@ -627,9 +627,9 @@ impl VmAggregateCodec for PollEvent {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TimerFdSpec {
-    /// The initial_ns field.
+    /// Initial expiration offset or absolute deadline.
     pub initial_ns: u64,
-    /// The interval_ns field.
+    /// Repeating interval, zero for one-shot timers.
     pub interval_ns: u64,
 }
 
@@ -681,15 +681,15 @@ impl VmAggregateCodec for TimerFdSpec {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UringFeatures {
-    /// The has_submission_polling field.
+    /// Whether submission polling is available.
     pub has_submission_polling: bool,
-    /// The has_kernel_polling field.
+    /// Whether kernel-side thread polling is available.
     pub has_kernel_polling: bool,
-    /// The has_fixed_files field.
+    /// Whether fixed-file registration is available.
     pub has_fixed_files: bool,
-    /// The has_fixed_buffers field.
+    /// Whether fixed-buffer registration is available.
     pub has_fixed_buffers: bool,
-    /// The max_entries field.
+    /// Maximum submission queue depth reported by the kernel.
     pub max_entries: u32,
 }
 
@@ -754,11 +754,11 @@ impl VmAggregateCodec for UringFeatures {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UringParameters {
-    /// The entries field.
+    /// Submission queue entry count.
     pub entries: u32,
-    /// The flags field.
+    /// io_uring setup flags.
     pub flags: u32,
-    /// The sq_thread_idle_ms field.
+    /// SQ poll idle timeout in milliseconds.
     pub sq_thread_idle_ms: u32,
 }
 
@@ -813,21 +813,21 @@ impl VmAggregateCodec for UringParameters {
 /// Replay struct for DescriptorRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DescriptorRequestReplayRecord {
-    /// The code field.
+    /// Request code.
     pub code: u64,
-    /// The input field.
+    /// Opaque input payload forwarded to the host.
     pub input: Vec<u8>,
-    /// The output_size field.
+    /// Maximum output payload size requested from the host.
     pub output_size: u32,
-    /// The flags field.
+    /// Request flags.
     pub flags: u32,
 }
 
 /// Replay struct for DescriptorResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DescriptorResultReplayRecord {
-    /// The return_value field.
+    /// Host return value for the request.
     pub return_value: i64,
-    /// The output field.
+    /// Opaque output payload returned by the host.
     pub output: Vec<u8>,
 }

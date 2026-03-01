@@ -105,6 +105,7 @@ mod tests {
                                     domain: "test".to_string(),
                                     fields: vec![BindingField {
                                         name: "kind".to_string(),
+                                        documentation: None,
                                         binding_type: BindingType::String,
                                     }],
                                 },
@@ -116,6 +117,7 @@ mod tests {
                                     domain: "test".to_string(),
                                     fields: vec![BindingField {
                                         name: "kind".to_string(),
+                                        documentation: None,
                                         binding_type: BindingType::String,
                                     }],
                                 },

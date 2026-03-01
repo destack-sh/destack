@@ -1726,15 +1726,15 @@ impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
 /// ABI struct for BackgroundEventMetadata.
 #[repr(C)]
 pub struct BackgroundEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this event stream.
     pub sequence: u64,
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: A::String,
-    /// The execution_id field.
+    /// Stable execution identifier for this one scheduled execution.
     pub execution_id: A::String,
-    /// The deadline_unix_ns field.
+    /// Host execution deadline in UTC nanoseconds when provided.
     pub deadline_unix_ns: u64,
 }
 
@@ -1823,9 +1823,9 @@ impl VmAggregateCodec for BackgroundEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundEventOpenOptions {
-    /// The include_task_ready field.
+    /// Whether task-ready events should be included.
     pub include_task_ready: bool,
-    /// The include_task_expired field.
+    /// Whether task-expired events should be included.
     pub include_task_expired: bool,
 }
 
@@ -1878,23 +1878,23 @@ impl VmAggregateCodec for BackgroundEventOpenOptions {
 /// ABI struct for BackgroundTaskDescriptor.
 #[repr(C)]
 pub struct BackgroundTaskDescriptorAbi<A: BindingAbi> {
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: A::String,
-    /// The trigger field.
+    /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// The minimum_interval_ns field.
+    /// Effective minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
-    /// The earliest_begin_unix_ns field.
+    /// Earliest target execution timestamp in UTC nanoseconds.
     pub earliest_begin_unix_ns: u64,
-    /// The requires_network field.
+    /// Whether one network route is required.
     pub requires_network: bool,
-    /// The requires_unmetered_network field.
+    /// Whether one unmetered network route is required.
     pub requires_unmetered_network: bool,
-    /// The requires_charging field.
+    /// Whether charging power is required.
     pub requires_charging: bool,
-    /// The requires_idle field.
+    /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// The persisted field.
+    /// Whether this registration persists across host restart.
     pub persisted: bool,
 }
 
@@ -2002,9 +2002,9 @@ impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
 /// ABI struct for BackgroundTaskExpiredEvent.
 #[repr(C)]
 pub struct BackgroundTaskExpiredEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this background event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::BackgroundEventMetadataAbi<A>,
 }
 
@@ -2083,23 +2083,23 @@ impl VmAggregateCodec for BackgroundTaskExpiredEventAbi<VmAbi> {
 /// ABI struct for BackgroundTaskOptions.
 #[repr(C)]
 pub struct BackgroundTaskOptionsAbi<A: BindingAbi> {
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: A::String,
-    /// The trigger field.
+    /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// The minimum_interval_ns field.
+    /// Requested minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
-    /// The earliest_begin_unix_ns field.
+    /// Earliest target execution timestamp in UTC nanoseconds.
     pub earliest_begin_unix_ns: u64,
-    /// The requires_network field.
+    /// Whether one network route is required.
     pub requires_network: bool,
-    /// The requires_unmetered_network field.
+    /// Whether one unmetered network route is required.
     pub requires_unmetered_network: bool,
-    /// The requires_charging field.
+    /// Whether charging power is required.
     pub requires_charging: bool,
-    /// The requires_idle field.
+    /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// The persisted field.
+    /// Whether this registration should persist across host restart.
     pub persisted: bool,
 }
 
@@ -2207,9 +2207,9 @@ impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
 /// ABI struct for BackgroundTaskReadyEvent.
 #[repr(C)]
 pub struct BackgroundTaskReadyEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this background event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::BackgroundEventMetadataAbi<A>,
 }
 
@@ -2288,9 +2288,9 @@ impl VmAggregateCodec for BackgroundTaskReadyEventAbi<VmAbi> {
 /// ABI struct for CalendarAbsoluteReminder.
 #[repr(C)]
 pub struct CalendarAbsoluteReminderAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this calendar reminder variant.
     pub kind: A::String,
-    /// The absolute_unix_ns field.
+    /// Absolute reminder timestamp in UTC nanoseconds.
     pub absolute_unix_ns: u64,
 }
 
@@ -2365,17 +2365,17 @@ impl VmAggregateCodec for CalendarAbsoluteReminderAbi<VmAbi> {
 /// ABI struct for CalendarAttendee.
 #[repr(C)]
 pub struct CalendarAttendeeAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable attendee identifier when available.
     pub id: A::String,
-    /// The name field.
+    /// Attendee display name when available.
     pub name: A::String,
-    /// The email field.
+    /// Attendee email address when available.
     pub email: A::String,
-    /// The optional field.
+    /// Whether this attendee is optional.
     pub optional: bool,
-    /// The organizer field.
+    /// Whether this attendee is the organizer.
     pub organizer: bool,
-    /// The response_status field.
+    /// Attendee response status.
     pub response_status: CalendarParticipantStatus,
 }
 
@@ -2469,19 +2469,19 @@ impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
 /// ABI struct for CalendarDescriptor.
 #[repr(C)]
 pub struct CalendarDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable calendar identifier.
     pub id: A::String,
-    /// The title field.
+    /// Host-visible calendar title.
     pub title: A::String,
-    /// The source field.
+    /// Host-visible source or account label.
     pub source: A::String,
-    /// The owner field.
+    /// Host-visible owner account label when available.
     pub owner: A::String,
-    /// The color_argb field.
+    /// ARGB color value for this calendar.
     pub color_argb: u32,
-    /// The primary field.
+    /// Whether this calendar is the default write target.
     pub primary: bool,
-    /// The access field.
+    /// Access mode for this calendar.
     pub access: CalendarAccess,
 }
 
@@ -2574,45 +2574,45 @@ impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
 /// ABI struct for CalendarEvent.
 #[repr(C)]
 pub struct CalendarEventAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable event identifier.
     pub id: A::String,
-    /// The calendar_id field.
+    /// Calendar identifier.
     pub calendar_id: A::String,
-    /// The title field.
+    /// Event title.
     pub title: A::String,
-    /// The notes field.
+    /// Event description or notes.
     pub notes: A::String,
-    /// The location field.
+    /// Event location text.
     pub location: A::String,
-    /// The start_unix_ns field.
+    /// Event start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Event end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The all_day field.
+    /// Whether this event is all-day.
     pub all_day: bool,
-    /// The canceled field.
+    /// Whether this event is canceled.
     pub canceled: bool,
-    /// The time_zone field.
+    /// Event timezone identifier when available.
     pub time_zone: A::String,
-    /// The availability field.
+    /// Event availability class.
     pub availability: CalendarAvailability,
-    /// The url field.
+    /// Event URL or deep link when available.
     pub url: A::String,
-    /// The organizer_name field.
+    /// Organizer display name when available.
     pub organizer_name: A::String,
-    /// The organizer_email field.
+    /// Organizer email address when available.
     pub organizer_email: A::String,
-    /// The recurring field.
+    /// Whether this event is one recurrence instance.
     pub recurring: bool,
-    /// The recurrence_master_id field.
+    /// Event identifier for the recurrence series master when available.
     pub recurrence_master_id: A::String,
-    /// The recurrence_id_unix_ns field.
+    /// Recurrence instance identifier timestamp in UTC nanoseconds when available.
     pub recurrence_id_unix_ns: u64,
-    /// The recurrence_rule field.
+    /// Recurrence rule for series master events when available.
     pub recurrence_rule: platform_os::CalendarRecurrenceRuleAbi<A>,
-    /// The attendees field.
+    /// Event attendees when available.
     pub attendees: A::Array<platform_os::CalendarAttendeeAbi<A>>,
-    /// The reminders field.
+    /// Event reminders when available.
     pub reminders: A::Array<platform_os::CalendarReminderAbi<A>>,
 }
 
@@ -2782,31 +2782,31 @@ impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
 /// ABI struct for CalendarEventDraft.
 #[repr(C)]
 pub struct CalendarEventDraftAbi<A: BindingAbi> {
-    /// The calendar_id field.
+    /// Calendar identifier.
     pub calendar_id: A::String,
-    /// The title field.
+    /// Event title.
     pub title: A::String,
-    /// The notes field.
+    /// Event description or notes.
     pub notes: A::String,
-    /// The location field.
+    /// Event location text.
     pub location: A::String,
-    /// The start_unix_ns field.
+    /// Event start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Event end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The all_day field.
+    /// Whether this event is all-day.
     pub all_day: bool,
-    /// The time_zone field.
+    /// Event timezone identifier.
     pub time_zone: A::String,
-    /// The availability field.
+    /// Event availability class.
     pub availability: CalendarAvailability,
-    /// The url field.
+    /// Event URL or deep link.
     pub url: A::String,
-    /// The recurrence_rule field.
+    /// Recurrence rule for this event when provided.
     pub recurrence_rule: platform_os::CalendarRecurrenceRuleAbi<A>,
-    /// The attendees field.
+    /// Event attendees to apply when provided.
     pub attendees: A::Array<platform_os::CalendarAttendeeAbi<A>>,
-    /// The reminders field.
+    /// Event reminders to apply when provided.
     pub reminders: A::Array<platform_os::CalendarReminderAbi<A>>,
 }
 
@@ -2941,19 +2941,19 @@ impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
 /// ABI struct for CalendarEventQuery.
 #[repr(C)]
 pub struct CalendarEventQueryAbi<A: BindingAbi> {
-    /// The calendar_ids field.
+    /// Calendar identifiers to query, empty means all readable calendars.
     pub calendar_ids: A::Array<A::String>,
-    /// The start_unix_ns field.
+    /// Query start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Query end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The limit field.
+    /// Maximum returned events when provided.
     pub limit: u32,
-    /// The include_canceled field.
+    /// Whether canceled events should be included.
     pub include_canceled: bool,
-    /// The include_declined field.
+    /// Whether declined events should be included when provided by host.
     pub include_declined: bool,
-    /// The include_recurrence_instances field.
+    /// Whether expanded recurrence instances should be included.
     pub include_recurrence_instances: bool,
 }
 
@@ -3054,19 +3054,19 @@ impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
 /// ABI struct for CalendarRecurrenceRule.
 #[repr(C)]
 pub struct CalendarRecurrenceRuleAbi<A: BindingAbi> {
-    /// The frequency field.
+    /// Recurrence frequency.
     pub frequency: CalendarRecurrenceFrequency,
-    /// The interval field.
+    /// Recurrence interval.
     pub interval: u32,
-    /// The count field.
+    /// Maximum occurrence count when bounded.
     pub count: u32,
-    /// The until_unix_ns field.
+    /// Recurrence end timestamp in UTC nanoseconds when bounded.
     pub until_unix_ns: u64,
-    /// The by_week_days field.
+    /// Weekday numbers in ISO-8601 encoding, 1 to 7.
     pub by_week_days: A::Array<u8>,
-    /// The by_month_days field.
+    /// Day-of-month set.
     pub by_month_days: A::Array<i8>,
-    /// The by_months field.
+    /// Month set, 1 to 12.
     pub by_months: A::Array<u8>,
 }
 
@@ -3164,9 +3164,9 @@ impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
 /// ABI struct for CalendarRelativeReminder.
 #[repr(C)]
 pub struct CalendarRelativeReminderAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this calendar reminder variant.
     pub kind: A::String,
-    /// The minutes_before_start field.
+    /// Minutes before start time for one relative reminder.
     pub minutes_before_start: i32,
 }
 
@@ -3241,19 +3241,19 @@ impl VmAggregateCodec for CalendarRelativeReminderAbi<VmAbi> {
 /// ABI struct for Contact.
 #[repr(C)]
 pub struct ContactAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable contact identifier.
     pub id: A::String,
-    /// The name field.
+    /// Structured name payload.
     pub name: platform_os::ContactNameAbi<A>,
-    /// The phones field.
+    /// Phone values.
     pub phones: A::Array<platform_os::ContactPhoneAbi<A>>,
-    /// The emails field.
+    /// Email values.
     pub emails: A::Array<platform_os::ContactEmailAbi<A>>,
-    /// The addresses field.
+    /// Address values.
     pub addresses: A::Array<platform_os::ContactAddressAbi<A>>,
-    /// The organization field.
+    /// Organization metadata.
     pub organization: platform_os::ContactOrganizationAbi<A>,
-    /// The note field.
+    /// Contact note payload.
     pub note: A::String,
 }
 
@@ -3358,19 +3358,19 @@ impl VmAggregateCodec for ContactAbi<VmAbi> {
 /// ABI struct for ContactAddress.
 #[repr(C)]
 pub struct ContactAddressAbi<A: BindingAbi> {
-    /// The label field.
+    /// Label for this address value.
     pub label: A::String,
-    /// The street field.
+    /// Street-line payload.
     pub street: A::String,
-    /// The city field.
+    /// City payload.
     pub city: A::String,
-    /// The region field.
+    /// Region or state payload.
     pub region: A::String,
-    /// The postal_code field.
+    /// Postal-code payload.
     pub postal_code: A::String,
-    /// The country field.
+    /// Country payload.
     pub country: A::String,
-    /// The country_code field.
+    /// Country-code payload.
     pub country_code: A::String,
 }
 
@@ -3468,17 +3468,17 @@ impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
 /// ABI struct for ContactDraft.
 #[repr(C)]
 pub struct ContactDraftAbi<A: BindingAbi> {
-    /// The name field.
+    /// Structured name payload.
     pub name: platform_os::ContactNameAbi<A>,
-    /// The phones field.
+    /// Phone values.
     pub phones: A::Array<platform_os::ContactPhoneAbi<A>>,
-    /// The emails field.
+    /// Email values.
     pub emails: A::Array<platform_os::ContactEmailAbi<A>>,
-    /// The addresses field.
+    /// Address values.
     pub addresses: A::Array<platform_os::ContactAddressAbi<A>>,
-    /// The organization field.
+    /// Organization metadata.
     pub organization: platform_os::ContactOrganizationAbi<A>,
-    /// The note field.
+    /// Contact note payload.
     pub note: A::String,
 }
 
@@ -3582,11 +3582,11 @@ impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
 /// ABI struct for ContactEmail.
 #[repr(C)]
 pub struct ContactEmailAbi<A: BindingAbi> {
-    /// The label field.
+    /// Label for this email value.
     pub label: A::String,
-    /// The address field.
+    /// Email address.
     pub address: A::String,
-    /// The primary field.
+    /// Whether this email value is marked as primary.
     pub primary: bool,
 }
 
@@ -3664,21 +3664,21 @@ impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
 /// ABI struct for ContactName.
 #[repr(C)]
 pub struct ContactNameAbi<A: BindingAbi> {
-    /// The given_name field.
+    /// Given or first name.
     pub given_name: A::String,
-    /// The middle_name field.
+    /// Middle name.
     pub middle_name: A::String,
-    /// The family_name field.
+    /// Family or last name.
     pub family_name: A::String,
-    /// The prefix field.
+    /// Honorific prefix.
     pub prefix: A::String,
-    /// The suffix field.
+    /// Honorific suffix.
     pub suffix: A::String,
-    /// The nickname field.
+    /// Nickname.
     pub nickname: A::String,
-    /// The phonetic_given_name field.
+    /// Phonetic given name.
     pub phonetic_given_name: A::String,
-    /// The phonetic_family_name field.
+    /// Phonetic family name.
     pub phonetic_family_name: A::String,
 }
 
@@ -3783,11 +3783,11 @@ impl VmAggregateCodec for ContactNameAbi<VmAbi> {
 /// ABI struct for ContactOrganization.
 #[repr(C)]
 pub struct ContactOrganizationAbi<A: BindingAbi> {
-    /// The company field.
+    /// Organization or company name.
     pub company: A::String,
-    /// The department field.
+    /// Department name.
     pub department: A::String,
-    /// The title field.
+    /// Job title.
     pub title: A::String,
 }
 
@@ -3866,11 +3866,11 @@ impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
 /// ABI struct for ContactPage.
 #[repr(C)]
 pub struct ContactPageAbi<A: BindingAbi> {
-    /// The contacts field.
+    /// Contact items for this page.
     pub contacts: A::Array<platform_os::ContactAbi<A>>,
-    /// The next_cursor field.
+    /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: A::String,
-    /// The has_more field.
+    /// Whether more items are available.
     pub has_more: bool,
 }
 
@@ -3948,13 +3948,13 @@ impl VmAggregateCodec for ContactPageAbi<VmAbi> {
 /// ABI struct for ContactPhone.
 #[repr(C)]
 pub struct ContactPhoneAbi<A: BindingAbi> {
-    /// The label field.
+    /// Label for this phone value.
     pub label: A::String,
-    /// The number field.
+    /// Original phone number string.
     pub number: A::String,
-    /// The normalized_number field.
+    /// Normalized phone number string when available.
     pub normalized_number: A::String,
-    /// The primary field.
+    /// Whether this phone value is marked as primary.
     pub primary: bool,
 }
 
@@ -4039,19 +4039,19 @@ impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
 /// ABI struct for ContactQuery.
 #[repr(C)]
 pub struct ContactQueryAbi<A: BindingAbi> {
-    /// The cursor field.
+    /// Opaque page cursor from one prior list or search call.
     pub cursor: A::String,
-    /// The limit field.
+    /// Maximum returned contacts for this page.
     pub limit: u32,
-    /// The include_phones field.
+    /// Whether phone numbers should be returned.
     pub include_phones: bool,
-    /// The include_emails field.
+    /// Whether email addresses should be returned.
     pub include_emails: bool,
-    /// The include_addresses field.
+    /// Whether postal addresses should be returned.
     pub include_addresses: bool,
-    /// The include_organization field.
+    /// Whether organization metadata should be returned.
     pub include_organization: bool,
-    /// The include_notes field.
+    /// Whether note fields should be returned.
     pub include_notes: bool,
 }
 
@@ -4145,13 +4145,13 @@ impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
 /// ABI struct for CredentialAuthenticationOptions.
 #[repr(C)]
 pub struct CredentialAuthenticationOptionsAbi<A: BindingAbi> {
-    /// The title field.
+    /// Authentication prompt title.
     pub title: A::String,
-    /// The subtitle field.
+    /// Authentication prompt subtitle.
     pub subtitle: A::String,
-    /// The message field.
+    /// Authentication prompt detail message.
     pub message: A::String,
-    /// The requirement field.
+    /// Required host authentication policy.
     pub requirement: CredentialAuthenticationRequirement,
 }
 
@@ -4240,9 +4240,9 @@ impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CredentialAuthenticationResult {
-    /// The authenticated field.
+    /// Whether authentication was successful.
     pub authenticated: bool,
-    /// The mechanism field.
+    /// Used authentication mechanism.
     pub mechanism: CredentialAuthenticationMechanism,
 }
 
@@ -4300,13 +4300,13 @@ impl VmAggregateCodec for CredentialAuthenticationResult {
 /// ABI struct for CredentialQuery.
 #[repr(C)]
 pub struct CredentialQueryAbi<A: BindingAbi> {
-    /// The service field.
+    /// Namespace or service name.
     pub service: A::String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: A::String,
-    /// The access_group field.
+    /// Optional access-group namespace when supported by host keychain APIs.
     pub access_group: A::String,
-    /// The require_authentication field.
+    /// Whether host authentication should be requested before returning payload bytes.
     pub require_authentication: bool,
 }
 
@@ -4392,15 +4392,15 @@ impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
 /// ABI struct for CredentialRecord.
 #[repr(C)]
 pub struct CredentialRecordAbi<A: BindingAbi> {
-    /// The service field.
+    /// Namespace or service name.
     pub service: A::String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: A::String,
-    /// The bytes field.
+    /// Binary credential payload.
     pub bytes: A::Slice<u8>,
-    /// The created_unix_ns field.
+    /// Credential creation timestamp in UTC nanoseconds when available.
     pub created_unix_ns: u64,
-    /// The modified_unix_ns field.
+    /// Credential modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
 }
 
@@ -4487,19 +4487,19 @@ impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
 /// ABI struct for CredentialWriteOptions.
 #[repr(C)]
 pub struct CredentialWriteOptionsAbi<A: BindingAbi> {
-    /// The service field.
+    /// Namespace or service name.
     pub service: A::String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: A::String,
-    /// The access_group field.
+    /// Optional access-group namespace when supported by host keychain APIs.
     pub access_group: A::String,
-    /// The bytes field.
+    /// Binary credential payload.
     pub bytes: A::Slice<u8>,
-    /// The accessibility field.
+    /// Accessibility policy.
     pub accessibility: CredentialAccessibility,
-    /// The authentication field.
+    /// Authentication policy.
     pub authentication: CredentialAuthenticationPolicy,
-    /// The replace_existing field.
+    /// Whether replacement is allowed when one credential already exists.
     pub replace_existing: bool,
 }
 
@@ -4605,19 +4605,19 @@ impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
 /// ABI struct for DocumentDescriptor.
 #[repr(C)]
 pub struct DocumentDescriptorAbi<A: BindingAbi> {
-    /// The uri field.
+    /// Host document URI.
     pub uri: A::String,
-    /// The name field.
+    /// Host-visible document name.
     pub name: A::String,
-    /// The mime_type field.
+    /// Document MIME type payload when available.
     pub mime_type: A::String,
-    /// The size_bytes field.
+    /// Document size in bytes when available.
     pub size_bytes: u64,
-    /// The modified_unix_ns field.
+    /// Document modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
-    /// The is_directory field.
+    /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// The local_path field.
+    /// Runtime-visible local path when one sandbox copy is available.
     pub local_path: platform_fs::OsPathAbi<A>,
 }
 
@@ -4711,15 +4711,15 @@ impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
 /// ABI struct for DocumentPickOptions.
 #[repr(C)]
 pub struct DocumentPickOptionsAbi<A: BindingAbi> {
-    /// The mime_types field.
+    /// MIME-type filters, empty means any type.
     pub mime_types: A::Array<A::String>,
-    /// The extensions field.
+    /// File-extension filters without the leading dot.
     pub extensions: A::Array<A::String>,
-    /// The multiple field.
+    /// Whether multiple selection is allowed.
     pub multiple: bool,
-    /// The allow_directories field.
+    /// Whether directory selection is allowed.
     pub allow_directories: bool,
-    /// The copy_to_sandbox field.
+    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
     pub copy_to_sandbox: bool,
 }
 
@@ -4815,13 +4815,13 @@ impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
 /// ABI struct for HostIdentity.
 #[repr(C)]
 pub struct HostIdentityAbi<A: BindingAbi> {
-    /// The hostname field.
+    /// Hostname string.
     pub hostname: A::String,
-    /// The kernel field.
+    /// Kernel or operating-system name.
     pub kernel: A::String,
-    /// The release field.
+    /// Kernel or operating-system release string.
     pub release: A::String,
-    /// The architecture field.
+    /// Machine architecture string.
     pub architecture: A::String,
 }
 
@@ -4907,11 +4907,11 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
 /// ABI struct for IntentCustomActionEvent.
 #[repr(C)]
 pub struct IntentCustomActionEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::IntentEventMetadataAbi<A>,
-    /// The payload field.
+    /// Custom-action payload.
     pub payload: platform_os::IntentCustomActionPayloadAbi<A>,
 }
 
@@ -4997,15 +4997,15 @@ impl VmAggregateCodec for IntentCustomActionEventAbi<VmAbi> {
 /// ABI struct for IntentCustomActionPayload.
 #[repr(C)]
 pub struct IntentCustomActionPayloadAbi<A: BindingAbi> {
-    /// The action field.
+    /// Action identifier.
     pub action: A::String,
-    /// The url field.
+    /// URL payload when provided by host.
     pub url: Option<A::String>,
-    /// The paths field.
+    /// File payloads when provided by host.
     pub paths: A::Array<platform_fs::OsPathAbi<A>>,
-    /// The text field.
+    /// Text payload when provided by host.
     pub text: Option<A::String>,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<A::String>,
 }
 
@@ -5097,11 +5097,11 @@ impl VmAggregateCodec for IntentCustomActionPayloadAbi<VmAbi> {
 /// ABI struct for IntentEventMetadata.
 #[repr(C)]
 pub struct IntentEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this stream.
     pub sequence: u64,
-    /// The source field.
+    /// Host source package or process identifier when available.
     pub source: A::String,
 }
 
@@ -5178,11 +5178,11 @@ impl VmAggregateCodec for IntentEventMetadataAbi<VmAbi> {
 /// ABI struct for IntentOpenFileEvent.
 #[repr(C)]
 pub struct IntentOpenFileEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::IntentEventMetadataAbi<A>,
-    /// The payload field.
+    /// Open-file payload.
     pub payload: platform_os::IntentOpenFilePayloadAbi<A>,
 }
 
@@ -5267,9 +5267,9 @@ impl VmAggregateCodec for IntentOpenFileEventAbi<VmAbi> {
 /// ABI struct for IntentOpenFilePayload.
 #[repr(C)]
 pub struct IntentOpenFilePayloadAbi<A: BindingAbi> {
-    /// The path field.
+    /// File target payload.
     pub path: platform_fs::OsPathAbi<A>,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<A::String>,
 }
 
@@ -5348,13 +5348,13 @@ impl VmAggregateCodec for IntentOpenFilePayloadAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenOptions {
-    /// The include_open_url field.
+    /// Whether to include URL activation events.
     pub include_open_url: bool,
-    /// The include_open_file field.
+    /// Whether to include file activation events.
     pub include_open_file: bool,
-    /// The include_share field.
+    /// Whether to include share events.
     pub include_share: bool,
-    /// The include_custom_action field.
+    /// Whether to include custom action events.
     pub include_custom_action: bool,
 }
 
@@ -5415,11 +5415,11 @@ impl VmAggregateCodec for IntentOpenOptions {
 /// ABI struct for IntentOpenUrlEvent.
 #[repr(C)]
 pub struct IntentOpenUrlEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::IntentEventMetadataAbi<A>,
-    /// The payload field.
+    /// Open-url payload.
     pub payload: platform_os::IntentOpenUrlPayloadAbi<A>,
 }
 
@@ -5504,7 +5504,7 @@ impl VmAggregateCodec for IntentOpenUrlEventAbi<VmAbi> {
 /// ABI struct for IntentOpenUrlPayload.
 #[repr(C)]
 pub struct IntentOpenUrlPayloadAbi<A: BindingAbi> {
-    /// The url field.
+    /// URL payload.
     pub url: A::String,
 }
 
@@ -5573,11 +5573,11 @@ impl VmAggregateCodec for IntentOpenUrlPayloadAbi<VmAbi> {
 /// ABI struct for IntentShareFilesEvent.
 #[repr(C)]
 pub struct IntentShareFilesEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::IntentEventMetadataAbi<A>,
-    /// The payload field.
+    /// Share-files payload.
     pub payload: platform_os::IntentShareFilesPayloadAbi<A>,
 }
 
@@ -5663,9 +5663,9 @@ impl VmAggregateCodec for IntentShareFilesEventAbi<VmAbi> {
 /// ABI struct for IntentShareFilesPayload.
 #[repr(C)]
 pub struct IntentShareFilesPayloadAbi<A: BindingAbi> {
-    /// The paths field.
+    /// Shared file payloads.
     pub paths: A::Array<platform_fs::OsPathAbi<A>>,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<A::String>,
 }
 
@@ -5743,11 +5743,11 @@ impl VmAggregateCodec for IntentShareFilesPayloadAbi<VmAbi> {
 /// ABI struct for IntentShareTextEvent.
 #[repr(C)]
 pub struct IntentShareTextEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::IntentEventMetadataAbi<A>,
-    /// The payload field.
+    /// Share-text payload.
     pub payload: platform_os::IntentShareTextPayloadAbi<A>,
 }
 
@@ -5832,9 +5832,9 @@ impl VmAggregateCodec for IntentShareTextEventAbi<VmAbi> {
 /// ABI struct for IntentShareTextPayload.
 #[repr(C)]
 pub struct IntentShareTextPayloadAbi<A: BindingAbi> {
-    /// The text field.
+    /// Shared text payload.
     pub text: A::String,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<A::String>,
 }
 
@@ -5912,9 +5912,9 @@ impl VmAggregateCodec for IntentShareTextPayloadAbi<VmAbi> {
 /// ABI struct for LifecycleBackgroundEvent.
 #[repr(C)]
 pub struct LifecycleBackgroundEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -5993,9 +5993,9 @@ impl VmAggregateCodec for LifecycleBackgroundEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleEventMetadata {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this lifecycle stream.
     pub sequence: u64,
 }
 
@@ -6046,9 +6046,9 @@ impl VmAggregateCodec for LifecycleEventMetadata {
 /// ABI struct for LifecycleForegroundEvent.
 #[repr(C)]
 pub struct LifecycleForegroundEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -6126,9 +6126,9 @@ impl VmAggregateCodec for LifecycleForegroundEventAbi<VmAbi> {
 /// ABI struct for LifecycleLaunchEvent.
 #[repr(C)]
 pub struct LifecycleLaunchEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -6206,11 +6206,11 @@ impl VmAggregateCodec for LifecycleLaunchEventAbi<VmAbi> {
 /// ABI struct for LifecycleLowMemoryEvent.
 #[repr(C)]
 pub struct LifecycleLowMemoryEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
-    /// The payload field.
+    /// Low-memory payload.
     pub payload: LifecycleLowMemoryPayload,
 }
 
@@ -6297,7 +6297,7 @@ impl VmAggregateCodec for LifecycleLowMemoryEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleLowMemoryPayload {
-    /// The severity field.
+    /// Backend-defined severity level.
     pub severity: u32,
 }
 
@@ -6346,11 +6346,11 @@ impl VmAggregateCodec for LifecycleLowMemoryPayload {
 /// ABI struct for LifecycleLowPowerModeChangedEvent.
 #[repr(C)]
 pub struct LifecycleLowPowerModeChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
-    /// The payload field.
+    /// Low-power payload.
     pub payload: LifecycleLowPowerPayload,
 }
 
@@ -6437,7 +6437,7 @@ impl VmAggregateCodec for LifecycleLowPowerModeChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleLowPowerPayload {
-    /// The enabled field.
+    /// Whether low-power mode is enabled.
     pub enabled: bool,
 }
 
@@ -6486,9 +6486,9 @@ impl VmAggregateCodec for LifecycleLowPowerPayload {
 /// ABI struct for LifecyclePauseEvent.
 #[repr(C)]
 pub struct LifecyclePauseEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -6566,9 +6566,9 @@ impl VmAggregateCodec for LifecyclePauseEventAbi<VmAbi> {
 /// ABI struct for LifecycleResumeEvent.
 #[repr(C)]
 pub struct LifecycleResumeEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -6646,9 +6646,9 @@ impl VmAggregateCodec for LifecycleResumeEventAbi<VmAbi> {
 /// ABI struct for LifecycleTerminateEvent.
 #[repr(C)]
 pub struct LifecycleTerminateEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
@@ -6727,11 +6727,11 @@ impl VmAggregateCodec for LifecycleTerminateEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LoadAverage {
-    /// The one field.
+    /// One-minute load average.
     pub one: f64,
-    /// The five field.
+    /// Five-minute load average.
     pub five: f64,
-    /// The fifteen field.
+    /// Fifteen-minute load average.
     pub fifteen: f64,
 }
 
@@ -6786,21 +6786,21 @@ impl VmAggregateCodec for LoadAverage {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LocationSample {
-    /// The latitude_degrees field.
+    /// Latitude in degrees.
     pub latitude_degrees: f64,
-    /// The longitude_degrees field.
+    /// Longitude in degrees.
     pub longitude_degrees: f64,
-    /// The altitude_meters field.
+    /// Altitude in meters above mean sea level when available.
     pub altitude_meters: f64,
-    /// The horizontal_accuracy_meters field.
+    /// Horizontal accuracy radius in meters.
     pub horizontal_accuracy_meters: f64,
-    /// The vertical_accuracy_meters field.
+    /// Vertical accuracy in meters when available.
     pub vertical_accuracy_meters: f64,
-    /// The speed_meters_per_second field.
+    /// Speed in meters per second when available.
     pub speed_meters_per_second: f64,
-    /// The heading_degrees field.
+    /// Heading in degrees when available.
     pub heading_degrees: f64,
-    /// The timestamp_unix_ns field.
+    /// UTC timestamp in nanoseconds.
     pub timestamp_unix_ns: u64,
 }
 
@@ -6881,13 +6881,13 @@ impl VmAggregateCodec for LocationSample {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LocationWatchOptions {
-    /// The accuracy field.
+    /// Accuracy preference.
     pub accuracy: LocationAccuracy,
-    /// The minimum_interval_ns field.
+    /// Minimum interval between updates in nanoseconds.
     pub minimum_interval_ns: u64,
-    /// The minimum_distance_meters field.
+    /// Minimum distance delta in meters.
     pub minimum_distance_meters: f64,
-    /// The include_heading field.
+    /// Whether heading should be included when available.
     pub include_heading: bool,
 }
 
@@ -6948,27 +6948,27 @@ impl VmAggregateCodec for LocationWatchOptions {
 /// ABI struct for MediaAssetDescriptor.
 #[repr(C)]
 pub struct MediaAssetDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable asset identifier.
     pub id: A::String,
-    /// The uri field.
+    /// Host URI for this asset.
     pub uri: A::String,
-    /// The filename field.
+    /// Asset filename payload.
     pub filename: A::String,
-    /// The mime_type field.
+    /// Asset MIME type payload when available.
     pub mime_type: A::String,
-    /// The kind field.
+    /// Asset class.
     pub kind: MediaAssetKind,
-    /// The width field.
+    /// Asset width in pixels when available.
     pub width: u32,
-    /// The height field.
+    /// Asset height in pixels when available.
     pub height: u32,
-    /// The duration_ms field.
+    /// Asset duration in milliseconds for time-based assets.
     pub duration_ms: u64,
-    /// The size_bytes field.
+    /// Asset size in bytes when available.
     pub size_bytes: u64,
-    /// The created_unix_ns field.
+    /// Asset creation timestamp in UTC nanoseconds when available.
     pub created_unix_ns: u64,
-    /// The modified_unix_ns field.
+    /// Asset modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
 }
 
@@ -7075,11 +7075,11 @@ impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
 /// ABI struct for MediaPage.
 #[repr(C)]
 pub struct MediaPageAbi<A: BindingAbi> {
-    /// The assets field.
+    /// Asset items for this page.
     pub assets: A::Array<platform_os::MediaAssetDescriptorAbi<A>>,
-    /// The next_cursor field.
+    /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: A::String,
-    /// The has_more field.
+    /// Whether more assets are available.
     pub has_more: bool,
 }
 
@@ -7162,13 +7162,13 @@ impl VmAggregateCodec for MediaPageAbi<VmAbi> {
 /// ABI struct for MediaQuery.
 #[repr(C)]
 pub struct MediaQueryAbi<A: BindingAbi> {
-    /// The cursor field.
+    /// Opaque page cursor from one prior mediaList call.
     pub cursor: A::String,
-    /// The limit field.
+    /// Maximum returned assets for this page.
     pub limit: u32,
-    /// The kinds field.
+    /// Included asset classes, empty means all classes.
     pub kinds: A::Array<MediaAssetKind>,
-    /// The include_hidden field.
+    /// Whether hidden assets should be included.
     pub include_hidden: bool,
 }
 
@@ -7252,13 +7252,13 @@ impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
 /// ABI struct for MountEntry.
 #[repr(C)]
 pub struct MountEntryAbi<A: BindingAbi> {
-    /// The source field.
+    /// Source device or backing object.
     pub source: A::String,
-    /// The target field.
+    /// Target mount path.
     pub target: platform_fs::OsPathAbi<A>,
-    /// The file_system field.
+    /// Filesystem type name.
     pub file_system: A::String,
-    /// The flags field.
+    /// Mount flags bitmask.
     pub flags: u64,
 }
 
@@ -7341,11 +7341,11 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NetworkEvent {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this watch stream.
     pub sequence: u64,
-    /// The state field.
+    /// Network state snapshot.
     pub state: NetworkState,
 }
 
@@ -7401,23 +7401,23 @@ impl VmAggregateCodec for NetworkEvent {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NetworkState {
-    /// The connection_type field.
+    /// Route connection class.
     pub connection_type: NetworkConnectionType,
-    /// The connected field.
+    /// Whether one route to a local network is available.
     pub connected: bool,
-    /// The internet_reachable field.
+    /// Whether one route to the public internet is available.
     pub internet_reachable: bool,
-    /// The expensive field.
+    /// Whether the route is metered or expensive.
     pub expensive: bool,
-    /// The constrained field.
+    /// Whether the route is constrained by low-data mode.
     pub constrained: bool,
-    /// The roaming field.
+    /// Whether the active route is roaming.
     pub roaming: bool,
-    /// The cellular_generation field.
+    /// Cellular generation when `connectionType` is `Cellular`.
     pub cellular_generation: NetworkCellularGeneration,
-    /// The downlink_mbps field.
+    /// Estimated downstream bandwidth in megabits per second when available.
     pub downlink_mbps: f64,
-    /// The uplink_mbps field.
+    /// Estimated upstream bandwidth in megabits per second when available.
     pub uplink_mbps: f64,
 }
 
@@ -7501,19 +7501,19 @@ impl VmAggregateCodec for NetworkState {
 /// ABI struct for NotificationAction.
 #[repr(C)]
 pub struct NotificationActionAbi<A: BindingAbi> {
-    /// The id field.
+    /// Action identifier.
     pub id: A::String,
-    /// The title field.
+    /// Action display title.
     pub title: A::String,
-    /// The style field.
+    /// Action style selector.
     pub style: NotificationActionStyle,
-    /// The foreground field.
+    /// Whether the action should foreground the runtime.
     pub foreground: bool,
-    /// The authentication_required field.
+    /// Whether action execution requires authentication.
     pub authentication_required: bool,
-    /// The text_input_button_title field.
+    /// Text-input submit title for text-input actions.
     pub text_input_button_title: A::String,
-    /// The text_input_placeholder field.
+    /// Text-input placeholder text for text-input actions.
     pub text_input_placeholder: A::String,
 }
 
@@ -7615,9 +7615,9 @@ impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
 /// ABI struct for NotificationCalendarDateTrigger.
 #[repr(C)]
 pub struct NotificationCalendarDateTriggerAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: A::String,
-    /// The calendar field.
+    /// Calendar trigger payload.
     pub calendar: platform_os::NotificationCalendarTriggerAbi<A>,
 }
 
@@ -7697,21 +7697,21 @@ impl VmAggregateCodec for NotificationCalendarDateTriggerAbi<VmAbi> {
 /// ABI struct for NotificationCalendarTrigger.
 #[repr(C)]
 pub struct NotificationCalendarTriggerAbi<A: BindingAbi> {
-    /// The year field.
+    /// Trigger year.
     pub year: u16,
-    /// The month field.
+    /// Trigger month, 1 to 12.
     pub month: u8,
-    /// The day field.
+    /// Trigger day of month, 1 to 31.
     pub day: u8,
-    /// The hour field.
+    /// Trigger hour, 0 to 23.
     pub hour: u8,
-    /// The minute field.
+    /// Trigger minute, 0 to 59.
     pub minute: u8,
-    /// The second field.
+    /// Trigger second, 0 to 59.
     pub second: u8,
-    /// The time_zone field.
+    /// Trigger timezone identifier when provided.
     pub time_zone: A::String,
-    /// The repeats field.
+    /// Whether this trigger repeats.
     pub repeats: bool,
 }
 
@@ -7803,9 +7803,9 @@ impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
 /// ABI struct for NotificationCategory.
 #[repr(C)]
 pub struct NotificationCategoryAbi<A: BindingAbi> {
-    /// The id field.
+    /// Category identifier.
     pub id: A::String,
-    /// The actions field.
+    /// Category actions.
     pub actions: A::Array<platform_os::NotificationActionAbi<A>>,
 }
 
@@ -7885,9 +7885,9 @@ impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
 /// ABI struct for NotificationDeliveredEvent.
 #[repr(C)]
 pub struct NotificationDeliveredEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::NotificationEventMetadataAbi<A>,
 }
 
@@ -7967,9 +7967,9 @@ impl VmAggregateCodec for NotificationDeliveredEventAbi<VmAbi> {
 /// ABI struct for NotificationDismissedEvent.
 #[repr(C)]
 pub struct NotificationDismissedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::NotificationEventMetadataAbi<A>,
 }
 
@@ -8049,13 +8049,13 @@ impl VmAggregateCodec for NotificationDismissedEventAbi<VmAbi> {
 /// ABI struct for NotificationEventMetadata.
 #[repr(C)]
 pub struct NotificationEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this event stream.
     pub sequence: u64,
-    /// The id field.
+    /// Host notification identifier.
     pub id: A::String,
-    /// The request field.
+    /// Notification request payload.
     pub request: platform_os::NotificationRequestAbi<A>,
 }
 
@@ -8140,11 +8140,11 @@ impl VmAggregateCodec for NotificationEventMetadataAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NotificationEventOpenOptions {
-    /// The include_delivered field.
+    /// Whether delivered events should be included.
     pub include_delivered: bool,
-    /// The include_interacted field.
+    /// Whether interacted events should be included.
     pub include_interacted: bool,
-    /// The include_dismissed field.
+    /// Whether dismissed events should be included.
     pub include_dismissed: bool,
 }
 
@@ -8201,7 +8201,7 @@ impl VmAggregateCodec for NotificationEventOpenOptions {
 /// ABI struct for NotificationImmediateTrigger.
 #[repr(C)]
 pub struct NotificationImmediateTriggerAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: A::String,
 }
 
@@ -8270,11 +8270,11 @@ impl VmAggregateCodec for NotificationImmediateTriggerAbi<VmAbi> {
 /// ABI struct for NotificationInteractedEvent.
 #[repr(C)]
 pub struct NotificationInteractedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_os::NotificationEventMetadataAbi<A>,
-    /// The payload field.
+    /// Interaction payload.
     pub payload: platform_os::NotificationInteractedPayloadAbi<A>,
 }
 
@@ -8363,9 +8363,9 @@ impl VmAggregateCodec for NotificationInteractedEventAbi<VmAbi> {
 /// ABI struct for NotificationInteractedPayload.
 #[repr(C)]
 pub struct NotificationInteractedPayloadAbi<A: BindingAbi> {
-    /// The action_id field.
+    /// Action identifier when available.
     pub action_id: A::String,
-    /// The action_response_text field.
+    /// Text-input response payload for text-input actions when available.
     pub action_response_text: A::String,
 }
 
@@ -8443,31 +8443,31 @@ impl VmAggregateCodec for NotificationInteractedPayloadAbi<VmAbi> {
 /// ABI struct for NotificationRequest.
 #[repr(C)]
 pub struct NotificationRequestAbi<A: BindingAbi> {
-    /// The title field.
+    /// Notification title text.
     pub title: A::String,
-    /// The subtitle field.
+    /// Notification subtitle text when supported by host.
     pub subtitle: A::String,
-    /// The body field.
+    /// Notification body text.
     pub body: A::String,
-    /// The tag field.
+    /// Notification tag for replacement semantics.
     pub tag: A::String,
-    /// The channel_id field.
+    /// Notification channel identifier when required by host.
     pub channel_id: A::String,
-    /// The priority field.
+    /// Priority class for host presentation policy.
     pub priority: NotificationPriority,
-    /// The badge_count field.
+    /// Badge count to apply when supported by host.
     pub badge_count: u32,
-    /// The sound field.
+    /// Sound identifier or channel sound name when provided.
     pub sound: A::String,
-    /// The category_id field.
+    /// Notification category identifier for action routing.
     pub category_id: A::String,
-    /// The thread_id field.
+    /// Notification thread or conversation identifier.
     pub thread_id: A::String,
-    /// The trigger field.
+    /// Delivery trigger selector.
     pub trigger: platform_os::NotificationTriggerAbi<A>,
-    /// The action_id field.
+    /// Optional host action identifier payload.
     pub action_id: A::String,
-    /// The data_json field.
+    /// Optional JSON payload string.
     pub data_json: A::String,
 }
 
@@ -8591,11 +8591,11 @@ impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
 /// ABI struct for NotificationScheduledDescriptor.
 #[repr(C)]
 pub struct NotificationScheduledDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Host notification identifier.
     pub id: A::String,
-    /// The request field.
+    /// Scheduled notification request payload.
     pub request: platform_os::NotificationRequestAbi<A>,
-    /// The scheduled_unix_ns field.
+    /// Earliest scheduled delivery timestamp in UTC nanoseconds when available.
     pub scheduled_unix_ns: u64,
 }
 
@@ -8677,9 +8677,9 @@ impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
 /// ABI struct for NotificationTimeIntervalTrigger.
 #[repr(C)]
 pub struct NotificationTimeIntervalTriggerAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: A::String,
-    /// The interval_ns field.
+    /// Time-interval trigger delay in nanoseconds.
     pub interval_ns: u64,
 }
 
@@ -8754,9 +8754,9 @@ impl VmAggregateCodec for NotificationTimeIntervalTriggerAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PermissionEntry {
-    /// The permission field.
+    /// Permission selector.
     pub permission: Permission,
-    /// The state field.
+    /// Permission state for this selector.
     pub state: PermissionState,
 }
 
@@ -8810,13 +8810,13 @@ impl VmAggregateCodec for PermissionEntry {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SystemSnapshot {
-    /// The cpu_count field.
+    /// Logical CPU count.
     pub cpu_count: u32,
-    /// The memory_total field.
+    /// Total physical memory bytes.
     pub memory_total: u64,
-    /// The memory_available field.
+    /// Available memory bytes.
     pub memory_available: u64,
-    /// The page_size field.
+    /// Virtual-memory page size bytes.
     pub page_size: u64,
 }
 
@@ -8874,917 +8874,917 @@ impl VmAggregateCodec for SystemSnapshot {
 /// Replay struct for BackgroundEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this event stream.
     pub sequence: u64,
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: String,
-    /// The execution_id field.
+    /// Stable execution identifier for this one scheduled execution.
     pub execution_id: String,
-    /// The deadline_unix_ns field.
+    /// Host execution deadline in UTC nanoseconds when provided.
     pub deadline_unix_ns: u64,
 }
 
 /// Replay struct for BackgroundTaskDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskDescriptorReplayRecord {
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: String,
-    /// The trigger field.
+    /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// The minimum_interval_ns field.
+    /// Effective minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
-    /// The earliest_begin_unix_ns field.
+    /// Earliest target execution timestamp in UTC nanoseconds.
     pub earliest_begin_unix_ns: u64,
-    /// The requires_network field.
+    /// Whether one network route is required.
     pub requires_network: bool,
-    /// The requires_unmetered_network field.
+    /// Whether one unmetered network route is required.
     pub requires_unmetered_network: bool,
-    /// The requires_charging field.
+    /// Whether charging power is required.
     pub requires_charging: bool,
-    /// The requires_idle field.
+    /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// The persisted field.
+    /// Whether this registration persists across host restart.
     pub persisted: bool,
 }
 
 /// Replay struct for BackgroundTaskExpiredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskExpiredEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this background event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: BackgroundEventMetadataReplayRecord,
 }
 
 /// Replay struct for BackgroundTaskOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskOptionsReplayRecord {
-    /// The identifier field.
+    /// Stable task identifier.
     pub identifier: String,
-    /// The trigger field.
+    /// Trigger class.
     pub trigger: BackgroundTriggerKind,
-    /// The minimum_interval_ns field.
+    /// Requested minimum repeat interval in nanoseconds.
     pub minimum_interval_ns: u64,
-    /// The earliest_begin_unix_ns field.
+    /// Earliest target execution timestamp in UTC nanoseconds.
     pub earliest_begin_unix_ns: u64,
-    /// The requires_network field.
+    /// Whether one network route is required.
     pub requires_network: bool,
-    /// The requires_unmetered_network field.
+    /// Whether one unmetered network route is required.
     pub requires_unmetered_network: bool,
-    /// The requires_charging field.
+    /// Whether charging power is required.
     pub requires_charging: bool,
-    /// The requires_idle field.
+    /// Whether idle mode is required.
     pub requires_idle: bool,
-    /// The persisted field.
+    /// Whether this registration should persist across host restart.
     pub persisted: bool,
 }
 
 /// Replay struct for BackgroundTaskReadyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackgroundTaskReadyEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this background event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: BackgroundEventMetadataReplayRecord,
 }
 
 /// Replay struct for CalendarAbsoluteReminder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarAbsoluteReminderReplayRecord {
-    /// The kind field.
+    /// Discriminator for this calendar reminder variant.
     pub kind: String,
-    /// The absolute_unix_ns field.
+    /// Absolute reminder timestamp in UTC nanoseconds.
     pub absolute_unix_ns: u64,
 }
 
 /// Replay struct for CalendarAttendee.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarAttendeeReplayRecord {
-    /// The id field.
+    /// Stable attendee identifier when available.
     pub id: String,
-    /// The name field.
+    /// Attendee display name when available.
     pub name: String,
-    /// The email field.
+    /// Attendee email address when available.
     pub email: String,
-    /// The optional field.
+    /// Whether this attendee is optional.
     pub optional: bool,
-    /// The organizer field.
+    /// Whether this attendee is the organizer.
     pub organizer: bool,
-    /// The response_status field.
+    /// Attendee response status.
     pub response_status: CalendarParticipantStatus,
 }
 
 /// Replay struct for CalendarDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarDescriptorReplayRecord {
-    /// The id field.
+    /// Stable calendar identifier.
     pub id: String,
-    /// The title field.
+    /// Host-visible calendar title.
     pub title: String,
-    /// The source field.
+    /// Host-visible source or account label.
     pub source: String,
-    /// The owner field.
+    /// Host-visible owner account label when available.
     pub owner: String,
-    /// The color_argb field.
+    /// ARGB color value for this calendar.
     pub color_argb: u32,
-    /// The primary field.
+    /// Whether this calendar is the default write target.
     pub primary: bool,
-    /// The access field.
+    /// Access mode for this calendar.
     pub access: CalendarAccess,
 }
 
 /// Replay struct for CalendarEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarEventReplayRecord {
-    /// The id field.
+    /// Stable event identifier.
     pub id: String,
-    /// The calendar_id field.
+    /// Calendar identifier.
     pub calendar_id: String,
-    /// The title field.
+    /// Event title.
     pub title: String,
-    /// The notes field.
+    /// Event description or notes.
     pub notes: String,
-    /// The location field.
+    /// Event location text.
     pub location: String,
-    /// The start_unix_ns field.
+    /// Event start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Event end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The all_day field.
+    /// Whether this event is all-day.
     pub all_day: bool,
-    /// The canceled field.
+    /// Whether this event is canceled.
     pub canceled: bool,
-    /// The time_zone field.
+    /// Event timezone identifier when available.
     pub time_zone: String,
-    /// The availability field.
+    /// Event availability class.
     pub availability: CalendarAvailability,
-    /// The url field.
+    /// Event URL or deep link when available.
     pub url: String,
-    /// The organizer_name field.
+    /// Organizer display name when available.
     pub organizer_name: String,
-    /// The organizer_email field.
+    /// Organizer email address when available.
     pub organizer_email: String,
-    /// The recurring field.
+    /// Whether this event is one recurrence instance.
     pub recurring: bool,
-    /// The recurrence_master_id field.
+    /// Event identifier for the recurrence series master when available.
     pub recurrence_master_id: String,
-    /// The recurrence_id_unix_ns field.
+    /// Recurrence instance identifier timestamp in UTC nanoseconds when available.
     pub recurrence_id_unix_ns: u64,
-    /// The recurrence_rule field.
+    /// Recurrence rule for series master events when available.
     pub recurrence_rule: CalendarRecurrenceRuleReplayRecord,
-    /// The attendees field.
+    /// Event attendees when available.
     pub attendees: Vec<CalendarAttendeeReplayRecord>,
-    /// The reminders field.
+    /// Event reminders when available.
     pub reminders: Vec<CalendarReminderReplayRecord>,
 }
 
 /// Replay struct for CalendarEventDraft.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarEventDraftReplayRecord {
-    /// The calendar_id field.
+    /// Calendar identifier.
     pub calendar_id: String,
-    /// The title field.
+    /// Event title.
     pub title: String,
-    /// The notes field.
+    /// Event description or notes.
     pub notes: String,
-    /// The location field.
+    /// Event location text.
     pub location: String,
-    /// The start_unix_ns field.
+    /// Event start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Event end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The all_day field.
+    /// Whether this event is all-day.
     pub all_day: bool,
-    /// The time_zone field.
+    /// Event timezone identifier.
     pub time_zone: String,
-    /// The availability field.
+    /// Event availability class.
     pub availability: CalendarAvailability,
-    /// The url field.
+    /// Event URL or deep link.
     pub url: String,
-    /// The recurrence_rule field.
+    /// Recurrence rule for this event when provided.
     pub recurrence_rule: CalendarRecurrenceRuleReplayRecord,
-    /// The attendees field.
+    /// Event attendees to apply when provided.
     pub attendees: Vec<CalendarAttendeeReplayRecord>,
-    /// The reminders field.
+    /// Event reminders to apply when provided.
     pub reminders: Vec<CalendarReminderReplayRecord>,
 }
 
 /// Replay struct for CalendarEventQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarEventQueryReplayRecord {
-    /// The calendar_ids field.
+    /// Calendar identifiers to query, empty means all readable calendars.
     pub calendar_ids: Vec<String>,
-    /// The start_unix_ns field.
+    /// Query start timestamp in UTC nanoseconds.
     pub start_unix_ns: u64,
-    /// The end_unix_ns field.
+    /// Query end timestamp in UTC nanoseconds.
     pub end_unix_ns: u64,
-    /// The limit field.
+    /// Maximum returned events when provided.
     pub limit: u32,
-    /// The include_canceled field.
+    /// Whether canceled events should be included.
     pub include_canceled: bool,
-    /// The include_declined field.
+    /// Whether declined events should be included when provided by host.
     pub include_declined: bool,
-    /// The include_recurrence_instances field.
+    /// Whether expanded recurrence instances should be included.
     pub include_recurrence_instances: bool,
 }
 
 /// Replay struct for CalendarRecurrenceRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarRecurrenceRuleReplayRecord {
-    /// The frequency field.
+    /// Recurrence frequency.
     pub frequency: CalendarRecurrenceFrequency,
-    /// The interval field.
+    /// Recurrence interval.
     pub interval: u32,
-    /// The count field.
+    /// Maximum occurrence count when bounded.
     pub count: u32,
-    /// The until_unix_ns field.
+    /// Recurrence end timestamp in UTC nanoseconds when bounded.
     pub until_unix_ns: u64,
-    /// The by_week_days field.
+    /// Weekday numbers in ISO-8601 encoding, 1 to 7.
     pub by_week_days: Vec<u8>,
-    /// The by_month_days field.
+    /// Day-of-month set.
     pub by_month_days: Vec<i8>,
-    /// The by_months field.
+    /// Month set, 1 to 12.
     pub by_months: Vec<u8>,
 }
 
 /// Replay struct for CalendarRelativeReminder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CalendarRelativeReminderReplayRecord {
-    /// The kind field.
+    /// Discriminator for this calendar reminder variant.
     pub kind: String,
-    /// The minutes_before_start field.
+    /// Minutes before start time for one relative reminder.
     pub minutes_before_start: i32,
 }
 
 /// Replay struct for Contact.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactReplayRecord {
-    /// The id field.
+    /// Stable contact identifier.
     pub id: String,
-    /// The name field.
+    /// Structured name payload.
     pub name: ContactNameReplayRecord,
-    /// The phones field.
+    /// Phone values.
     pub phones: Vec<ContactPhoneReplayRecord>,
-    /// The emails field.
+    /// Email values.
     pub emails: Vec<ContactEmailReplayRecord>,
-    /// The addresses field.
+    /// Address values.
     pub addresses: Vec<ContactAddressReplayRecord>,
-    /// The organization field.
+    /// Organization metadata.
     pub organization: ContactOrganizationReplayRecord,
-    /// The note field.
+    /// Contact note payload.
     pub note: String,
 }
 
 /// Replay struct for ContactAddress.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactAddressReplayRecord {
-    /// The label field.
+    /// Label for this address value.
     pub label: String,
-    /// The street field.
+    /// Street-line payload.
     pub street: String,
-    /// The city field.
+    /// City payload.
     pub city: String,
-    /// The region field.
+    /// Region or state payload.
     pub region: String,
-    /// The postal_code field.
+    /// Postal-code payload.
     pub postal_code: String,
-    /// The country field.
+    /// Country payload.
     pub country: String,
-    /// The country_code field.
+    /// Country-code payload.
     pub country_code: String,
 }
 
 /// Replay struct for ContactDraft.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactDraftReplayRecord {
-    /// The name field.
+    /// Structured name payload.
     pub name: ContactNameReplayRecord,
-    /// The phones field.
+    /// Phone values.
     pub phones: Vec<ContactPhoneReplayRecord>,
-    /// The emails field.
+    /// Email values.
     pub emails: Vec<ContactEmailReplayRecord>,
-    /// The addresses field.
+    /// Address values.
     pub addresses: Vec<ContactAddressReplayRecord>,
-    /// The organization field.
+    /// Organization metadata.
     pub organization: ContactOrganizationReplayRecord,
-    /// The note field.
+    /// Contact note payload.
     pub note: String,
 }
 
 /// Replay struct for ContactEmail.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactEmailReplayRecord {
-    /// The label field.
+    /// Label for this email value.
     pub label: String,
-    /// The address field.
+    /// Email address.
     pub address: String,
-    /// The primary field.
+    /// Whether this email value is marked as primary.
     pub primary: bool,
 }
 
 /// Replay struct for ContactName.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactNameReplayRecord {
-    /// The given_name field.
+    /// Given or first name.
     pub given_name: String,
-    /// The middle_name field.
+    /// Middle name.
     pub middle_name: String,
-    /// The family_name field.
+    /// Family or last name.
     pub family_name: String,
-    /// The prefix field.
+    /// Honorific prefix.
     pub prefix: String,
-    /// The suffix field.
+    /// Honorific suffix.
     pub suffix: String,
-    /// The nickname field.
+    /// Nickname.
     pub nickname: String,
-    /// The phonetic_given_name field.
+    /// Phonetic given name.
     pub phonetic_given_name: String,
-    /// The phonetic_family_name field.
+    /// Phonetic family name.
     pub phonetic_family_name: String,
 }
 
 /// Replay struct for ContactOrganization.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactOrganizationReplayRecord {
-    /// The company field.
+    /// Organization or company name.
     pub company: String,
-    /// The department field.
+    /// Department name.
     pub department: String,
-    /// The title field.
+    /// Job title.
     pub title: String,
 }
 
 /// Replay struct for ContactPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactPageReplayRecord {
-    /// The contacts field.
+    /// Contact items for this page.
     pub contacts: Vec<ContactReplayRecord>,
-    /// The next_cursor field.
+    /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: String,
-    /// The has_more field.
+    /// Whether more items are available.
     pub has_more: bool,
 }
 
 /// Replay struct for ContactPhone.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactPhoneReplayRecord {
-    /// The label field.
+    /// Label for this phone value.
     pub label: String,
-    /// The number field.
+    /// Original phone number string.
     pub number: String,
-    /// The normalized_number field.
+    /// Normalized phone number string when available.
     pub normalized_number: String,
-    /// The primary field.
+    /// Whether this phone value is marked as primary.
     pub primary: bool,
 }
 
 /// Replay struct for ContactQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContactQueryReplayRecord {
-    /// The cursor field.
+    /// Opaque page cursor from one prior list or search call.
     pub cursor: String,
-    /// The limit field.
+    /// Maximum returned contacts for this page.
     pub limit: u32,
-    /// The include_phones field.
+    /// Whether phone numbers should be returned.
     pub include_phones: bool,
-    /// The include_emails field.
+    /// Whether email addresses should be returned.
     pub include_emails: bool,
-    /// The include_addresses field.
+    /// Whether postal addresses should be returned.
     pub include_addresses: bool,
-    /// The include_organization field.
+    /// Whether organization metadata should be returned.
     pub include_organization: bool,
-    /// The include_notes field.
+    /// Whether note fields should be returned.
     pub include_notes: bool,
 }
 
 /// Replay struct for CredentialAuthenticationOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CredentialAuthenticationOptionsReplayRecord {
-    /// The title field.
+    /// Authentication prompt title.
     pub title: String,
-    /// The subtitle field.
+    /// Authentication prompt subtitle.
     pub subtitle: String,
-    /// The message field.
+    /// Authentication prompt detail message.
     pub message: String,
-    /// The requirement field.
+    /// Required host authentication policy.
     pub requirement: CredentialAuthenticationRequirement,
 }
 
 /// Replay struct for CredentialQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CredentialQueryReplayRecord {
-    /// The service field.
+    /// Namespace or service name.
     pub service: String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: String,
-    /// The access_group field.
+    /// Optional access-group namespace when supported by host keychain APIs.
     pub access_group: String,
-    /// The require_authentication field.
+    /// Whether host authentication should be requested before returning payload bytes.
     pub require_authentication: bool,
 }
 
 /// Replay struct for CredentialRecord.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CredentialRecordReplayRecord {
-    /// The service field.
+    /// Namespace or service name.
     pub service: String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: String,
-    /// The bytes field.
+    /// Binary credential payload.
     pub bytes: Vec<u8>,
-    /// The created_unix_ns field.
+    /// Credential creation timestamp in UTC nanoseconds when available.
     pub created_unix_ns: u64,
-    /// The modified_unix_ns field.
+    /// Credential modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
 }
 
 /// Replay struct for CredentialWriteOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CredentialWriteOptionsReplayRecord {
-    /// The service field.
+    /// Namespace or service name.
     pub service: String,
-    /// The account field.
+    /// Account or key name within one service.
     pub account: String,
-    /// The access_group field.
+    /// Optional access-group namespace when supported by host keychain APIs.
     pub access_group: String,
-    /// The bytes field.
+    /// Binary credential payload.
     pub bytes: Vec<u8>,
-    /// The accessibility field.
+    /// Accessibility policy.
     pub accessibility: CredentialAccessibility,
-    /// The authentication field.
+    /// Authentication policy.
     pub authentication: CredentialAuthenticationPolicy,
-    /// The replace_existing field.
+    /// Whether replacement is allowed when one credential already exists.
     pub replace_existing: bool,
 }
 
 /// Replay struct for DocumentDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentDescriptorReplayRecord {
-    /// The uri field.
+    /// Host document URI.
     pub uri: String,
-    /// The name field.
+    /// Host-visible document name.
     pub name: String,
-    /// The mime_type field.
+    /// Document MIME type payload when available.
     pub mime_type: String,
-    /// The size_bytes field.
+    /// Document size in bytes when available.
     pub size_bytes: u64,
-    /// The modified_unix_ns field.
+    /// Document modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
-    /// The is_directory field.
+    /// Whether this descriptor represents one directory.
     pub is_directory: bool,
-    /// The local_path field.
+    /// Runtime-visible local path when one sandbox copy is available.
     pub local_path: fs::OsPathReplayRecord,
 }
 
 /// Replay struct for DocumentPickOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentPickOptionsReplayRecord {
-    /// The mime_types field.
+    /// MIME-type filters, empty means any type.
     pub mime_types: Vec<String>,
-    /// The extensions field.
+    /// File-extension filters without the leading dot.
     pub extensions: Vec<String>,
-    /// The multiple field.
+    /// Whether multiple selection is allowed.
     pub multiple: bool,
-    /// The allow_directories field.
+    /// Whether directory selection is allowed.
     pub allow_directories: bool,
-    /// The copy_to_sandbox field.
+    /// Whether the host should copy selected files to one runtime-visible sandbox path when possible.
     pub copy_to_sandbox: bool,
 }
 
 /// Replay struct for HostIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HostIdentityReplayRecord {
-    /// The hostname field.
+    /// Hostname string.
     pub hostname: String,
-    /// The kernel field.
+    /// Kernel or operating-system name.
     pub kernel: String,
-    /// The release field.
+    /// Kernel or operating-system release string.
     pub release: String,
-    /// The architecture field.
+    /// Machine architecture string.
     pub architecture: String,
 }
 
 /// Replay struct for IntentCustomActionEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentCustomActionEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: IntentEventMetadataReplayRecord,
-    /// The payload field.
+    /// Custom-action payload.
     pub payload: IntentCustomActionPayloadReplayRecord,
 }
 
 /// Replay struct for IntentCustomActionPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentCustomActionPayloadReplayRecord {
-    /// The action field.
+    /// Action identifier.
     pub action: String,
-    /// The url field.
+    /// URL payload when provided by host.
     pub url: Option<String>,
-    /// The paths field.
+    /// File payloads when provided by host.
     pub paths: Vec<fs::OsPathReplayRecord>,
-    /// The text field.
+    /// Text payload when provided by host.
     pub text: Option<String>,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this stream.
     pub sequence: u64,
-    /// The source field.
+    /// Host source package or process identifier when available.
     pub source: String,
 }
 
 /// Replay struct for IntentOpenFileEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenFileEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: IntentEventMetadataReplayRecord,
-    /// The payload field.
+    /// Open-file payload.
     pub payload: IntentOpenFilePayloadReplayRecord,
 }
 
 /// Replay struct for IntentOpenFilePayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenFilePayloadReplayRecord {
-    /// The path field.
+    /// File target payload.
     pub path: fs::OsPathReplayRecord,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentOpenUrlEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenUrlEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: IntentEventMetadataReplayRecord,
-    /// The payload field.
+    /// Open-url payload.
     pub payload: IntentOpenUrlPayloadReplayRecord,
 }
 
 /// Replay struct for IntentOpenUrlPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentOpenUrlPayloadReplayRecord {
-    /// The url field.
+    /// URL payload.
     pub url: String,
 }
 
 /// Replay struct for IntentShareFilesEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentShareFilesEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: IntentEventMetadataReplayRecord,
-    /// The payload field.
+    /// Share-files payload.
     pub payload: IntentShareFilesPayloadReplayRecord,
 }
 
 /// Replay struct for IntentShareFilesPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentShareFilesPayloadReplayRecord {
-    /// The paths field.
+    /// Shared file payloads.
     pub paths: Vec<fs::OsPathReplayRecord>,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<String>,
 }
 
 /// Replay struct for IntentShareTextEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentShareTextEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this intent event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: IntentEventMetadataReplayRecord,
-    /// The payload field.
+    /// Share-text payload.
     pub payload: IntentShareTextPayloadReplayRecord,
 }
 
 /// Replay struct for IntentShareTextPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IntentShareTextPayloadReplayRecord {
-    /// The text field.
+    /// Shared text payload.
     pub text: String,
-    /// The mime_type field.
+    /// MIME type when provided by host.
     pub mime_type: Option<String>,
 }
 
 /// Replay struct for LifecycleBackgroundEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleBackgroundEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for LifecycleForegroundEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleForegroundEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for LifecycleLaunchEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleLaunchEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for LifecycleLowMemoryEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleLowMemoryEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
-    /// The payload field.
+    /// Low-memory payload.
     pub payload: LifecycleLowMemoryPayload,
 }
 
 /// Replay struct for LifecycleLowPowerModeChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleLowPowerModeChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
-    /// The payload field.
+    /// Low-power payload.
     pub payload: LifecycleLowPowerPayload,
 }
 
 /// Replay struct for LifecyclePauseEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecyclePauseEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for LifecycleResumeEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleResumeEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for LifecycleTerminateEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LifecycleTerminateEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this lifecycle event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: LifecycleEventMetadata,
 }
 
 /// Replay struct for MediaAssetDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaAssetDescriptorReplayRecord {
-    /// The id field.
+    /// Stable asset identifier.
     pub id: String,
-    /// The uri field.
+    /// Host URI for this asset.
     pub uri: String,
-    /// The filename field.
+    /// Asset filename payload.
     pub filename: String,
-    /// The mime_type field.
+    /// Asset MIME type payload when available.
     pub mime_type: String,
-    /// The kind field.
+    /// Asset class.
     pub kind: MediaAssetKind,
-    /// The width field.
+    /// Asset width in pixels when available.
     pub width: u32,
-    /// The height field.
+    /// Asset height in pixels when available.
     pub height: u32,
-    /// The duration_ms field.
+    /// Asset duration in milliseconds for time-based assets.
     pub duration_ms: u64,
-    /// The size_bytes field.
+    /// Asset size in bytes when available.
     pub size_bytes: u64,
-    /// The created_unix_ns field.
+    /// Asset creation timestamp in UTC nanoseconds when available.
     pub created_unix_ns: u64,
-    /// The modified_unix_ns field.
+    /// Asset modification timestamp in UTC nanoseconds when available.
     pub modified_unix_ns: u64,
 }
 
 /// Replay struct for MediaPage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaPageReplayRecord {
-    /// The assets field.
+    /// Asset items for this page.
     pub assets: Vec<MediaAssetDescriptorReplayRecord>,
-    /// The next_cursor field.
+    /// Opaque cursor for the next page, empty when unavailable.
     pub next_cursor: String,
-    /// The has_more field.
+    /// Whether more assets are available.
     pub has_more: bool,
 }
 
 /// Replay struct for MediaQuery.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MediaQueryReplayRecord {
-    /// The cursor field.
+    /// Opaque page cursor from one prior mediaList call.
     pub cursor: String,
-    /// The limit field.
+    /// Maximum returned assets for this page.
     pub limit: u32,
-    /// The kinds field.
+    /// Included asset classes, empty means all classes.
     pub kinds: Vec<MediaAssetKind>,
-    /// The include_hidden field.
+    /// Whether hidden assets should be included.
     pub include_hidden: bool,
 }
 
 /// Replay struct for MountEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MountEntryReplayRecord {
-    /// The source field.
+    /// Source device or backing object.
     pub source: String,
-    /// The target field.
+    /// Target mount path.
     pub target: fs::OsPathReplayRecord,
-    /// The file_system field.
+    /// Filesystem type name.
     pub file_system: String,
-    /// The flags field.
+    /// Mount flags bitmask.
     pub flags: u64,
 }
 
 /// Replay struct for NotificationAction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationActionReplayRecord {
-    /// The id field.
+    /// Action identifier.
     pub id: String,
-    /// The title field.
+    /// Action display title.
     pub title: String,
-    /// The style field.
+    /// Action style selector.
     pub style: NotificationActionStyle,
-    /// The foreground field.
+    /// Whether the action should foreground the runtime.
     pub foreground: bool,
-    /// The authentication_required field.
+    /// Whether action execution requires authentication.
     pub authentication_required: bool,
-    /// The text_input_button_title field.
+    /// Text-input submit title for text-input actions.
     pub text_input_button_title: String,
-    /// The text_input_placeholder field.
+    /// Text-input placeholder text for text-input actions.
     pub text_input_placeholder: String,
 }
 
 /// Replay struct for NotificationCalendarDateTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationCalendarDateTriggerReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: String,
-    /// The calendar field.
+    /// Calendar trigger payload.
     pub calendar: NotificationCalendarTriggerReplayRecord,
 }
 
 /// Replay struct for NotificationCalendarTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationCalendarTriggerReplayRecord {
-    /// The year field.
+    /// Trigger year.
     pub year: u16,
-    /// The month field.
+    /// Trigger month, 1 to 12.
     pub month: u8,
-    /// The day field.
+    /// Trigger day of month, 1 to 31.
     pub day: u8,
-    /// The hour field.
+    /// Trigger hour, 0 to 23.
     pub hour: u8,
-    /// The minute field.
+    /// Trigger minute, 0 to 59.
     pub minute: u8,
-    /// The second field.
+    /// Trigger second, 0 to 59.
     pub second: u8,
-    /// The time_zone field.
+    /// Trigger timezone identifier when provided.
     pub time_zone: String,
-    /// The repeats field.
+    /// Whether this trigger repeats.
     pub repeats: bool,
 }
 
 /// Replay struct for NotificationCategory.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationCategoryReplayRecord {
-    /// The id field.
+    /// Category identifier.
     pub id: String,
-    /// The actions field.
+    /// Category actions.
     pub actions: Vec<NotificationActionReplayRecord>,
 }
 
 /// Replay struct for NotificationDeliveredEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationDeliveredEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: NotificationEventMetadataReplayRecord,
 }
 
 /// Replay struct for NotificationDismissedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationDismissedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: NotificationEventMetadataReplayRecord,
 }
 
 /// Replay struct for NotificationEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Monotonic event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this event stream.
     pub sequence: u64,
-    /// The id field.
+    /// Host notification identifier.
     pub id: String,
-    /// The request field.
+    /// Notification request payload.
     pub request: NotificationRequestReplayRecord,
 }
 
 /// Replay struct for NotificationImmediateTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationImmediateTriggerReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: String,
 }
 
 /// Replay struct for NotificationInteractedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationInteractedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: NotificationEventMetadataReplayRecord,
-    /// The payload field.
+    /// Interaction payload.
     pub payload: NotificationInteractedPayloadReplayRecord,
 }
 
 /// Replay struct for NotificationInteractedPayload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationInteractedPayloadReplayRecord {
-    /// The action_id field.
+    /// Action identifier when available.
     pub action_id: String,
-    /// The action_response_text field.
+    /// Text-input response payload for text-input actions when available.
     pub action_response_text: String,
 }
 
 /// Replay struct for NotificationRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationRequestReplayRecord {
-    /// The title field.
+    /// Notification title text.
     pub title: String,
-    /// The subtitle field.
+    /// Notification subtitle text when supported by host.
     pub subtitle: String,
-    /// The body field.
+    /// Notification body text.
     pub body: String,
-    /// The tag field.
+    /// Notification tag for replacement semantics.
     pub tag: String,
-    /// The channel_id field.
+    /// Notification channel identifier when required by host.
     pub channel_id: String,
-    /// The priority field.
+    /// Priority class for host presentation policy.
     pub priority: NotificationPriority,
-    /// The badge_count field.
+    /// Badge count to apply when supported by host.
     pub badge_count: u32,
-    /// The sound field.
+    /// Sound identifier or channel sound name when provided.
     pub sound: String,
-    /// The category_id field.
+    /// Notification category identifier for action routing.
     pub category_id: String,
-    /// The thread_id field.
+    /// Notification thread or conversation identifier.
     pub thread_id: String,
-    /// The trigger field.
+    /// Delivery trigger selector.
     pub trigger: NotificationTriggerReplayRecord,
-    /// The action_id field.
+    /// Optional host action identifier payload.
     pub action_id: String,
-    /// The data_json field.
+    /// Optional JSON payload string.
     pub data_json: String,
 }
 
 /// Replay struct for NotificationScheduledDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationScheduledDescriptorReplayRecord {
-    /// The id field.
+    /// Host notification identifier.
     pub id: String,
-    /// The request field.
+    /// Scheduled notification request payload.
     pub request: NotificationRequestReplayRecord,
-    /// The scheduled_unix_ns field.
+    /// Earliest scheduled delivery timestamp in UTC nanoseconds when available.
     pub scheduled_unix_ns: u64,
 }
 
 /// Replay struct for NotificationTimeIntervalTrigger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NotificationTimeIntervalTriggerReplayRecord {
-    /// The kind field.
+    /// Discriminator for this notification trigger variant.
     pub kind: String,
-    /// The interval_ns field.
+    /// Time-interval trigger delay in nanoseconds.
     pub interval_ns: u64,
 }
 

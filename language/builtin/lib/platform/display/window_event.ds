@@ -73,6 +73,8 @@ export struct WindowThemePayload {
 
 /// Shared metadata for all window events.
 export struct WindowEventMetadata {
+    /// Resolved backend that produced this event.
+    backend: DisplayBackend;
     /// Window handle associated with this event.
     window: WindowHandle;
     /// Event timestamp in nanoseconds.

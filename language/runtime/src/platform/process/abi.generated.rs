@@ -794,7 +794,7 @@ impl VmAggregateCodec for ProcessWaitStatusAbi<VmAbi> {
 /// ABI struct for ProcessCpuSet.
 #[repr(C)]
 pub struct ProcessCpuSetAbi<A: BindingAbi> {
-    /// The cpus field.
+    /// CPU indices in the affinity set.
     pub cpus: A::Array<u32>,
 }
 
@@ -863,9 +863,9 @@ impl VmAggregateCodec for ProcessCpuSetAbi<VmAbi> {
 /// ABI struct for ProcessFdActionClose.
 #[repr(C)]
 pub struct ProcessFdActionCloseAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: A::String,
-    /// The descriptor field.
+    /// Descriptor to close.
     pub descriptor: i32,
 }
 
@@ -939,11 +939,11 @@ impl VmAggregateCodec for ProcessFdActionCloseAbi<VmAbi> {
 /// ABI struct for ProcessFdActionDup2.
 #[repr(C)]
 pub struct ProcessFdActionDup2Abi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: A::String,
-    /// The source field.
+    /// Source descriptor.
     pub source: i32,
-    /// The target field.
+    /// Target descriptor.
     pub target: i32,
 }
 
@@ -1020,15 +1020,15 @@ impl VmAggregateCodec for ProcessFdActionDup2Abi<VmAbi> {
 /// ABI struct for ProcessFdActionOpen.
 #[repr(C)]
 pub struct ProcessFdActionOpenAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: A::String,
-    /// The target field.
+    /// Target descriptor.
     pub target: i32,
-    /// The path field.
+    /// Path used by open action.
     pub path: platform_fs::OsPathAbi<A>,
-    /// The flags field.
+    /// Open flags for open action.
     pub flags: fs::OpenFlags,
-    /// The mode field.
+    /// Open mode for open action.
     pub mode: fs::FileMode,
 }
 
@@ -1115,11 +1115,11 @@ impl VmAggregateCodec for ProcessFdActionOpenAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ProcessGroupIds {
-    /// The real field.
+    /// Real group identifier.
     pub real: GroupId,
-    /// The effective field.
+    /// Effective group identifier.
     pub effective: GroupId,
-    /// The saved field.
+    /// Saved-set group identifier.
     pub saved: GroupId,
 }
 
@@ -1175,9 +1175,9 @@ impl VmAggregateCodec for ProcessGroupIds {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ProcessLimit {
-    /// The soft field.
+    /// Soft limit value.
     pub soft: u64,
-    /// The hard field.
+    /// Hard limit value.
     pub hard: u64,
 }
 
@@ -1229,11 +1229,11 @@ impl VmAggregateCodec for ProcessLimit {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ProcessSchedulerConfig {
-    /// The policy field.
+    /// Scheduler policy.
     pub policy: ProcessSchedulerPolicy,
-    /// The priority field.
+    /// Scheduler priority within the selected policy.
     pub priority: i32,
-    /// The flags field.
+    /// Scheduler flags forwarded to host APIs.
     pub flags: u32,
 }
 
@@ -1291,13 +1291,13 @@ impl VmAggregateCodec for ProcessSchedulerConfig {
 /// ABI struct for ProcessSpawnOptions.
 #[repr(C)]
 pub struct ProcessSpawnOptionsAbi<A: BindingAbi> {
-    /// The cwd field.
+    /// Current directory for the child process.
     pub cwd: platform_fs::OsPathAbi<A>,
-    /// The detached field.
+    /// Whether to create a detached child process.
     pub detached: bool,
-    /// The reset_signals field.
+    /// Whether to reset signal dispositions in the child.
     pub reset_signals: bool,
-    /// The new_process_group field.
+    /// Whether to create a new process group.
     pub new_process_group: bool,
 }
 
@@ -1378,9 +1378,9 @@ impl VmAggregateCodec for ProcessSpawnOptionsAbi<VmAbi> {
 /// ABI struct for ProcessStdioDescriptor.
 #[repr(C)]
 pub struct ProcessStdioDescriptorAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: A::String,
-    /// The descriptor field.
+    /// Numeric descriptor used for this stdio lane.
     pub descriptor: i32,
 }
 
@@ -1454,9 +1454,9 @@ impl VmAggregateCodec for ProcessStdioDescriptorAbi<VmAbi> {
 /// ABI struct for ProcessStdioFile.
 #[repr(C)]
 pub struct ProcessStdioFileAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: A::String,
-    /// The file field.
+    /// File handle used for this stdio lane.
     pub file: resource::FileHandle,
 }
 
@@ -1531,7 +1531,7 @@ impl VmAggregateCodec for ProcessStdioFileAbi<VmAbi> {
 /// ABI struct for ProcessStdioInherit.
 #[repr(C)]
 pub struct ProcessStdioInheritAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: A::String,
 }
 
@@ -1600,7 +1600,7 @@ impl VmAggregateCodec for ProcessStdioInheritAbi<VmAbi> {
 /// ABI struct for ProcessStdioNull.
 #[repr(C)]
 pub struct ProcessStdioNullAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: A::String,
 }
 
@@ -1669,9 +1669,9 @@ impl VmAggregateCodec for ProcessStdioNullAbi<VmAbi> {
 /// ABI struct for ProcessStdioPipe.
 #[repr(C)]
 pub struct ProcessStdioPipeAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: A::String,
-    /// The pipe field.
+    /// Pipe handle used for this stdio lane.
     pub pipe: resource::PipeHandle,
 }
 
@@ -1747,11 +1747,11 @@ impl VmAggregateCodec for ProcessStdioPipeAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ProcessUserIds {
-    /// The real field.
+    /// Real user identifier.
     pub real: UserId,
-    /// The effective field.
+    /// Effective user identifier.
     pub effective: UserId,
-    /// The saved field.
+    /// Saved-set user identifier.
     pub saved: UserId,
 }
 
@@ -1805,9 +1805,9 @@ impl VmAggregateCodec for ProcessUserIds {
 /// ABI struct for ProcessWaitContinuedStatus.
 #[repr(C)]
 pub struct ProcessWaitContinuedStatusAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: A::String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
 }
 
@@ -1881,11 +1881,11 @@ impl VmAggregateCodec for ProcessWaitContinuedStatusAbi<VmAbi> {
 /// ABI struct for ProcessWaitExitedStatus.
 #[repr(C)]
 pub struct ProcessWaitExitedStatusAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: A::String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The exit_code field.
+    /// Exit code when available.
     pub exit_code: i32,
 }
 
@@ -1962,9 +1962,9 @@ impl VmAggregateCodec for ProcessWaitExitedStatusAbi<VmAbi> {
 /// ABI struct for ProcessWaitRunningStatus.
 #[repr(C)]
 pub struct ProcessWaitRunningStatusAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: A::String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
 }
 
@@ -2038,13 +2038,13 @@ impl VmAggregateCodec for ProcessWaitRunningStatusAbi<VmAbi> {
 /// ABI struct for ProcessWaitSignaledStatus.
 #[repr(C)]
 pub struct ProcessWaitSignaledStatusAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: A::String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The signal field.
+    /// Signal number when available.
     pub signal: Signal,
-    /// The core_dumped field.
+    /// Whether a core file was produced.
     pub core_dumped: bool,
 }
 
@@ -2124,11 +2124,11 @@ impl VmAggregateCodec for ProcessWaitSignaledStatusAbi<VmAbi> {
 /// ABI struct for ProcessWaitStoppedStatus.
 #[repr(C)]
 pub struct ProcessWaitStoppedStatusAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: A::String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The signal field.
+    /// Signal number when available.
     pub signal: Signal,
 }
 
@@ -2206,9 +2206,9 @@ impl VmAggregateCodec for ProcessWaitStoppedStatusAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SignalEvent {
-    /// The signal field.
+    /// Signal number observed by the runtime.
     pub signal: Signal,
-    /// The pid field.
+    /// Process id associated with the signal when provided by the platform.
     pub pid: ProcessId,
 }
 
@@ -2259,149 +2259,149 @@ impl VmAggregateCodec for SignalEvent {
 /// Replay struct for ProcessCpuSet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessCpuSetReplayRecord {
-    /// The cpus field.
+    /// CPU indices in the affinity set.
     pub cpus: Vec<u32>,
 }
 
 /// Replay struct for ProcessFdActionClose.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessFdActionCloseReplayRecord {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: String,
-    /// The descriptor field.
+    /// Descriptor to close.
     pub descriptor: i32,
 }
 
 /// Replay struct for ProcessFdActionDup2.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessFdActionDup2ReplayRecord {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: String,
-    /// The source field.
+    /// Source descriptor.
     pub source: i32,
-    /// The target field.
+    /// Target descriptor.
     pub target: i32,
 }
 
 /// Replay struct for ProcessFdActionOpen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessFdActionOpenReplayRecord {
-    /// The kind field.
+    /// Discriminator for this fd action variant.
     pub kind: String,
-    /// The target field.
+    /// Target descriptor.
     pub target: i32,
-    /// The path field.
+    /// Path used by open action.
     pub path: fs::OsPathReplayRecord,
-    /// The flags field.
+    /// Open flags for open action.
     pub flags: fs::OpenFlags,
-    /// The mode field.
+    /// Open mode for open action.
     pub mode: fs::FileMode,
 }
 
 /// Replay struct for ProcessSpawnOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessSpawnOptionsReplayRecord {
-    /// The cwd field.
+    /// Current directory for the child process.
     pub cwd: fs::OsPathReplayRecord,
-    /// The detached field.
+    /// Whether to create a detached child process.
     pub detached: bool,
-    /// The reset_signals field.
+    /// Whether to reset signal dispositions in the child.
     pub reset_signals: bool,
-    /// The new_process_group field.
+    /// Whether to create a new process group.
     pub new_process_group: bool,
 }
 
 /// Replay struct for ProcessStdioDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioDescriptorReplayRecord {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: String,
-    /// The descriptor field.
+    /// Numeric descriptor used for this stdio lane.
     pub descriptor: i32,
 }
 
 /// Replay struct for ProcessStdioFile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioFileReplayRecord {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: String,
-    /// The file field.
+    /// File handle used for this stdio lane.
     pub file: resource::FileHandle,
 }
 
 /// Replay struct for ProcessStdioInherit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioInheritReplayRecord {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: String,
 }
 
 /// Replay struct for ProcessStdioNull.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioNullReplayRecord {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: String,
 }
 
 /// Replay struct for ProcessStdioPipe.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessStdioPipeReplayRecord {
-    /// The kind field.
+    /// Discriminator for this stdio variant.
     pub kind: String,
-    /// The pipe field.
+    /// Pipe handle used for this stdio lane.
     pub pipe: resource::PipeHandle,
 }
 
 /// Replay struct for ProcessWaitContinuedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitContinuedStatusReplayRecord {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
 }
 
 /// Replay struct for ProcessWaitExitedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitExitedStatusReplayRecord {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The exit_code field.
+    /// Exit code when available.
     pub exit_code: i32,
 }
 
 /// Replay struct for ProcessWaitRunningStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitRunningStatusReplayRecord {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
 }
 
 /// Replay struct for ProcessWaitSignaledStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitSignaledStatusReplayRecord {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The signal field.
+    /// Signal number when available.
     pub signal: Signal,
-    /// The core_dumped field.
+    /// Whether a core file was produced.
     pub core_dumped: bool,
 }
 
 /// Replay struct for ProcessWaitStoppedStatus.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProcessWaitStoppedStatusReplayRecord {
-    /// The kind field.
+    /// Discriminator for this wait-status variant.
     pub kind: String,
-    /// The pid field.
+    /// Child process identifier.
     pub pid: ProcessId,
-    /// The signal field.
+    /// Signal number when available.
     pub signal: Signal,
 }
 

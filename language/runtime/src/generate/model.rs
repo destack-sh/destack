@@ -159,6 +159,8 @@ pub(crate) struct BindingParameter {
 pub(crate) struct BindingField {
     /// Field name as declared in the source type.
     pub name: String,
+    /// Field documentation extracted from builtin sources.
+    pub documentation: Option<String>,
     /// Field binding type for generated wrappers.
     pub binding_type: BindingType,
 }

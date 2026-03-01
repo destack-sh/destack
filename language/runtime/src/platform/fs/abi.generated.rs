@@ -1115,9 +1115,9 @@ impl VmAggregateCodec for WatchEventAbi<VmAbi> {
 /// ABI struct for Dirent.
 #[repr(C)]
 pub struct DirentAbi<A: BindingAbi> {
-    /// The name field.
+    /// Entry name.
     pub name: platform_fs::OsPathAbi<A>,
-    /// The kind field.
+    /// Entry kind.
     pub kind: DirentKind,
 }
 
@@ -1187,7 +1187,7 @@ impl VmAggregateCodec for DirentAbi<VmAbi> {
 /// ABI struct for DirentNextEnd.
 #[repr(C)]
 pub struct DirentNextEndAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this incremental-read variant.
     pub kind: A::String,
 }
 
@@ -1256,9 +1256,9 @@ impl VmAggregateCodec for DirentNextEndAbi<VmAbi> {
 /// ABI struct for DirentNextEntry.
 #[repr(C)]
 pub struct DirentNextEntryAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this incremental-read variant.
     pub kind: A::String,
-    /// The entry field.
+    /// The current entry.
     pub entry: platform_fs::DirentAbi<A>,
 }
 
@@ -1333,11 +1333,11 @@ impl VmAggregateCodec for DirentNextEntryAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OpenOptions {
-    /// The flags field.
+    /// Open flags.
     pub flags: OpenFlags,
-    /// The mode field.
+    /// File mode for creation.
     pub mode: FileMode,
-    /// The resolve field.
+    /// Path resolution flags.
     pub resolve: OpenResolveFlags,
 }
 
@@ -1392,9 +1392,9 @@ impl VmAggregateCodec for OpenOptions {
 /// ABI struct for OsPathBytes.
 #[repr(C)]
 pub struct OsPathBytesAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this platform path variant.
     pub kind: A::String,
-    /// The bytes field.
+    /// Raw byte payload.
     pub bytes: platform_fs::PathBytesAbi<A>,
 }
 
@@ -1469,9 +1469,9 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
 /// ABI struct for OsPathUtf16.
 #[repr(C)]
 pub struct OsPathUtf16Abi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this platform path variant.
     pub kind: A::String,
-    /// The utf16 field.
+    /// UTF-16 payload.
     pub utf16: platform_fs::PathUtf16Abi<A>,
 }
 
@@ -1547,7 +1547,7 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SpliceCursor {
-    /// The offset field.
+    /// Cursor offset when active.
     pub offset: Option<FileOffset>,
 }
 
@@ -1597,33 +1597,33 @@ impl VmAggregateCodec for SpliceCursor {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Stat {
-    /// The dev field.
+    /// Device id.
     pub dev: u64,
-    /// The ino field.
+    /// Inode number.
     pub ino: u64,
-    /// The mode field.
+    /// File mode bits.
     pub mode: FileMode,
-    /// The nlink field.
+    /// Hard link count.
     pub nlink: u32,
-    /// The uid field.
+    /// User id of owner.
     pub uid: u32,
-    /// The gid field.
+    /// Group id of owner.
     pub gid: u32,
-    /// The rdev field.
+    /// Device id for special files.
     pub rdev: u64,
-    /// The size field.
+    /// File size in bytes.
     pub size: FileSize,
-    /// The blksize field.
+    /// Block size for filesystem I/O.
     pub blksize: u64,
-    /// The blocks field.
+    /// Number of allocated blocks.
     pub blocks: u64,
-    /// The atime_ns field.
+    /// Last access time in nanoseconds.
     pub atime_ns: u64,
-    /// The mtime_ns field.
+    /// Last modification time in nanoseconds.
     pub mtime_ns: u64,
-    /// The ctime_ns field.
+    /// Last status change time in nanoseconds.
     pub ctime_ns: u64,
-    /// The birthtime_ns field.
+    /// File creation time in nanoseconds.
     pub birthtime_ns: u64,
 }
 
@@ -1711,25 +1711,25 @@ impl VmAggregateCodec for Stat {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StatFs {
-    /// The bsize field.
+    /// Optimal transfer block size.
     pub bsize: u64,
-    /// The frsize field.
+    /// Fragment size.
     pub frsize: u64,
-    /// The blocks field.
+    /// Total data blocks in filesystem.
     pub blocks: u64,
-    /// The bfree field.
+    /// Free blocks in filesystem.
     pub bfree: u64,
-    /// The bavail field.
+    /// Free blocks available to unprivileged user.
     pub bavail: u64,
-    /// The files field.
+    /// Total file nodes in filesystem.
     pub files: u64,
-    /// The ffree field.
+    /// Free file nodes in filesystem.
     pub ffree: u64,
-    /// The fsid field.
+    /// Filesystem ID.
     pub fsid: u64,
-    /// The flags field.
+    /// Mount flags.
     pub flags: StatFsFlags,
-    /// The namelen field.
+    /// Maximum filename length.
     pub namelen: u64,
 }
 
@@ -1805,41 +1805,41 @@ impl VmAggregateCodec for StatFs {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Statx {
-    /// The mask field.
+    /// Mask of fields populated by the kernel.
     pub mask: StatxMask,
-    /// The blksize field.
+    /// Block size for filesystem I/O.
     pub blksize: u32,
-    /// The mount_id field.
+    /// Mount identifier.
     pub mount_id: u64,
-    /// The dev_major field.
+    /// Device major number.
     pub dev_major: u32,
-    /// The dev_minor field.
+    /// Device minor number.
     pub dev_minor: u32,
-    /// The ino field.
+    /// Inode number.
     pub ino: u64,
-    /// The mode field.
+    /// File mode bits.
     pub mode: FileMode,
-    /// The nlink field.
+    /// Hard link count.
     pub nlink: u32,
-    /// The uid field.
+    /// User id of owner.
     pub uid: u32,
-    /// The gid field.
+    /// Group id of owner.
     pub gid: u32,
-    /// The rdev_major field.
+    /// Device major for special files.
     pub rdev_major: u32,
-    /// The rdev_minor field.
+    /// Device minor for special files.
     pub rdev_minor: u32,
-    /// The size field.
+    /// File size in bytes.
     pub size: FileSize,
-    /// The blocks field.
+    /// Number of allocated blocks.
     pub blocks: u64,
-    /// The atime_ns field.
+    /// Last access time in nanoseconds.
     pub atime_ns: u64,
-    /// The btime_ns field.
+    /// Creation time in nanoseconds.
     pub btime_ns: u64,
-    /// The ctime_ns field.
+    /// Last status change time in nanoseconds.
     pub ctime_ns: u64,
-    /// The mtime_ns field.
+    /// Last modification time in nanoseconds.
     pub mtime_ns: u64,
 }
 
@@ -1937,9 +1937,9 @@ impl VmAggregateCodec for Statx {
 /// ABI struct for WatchBatch.
 #[repr(C)]
 pub struct WatchBatchAbi<A: BindingAbi> {
-    /// The events field.
+    /// Event records returned by the backend.
     pub events: A::Array<platform_fs::WatchEventAbi<A>>,
-    /// The overflowed field.
+    /// Whether the backend reported overflow.
     pub overflowed: bool,
 }
 
@@ -2013,11 +2013,11 @@ impl VmAggregateCodec for WatchBatchAbi<VmAbi> {
 /// ABI struct for WatchCreateEvent.
 #[repr(C)]
 pub struct WatchCreateEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Created path.
     pub path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2099,7 +2099,7 @@ impl VmAggregateCodec for WatchCreateEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WatchEventMetadata {
-    /// The cookie field.
+    /// Backend event cookie when available.
     pub cookie: u64,
 }
 
@@ -2148,11 +2148,11 @@ impl VmAggregateCodec for WatchEventMetadata {
 /// ABI struct for WatchMetadataEvent.
 #[repr(C)]
 pub struct WatchMetadataEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Metadata-changed path.
     pub path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2233,11 +2233,11 @@ impl VmAggregateCodec for WatchMetadataEventAbi<VmAbi> {
 /// ABI struct for WatchModifyEvent.
 #[repr(C)]
 pub struct WatchModifyEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Modified path.
     pub path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2319,11 +2319,11 @@ impl VmAggregateCodec for WatchModifyEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct WatchOptions {
-    /// The mask field.
+    /// Event mask to subscribe to.
     pub mask: WatchMask,
-    /// The recursive field.
+    /// Whether recursive watching is requested.
     pub recursive: bool,
-    /// The follow_symlinks field.
+    /// Whether to follow symlinks.
     pub follow_symlinks: bool,
 }
 
@@ -2378,9 +2378,9 @@ impl VmAggregateCodec for WatchOptions {
 /// ABI struct for WatchOverflowEvent.
 #[repr(C)]
 pub struct WatchOverflowEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
 }
 
@@ -2458,11 +2458,11 @@ impl VmAggregateCodec for WatchOverflowEventAbi<VmAbi> {
 /// ABI struct for WatchRemoveEvent.
 #[repr(C)]
 pub struct WatchRemoveEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Removed path.
     pub path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2543,13 +2543,13 @@ impl VmAggregateCodec for WatchRemoveEventAbi<VmAbi> {
 /// ABI struct for WatchRenameEvent.
 #[repr(C)]
 pub struct WatchRenameEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Source path for rename.
     pub path: platform_fs::OsPathAbi<A>,
-    /// The related_path field.
+    /// Destination or paired path for rename.
     pub related_path: platform_fs::OsPathAbi<A>,
 }
 
@@ -2634,118 +2634,118 @@ impl VmAggregateCodec for WatchRenameEventAbi<VmAbi> {
 /// Replay struct for Dirent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentReplayRecord {
-    /// The name field.
+    /// Entry name.
     pub name: OsPathReplayRecord,
-    /// The kind field.
+    /// Entry kind.
     pub kind: DirentKind,
 }
 
 /// Replay struct for DirentNextEnd.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentNextEndReplayRecord {
-    /// The kind field.
+    /// Discriminator for this incremental-read variant.
     pub kind: String,
 }
 
 /// Replay struct for DirentNextEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DirentNextEntryReplayRecord {
-    /// The kind field.
+    /// Discriminator for this incremental-read variant.
     pub kind: String,
-    /// The entry field.
+    /// The current entry.
     pub entry: DirentReplayRecord,
 }
 
 /// Replay struct for OsPathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathBytesReplayRecord {
-    /// The kind field.
+    /// Discriminator for this platform path variant.
     pub kind: String,
-    /// The bytes field.
+    /// Raw byte payload.
     pub bytes: Vec<u8>,
 }
 
 /// Replay struct for OsPathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OsPathUtf16ReplayRecord {
-    /// The kind field.
+    /// Discriminator for this platform path variant.
     pub kind: String,
-    /// The utf16 field.
+    /// UTF-16 payload.
     pub utf16: Vec<u16>,
 }
 
 /// Replay struct for WatchBatch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchBatchReplayRecord {
-    /// The events field.
+    /// Event records returned by the backend.
     pub events: Vec<WatchEventReplayRecord>,
-    /// The overflowed field.
+    /// Whether the backend reported overflow.
     pub overflowed: bool,
 }
 
 /// Replay struct for WatchCreateEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchCreateEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Created path.
     pub path: OsPathReplayRecord,
 }
 
 /// Replay struct for WatchMetadataEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchMetadataEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Metadata-changed path.
     pub path: OsPathReplayRecord,
 }
 
 /// Replay struct for WatchModifyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchModifyEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Modified path.
     pub path: OsPathReplayRecord,
 }
 
 /// Replay struct for WatchOverflowEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchOverflowEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
 }
 
 /// Replay struct for WatchRemoveEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchRemoveEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Removed path.
     pub path: OsPathReplayRecord,
 }
 
 /// Replay struct for WatchRenameEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WatchRenameEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this watch event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: WatchEventMetadata,
-    /// The path field.
+    /// Source path for rename.
     pub path: OsPathReplayRecord,
-    /// The related_path field.
+    /// Destination or paired path for rename.
     pub related_path: OsPathReplayRecord,
 }
 

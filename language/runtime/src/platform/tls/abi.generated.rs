@@ -220,15 +220,15 @@ impl VmValueCodec for TlsVersion {
 /// ABI struct for TlsContextOptions.
 #[repr(C)]
 pub struct TlsContextOptionsAbi<A: BindingAbi> {
-    /// The role field.
+    /// Client or server role.
     pub role: TlsRole,
-    /// The min_version field.
+    /// Minimum protocol version.
     pub min_version: TlsVersion,
-    /// The max_version field.
+    /// Maximum protocol version.
     pub max_version: TlsVersion,
-    /// The verify_peer field.
+    /// Require peer certificate validation.
     pub verify_peer: bool,
-    /// The alpn_protocols field.
+    /// Application layer protocol identifiers in preference order.
     pub alpn_protocols: A::Slice<A::Slice<u8>>,
 }
 
@@ -316,14 +316,14 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
 /// Replay struct for TlsContextOptions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TlsContextOptionsReplayRecord {
-    /// The role field.
+    /// Client or server role.
     pub role: TlsRole,
-    /// The min_version field.
+    /// Minimum protocol version.
     pub min_version: TlsVersion,
-    /// The max_version field.
+    /// Maximum protocol version.
     pub max_version: TlsVersion,
-    /// The verify_peer field.
+    /// Require peer certificate validation.
     pub verify_peer: bool,
-    /// The alpn_protocols field.
+    /// Application layer protocol identifiers in preference order.
     pub alpn_protocols: Vec<Vec<u8>>,
 }

@@ -717,13 +717,13 @@ impl VmAggregateCodec for UsbHotplugEventAbi<VmAbi> {
 /// ABI struct for BluetoothAdapterDescriptor.
 #[repr(C)]
 pub struct BluetoothAdapterDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable adapter identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host-visible adapter name.
     pub name: A::String,
-    /// The powered field.
+    /// Whether the adapter is powered.
     pub powered: bool,
-    /// The low_energy field.
+    /// Whether the adapter supports Low Energy mode.
     pub low_energy: bool,
 }
 
@@ -804,15 +804,15 @@ impl VmAggregateCodec for BluetoothAdapterDescriptorAbi<VmAbi> {
 /// ABI struct for BluetoothAdvertisementData.
 #[repr(C)]
 pub struct BluetoothAdvertisementDataAbi<A: BindingAbi> {
-    /// The local_name field.
+    /// Advertised local name when available.
     pub local_name: A::String,
-    /// The tx_power field.
+    /// Advertised transmit power in dBm when available.
     pub tx_power: i16,
-    /// The service_uuids field.
+    /// Service UUID list.
     pub service_uuids: A::Array<A::String>,
-    /// The manufacturer_data field.
+    /// Manufacturer payload entries.
     pub manufacturer_data: A::Array<platform_device::BluetoothAdvertisementManufacturerDataAbi<A>>,
-    /// The service_data field.
+    /// Service payload entries.
     pub service_data: A::Array<platform_device::BluetoothAdvertisementServiceDataAbi<A>>,
 }
 
@@ -898,9 +898,9 @@ impl VmAggregateCodec for BluetoothAdvertisementDataAbi<VmAbi> {
 /// ABI struct for BluetoothAdvertisementManufacturerData.
 #[repr(C)]
 pub struct BluetoothAdvertisementManufacturerDataAbi<A: BindingAbi> {
-    /// The company_id field.
+    /// Bluetooth company identifier.
     pub company_id: u16,
-    /// The data field.
+    /// Manufacturer payload bytes.
     pub data: A::Slice<u8>,
 }
 
@@ -975,9 +975,9 @@ impl VmAggregateCodec for BluetoothAdvertisementManufacturerDataAbi<VmAbi> {
 /// ABI struct for BluetoothAdvertisementServiceData.
 #[repr(C)]
 pub struct BluetoothAdvertisementServiceDataAbi<A: BindingAbi> {
-    /// The service_uuid field.
+    /// Service UUID.
     pub service_uuid: A::String,
-    /// The data field.
+    /// Service payload bytes.
     pub data: A::Slice<u8>,
 }
 
@@ -1054,23 +1054,23 @@ impl VmAggregateCodec for BluetoothAdvertisementServiceDataAbi<VmAbi> {
 /// ABI struct for BluetoothDeviceDescriptor.
 #[repr(C)]
 pub struct BluetoothDeviceDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable device identifier.
     pub id: A::String,
-    /// The address field.
+    /// Device address string.
     pub address: A::String,
-    /// The name field.
+    /// Host-visible device name when available.
     pub name: A::String,
-    /// The rssi field.
+    /// Signal strength in dBm when available.
     pub rssi: i32,
-    /// The paired field.
+    /// Whether the device is currently paired.
     pub paired: bool,
-    /// The pair_state field.
+    /// Pairing state when reported by host.
     pub pair_state: BluetoothPairState,
-    /// The connected field.
+    /// Whether the device is currently connected.
     pub connected: bool,
-    /// The connectable field.
+    /// Whether this advertisement indicates connectable state.
     pub connectable: bool,
-    /// The advertisement field.
+    /// Advertisement payload.
     pub advertisement: platform_device::BluetoothAdvertisementDataAbi<A>,
 }
 
@@ -1177,11 +1177,11 @@ impl VmAggregateCodec for BluetoothDeviceDescriptorAbi<VmAbi> {
 /// ABI struct for BluetoothGattCharacteristicDescriptor.
 #[repr(C)]
 pub struct BluetoothGattCharacteristicDescriptorAbi<A: BindingAbi> {
-    /// The service_uuid field.
+    /// Parent service UUID.
     pub service_uuid: A::String,
-    /// The uuid field.
+    /// Characteristic UUID.
     pub uuid: A::String,
-    /// The properties field.
+    /// Characteristic property bitmask.
     pub properties: u32,
 }
 
@@ -1263,11 +1263,11 @@ impl VmAggregateCodec for BluetoothGattCharacteristicDescriptorAbi<VmAbi> {
 /// ABI struct for BluetoothGattDescriptorDescriptor.
 #[repr(C)]
 pub struct BluetoothGattDescriptorDescriptorAbi<A: BindingAbi> {
-    /// The service_uuid field.
+    /// Parent service UUID.
     pub service_uuid: A::String,
-    /// The characteristic_uuid field.
+    /// Parent characteristic UUID.
     pub characteristic_uuid: A::String,
-    /// The uuid field.
+    /// Descriptor UUID.
     pub uuid: A::String,
 }
 
@@ -1352,9 +1352,9 @@ impl VmAggregateCodec for BluetoothGattDescriptorDescriptorAbi<VmAbi> {
 /// ABI struct for BluetoothGattServiceDescriptor.
 #[repr(C)]
 pub struct BluetoothGattServiceDescriptorAbi<A: BindingAbi> {
-    /// The uuid field.
+    /// Service UUID.
     pub uuid: A::String,
-    /// The primary field.
+    /// Whether this service is primary.
     pub primary: bool,
 }
 
@@ -1428,13 +1428,13 @@ impl VmAggregateCodec for BluetoothGattServiceDescriptorAbi<VmAbi> {
 /// ABI struct for BluetoothGattValueEvent.
 #[repr(C)]
 pub struct BluetoothGattValueEventAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The service_uuid field.
+    /// Service UUID.
     pub service_uuid: A::String,
-    /// The characteristic_uuid field.
+    /// Characteristic UUID.
     pub characteristic_uuid: A::String,
-    /// The value field.
+    /// Characteristic value bytes.
     pub value: A::Slice<u8>,
 }
 
@@ -1522,21 +1522,21 @@ impl VmAggregateCodec for BluetoothGattValueEventAbi<VmAbi> {
 /// ABI struct for BluetoothScanFilter.
 #[repr(C)]
 pub struct BluetoothScanFilterAbi<A: BindingAbi> {
-    /// The service_uuids field.
+    /// Service UUID filters.
     pub service_uuids: A::Array<A::String>,
-    /// The name_prefix field.
+    /// Device name prefix filter.
     pub name_prefix: A::String,
-    /// The allow_duplicates field.
+    /// Whether to include duplicate advertisements.
     pub allow_duplicates: bool,
-    /// The minimum_rssi field.
+    /// Minimum RSSI filter in dBm.
     pub minimum_rssi: i32,
-    /// The transport field.
+    /// Transport selector.
     pub transport: BluetoothTransport,
-    /// The scan_mode field.
+    /// Scan mode selector.
     pub scan_mode: BluetoothScanMode,
-    /// The primary_phy field.
+    /// Preferred primary PHY.
     pub primary_phy: BluetoothPhy,
-    /// The secondary_phy field.
+    /// Preferred secondary PHY.
     pub secondary_phy: BluetoothPhy,
 }
 
@@ -1640,17 +1640,17 @@ impl VmAggregateCodec for BluetoothScanFilterAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CameraControlRange {
-    /// The control field.
+    /// Control selector.
     pub control: CameraControl,
-    /// The minimum field.
+    /// Minimum normalized control value.
     pub minimum: f64,
-    /// The maximum field.
+    /// Maximum normalized control value.
     pub maximum: f64,
-    /// The default_value field.
+    /// Default normalized control value.
     pub default_value: f64,
-    /// The step field.
+    /// Step size for discrete controls, zero for continuous controls.
     pub step: f64,
-    /// The auto_supported field.
+    /// Whether host auto mode is supported for this control.
     pub auto_supported: bool,
 }
 
@@ -1716,15 +1716,15 @@ impl VmAggregateCodec for CameraControlRange {
 /// ABI struct for CameraDeviceDescriptor.
 #[repr(C)]
 pub struct CameraDeviceDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable camera endpoint identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: A::String,
-    /// The manufacturer field.
+    /// Host-visible endpoint manufacturer string when available.
     pub manufacturer: A::String,
-    /// The front_facing field.
+    /// Whether the endpoint is front-facing.
     pub front_facing: bool,
-    /// The depth_capable field.
+    /// Whether the endpoint is depth-capable.
     pub depth_capable: bool,
 }
 
@@ -1814,23 +1814,24 @@ impl VmAggregateCodec for CameraDeviceDescriptorAbi<VmAbi> {
 /// ABI struct for CameraFrame.
 #[repr(C)]
 pub struct CameraFrameAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Frame timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this stream.
     pub sequence: u64,
-    /// The width field.
+    /// Frame width in pixels.
     pub width: u32,
-    /// The height field.
+    /// Frame height in pixels.
     pub height: u32,
-    /// The format field.
+    /// Frame pixel format.
     pub format: CameraPixelFormat,
-    /// The color_space field.
+    /// Frame color-space metadata.
     pub color_space: CameraColorSpace,
-    /// The planes field.
+    /// Plane layout descriptors for this frame.
+    /// Packed formats use one plane.
     pub planes: A::Slice<CameraPlaneLayout>,
-    /// The metadata field.
+    /// Frame metadata payload when available.
     pub metadata: CameraFrameMetadata,
-    /// The bytes field.
+    /// Frame byte payload.
     pub bytes: A::Slice<u8>,
 }
 
@@ -1937,15 +1938,15 @@ impl VmAggregateCodec for CameraFrameAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CameraFrameMetadata {
-    /// The exposure_time_ns field.
+    /// Exposure time in nanoseconds when available.
     pub exposure_time_ns: u64,
-    /// The sensor_iso field.
+    /// Sensor sensitivity ISO value when available.
     pub sensor_iso: u32,
-    /// The white_balance_kelvin field.
+    /// White-balance color temperature in kelvin when available.
     pub white_balance_kelvin: u32,
-    /// The focus_distance_diopters field.
+    /// Lens focus distance in diopters when available.
     pub focus_distance_diopters: f64,
-    /// The zoom_ratio field.
+    /// Applied zoom ratio when available.
     pub zoom_ratio: f64,
 }
 
@@ -2009,13 +2010,13 @@ impl VmAggregateCodec for CameraFrameMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CameraPlaneLayout {
-    /// The offset_bytes field.
+    /// Plane byte offset in `CameraFrame.bytes`.
     pub offset_bytes: u32,
-    /// The length_bytes field.
+    /// Plane byte length in `CameraFrame.bytes`.
     pub length_bytes: u32,
-    /// The row_stride_bytes field.
+    /// Plane row stride in bytes.
     pub row_stride_bytes: u32,
-    /// The pixel_stride_bytes field.
+    /// Plane pixel stride in bytes.
     pub pixel_stride_bytes: u32,
 }
 
@@ -2075,15 +2076,15 @@ impl VmAggregateCodec for CameraPlaneLayout {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CameraStreamCapability {
-    /// The config field.
+    /// Stream configuration payload.
     pub config: CameraStreamConfig,
-    /// The minimum_frame_rate_milli_hz field.
+    /// Minimum supported frame rate in milli-frames-per-second.
     pub minimum_frame_rate_milli_hz: u32,
-    /// The maximum_frame_rate_milli_hz field.
+    /// Maximum supported frame rate in milli-frames-per-second.
     pub maximum_frame_rate_milli_hz: u32,
-    /// The dynamic_range_mask field.
+    /// Dynamic-range mode bitmask.
     pub dynamic_range_mask: u32,
-    /// The stabilization_mode_mask field.
+    /// Stabilization-mode bitmask.
     pub stabilization_mode_mask: u32,
 }
 
@@ -2155,13 +2156,13 @@ impl VmAggregateCodec for CameraStreamCapability {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CameraStreamConfig {
-    /// The width field.
+    /// Frame width in pixels.
     pub width: u32,
-    /// The height field.
+    /// Frame height in pixels.
     pub height: u32,
-    /// The frame_rate_milli_hz field.
+    /// Frame rate in milli-frames-per-second.
     pub frame_rate_milli_hz: u32,
-    /// The format field.
+    /// Pixel format selector.
     pub format: CameraPixelFormat,
 }
 
@@ -2220,11 +2221,11 @@ impl VmAggregateCodec for CameraStreamConfig {
 /// ABI struct for SerialErrorEvent.
 #[repr(C)]
 pub struct SerialErrorEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Error payload.
     pub payload: SerialErrorPayload,
 }
 
@@ -2307,9 +2308,9 @@ impl VmAggregateCodec for SerialErrorEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialErrorPayload {
-    /// The code field.
+    /// Backend-specific error code.
     pub code: i32,
-    /// The detail field.
+    /// Backend-specific detail value.
     pub detail: i32,
 }
 
@@ -2361,9 +2362,9 @@ impl VmAggregateCodec for SerialErrorPayload {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialEventMetadata {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this serial event stream.
     pub sequence: u64,
 }
 
@@ -2415,19 +2416,19 @@ impl VmAggregateCodec for SerialEventMetadata {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialPortConfig {
-    /// The baud_rate field.
+    /// Baud rate in symbols per second.
     pub baud_rate: u32,
-    /// The data_bits field.
+    /// Number of data bits per frame.
     pub data_bits: u8,
-    /// The parity field.
+    /// Parity mode.
     pub parity: SerialParity,
-    /// The stop_bits field.
+    /// Stop-bit mode.
     pub stop_bits: SerialStopBits,
-    /// The flow_control field.
+    /// Flow-control mode.
     pub flow_control: SerialFlowControl,
-    /// The read_timeout_ns field.
+    /// Read timeout in nanoseconds.
     pub read_timeout_ns: u64,
-    /// The write_timeout_ns field.
+    /// Write timeout in nanoseconds.
     pub write_timeout_ns: u64,
 }
 
@@ -2501,17 +2502,17 @@ impl VmAggregateCodec for SerialPortConfig {
 /// ABI struct for SerialPortDescriptor.
 #[repr(C)]
 pub struct SerialPortDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable serial endpoint identifier.
     pub id: A::String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: A::String,
-    /// The path field.
+    /// Device path for the endpoint.
     pub path: platform_fs::OsPathAbi<A>,
-    /// The usb_vendor_id field.
+    /// USB vendor identifier when the endpoint is USB backed.
     pub usb_vendor_id: u16,
-    /// The usb_product_id field.
+    /// USB product identifier when the endpoint is USB backed.
     pub usb_product_id: u16,
-    /// The usb_backed field.
+    /// Whether the endpoint is USB backed.
     pub usb_backed: bool,
 }
 
@@ -2601,11 +2602,11 @@ impl VmAggregateCodec for SerialPortDescriptorAbi<VmAbi> {
 /// ABI struct for SerialReadReadyEvent.
 #[repr(C)]
 pub struct SerialReadReadyEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Read-ready payload.
     pub payload: SerialReadReadyPayload,
 }
 
@@ -2691,7 +2692,7 @@ impl VmAggregateCodec for SerialReadReadyEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialReadReadyPayload {
-    /// The available_bytes field.
+    /// Estimated number of readable bytes.
     pub available_bytes: u32,
 }
 
@@ -2741,11 +2742,11 @@ impl VmAggregateCodec for SerialReadReadyPayload {
 /// ABI struct for SerialSignalsChangedEvent.
 #[repr(C)]
 pub struct SerialSignalsChangedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Signal-line payload.
     pub payload: SerialSignalsChangedPayload,
 }
 
@@ -2833,7 +2834,7 @@ impl VmAggregateCodec for SerialSignalsChangedEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialSignalsChangedPayload {
-    /// The signal_bits field.
+    /// Current serial signal-line bitmask.
     pub signal_bits: u32,
 }
 
@@ -2882,11 +2883,11 @@ impl VmAggregateCodec for SerialSignalsChangedPayload {
 /// ABI struct for SerialWriteReadyEvent.
 #[repr(C)]
 pub struct SerialWriteReadyEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Write-ready payload.
     pub payload: SerialWriteReadyPayload,
 }
 
@@ -2973,7 +2974,7 @@ impl VmAggregateCodec for SerialWriteReadyEventAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SerialWriteReadyPayload {
-    /// The writable_bytes field.
+    /// Estimated number of writable bytes.
     pub writable_bytes: u32,
 }
 
@@ -3023,13 +3024,13 @@ impl VmAggregateCodec for SerialWriteReadyPayload {
 /// ABI struct for UsbConfigurationDescriptor.
 #[repr(C)]
 pub struct UsbConfigurationDescriptorAbi<A: BindingAbi> {
-    /// The value field.
+    /// Configuration value.
     pub value: u8,
-    /// The attributes field.
+    /// Configuration attributes bitmask.
     pub attributes: u8,
-    /// The max_power_milli_amps field.
+    /// Maximum bus power in milliamps.
     pub max_power_milli_amps: u16,
-    /// The interfaces field.
+    /// Interface descriptors for this configuration.
     pub interfaces: A::Slice<platform_device::UsbInterfaceDescriptorAbi<A>>,
 }
 
@@ -3116,15 +3117,15 @@ impl VmAggregateCodec for UsbConfigurationDescriptorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UsbControlSetup {
-    /// The request_type field.
+    /// bmRequestType field.
     pub request_type: u8,
-    /// The request field.
+    /// bRequest field.
     pub request: u8,
-    /// The value field.
+    /// wValue field.
     pub value: u16,
-    /// The index field.
+    /// wIndex field.
     pub index: u16,
-    /// The length field.
+    /// wLength field.
     pub length: u16,
 }
 
@@ -3184,23 +3185,23 @@ impl VmAggregateCodec for UsbControlSetup {
 /// ABI struct for UsbDeviceDescriptor.
 #[repr(C)]
 pub struct UsbDeviceDescriptorAbi<A: BindingAbi> {
-    /// The id field.
+    /// Stable USB device identifier.
     pub id: A::String,
-    /// The vendor_id field.
+    /// USB vendor identifier.
     pub vendor_id: u16,
-    /// The product_id field.
+    /// USB product identifier.
     pub product_id: u16,
-    /// The class_code field.
+    /// Device class code.
     pub class_code: u8,
-    /// The subclass_code field.
+    /// Device subclass code.
     pub subclass_code: u8,
-    /// The protocol_code field.
+    /// Device protocol code.
     pub protocol_code: u8,
-    /// The manufacturer field.
+    /// Device manufacturer string when available.
     pub manufacturer: A::String,
-    /// The product field.
+    /// Device product string when available.
     pub product: A::String,
-    /// The serial_number field.
+    /// Device serial-number string when available.
     pub serial_number: A::String,
 }
 
@@ -3305,13 +3306,13 @@ impl VmAggregateCodec for UsbDeviceDescriptorAbi<VmAbi> {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct UsbEndpointDescriptor {
-    /// The address field.
+    /// Endpoint address.
     pub address: u8,
-    /// The transfer_type field.
+    /// Endpoint transfer type code.
     pub transfer_type: u8,
-    /// The max_packet_size field.
+    /// Endpoint max-packet size in bytes.
     pub max_packet_size: u16,
-    /// The interval field.
+    /// Endpoint polling interval.
     pub interval: u8,
 }
 
@@ -3369,9 +3370,9 @@ impl VmAggregateCodec for UsbEndpointDescriptor {
 /// ABI struct for UsbHotplugAttachedEvent.
 #[repr(C)]
 pub struct UsbHotplugAttachedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this usb hotplug event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_device::UsbHotplugEventMetadataAbi<A>,
 }
 
@@ -3450,9 +3451,9 @@ impl VmAggregateCodec for UsbHotplugAttachedEventAbi<VmAbi> {
 /// ABI struct for UsbHotplugDetachedEvent.
 #[repr(C)]
 pub struct UsbHotplugDetachedEventAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this usb hotplug event variant.
     pub kind: A::String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: platform_device::UsbHotplugEventMetadataAbi<A>,
 }
 
@@ -3531,11 +3532,11 @@ impl VmAggregateCodec for UsbHotplugDetachedEventAbi<VmAbi> {
 /// ABI struct for UsbHotplugEventMetadata.
 #[repr(C)]
 pub struct UsbHotplugEventMetadataAbi<A: BindingAbi> {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this watch stream.
     pub sequence: u64,
-    /// The device field.
+    /// Hotplug device descriptor payload.
     pub device: platform_device::UsbDeviceDescriptorAbi<A>,
 }
 
@@ -3612,17 +3613,17 @@ impl VmAggregateCodec for UsbHotplugEventMetadataAbi<VmAbi> {
 /// ABI struct for UsbInterfaceDescriptor.
 #[repr(C)]
 pub struct UsbInterfaceDescriptorAbi<A: BindingAbi> {
-    /// The number field.
+    /// Interface number.
     pub number: u8,
-    /// The alternate_setting field.
+    /// Alternate setting number.
     pub alternate_setting: u8,
-    /// The class_code field.
+    /// Interface class code.
     pub class_code: u8,
-    /// The subclass_code field.
+    /// Interface subclass code.
     pub subclass_code: u8,
-    /// The protocol_code field.
+    /// Interface protocol code.
     pub protocol_code: u8,
-    /// The endpoints field.
+    /// Endpoints for this interface.
     pub endpoints: A::Slice<UsbEndpointDescriptor>,
 }
 
@@ -3714,11 +3715,11 @@ impl VmAggregateCodec for UsbInterfaceDescriptorAbi<VmAbi> {
 /// ABI struct for UsbIsochronousTransferResult.
 #[repr(C)]
 pub struct UsbIsochronousTransferResultAbi<A: BindingAbi> {
-    /// The bytes field.
+    /// Flattened transfer bytes for all packets.
     pub bytes: A::Slice<u8>,
-    /// The packet_actual_lengths field.
+    /// Per-packet actual transfer lengths.
     pub packet_actual_lengths: A::Slice<u32>,
-    /// The packet_statuses field.
+    /// Per-packet backend status codes.
     pub packet_statuses: A::Slice<i32>,
 }
 
@@ -3800,13 +3801,13 @@ impl VmAggregateCodec for UsbIsochronousTransferResultAbi<VmAbi> {
 /// ABI struct for UsbStringDescriptor.
 #[repr(C)]
 pub struct UsbStringDescriptorAbi<A: BindingAbi> {
-    /// The language_id field.
+    /// Language identifier used for string reads.
     pub language_id: u16,
-    /// The manufacturer field.
+    /// Manufacturer string value when available.
     pub manufacturer: A::String,
-    /// The product field.
+    /// Product string value when available.
     pub product: A::String,
-    /// The serial_number field.
+    /// Serial-number string value when available.
     pub serial_number: A::String,
 }
 
@@ -3894,339 +3895,340 @@ impl VmAggregateCodec for UsbStringDescriptorAbi<VmAbi> {
 /// Replay struct for BluetoothAdapterDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothAdapterDescriptorReplayRecord {
-    /// The id field.
+    /// Stable adapter identifier.
     pub id: String,
-    /// The name field.
+    /// Host-visible adapter name.
     pub name: String,
-    /// The powered field.
+    /// Whether the adapter is powered.
     pub powered: bool,
-    /// The low_energy field.
+    /// Whether the adapter supports Low Energy mode.
     pub low_energy: bool,
 }
 
 /// Replay struct for BluetoothAdvertisementData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothAdvertisementDataReplayRecord {
-    /// The local_name field.
+    /// Advertised local name when available.
     pub local_name: String,
-    /// The tx_power field.
+    /// Advertised transmit power in dBm when available.
     pub tx_power: i16,
-    /// The service_uuids field.
+    /// Service UUID list.
     pub service_uuids: Vec<String>,
-    /// The manufacturer_data field.
+    /// Manufacturer payload entries.
     pub manufacturer_data: Vec<BluetoothAdvertisementManufacturerDataReplayRecord>,
-    /// The service_data field.
+    /// Service payload entries.
     pub service_data: Vec<BluetoothAdvertisementServiceDataReplayRecord>,
 }
 
 /// Replay struct for BluetoothAdvertisementManufacturerData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothAdvertisementManufacturerDataReplayRecord {
-    /// The company_id field.
+    /// Bluetooth company identifier.
     pub company_id: u16,
-    /// The data field.
+    /// Manufacturer payload bytes.
     pub data: Vec<u8>,
 }
 
 /// Replay struct for BluetoothAdvertisementServiceData.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothAdvertisementServiceDataReplayRecord {
-    /// The service_uuid field.
+    /// Service UUID.
     pub service_uuid: String,
-    /// The data field.
+    /// Service payload bytes.
     pub data: Vec<u8>,
 }
 
 /// Replay struct for BluetoothDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothDeviceDescriptorReplayRecord {
-    /// The id field.
+    /// Stable device identifier.
     pub id: String,
-    /// The address field.
+    /// Device address string.
     pub address: String,
-    /// The name field.
+    /// Host-visible device name when available.
     pub name: String,
-    /// The rssi field.
+    /// Signal strength in dBm when available.
     pub rssi: i32,
-    /// The paired field.
+    /// Whether the device is currently paired.
     pub paired: bool,
-    /// The pair_state field.
+    /// Pairing state when reported by host.
     pub pair_state: BluetoothPairState,
-    /// The connected field.
+    /// Whether the device is currently connected.
     pub connected: bool,
-    /// The connectable field.
+    /// Whether this advertisement indicates connectable state.
     pub connectable: bool,
-    /// The advertisement field.
+    /// Advertisement payload.
     pub advertisement: BluetoothAdvertisementDataReplayRecord,
 }
 
 /// Replay struct for BluetoothGattCharacteristicDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattCharacteristicDescriptorReplayRecord {
-    /// The service_uuid field.
+    /// Parent service UUID.
     pub service_uuid: String,
-    /// The uuid field.
+    /// Characteristic UUID.
     pub uuid: String,
-    /// The properties field.
+    /// Characteristic property bitmask.
     pub properties: u32,
 }
 
 /// Replay struct for BluetoothGattDescriptorDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattDescriptorDescriptorReplayRecord {
-    /// The service_uuid field.
+    /// Parent service UUID.
     pub service_uuid: String,
-    /// The characteristic_uuid field.
+    /// Parent characteristic UUID.
     pub characteristic_uuid: String,
-    /// The uuid field.
+    /// Descriptor UUID.
     pub uuid: String,
 }
 
 /// Replay struct for BluetoothGattServiceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattServiceDescriptorReplayRecord {
-    /// The uuid field.
+    /// Service UUID.
     pub uuid: String,
-    /// The primary field.
+    /// Whether this service is primary.
     pub primary: bool,
 }
 
 /// Replay struct for BluetoothGattValueEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothGattValueEventReplayRecord {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The service_uuid field.
+    /// Service UUID.
     pub service_uuid: String,
-    /// The characteristic_uuid field.
+    /// Characteristic UUID.
     pub characteristic_uuid: String,
-    /// The value field.
+    /// Characteristic value bytes.
     pub value: Vec<u8>,
 }
 
 /// Replay struct for BluetoothScanFilter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BluetoothScanFilterReplayRecord {
-    /// The service_uuids field.
+    /// Service UUID filters.
     pub service_uuids: Vec<String>,
-    /// The name_prefix field.
+    /// Device name prefix filter.
     pub name_prefix: String,
-    /// The allow_duplicates field.
+    /// Whether to include duplicate advertisements.
     pub allow_duplicates: bool,
-    /// The minimum_rssi field.
+    /// Minimum RSSI filter in dBm.
     pub minimum_rssi: i32,
-    /// The transport field.
+    /// Transport selector.
     pub transport: BluetoothTransport,
-    /// The scan_mode field.
+    /// Scan mode selector.
     pub scan_mode: BluetoothScanMode,
-    /// The primary_phy field.
+    /// Preferred primary PHY.
     pub primary_phy: BluetoothPhy,
-    /// The secondary_phy field.
+    /// Preferred secondary PHY.
     pub secondary_phy: BluetoothPhy,
 }
 
 /// Replay struct for CameraDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraDeviceDescriptorReplayRecord {
-    /// The id field.
+    /// Stable camera endpoint identifier.
     pub id: String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: String,
-    /// The manufacturer field.
+    /// Host-visible endpoint manufacturer string when available.
     pub manufacturer: String,
-    /// The front_facing field.
+    /// Whether the endpoint is front-facing.
     pub front_facing: bool,
-    /// The depth_capable field.
+    /// Whether the endpoint is depth-capable.
     pub depth_capable: bool,
 }
 
 /// Replay struct for CameraFrame.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraFrameReplayRecord {
-    /// The timestamp_ns field.
+    /// Frame timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this stream.
     pub sequence: u64,
-    /// The width field.
+    /// Frame width in pixels.
     pub width: u32,
-    /// The height field.
+    /// Frame height in pixels.
     pub height: u32,
-    /// The format field.
+    /// Frame pixel format.
     pub format: CameraPixelFormat,
-    /// The color_space field.
+    /// Frame color-space metadata.
     pub color_space: CameraColorSpace,
-    /// The planes field.
+    /// Plane layout descriptors for this frame.
+    /// Packed formats use one plane.
     pub planes: Vec<CameraPlaneLayout>,
-    /// The metadata field.
+    /// Frame metadata payload when available.
     pub metadata: CameraFrameMetadata,
-    /// The bytes field.
+    /// Frame byte payload.
     pub bytes: Vec<u8>,
 }
 
 /// Replay struct for SerialErrorEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialErrorEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Error payload.
     pub payload: SerialErrorPayload,
 }
 
 /// Replay struct for SerialPortDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialPortDescriptorReplayRecord {
-    /// The id field.
+    /// Stable serial endpoint identifier.
     pub id: String,
-    /// The name field.
+    /// Host-visible endpoint name.
     pub name: String,
-    /// The path field.
+    /// Device path for the endpoint.
     pub path: fs::OsPathReplayRecord,
-    /// The usb_vendor_id field.
+    /// USB vendor identifier when the endpoint is USB backed.
     pub usb_vendor_id: u16,
-    /// The usb_product_id field.
+    /// USB product identifier when the endpoint is USB backed.
     pub usb_product_id: u16,
-    /// The usb_backed field.
+    /// Whether the endpoint is USB backed.
     pub usb_backed: bool,
 }
 
 /// Replay struct for SerialReadReadyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialReadReadyEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Read-ready payload.
     pub payload: SerialReadReadyPayload,
 }
 
 /// Replay struct for SerialSignalsChangedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialSignalsChangedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Signal-line payload.
     pub payload: SerialSignalsChangedPayload,
 }
 
 /// Replay struct for SerialWriteReadyEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SerialWriteReadyEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this serial event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: SerialEventMetadata,
-    /// The payload field.
+    /// Write-ready payload.
     pub payload: SerialWriteReadyPayload,
 }
 
 /// Replay struct for UsbConfigurationDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbConfigurationDescriptorReplayRecord {
-    /// The value field.
+    /// Configuration value.
     pub value: u8,
-    /// The attributes field.
+    /// Configuration attributes bitmask.
     pub attributes: u8,
-    /// The max_power_milli_amps field.
+    /// Maximum bus power in milliamps.
     pub max_power_milli_amps: u16,
-    /// The interfaces field.
+    /// Interface descriptors for this configuration.
     pub interfaces: Vec<UsbInterfaceDescriptorReplayRecord>,
 }
 
 /// Replay struct for UsbDeviceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbDeviceDescriptorReplayRecord {
-    /// The id field.
+    /// Stable USB device identifier.
     pub id: String,
-    /// The vendor_id field.
+    /// USB vendor identifier.
     pub vendor_id: u16,
-    /// The product_id field.
+    /// USB product identifier.
     pub product_id: u16,
-    /// The class_code field.
+    /// Device class code.
     pub class_code: u8,
-    /// The subclass_code field.
+    /// Device subclass code.
     pub subclass_code: u8,
-    /// The protocol_code field.
+    /// Device protocol code.
     pub protocol_code: u8,
-    /// The manufacturer field.
+    /// Device manufacturer string when available.
     pub manufacturer: String,
-    /// The product field.
+    /// Device product string when available.
     pub product: String,
-    /// The serial_number field.
+    /// Device serial-number string when available.
     pub serial_number: String,
 }
 
 /// Replay struct for UsbHotplugAttachedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbHotplugAttachedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this usb hotplug event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: UsbHotplugEventMetadataReplayRecord,
 }
 
 /// Replay struct for UsbHotplugDetachedEvent.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbHotplugDetachedEventReplayRecord {
-    /// The kind field.
+    /// Discriminator for this usb hotplug event variant.
     pub kind: String,
-    /// The metadata field.
+    /// Shared event metadata.
     pub metadata: UsbHotplugEventMetadataReplayRecord,
 }
 
 /// Replay struct for UsbHotplugEventMetadata.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbHotplugEventMetadataReplayRecord {
-    /// The timestamp_ns field.
+    /// Event timestamp in nanoseconds.
     pub timestamp_ns: u64,
-    /// The sequence field.
+    /// Monotonic sequence number for this watch stream.
     pub sequence: u64,
-    /// The device field.
+    /// Hotplug device descriptor payload.
     pub device: UsbDeviceDescriptorReplayRecord,
 }
 
 /// Replay struct for UsbInterfaceDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbInterfaceDescriptorReplayRecord {
-    /// The number field.
+    /// Interface number.
     pub number: u8,
-    /// The alternate_setting field.
+    /// Alternate setting number.
     pub alternate_setting: u8,
-    /// The class_code field.
+    /// Interface class code.
     pub class_code: u8,
-    /// The subclass_code field.
+    /// Interface subclass code.
     pub subclass_code: u8,
-    /// The protocol_code field.
+    /// Interface protocol code.
     pub protocol_code: u8,
-    /// The endpoints field.
+    /// Endpoints for this interface.
     pub endpoints: Vec<UsbEndpointDescriptor>,
 }
 
 /// Replay struct for UsbIsochronousTransferResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbIsochronousTransferResultReplayRecord {
-    /// The bytes field.
+    /// Flattened transfer bytes for all packets.
     pub bytes: Vec<u8>,
-    /// The packet_actual_lengths field.
+    /// Per-packet actual transfer lengths.
     pub packet_actual_lengths: Vec<u32>,
-    /// The packet_statuses field.
+    /// Per-packet backend status codes.
     pub packet_statuses: Vec<i32>,
 }
 
 /// Replay struct for UsbStringDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsbStringDescriptorReplayRecord {
-    /// The language_id field.
+    /// Language identifier used for string reads.
     pub language_id: u16,
-    /// The manufacturer field.
+    /// Manufacturer string value when available.
     pub manufacturer: String,
-    /// The product field.
+    /// Product string value when available.
     pub product: String,
-    /// The serial_number field.
+    /// Serial-number string value when available.
     pub serial_number: String,
 }
 

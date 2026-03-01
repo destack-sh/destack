@@ -1012,11 +1012,11 @@ impl VmAggregateCodec for PlatformErrorAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextAudio.
 #[repr(C)]
 pub struct PlatformErrorContextAudioAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1095,15 +1095,15 @@ impl VmAggregateCodec for PlatformErrorContextAudioAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextDevice.
 #[repr(C)]
 pub struct PlatformErrorContextDeviceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: platform_error::PlatformPathPayloadAbi<A>,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: A::String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1190,11 +1190,11 @@ impl VmAggregateCodec for PlatformErrorContextDeviceAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextDisplay.
 #[repr(C)]
 pub struct PlatformErrorContextDisplayAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1273,13 +1273,13 @@ impl VmAggregateCodec for PlatformErrorContextDisplayAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextFfi.
 #[repr(C)]
 pub struct PlatformErrorContextFfiAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The library field.
+    /// Optional FFI library name.
     pub library: A::String,
-    /// The symbol field.
+    /// Optional FFI symbol name.
     pub symbol: A::String,
 }
 
@@ -1362,15 +1362,15 @@ impl VmAggregateCodec for PlatformErrorContextFfiAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextGeneric.
 #[repr(C)]
 pub struct PlatformErrorContextGenericAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The argument field.
+    /// Optional argument name.
     pub argument: A::String,
-    /// The pointer field.
+    /// Optional pointer label.
     pub pointer: A::String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1457,11 +1457,11 @@ impl VmAggregateCodec for PlatformErrorContextGenericAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextGpu.
 #[repr(C)]
 pub struct PlatformErrorContextGpuAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1540,19 +1540,19 @@ impl VmAggregateCodec for PlatformErrorContextGpuAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextIo.
 #[repr(C)]
 pub struct PlatformErrorContextIoAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: platform_error::PlatformPathPayloadAbi<A>,
-    /// The dest field.
+    /// Optional destination path payload.
     pub dest: platform_error::PlatformPathPayloadAbi<A>,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: A::String,
-    /// The dest_text field.
+    /// Optional destination path text fallback.
     pub dest_text: A::String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
 }
 
@@ -1646,13 +1646,13 @@ impl VmAggregateCodec for PlatformErrorContextIoAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextIoDriver.
 #[repr(C)]
 pub struct PlatformErrorContextIoDriverAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: A::String,
 }
 
@@ -1734,15 +1734,15 @@ impl VmAggregateCodec for PlatformErrorContextIoDriverAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextIpc.
 #[repr(C)]
 pub struct PlatformErrorContextIpcAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: platform_error::PlatformPathPayloadAbi<A>,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: A::String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
 }
 
@@ -1828,15 +1828,15 @@ impl VmAggregateCodec for PlatformErrorContextIpcAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextNet.
 #[repr(C)]
 pub struct PlatformErrorContextNetAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The address field.
+    /// Optional network address text.
     pub address: A::String,
-    /// The port field.
+    /// Optional network port.
     pub port: u16,
-    /// The hostname field.
+    /// Optional host name.
     pub hostname: A::String,
 }
 
@@ -1922,15 +1922,15 @@ impl VmAggregateCodec for PlatformErrorContextNetAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextProcess.
 #[repr(C)]
 pub struct PlatformErrorContextProcessAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The pid field.
+    /// Optional process id.
     pub pid: u64,
-    /// The signal field.
+    /// Optional signal name.
     pub signal: A::String,
-    /// The exit_code field.
+    /// Optional exit code.
     pub exit_code: i32,
 }
 
@@ -2015,13 +2015,13 @@ impl VmAggregateCodec for PlatformErrorContextProcessAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextResource.
 #[repr(C)]
 pub struct PlatformErrorContextResourceAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The resource_id field.
+    /// Optional resource id.
     pub resource_id: u64,
-    /// The resource_kind field.
+    /// Optional resource kind.
     pub resource_kind: A::String,
 }
 
@@ -2106,13 +2106,13 @@ impl VmAggregateCodec for PlatformErrorContextResourceAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextSecurity.
 #[repr(C)]
 pub struct PlatformErrorContextSecurityAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The capability field.
+    /// Optional capability name.
     pub capability: A::String,
-    /// The policy field.
+    /// Optional policy name.
     pub policy: A::String,
 }
 
@@ -2195,11 +2195,11 @@ impl VmAggregateCodec for PlatformErrorContextSecurityAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextThread.
 #[repr(C)]
 pub struct PlatformErrorContextThreadAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The thread_id field.
+    /// Optional thread id.
     pub thread_id: u64,
 }
 
@@ -2277,13 +2277,13 @@ impl VmAggregateCodec for PlatformErrorContextThreadAbi<VmAbi> {
 /// ABI struct for PlatformErrorContextTimer.
 #[repr(C)]
 pub struct PlatformErrorContextTimerAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: A::String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: A::String,
-    /// The timer_id field.
+    /// Optional timer id.
     pub timer_id: u64,
-    /// The deadline_ns field.
+    /// Optional timer deadline.
     pub deadline_ns: u64,
 }
 
@@ -2364,9 +2364,9 @@ impl VmAggregateCodec for PlatformErrorContextTimerAbi<VmAbi> {
 /// ABI struct for PlatformPathPayloadBytes.
 #[repr(C)]
 pub struct PlatformPathPayloadBytesAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this path-payload variant.
     pub kind: A::String,
-    /// The bytes field.
+    /// Raw path bytes.
     pub bytes: A::Array<u8>,
 }
 
@@ -2441,9 +2441,9 @@ impl VmAggregateCodec for PlatformPathPayloadBytesAbi<VmAbi> {
 /// ABI struct for PlatformPathPayloadUtf16.
 #[repr(C)]
 pub struct PlatformPathPayloadUtf16Abi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this path-payload variant.
     pub kind: A::String,
-    /// The utf16 field.
+    /// UTF-16 path code units.
     pub utf16: A::Array<u16>,
 }
 
@@ -2518,11 +2518,11 @@ impl VmAggregateCodec for PlatformPathPayloadUtf16Abi<VmAbi> {
 /// ABI struct for PlatformSystemSourceEai.
 #[repr(C)]
 pub struct PlatformSystemSourceEaiAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric getaddrinfo/getnameinfo error value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic EAI name.
     pub name: A::String,
 }
 
@@ -2600,11 +2600,11 @@ impl VmAggregateCodec for PlatformSystemSourceEaiAbi<VmAbi> {
 /// ABI struct for PlatformSystemSourceErrno.
 #[repr(C)]
 pub struct PlatformSystemSourceErrnoAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric errno value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic errno name.
     pub name: A::String,
 }
 
@@ -2682,11 +2682,11 @@ impl VmAggregateCodec for PlatformSystemSourceErrnoAbi<VmAbi> {
 /// ABI struct for PlatformSystemSourceHResult.
 #[repr(C)]
 pub struct PlatformSystemSourceHResultAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric HRESULT value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic HRESULT name.
     pub name: A::String,
 }
 
@@ -2764,11 +2764,11 @@ impl VmAggregateCodec for PlatformSystemSourceHResultAbi<VmAbi> {
 /// ABI struct for PlatformSystemSourceOther.
 #[repr(C)]
 pub struct PlatformSystemSourceOtherAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric source value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic source name.
     pub name: A::String,
 }
 
@@ -2846,11 +2846,11 @@ impl VmAggregateCodec for PlatformSystemSourceOtherAbi<VmAbi> {
 /// ABI struct for PlatformSystemSourceSignal.
 #[repr(C)]
 pub struct PlatformSystemSourceSignalAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric signal value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic signal name.
     pub name: A::String,
 }
 
@@ -2928,11 +2928,11 @@ impl VmAggregateCodec for PlatformSystemSourceSignalAbi<VmAbi> {
 /// ABI struct for PlatformSystemSourceWinsock.
 #[repr(C)]
 pub struct PlatformSystemSourceWinsockAbi<A: BindingAbi> {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: A::String,
-    /// The value field.
+    /// Numeric WSA error value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic WSA name.
     pub name: A::String,
 }
 
@@ -3025,287 +3025,287 @@ pub struct PlatformErrorReplayRecord {
 /// Replay struct for PlatformErrorContextAudio.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextAudioReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextDevice.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextDeviceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: PlatformPathPayloadReplayRecord,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextDisplay.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextDisplayReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextFfi.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextFfiReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The library field.
+    /// Optional FFI library name.
     pub library: String,
-    /// The symbol field.
+    /// Optional FFI symbol name.
     pub symbol: String,
 }
 
 /// Replay struct for PlatformErrorContextGeneric.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextGenericReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The argument field.
+    /// Optional argument name.
     pub argument: String,
-    /// The pointer field.
+    /// Optional pointer label.
     pub pointer: String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextGpu.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextGpuReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextIo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextIoReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: PlatformPathPayloadReplayRecord,
-    /// The dest field.
+    /// Optional destination path payload.
     pub dest: PlatformPathPayloadReplayRecord,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: String,
-    /// The dest_text field.
+    /// Optional destination path text fallback.
     pub dest_text: String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
 }
 
 /// Replay struct for PlatformErrorContextIoDriver.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextIoDriverReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
-    /// The feature field.
+    /// Optional feature identifier.
     pub feature: String,
 }
 
 /// Replay struct for PlatformErrorContextIpc.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextIpcReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The path field.
+    /// Optional primary path payload.
     pub path: PlatformPathPayloadReplayRecord,
-    /// The path_text field.
+    /// Optional primary path text fallback.
     pub path_text: String,
-    /// The fd field.
+    /// Optional file descriptor.
     pub fd: i32,
 }
 
 /// Replay struct for PlatformErrorContextNet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextNetReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The address field.
+    /// Optional network address text.
     pub address: String,
-    /// The port field.
+    /// Optional network port.
     pub port: u16,
-    /// The hostname field.
+    /// Optional host name.
     pub hostname: String,
 }
 
 /// Replay struct for PlatformErrorContextProcess.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextProcessReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The pid field.
+    /// Optional process id.
     pub pid: u64,
-    /// The signal field.
+    /// Optional signal name.
     pub signal: String,
-    /// The exit_code field.
+    /// Optional exit code.
     pub exit_code: i32,
 }
 
 /// Replay struct for PlatformErrorContextResource.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextResourceReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The resource_id field.
+    /// Optional resource id.
     pub resource_id: u64,
-    /// The resource_kind field.
+    /// Optional resource kind.
     pub resource_kind: String,
 }
 
 /// Replay struct for PlatformErrorContextSecurity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextSecurityReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The capability field.
+    /// Optional capability name.
     pub capability: String,
-    /// The policy field.
+    /// Optional policy name.
     pub policy: String,
 }
 
 /// Replay struct for PlatformErrorContextThread.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextThreadReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The thread_id field.
+    /// Optional thread id.
     pub thread_id: u64,
 }
 
 /// Replay struct for PlatformErrorContextTimer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformErrorContextTimerReplayRecord {
-    /// The kind field.
+    /// Discriminator for this error-context variant.
     pub kind: String,
-    /// The syscall field.
+    /// Optional syscall or host API name.
     pub syscall: String,
-    /// The timer_id field.
+    /// Optional timer id.
     pub timer_id: u64,
-    /// The deadline_ns field.
+    /// Optional timer deadline.
     pub deadline_ns: u64,
 }
 
 /// Replay struct for PlatformPathPayloadBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformPathPayloadBytesReplayRecord {
-    /// The kind field.
+    /// Discriminator for this path-payload variant.
     pub kind: String,
-    /// The bytes field.
+    /// Raw path bytes.
     pub bytes: Vec<u8>,
 }
 
 /// Replay struct for PlatformPathPayloadUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformPathPayloadUtf16ReplayRecord {
-    /// The kind field.
+    /// Discriminator for this path-payload variant.
     pub kind: String,
-    /// The utf16 field.
+    /// UTF-16 path code units.
     pub utf16: Vec<u16>,
 }
 
 /// Replay struct for PlatformSystemSourceEai.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceEaiReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric getaddrinfo/getnameinfo error value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic EAI name.
     pub name: String,
 }
 
 /// Replay struct for PlatformSystemSourceErrno.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceErrnoReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric errno value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic errno name.
     pub name: String,
 }
 
 /// Replay struct for PlatformSystemSourceHResult.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceHResultReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric HRESULT value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic HRESULT name.
     pub name: String,
 }
 
 /// Replay struct for PlatformSystemSourceOther.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceOtherReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric source value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic source name.
     pub name: String,
 }
 
 /// Replay struct for PlatformSystemSourceSignal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceSignalReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric signal value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic signal name.
     pub name: String,
 }
 
 /// Replay struct for PlatformSystemSourceWinsock.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformSystemSourceWinsockReplayRecord {
-    /// The kind field.
+    /// Discriminator for this system-source variant.
     pub kind: String,
-    /// The value field.
+    /// Numeric WSA error value.
     pub value: i32,
-    /// The name field.
+    /// Optional symbolic WSA name.
     pub name: String,
 }
 
