@@ -119,6 +119,7 @@ export type PlatformCapability =
     | "memory.map"
     | "memory.numa"
     | "memory.protect"
+    | "memory.query"
     | "net.accept"
     | "net.close"
     | "net.connect"

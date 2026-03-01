@@ -1,436 +1,188 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::memory::{MemoryRangeVm, ProtectedMemoryRangeVm};
+use crate::diagnostic::RuntimeResult;
+use crate::platform::memory::{
+    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRangeVm, MemoryRemapFlags,
+    MemoryReserveFlags, ProtectedMemoryRangeVm,
+};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
+use super::host as host_memory;
+
+/// Invoke one host call that writes one output pointer.
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    // allocate uninitialized storage for the host out pointer
+    let mut out = std::mem::MaybeUninit::<T>::uninit();
+
+    // execute the host call and initialize output
+    call(out.as_mut_ptr())?;
+
+    // return initialized output value
+    Ok(unsafe { out.assume_init() })
+}
+
 /// Apply memory access advice.
-///
-/// Apply one access-pattern hint to one memory range.
-/// Advice behavior is host-specific and may be ignored.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses madvise family on Unix and host advisory equivalents on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.advise`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_advise(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
-    advice: u32,
+    advice: MemoryAdvice,
 ) -> RuntimeResult<()> {
-    let _ = (address, length, advice);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.advise.adviseRange is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_advise(runtime, address, length, advice) }
 }
 
 /// Discard memory contents.
-///
-/// Discard pages in one memory range while keeping mapping metadata.
-/// Future reads after discard are host-defined zero-fill or fault-on-demand behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses madvise discard-style flags on Unix and discard page hints on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.advise`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_discard(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.advise.discard is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_discard(runtime, address, length) }
 }
 
 /// Toggle huge-page preference for one range.
-///
-/// Enable or disable huge-page preference for one memory range.
-/// Huge-page allocation remains host-policy and availability dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses huge-page advice flags on Unix and large-page APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.huge.page`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_huge_page(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (address, length, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.advise.hugePage is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_huge_page(runtime, address, length, enabled) }
 }
 
 /// Lock one memory range into physical memory.
-///
-/// Prevent one memory range from being paged out when supported by the host.
-/// Lock behavior and resource limits follow host memory-lock policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mlock family on Unix and VirtualLock on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.lock`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_lock(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.lock.lockRange is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_lock(runtime, address, length) }
 }
 
 /// Unlock one memory range.
-///
-/// Release one previously locked memory range.
-/// Unlock behavior and accounting follow host memory-lock policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munlock family on Unix and VirtualUnlock on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.lock`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_unlock(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.lock.unlock is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_unlock(runtime, address, length) }
 }
 
 /// Commit one reserved range.
-///
-/// Commit physical backing for one reserved address range.
-/// Commit granularity and zero-fill behavior follow host memory manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mprotect or mmap commit semantics on Unix and VirtualAlloc commit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_commit(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
-    flags: u32,
+    protection: MemoryProtection,
 ) -> RuntimeResult<()> {
-    let _ = (address, length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.map.commit is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_commit(runtime, address, length, protection) }
 }
 
 /// Decommit one range.
-///
-/// Decommit physical backing while preserving virtual address reservation.
-/// Decommit effects on dirty pages follow host memory manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses madvise or mmap replacement patterns on Unix and VirtualFree decommit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_decommit(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.map.decommit is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_decommit(runtime, address, length) }
 }
 
 /// Bind one range to a NUMA policy.
-///
-/// Apply NUMA placement policy for one virtual memory range.
-/// Node masks and policy modes are interpreted by host NUMA APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.numa`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_numa_bind(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
-    policy: u32,
+    policy: MemoryNumaPolicy,
     nodemask: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length, policy, nodemask);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.map.numaBind is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_numa_bind(runtime, address, length, policy, nodemask) }
 }
 
 /// Release one reserved range.
-///
-/// Release one virtual memory reservation back to the host allocator.
-/// Released ranges become invalid for future access by caller code.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munmap on Unix and VirtualFree release on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_release(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.map.release is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_release(runtime, address, length) }
 }
 
 /// Reserve one virtual memory range.
-///
-/// Reserve one address range without committing physical backing.
-/// Address placement and alignment follow host virtual-memory allocation policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap reserve patterns on Unix and VirtualAlloc reserve on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_reserve(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     length: u64,
-    flags: u32,
+    addresshint: u64,
+    flags: MemoryReserveFlags,
 ) -> RuntimeResult<MemoryRangeVm> {
-    let _ = (length, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.map.reserve is not available in the VM yet",
-    ))
-    .boxed())
-}
-
-/// Change execute permission for one range.
-///
-/// Toggle execute permission bits for one virtual memory range.
-/// Execute permission policy follows host W^X and code-signing rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mprotect execute flags on Unix and VirtualProtect execute flags on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.execute`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_memory_protect_execute(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
-    address: u64,
-    length: u64,
-    enabled: bool,
-) -> RuntimeResult<()> {
-    let _ = (address, length, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.execute is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe {
+        host_memory::destack_memory_reserve(runtime, out, length, addresshint, flags)
+    })
 }
 
 /// Flush instruction cache for one range.
-///
-/// Flush host instruction caches after writing executable code bytes.
-/// Cache flush granularity and barriers follow host architecture rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses built-in cache flush intrinsics and host process APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.execute`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_flush_instruction_cache(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
 ) -> RuntimeResult<()> {
-    let _ = (address, length);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.flushInstructionCache is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_flush_instruction_cache(runtime, address, length) }
 }
 
 /// Change memory protection for one range.
-///
-/// Apply one protection mask to one virtual memory range.
-/// Execute, read, and write semantics follow host protection rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mprotect on Unix and VirtualProtect on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.protect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_protect(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     length: u64,
-    protection: u32,
+    protection: MemoryProtection,
 ) -> RuntimeResult<()> {
-    let _ = (address, length, protection);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.protectRange is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { host_memory::destack_memory_protect(runtime, address, length, protection) }
 }
 
 /// Resize one mapped range.
-///
-/// Remap one existing mapping to a new length.
-/// Move behavior and address stability are host-defined when remap cannot grow in place.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mremap on Linux and reserve-plus-copy fallback on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.protect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_memory_remap(
-    _runtime: &BindingCallContext,
+    runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     address: u64,
     oldlength: u64,
     newlength: u64,
-    flags: u32,
+    flags: MemoryRemapFlags,
 ) -> RuntimeResult<ProtectedMemoryRangeVm> {
-    let _ = (address, oldlength, newlength, flags);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.memory.protect.remap is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe {
+        host_memory::destack_memory_remap(runtime, out, address, oldlength, newlength, flags)
+    })
+}
+
+/// Read the host allocation granularity.
+pub(crate) fn destack_memory_allocation_granularity(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<u64> {
+    call_out(|out| unsafe { host_memory::destack_memory_allocation_granularity(runtime, out) })
+}
+
+/// Read the host huge-page allocation size when available.
+pub(crate) fn destack_memory_huge_page_size(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<Option<u64>> {
+    call_out(|out| unsafe { host_memory::destack_memory_huge_page_size(runtime, out) })
+}
+
+/// Read the host virtual-memory page size.
+pub(crate) fn destack_memory_page_size(
+    runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<u64> {
+    call_out(|out| unsafe { host_memory::destack_memory_page_size(runtime, out) })
 }

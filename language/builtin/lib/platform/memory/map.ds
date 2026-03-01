@@ -1,4 +1,9 @@
 import type { PlatformError } from "../error/index.ds";
+import {
+    MemoryNumaPolicy,
+    MemoryProtection,
+    MemoryReserveFlags,
+} from "./types.ds";
 
 /// Memory range descriptor.
 export struct MemoryRange {
@@ -13,7 +18,7 @@ declare namespace memory {
     /// Reserve one virtual memory range.
     ///
     /// Reserve one address range without committing physical backing.
-    /// Address placement and alignment follow host virtual-memory allocation policy.
+    /// A zero address hint lets the host choose placement.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -38,7 +43,7 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function reserve(length: uint64, flags: uint32): Result<MemoryRange, PlatformError>;
+    export function reserve(length: uint64, addressHint: uint64, flags: MemoryReserveFlags): Result<MemoryRange, PlatformError>;
 
     /// Commit one reserved range.
     ///
@@ -68,7 +73,7 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function commit(address: uint64, length: uint64, flags: uint32): Result<void, PlatformError>;
+    export function commit(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>;
 
     /// Decommit one range.
     ///
@@ -158,5 +163,10 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function numaBind(address: uint64, length: uint64, policy: uint32, nodeMask: uint64): Result<void, PlatformError>;
+    export function numaBind(
+        address: uint64,
+        length: uint64,
+        policy: MemoryNumaPolicy,
+        nodeMask: uint64,
+    ): Result<void, PlatformError>;
 }

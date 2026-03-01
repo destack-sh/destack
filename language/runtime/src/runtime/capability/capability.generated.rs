@@ -243,6 +243,8 @@ pub enum PlatformCapability {
     MemoryNuma,
     /// `memory.protect`.
     MemoryProtect,
+    /// `memory.query`.
+    MemoryQuery,
     /// `net.accept`.
     NetAccept,
     /// `net.close`.
@@ -573,6 +575,7 @@ impl PlatformCapability {
         Self::MemoryMap,
         Self::MemoryNuma,
         Self::MemoryProtect,
+        Self::MemoryQuery,
         Self::NetAccept,
         Self::NetClose,
         Self::NetConnect,
@@ -800,6 +803,7 @@ impl PlatformCapability {
             Self::MemoryMap => "memory.map",
             Self::MemoryNuma => "memory.numa",
             Self::MemoryProtect => "memory.protect",
+            Self::MemoryQuery => "memory.query",
             Self::NetAccept => "net.accept",
             Self::NetClose => "net.close",
             Self::NetConnect => "net.connect",
@@ -1033,6 +1037,7 @@ impl PlatformCapability {
             "memory.map" => Some(Self::MemoryMap),
             "memory.numa" => Some(Self::MemoryNuma),
             "memory.protect" => Some(Self::MemoryProtect),
+            "memory.query" => Some(Self::MemoryQuery),
             "net.accept" => Some(Self::NetAccept),
             "net.close" => Some(Self::NetClose),
             "net.connect" => Some(Self::NetConnect),
