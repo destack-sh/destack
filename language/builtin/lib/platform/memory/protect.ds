@@ -1,4 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
+import { MemoryProtection, MemoryRemapFlags } from "./types.ds";
 
 /// Memory range descriptor.
 export struct ProtectedMemoryRange {
@@ -38,7 +39,7 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function protect(address: uint64, length: uint64, protection: uint32): Result<void, PlatformError>;
+    export function protect(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>;
 
     /// Resize one mapped range.
     ///
@@ -68,37 +69,12 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: uint32): Result<ProtectedMemoryRange, PlatformError>;
-
-    /// Change execute permission for one range.
-    ///
-    /// Toggle execute permission bits for one virtual memory range.
-    /// Execute permission policy follows host W^X and code-signing rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mprotect execute flags on Unix and VirtualProtect execute flags on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.execute`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding(
-        "destack.memory.protect.execute",
-        {
-            effect: "external",
-            replay: "recordable",
-            capabilities: ["memory.execute"],
-            platforms: ["windows", "unix"],
-            scope: "host",
-            blocking: "sometimes",
-        },
-    )
-    export function protectExecute(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>;
+    export function remap(
+        address: uint64,
+        oldLength: uint64,
+        newLength: uint64,
+        flags: MemoryRemapFlags,
+    ): Result<ProtectedMemoryRange, PlatformError>;
 
     /// Flush instruction cache for one range.
     ///
@@ -129,5 +105,4 @@ declare namespace memory {
         },
     )
     export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>;
-
 }

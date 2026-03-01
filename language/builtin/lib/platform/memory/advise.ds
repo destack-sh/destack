@@ -1,4 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
+import { MemoryAdvice } from "./types.ds";
 
 /// Memory advice bindings.
 declare namespace memory {
@@ -30,7 +31,7 @@ declare namespace memory {
             blocking: "sometimes",
         },
     )
-    export function advise(address: uint64, length: uint64, advice: uint32): Result<void, PlatformError>;
+    export function advise(address: uint64, length: uint64, advice: MemoryAdvice): Result<void, PlatformError>;
 
     /// Discard memory contents.
     ///

@@ -430,6 +430,18 @@ builtin_lib_sources_targeted!(
             "protect.ds"
         ),
         (
+            LIB_PLATFORM_MEMORY_QUERY_DS,
+            "lib",
+            "platform/memory",
+            "query.ds"
+        ),
+        (
+            LIB_PLATFORM_MEMORY_TYPES_DS,
+            "lib",
+            "platform/memory",
+            "types.ds"
+        ),
+        (
             LIB_PLATFORM_NET_ADDRESS_DS,
             "lib",
             "platform/net",
@@ -893,6 +905,8 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_MEMORY_LOCK_DS,
         LIB_PLATFORM_MEMORY_MAP_DS,
         LIB_PLATFORM_MEMORY_PROTECT_DS,
+        LIB_PLATFORM_MEMORY_QUERY_DS,
+        LIB_PLATFORM_MEMORY_TYPES_DS,
         LIB_PLATFORM_NET_ADDRESS_DS,
         LIB_PLATFORM_NET_INDEX_DS,
         LIB_PLATFORM_NET_INTERFACE_DS,

@@ -6,11 +6,153 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{
-    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice,
+    PlatformError as AbiPlatformError, VmAggregateCodec, VmArray, VmSlice, VmValueCodec,
     memory as platform_memory,
 };
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+
+/// ABI newtype for MemoryProtection.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MemoryProtection(
+    /// Inner value.
+    pub u32,
+);
+
+pub type MemoryProtectionVm = MemoryProtection;
+
+impl VmValueCodec for MemoryProtection {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for MemoryRemapFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MemoryRemapFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type MemoryRemapFlagsVm = MemoryRemapFlags;
+
+impl VmValueCodec for MemoryRemapFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for MemoryReserveFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MemoryReserveFlags(
+    /// Inner value.
+    pub u32,
+);
+
+pub type MemoryReserveFlagsVm = MemoryReserveFlags;
+
+impl VmValueCodec for MemoryReserveFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI enum for MemoryAdvice.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MemoryAdvice {
+    /// Normal.
+    Normal = 0,
+    /// Sequential.
+    Sequential = 1,
+    /// Random.
+    Random = 2,
+    /// WillNeed.
+    WillNeed = 3,
+    /// DontNeed.
+    DontNeed = 4,
+}
+
+impl VmValueCodec for MemoryAdvice {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Normal,
+            1u8 => Self::Sequential,
+            2u8 => Self::Random,
+            3u8 => Self::WillNeed,
+            4u8 => Self::DontNeed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MemoryAdvice value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for MemoryNumaPolicy.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MemoryNumaPolicy {
+    /// Default.
+    Default = 0,
+    /// Bind.
+    Bind = 1,
+    /// Interleave.
+    Interleave = 2,
+    /// Preferred.
+    Preferred = 3,
+    /// Local.
+    Local = 4,
+}
+
+impl VmValueCodec for MemoryNumaPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Default,
+            1u8 => Self::Bind,
+            2u8 => Self::Interleave,
+            3u8 => Self::Preferred,
+            4u8 => Self::Local,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MemoryNumaPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
 
 /// ABI struct for MemoryRange.
 #[repr(C)]

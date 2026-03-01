@@ -1,5 +1,6 @@
 use super::with_harness_context;
 
+/// Build both native and vm harness contexts.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_memory_basic_scaffold() {

@@ -8,8 +8,9 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError as HarnessPlatformError;
 use crate::platform::memory::{
-    MemoryRange, MemoryRangeVm, ProtectedMemoryRange, ProtectedMemoryRangeVm,
-    native as memory_native, vm as memory_vm,
+    MemoryAdvice, MemoryNumaPolicy, MemoryProtection, MemoryRange, MemoryRangeVm, MemoryRemapFlags,
+    MemoryReserveFlags, ProtectedMemoryRange, ProtectedMemoryRangeVm, native as memory_native,
+    vm as memory_vm,
 };
 use destack_vm as vm;
 
@@ -52,7 +53,7 @@ impl<'call> MemoryHarnessContext<'call> {
         &mut self,
         address: u64,
         length: u64,
-        advice: u32,
+        advice: MemoryAdvice,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => memory_vm::destack_memory_advise(
@@ -214,14 +215,18 @@ impl<'call> MemoryHarnessContext<'call> {
         &mut self,
         address: u64,
         length: u64,
-        flags: u32,
+        protection: MemoryProtection,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
-            Some(context) => {
-                memory_vm::destack_memory_commit(self.call_context, context, address, length, flags)
-            }
+            Some(context) => memory_vm::destack_memory_commit(
+                self.call_context,
+                context,
+                address,
+                length,
+                protection,
+            ),
             None => unsafe {
-                memory_native::destack_memory_commit(self.call_context, address, length, flags)
+                memory_native::destack_memory_commit(self.call_context, address, length, protection)
             },
         }
     }
@@ -279,7 +284,7 @@ impl<'call> MemoryHarnessContext<'call> {
         &mut self,
         address: u64,
         length: u64,
-        policy: u32,
+        policy: MemoryNumaPolicy,
         nodemask: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
@@ -338,7 +343,7 @@ impl<'call> MemoryHarnessContext<'call> {
     /// Reserve one virtual memory range.
     ///
     /// Reserve one address range without committing physical backing.
-    /// Address placement and alignment follow host virtual-memory allocation policy.
+    /// A zero address hint lets the host choose placement.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -355,12 +360,18 @@ impl<'call> MemoryHarnessContext<'call> {
     pub(crate) fn destack_memory_reserve(
         &mut self,
         length: u64,
-        flags: u32,
+        addresshint: u64,
+        flags: MemoryReserveFlags,
     ) -> RuntimeResult<HarnessValue<MemoryRange, MemoryRangeVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out =
-                    memory_vm::destack_memory_reserve(self.call_context, context, length, flags)?;
+                let out = memory_vm::destack_memory_reserve(
+                    self.call_context,
+                    context,
+                    length,
+                    addresshint,
+                    flags,
+                )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
@@ -370,54 +381,13 @@ impl<'call> MemoryHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         length,
+                        addresshint,
                         flags,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
             }
-        }
-    }
-
-    /// Change execute permission for one range.
-    ///
-    /// Toggle execute permission bits for one virtual memory range.
-    /// Execute permission policy follows host W^X and code-signing rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mprotect execute flags on Unix and VirtualProtect execute flags on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.execute`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_memory_protect_execute(
-        &mut self,
-        address: u64,
-        length: u64,
-        enabled: bool,
-    ) -> RuntimeResult<()> {
-        match self.generated_vm_context_mut() {
-            Some(context) => memory_vm::destack_memory_protect_execute(
-                self.call_context,
-                context,
-                address,
-                length,
-                enabled,
-            ),
-            None => unsafe {
-                memory_native::destack_memory_protect_execute(
-                    self.call_context,
-                    address,
-                    length,
-                    enabled,
-                )
-            },
         }
     }
 
@@ -481,7 +451,7 @@ impl<'call> MemoryHarnessContext<'call> {
         &mut self,
         address: u64,
         length: u64,
-        protection: u32,
+        protection: MemoryProtection,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => memory_vm::destack_memory_protect(
@@ -524,7 +494,7 @@ impl<'call> MemoryHarnessContext<'call> {
         address: u64,
         oldlength: u64,
         newlength: u64,
-        flags: u32,
+        flags: MemoryRemapFlags,
     ) -> RuntimeResult<HarnessValue<ProtectedMemoryRange, ProtectedMemoryRangeVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -552,6 +522,115 @@ impl<'call> MemoryHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read the host allocation granularity.
+    ///
+    /// Read one allocation-granularity value used for reserve and map base alignment.
+    /// On Unix this usually equals page size, while Windows commonly reports larger granularity.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses page-size queries on Unix and GetSystemInfo on Windows.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.query`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_memory_allocation_granularity(&mut self) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    memory_vm::destack_memory_allocation_granularity(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    memory_native::destack_memory_allocation_granularity(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read the host huge-page allocation size when available.
+    ///
+    /// Read one huge-page size if the host exposes this value.
+    /// Returns `void` when huge pages are unavailable or not queryable on this platform.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host large-page query APIs where available.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.query`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_memory_huge_page_size(&mut self) -> RuntimeResult<Option<u64>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = memory_vm::destack_memory_huge_page_size(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<Option<u64>>::uninit();
+                unsafe {
+                    memory_native::destack_memory_huge_page_size(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read the host virtual-memory page size.
+    ///
+    /// Read one page-size value used for page-aligned memory operations.
+    /// This is the minimum mapping and protection granularity on the host.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses sysconf(_SC_PAGESIZE) on Unix and GetSystemInfo on Windows.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `memory.query`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_memory_page_size(&mut self) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = memory_vm::destack_memory_page_size(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    memory_native::destack_memory_page_size(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
             }
         }
     }
