@@ -66,7 +66,9 @@ pub(crate) fn attach_remaining_comment(
     if let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
         tree,
         parents,
+        context,
         seam,
+        preceding_owner,
         following_owner_with_token_fallback,
     ) {
         return Some(attachment);

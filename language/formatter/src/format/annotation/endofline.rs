@@ -23,6 +23,7 @@ use super::ownership::{
 use super::semicolon::{
     attach_after_semicolon_terminated_statement_comment, attach_inline_comment_before_semicolon,
     preceding_owner_with_non_newline_token_fallback,
+    seam_has_line_leading_semicolon_before_comment,
     try_attach_comment_before_empty_statement_semicolon,
 };
 
@@ -49,6 +50,23 @@ fn attach_empty_if_comment(
     }
 
     None
+}
+
+/// Attach one same-line comment after one line-leading semicolon to the following owner.
+fn attach_after_line_leading_semicolon_comment(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    following_owner_with_token_fallback: Option<u32>,
+    is_same_line_comment: bool,
+) -> Option<CommentAttachment> {
+    if !is_same_line_comment || !seam_has_line_leading_semicolon_before_comment(context, seam) {
+        return None;
+    }
+
+    let target_owner = following_owner_with_token_fallback?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
 /// Attach one same-line line comment after one trailing comma before `}`.
@@ -463,16 +481,30 @@ fn attach_call_callee_line_comment(
     }
 
     let expression_id = LocalNodeId::<Expression>::new(target_owner);
-    let is_empty_argument_call_like = match tree.get(expression_id) {
+    let supports_callee_comment = match tree.get(expression_id) {
         Expression::Call {
-            dynamic_arguments, ..
+            left,
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => {
+            dynamic_arguments.is_empty()
+                || static_arguments.is_some()
+                || matches!(tree.get(*left), Expression::Instantiation { .. })
         }
-        | Expression::New {
-            dynamic_arguments, ..
-        } => dynamic_arguments.is_empty(),
+        Expression::New {
+            left,
+            static_arguments,
+            dynamic_arguments,
+            ..
+        } => {
+            dynamic_arguments.is_empty()
+                || static_arguments.is_some()
+                || matches!(tree.get(*left), Expression::Instantiation { .. })
+        }
         _ => false,
     };
-    if !is_empty_argument_call_like {
+    if !supports_callee_comment {
         return None;
     }
 
@@ -565,12 +597,15 @@ pub(crate) fn attach_end_of_line_comment(
     let is_same_line_line_comment = seam.comment_is_line && !seam.has_leading_newline;
     let is_same_line_trailing_block_comment =
         seam.comment_is_star && !seam.has_leading_newline && seam.has_trailing_newline;
+    let semicolon_is_line_leading = seam_has_line_leading_semicolon_before_comment(context, seam);
 
     // empty-statement semicolon ownership
     if let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
         tree,
         parents,
+        context,
         seam,
+        preceding_owner_with_semicolon_fallback,
         following_owner_with_token_fallback,
     ) {
         return Some(attachment);
@@ -639,11 +674,23 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
+    // comments after standalone line-leading semicolons belong to the following statement
+    if let Some(attachment) = attach_after_line_leading_semicolon_comment(
+        tree,
+        context,
+        seam,
+        following_owner_with_token_fallback,
+        is_same_line_line_comment || is_same_line_trailing_block_comment,
+    ) {
+        return Some(attachment);
+    }
+
     // semicolon-terminated statement ownership
     if let Some(attachment) = attach_after_semicolon_terminated_statement_comment(
         tree,
         parents,
         seam,
+        semicolon_is_line_leading,
         preceding_owner_with_semicolon_fallback,
         token_before_span,
         is_same_line_line_comment || is_same_line_trailing_block_comment,
