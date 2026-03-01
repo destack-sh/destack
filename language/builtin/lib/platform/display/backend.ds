@@ -1,0 +1,114 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+
+/// Display backend selector.
+export enum DisplayBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Wayland compositor backend.
+    Wayland = 1,
+    /// X11 window-system backend.
+    X11 = 2,
+    /// Win32 window-system backend.
+    Win32 = 3,
+    /// AppKit backend.
+    AppKit = 4,
+    /// UIKit backend.
+    UIKit = 5,
+    /// Android native-activity backend.
+    Android = 6,
+    /// Null backend for simulation and tests.
+    Null = 255,
+}
+
+/// Backend selection policy.
+export enum DisplayBackendSelectionPolicy {
+    /// Require that the requested backend is used with no fallback.
+    Strict = 1,
+    /// Allow fallback to a host-default backend when the requested backend is unavailable.
+    AllowFallback = 2,
+}
+
+/// Display backend capability flags.
+export newtype DisplayBackendCapabilityFlags = uint64;
+
+/// Display event queue overflow policy.
+export enum DisplayEventOverflowPolicy {
+    /// Drop the oldest queued event when the queue is full.
+    DropOldest = 1,
+    /// Drop the newest incoming event when the queue is full.
+    DropNewest = 2,
+    /// Surface overflow as an explicit error.
+    Error = 3,
+}
+
+/// Display event queue options.
+export struct DisplayEventQueueOptions {
+    /// Requested queue capacity, or zero for backend default.
+    queueCapacity: uint32;
+    /// Queue overflow policy.
+    overflowPolicy: DisplayEventOverflowPolicy;
+}
+
+/// Display backend descriptor.
+export struct DisplayBackendDescriptor {
+    /// Backend selector.
+    backend: DisplayBackend;
+    /// Stable backend name.
+    name: string;
+    /// Whether this backend is currently available on this host.
+    available: boolean;
+    /// Priority in default auto-selection order.
+    priority: uint16;
+    /// Backend-level capability flags.
+    capabilityFlags: DisplayBackendCapabilityFlags;
+}
+
+/// Backend capability flag bit for window creation and management.
+export const DISPLAY_BACKEND_CAP_WINDOW: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1);
+/// Backend capability flag bit for monitor enumeration and mode management.
+export const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2);
+/// Backend capability flag bit for window-event streams.
+export const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4);
+/// Backend capability flag bit for monitor-event streams.
+export const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8);
+/// Backend capability flag bit for exclusive fullscreen.
+export const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10);
+/// Backend capability flag bit for borderless fullscreen.
+export const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20);
+/// Backend capability flag bit for cursor lock mode.
+export const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40);
+/// Backend capability flag bit for cursor confine mode.
+export const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80);
+/// Backend capability flag bit for explicit vsync wait.
+export const DISPLAY_BACKEND_CAP_VSYNC_WAIT: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100);
+/// Backend capability flag bit for compositor transparency.
+export const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200);
+
+/// Display backend bindings.
+declare namespace display {
+    /// List host display backends.
+    ///
+    /// Enumerate available backend implementations and backend-level feature flags.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.backend.list", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function backendList(): Result<Slice<DisplayBackendDescriptor>, PlatformError>;
+}
