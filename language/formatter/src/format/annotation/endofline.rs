@@ -8,7 +8,7 @@ use super::attachment::{
     attach_line_comment_after_ternary_colon, attach_star_comment_before_ternary_colon,
     attach_trailing_comma_close_brace_property_line_comment,
     following_owner_with_token_after_fallback, if_expression_then_owner_without_else,
-    promote_owner_to_tree_expression_parent, try_attach_comment_before_empty_statement_semicolon,
+    promote_owner_to_tree_expression_parent,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
@@ -16,50 +16,15 @@ use super::boundary::{
     seam_is_template_interpolation_open_brace,
 };
 use super::ownership::{
-    find_owner_at_or_after_token, find_preferred_owner_starting_at,
-    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
-    normalize_owner_with_shared_end, promote_owner_by_shared_start,
-    promote_owner_to_nearest_statement_boundary, promote_owner_to_node_type_ancestor,
+    find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
+    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
+    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
 };
-use super::semicolon::preceding_owner_with_non_newline_token_fallback;
-
-/// Return whether one token is a closing delimiter token.
-#[inline]
-fn token_type_is_close_delimiter(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::CloseBrace | TokenType::CloseBracket | TokenType::CloseParenthesis
-    )
-}
-
-/// Attach one close-delimiter line comment before a standalone semicolon to the following owner.
-fn attach_close_delimiter_semicolon_line_comment(
-    tree: &NodeTree,
-    context: &CommentSeamContext<'_>,
-    seam: &CommentSeamData,
-    following_owner_with_token_fallback: Option<u32>,
-    is_same_line_line_comment: bool,
-) -> Option<CommentAttachment> {
-    if !is_same_line_line_comment
-        || !seam
-            .token_before_type
-            .is_some_and(token_type_is_close_delimiter)
-        || !seam.token_after_is(TokenType::Semicolon)
-    {
-        return None;
-    }
-
-    let owner_after_semicolon = context.token_after.and_then(|token_after_index| {
-        find_owner_at_or_after_token(
-            tree,
-            context.semantic_tokens,
-            token_after_index.saturating_add(1),
-        )
-    });
-    let target_owner = owner_after_semicolon.or(following_owner_with_token_fallback)?;
-    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-    Some((Some(target_owner), AnnotationPosition::BlockPrefix))
-}
+use super::semicolon::{
+    attach_after_semicolon_terminated_statement_comment, attach_inline_comment_before_semicolon,
+    preceding_owner_with_non_newline_token_fallback,
+    try_attach_comment_before_empty_statement_semicolon,
+};
 
 /// Attach one same-line line comment after one empty if statement.
 fn attach_empty_if_comment(
@@ -238,59 +203,6 @@ fn attach_after_binary_operator_line_comment(
     }
 
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
-}
-
-/// Attach one same-line comment after one semicolon-terminated statement.
-fn attach_after_semicolon_terminated_statement_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    preceding_owner_with_semicolon_fallback: Option<u32>,
-    token_before_span: Option<Span>,
-    is_same_line_line_comment: bool,
-    is_same_line_trailing_block_comment: bool,
-) -> Option<CommentAttachment> {
-    if !seam.token_before_is(TokenType::Semicolon)
-        || (!is_same_line_line_comment && !is_same_line_trailing_block_comment)
-    {
-        return None;
-    }
-
-    let target_node = preceding_owner_with_semicolon_fallback?;
-    let target_node =
-        normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-    if let Some(member_owner) =
-        promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
-    {
-        let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
-        return Some((Some(member_owner), AnnotationPosition::LinePostfixBoundary));
-    }
-
-    let target_node = promote_owner_to_nearest_statement_boundary(tree, parents, target_node);
-    Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))
-}
-
-/// Attach one same-line line comment before one semicolon to the preceding expression boundary.
-fn attach_before_semicolon_line_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
-    token_before_span: Option<Span>,
-    is_same_line_line_comment: bool,
-) -> Option<CommentAttachment> {
-    if !is_same_line_line_comment
-        || !seam.token_after_is(TokenType::Semicolon)
-        || seam.token_before_is(TokenType::Semicolon)
-    {
-        return None;
-    }
-
-    let target_node = preceding_owner?;
-    let target_node =
-        normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-    Some((Some(target_node), AnnotationPosition::LinePostfixBoundary))
 }
 
 /// Attach one same-line line comment after one inline break or continue statement.
@@ -531,6 +443,43 @@ fn attach_call_argument_head_line_comment(
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
+/// Attach one same-line line comment between one call callee and `(` to the call boundary.
+fn attach_call_callee_line_comment(
+    tree: &NodeTree,
+    seam: &CommentSeamData,
+    enclosing_owner: Option<u32>,
+    is_same_line_line_comment: bool,
+) -> Option<CommentAttachment> {
+    if !is_same_line_line_comment
+        || !seam.token_after_is(TokenType::OpenParenthesis)
+        || seam.token_before_is(TokenType::OpenParenthesis)
+    {
+        return None;
+    }
+
+    let target_owner = enclosing_owner?;
+    if tree.get_node_type(target_owner) != NodeType::Expression {
+        return None;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(target_owner);
+    let is_empty_argument_call_like = match tree.get(expression_id) {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments.is_empty(),
+        _ => false,
+    };
+    if !is_empty_argument_call_like {
+        return None;
+    }
+
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
+}
+
 /// Attach one same-line line comment after `as` in import or export items to the dependency item.
 fn attach_dependency_item_alias_line_comment(
     tree: &NodeTree,
@@ -571,34 +520,6 @@ fn attach_dependency_item_alias_line_comment(
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
-/// Attach one same-line line comment between callee and `(` to the full call expression.
-fn attach_call_callee_head_line_comment(
-    tree: &NodeTree,
-    seam: &CommentSeamData,
-    enclosing_owner: Option<u32>,
-    is_same_line_line_comment: bool,
-) -> Option<CommentAttachment> {
-    if !is_same_line_line_comment || !seam.token_after_is(TokenType::OpenParenthesis) {
-        return None;
-    }
-
-    let target_owner = enclosing_owner?;
-    if tree.get_node_type(target_owner) != NodeType::Expression {
-        return None;
-    }
-
-    let expression_id = LocalNodeId::<Expression>::new(target_owner);
-    if !matches!(
-        tree.get(expression_id),
-        Expression::Call { .. } | Expression::New { .. }
-    ) {
-        return None;
-    }
-
-    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
-    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
-}
-
 /// Attach one following-bound seam comment as one line-prefix comment.
 fn attach_following_binding_comment(
     tree: &NodeTree,
@@ -617,27 +538,6 @@ fn attach_following_binding_comment(
         .unwrap_or(target_owner);
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
-}
-
-/// Attach one comment after one member semicolon seam to the member owner.
-fn attach_member_semicolon_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
-    token_before_span: Option<Span>,
-) -> Option<CommentAttachment> {
-    if !seam.token_before_is(TokenType::Semicolon) {
-        return None;
-    }
-
-    let target_node = preceding_owner?;
-    let target_node =
-        normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-    let member_owner =
-        promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)?;
-    let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
-    Some((Some(member_owner), AnnotationPosition::LinePostfixBoundary))
 }
 
 /// Attach end-of-line comments and terminal seam comments.
@@ -727,19 +627,8 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
-    // close-delimiter comments before standalone semicolons belong to the following statement
-    if let Some(attachment) = attach_close_delimiter_semicolon_line_comment(
-        tree,
-        context,
-        seam,
-        following_owner_with_token_fallback,
-        is_same_line_line_comment,
-    ) {
-        return Some(attachment);
-    }
-
     // same-line comments before semicolons stay with the preceding expression
-    if let Some(attachment) = attach_before_semicolon_line_comment(
+    if let Some(attachment) = attach_inline_comment_before_semicolon(
         tree,
         parents,
         seam,
@@ -757,8 +646,7 @@ pub(crate) fn attach_end_of_line_comment(
         seam,
         preceding_owner_with_semicolon_fallback,
         token_before_span,
-        is_same_line_line_comment,
-        is_same_line_trailing_block_comment,
+        is_same_line_line_comment || is_same_line_trailing_block_comment,
     ) {
         return Some(attachment);
     }
@@ -861,6 +749,13 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
+    // call callee boundary line comment ownership
+    if let Some(attachment) =
+        attach_call_callee_line_comment(tree, seam, enclosing_owner, is_same_line_line_comment)
+    {
+        return Some(attachment);
+    }
+
     // import and export alias comments after `as` belong to dependency item heads
     if let Some(attachment) = attach_dependency_item_alias_line_comment(
         tree,
@@ -875,23 +770,9 @@ pub(crate) fn attach_end_of_line_comment(
         return Some(attachment);
     }
 
-    // call callee-head line comments belong to the full call expression
-    if let Some(attachment) =
-        attach_call_callee_head_line_comment(tree, seam, enclosing_owner, is_same_line_line_comment)
-    {
-        return Some(attachment);
-    }
-
     // following-binding ownership
     if let Some(attachment) =
         attach_following_binding_comment(tree, parents, seam, following_owner, token_after_span)
-    {
-        return Some(attachment);
-    }
-
-    // member semicolon ownership
-    if let Some(attachment) =
-        attach_member_semicolon_comment(tree, parents, seam, preceding_owner, token_before_span)
     {
         return Some(attachment);
     }

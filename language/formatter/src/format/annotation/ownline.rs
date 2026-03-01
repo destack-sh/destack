@@ -5,7 +5,6 @@ use destack_source::Span;
 
 use super::attachment::{
     following_owner_with_token_after_fallback, promote_owner_to_tree_expression_parent,
-    try_attach_comment_before_empty_statement_semicolon,
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
@@ -15,10 +14,13 @@ use super::boundary::{
 use super::ownership::{
     find_preferred_owner_starting_at, find_smallest_owner_enclosing_token, is_block_like_owner,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start, promote_owner_to_nearest_statement_boundary,
-    promote_owner_to_node_type_ancestor,
+    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
 };
-use super::semicolon::attach_semicolon_guard_own_line_comment;
+use super::semicolon::{
+    attach_own_line_comment_before_member_semicolon,
+    attach_own_line_comment_before_statement_semicolon,
+    try_attach_comment_before_empty_statement_semicolon,
+};
 
 /// Return whether one owner is an if expression nested in another if expression.
 fn owner_is_nested_if_expression(
@@ -161,30 +163,6 @@ fn attach_before_less_than_comment(
         let target_node = promote_owner_to_tree_expression_parent(tree, parents, target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
-    }
-
-    None
-}
-
-/// Handle own-line comments after member semicolons.
-fn attach_after_member_semicolon_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    seam: &CommentSeamData,
-    preceding_owner: Option<u32>,
-    token_before_span: Option<Span>,
-) -> Option<CommentAttachment> {
-    if seam.token_after_is(TokenType::Semicolon)
-        && let Some(target_node) = preceding_owner
-    {
-        let target_node =
-            normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-        if let Some(member_owner) =
-            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
-        {
-            let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
-            return Some((Some(member_owner), AnnotationPosition::BlockPostfix));
-        }
     }
 
     None
@@ -341,45 +319,6 @@ fn attach_before_member_dot_comment(
     Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }
 
-/// Attach own-line line comments before leading statement semicolons to the following statement.
-fn attach_before_statement_semicolon_comment(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    context: &CommentSeamContext<'_>,
-    seam: &CommentSeamData,
-    owners: CommentAttachmentNeighbors,
-    preceding_owner: Option<u32>,
-    following_owner_with_token_fallback: Option<u32>,
-    token_before_span: Option<Span>,
-) -> Option<CommentAttachment> {
-    if !seam.comment_is_line || !seam.token_after_is(TokenType::Semicolon) {
-        return None;
-    }
-
-    if let Some(attachment) =
-        attach_semicolon_guard_own_line_comment(tree, parents, context, seam, owners)
-    {
-        return Some(attachment);
-    }
-
-    let target_owner = following_owner_with_token_fallback
-        .map(|target_owner| {
-            promote_owner_to_nearest_statement_boundary(tree, parents, target_owner)
-        })
-        .filter(|target_owner| tree.get_node_type(*target_owner) != NodeType::Block)
-        .map(|target_owner| normalize_formatter_trivia_target_owner(tree, target_owner));
-    if let Some(target_owner) = target_owner {
-        return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
-    }
-
-    let target_owner = preceding_owner.or_else(|| {
-        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))
-    })?;
-    let target_owner =
-        normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
-    Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
-}
-
 /// Attach own-line comments with dedicated own-line rules.
 pub(crate) fn attach_own_line_comment(
     context: &CommentSeamContext<'_>,
@@ -412,7 +351,7 @@ pub(crate) fn attach_own_line_comment(
     }
 
     // statement semicolon comment ownership
-    if let Some(attachment) = attach_before_statement_semicolon_comment(
+    if let Some(attachment) = attach_own_line_comment_before_statement_semicolon(
         tree,
         parents,
         context,
@@ -446,7 +385,7 @@ pub(crate) fn attach_own_line_comment(
     }
 
     // member semicolon ownership
-    if let Some(attachment) = attach_after_member_semicolon_comment(
+    if let Some(attachment) = attach_own_line_comment_before_member_semicolon(
         tree,
         parents,
         seam,

@@ -62,13 +62,3 @@ pub(crate) fn next_non_trivia_token_index(
 
     None
 }
-
-/// Return the next non-trivia token type after one semantic token index.
-pub(crate) fn next_non_trivia_token_type(
-    semantic_tokens: &[TokenSpan],
-    index: usize,
-) -> Option<TokenType> {
-    next_non_trivia_token_index(semantic_tokens, index)
-        .and_then(|token_index| semantic_tokens.get(token_index))
-        .map(|token| token.token.ty)
-}
