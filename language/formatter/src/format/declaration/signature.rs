@@ -346,19 +346,17 @@ fn parameter_separator_line_comment_annotation_info(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<(LocalNodeId<Comment>, bool, bool)> {
-    let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+    let Annotation::Comment { node, .. } = context.annotation(annotation_id) else {
         return None;
     };
 
-    if !matches!(
-        position,
-        AnnotationPosition::LinePostfixBoundary | AnnotationPosition::LinePostfix
-    ) {
-        return None;
-    }
-
     let comment = context.tree.get::<Comment>(node);
-    if comment.style != CommentStyle::Slash {
+    // separator detachment supports slash comments and own-line block comments
+    let supports_separator_detachment = match comment.style {
+        CommentStyle::Slash => true,
+        CommentStyle::Star => context.annotation_starts_on_own_line(annotation_id),
+    };
+    if !supports_separator_detachment {
         return None;
     }
 
@@ -367,20 +365,31 @@ fn parameter_separator_line_comment_annotation_info(
     let next_token = next_non_whitespace_token_after_annotation(context, annotation_id);
     let has_preceding_separator =
         previous_token.is_some_and(|token| token.token.ty == TokenType::Comma);
-    let has_following_separator =
-        next_token.is_some_and(|token| token.token.ty == TokenType::Comma);
+    let has_following_separator_before_close_parenthesis = next_token
+        .is_some_and(|token| token.token.ty == TokenType::Comma)
+        && next_token.is_some_and(|token| {
+            context
+                .next_non_whitespace_token_after_span(token.span)
+                .is_some_and(|after_separator| {
+                    after_separator.token.ty == TokenType::CloseParenthesis
+                })
+        });
     let has_following_close_parenthesis =
         next_token.is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
     let has_virtual_trailing_separator = !has_preceding_separator
-        && !has_following_separator
+        && !has_following_separator_before_close_parenthesis
         && has_following_close_parenthesis
-        && position == AnnotationPosition::LinePostfixBoundary
         && context.annotation_starts_on_own_line(annotation_id);
-    if !has_preceding_separator && !has_following_separator && !has_virtual_trailing_separator {
+    if !has_preceding_separator
+        && !has_following_separator_before_close_parenthesis
+        && !has_virtual_trailing_separator
+    {
         return None;
     }
 
-    let is_own_line = if let Some(separator_token) = previous_token {
+    let is_own_line = if has_virtual_trailing_separator {
+        context.annotation_starts_on_own_line(annotation_id)
+    } else if let Some(separator_token) = previous_token {
         if separator_token.token.ty != TokenType::Comma {
             false
         } else {
@@ -391,22 +400,33 @@ fn parameter_separator_line_comment_annotation_info(
             );
             context.has_newline(before_comment_span)
         }
-    } else if let Some(separator_token) = next_token {
-        if separator_token.token.ty != TokenType::Comma {
-            false
-        } else {
+    } else if has_following_separator_before_close_parenthesis {
+        if let Some(separator_token) = next_token {
             let after_comment_span = Span::new(
                 annotation_span.file,
                 annotation_span.end,
                 separator_token.span.start,
             );
             context.has_newline(after_comment_span)
+        } else {
+            false
         }
     } else {
         context.annotation_starts_on_own_line(annotation_id)
     };
 
-    let has_blank_line_before_first_comment = if let Some(separator_token) = previous_token {
+    let has_blank_line_before_first_comment = if has_virtual_trailing_separator {
+        if let Some(previous_token) = previous_token {
+            let before_comment_span = Span::new(
+                annotation_span.file,
+                previous_token.span.end,
+                annotation_span.start,
+            );
+            context.has_blank_line(before_comment_span)
+        } else {
+            false
+        }
+    } else if let Some(separator_token) = previous_token {
         if separator_token.token.ty != TokenType::Comma {
             false
         } else {
@@ -417,16 +437,16 @@ fn parameter_separator_line_comment_annotation_info(
             );
             context.has_blank_line(before_comment_span)
         }
-    } else if let Some(separator_token) = next_token {
-        if separator_token.token.ty != TokenType::Comma {
-            false
-        } else {
+    } else if has_following_separator_before_close_parenthesis {
+        if let Some(separator_token) = next_token {
             let before_separator_span = Span::new(
                 annotation_span.file,
                 annotation_span.end,
                 separator_token.span.start,
             );
             context.has_blank_line(before_separator_span)
+        } else {
+            false
         }
     } else {
         false
@@ -1016,10 +1036,72 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
 #[cfg(test)]
 mod tests {
     use crate::{
-        DestackFormatOptions, TestFormatter, assert_format,
-        assert_format_program_idempotent_with_file_type,
+        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+        TestFormatter, assert_format, assert_format_program_idempotent_with_file_type,
     };
+    use destack_ast::{LocalNodeId, NodeParentIndex, NodeType, Parameter};
     use destack_source::FileType;
+
+    /// Build a formatter context for signature separator-comment assertions.
+    fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
+        DestackFormatContext::new(
+            DestackFormatOptions::default(),
+            DestackFormatArtifacts {
+                file: &formatter.file,
+                tree: &formatter.tree,
+                tokens: &formatter.tokens,
+                side_tokens: &formatter.side_tokens,
+                side_span: &formatter.side_span,
+                strings: &formatter.strings,
+                parents: NodeParentIndex::from_tree(&formatter.tree),
+            },
+        )
+    }
+
+    /// Find one annotation id by marker fragment.
+    fn find_annotation_by_fragment(
+        context: &DestackFormatContext<'_>,
+        marker: &str,
+    ) -> Option<LocalNodeId<Annotation>> {
+        for (entry_index, _) in context.formatter_annotation_entries.iter().enumerate() {
+            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+            let matches_marker = match context.annotation(annotation_id) {
+                Annotation::Comment { node, .. } => context.comment_text(node).contains(marker),
+                Annotation::Doc { node, .. } => {
+                    let document = context.tree.get(node);
+                    context.strings.get(document.string).contains(marker)
+                }
+                Annotation::Blank { .. } | Annotation::Decorator { .. } => false,
+            };
+            if matches_marker {
+                return Some(annotation_id);
+            }
+        }
+
+        None
+    }
+
+    /// Find one annotation owner parameter id.
+    fn find_annotation_owner_parameter_id(
+        context: &DestackFormatContext<'_>,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<LocalNodeId<Parameter>> {
+        context
+            .formatter_annotation_ids_by_node_id
+            .iter()
+            .enumerate()
+            .find_map(|(node_id, annotation_ids)| {
+                if !annotation_ids
+                    .iter()
+                    .any(|candidate| candidate.id == annotation_id.id)
+                {
+                    return None;
+                }
+
+                (context.tree.get_node_type(node_id as u32) == NodeType::Parameter)
+                    .then_some(LocalNodeId::<Parameter>::new(node_id as u32))
+            })
+    }
 
     #[test]
     fn test_format_parameter() {
@@ -1084,5 +1166,66 @@ mod tests {
             FileType::TypeScript,
             DestackFormatOptions::default(),
         );
+    }
+
+    /// Own-line block separator comments in parameter lists should stay idempotent.
+    #[test]
+    fn test_format_signature_trailing_separator_block_comment_is_idempotent() {
+        let source = r#"var x = {
+  getSectionMode(
+    pageMetaData: PageMetaData,
+    sectionMetaData: SectionMetaData
+    /* $FlowFixMe This error was exposed while converting keyMirror
+     * to keyMirrorRecursive */
+  ): $Enum<SectionMode> {
+  }
+}
+
+class X2 {
+  getSectionMode(
+    pageMetaData: PageMetaData,
+    sectionMetaData: SectionMetaData = ['unknown']
+    /* $FlowFixMe This error was exposed while converting keyMirror
+     * to keyMirrorRecursive */
+  ): $Enum<SectionMode> {
+  }
+}
+"#;
+        assert_format_program_idempotent_with_file_type(
+            source,
+            FileType::TypeScript,
+            DestackFormatOptions::default(),
+        );
+    }
+
+    /// Signature separator block comments should resolve to one detachable own-line source.
+    #[test]
+    fn test_signature_separator_block_comment_source_is_detected_for_flow_style_fixture() {
+        let source = r#"class X2 {
+  getSectionMode(
+    pageMetaData: PageMetaData,
+    sectionMetaData: SectionMetaData = ["unknown"]
+    /* $FlowFixMe This error was exposed while converting keyMirror
+     * to keyMirrorRecursive */
+    ,
+  ): $Enum<SectionMode> {
+  }
+}
+"#;
+        let (formatter, _) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+                .expect("parse signature block comment source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id = find_annotation_by_fragment(&context, "$FlowFixMe")
+            .expect("expected flow-fixme separator block annotation");
+
+        let source_info =
+            super::parameter_separator_line_comment_annotation_info(&context, annotation_id);
+        assert!(source_info.is_some(), "expected separator annotation info");
+
+        let parameter_id = find_annotation_owner_parameter_id(&context, annotation_id)
+            .expect("expected parameter owner for separator annotation");
+        let source = super::parameter_separator_line_comment_source(&context, parameter_id);
+        assert!(source.is_some(), "expected separator source for parameter");
     }
 }

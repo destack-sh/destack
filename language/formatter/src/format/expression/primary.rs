@@ -15,15 +15,16 @@ use crate::format::expression::{
     format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
     is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
     line_postfix_boundary, list_like, parenthesized_boundary_comments,
-    parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
-    should_drop_parenthesized, should_force_multiline_mapped_type,
-    should_hoist_parenthesized_inner_cast_prefix_comments,
+    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_trivia,
+    sequence_expression_needs_parens, should_drop_parenthesized,
+    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
     single_argument_separator_line_comment_source, soft_block_indent, soft_line_break,
     soft_line_break_or_space, space, token, transparent_inner_expression,
     tree_literal_should_break, write_argument_without_separator_line_comment,
     write_separator_line_comment_after_comma,
 };
 use crate::format::tree::format_tree_literal_expression;
+use destack_ast as ast;
 use destack_ast::{AnnotationPosition, NodeTree};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
@@ -837,6 +838,14 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
     } else {
         let has_parenthesized_leading_inner_trivia =
             parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_comments =
+            parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
+        let parenthesized_starts_with_type_operator =
+            parenthesized_inner_starts_with_type_operator(f.context(), node_id, expression_id);
+        let inner_expression_has_comments =
+            f.context().has_comment(f.context().span(expression_id));
+        let union_or_intersection_member_count =
+            expression_union_or_intersection_member_count(f.context().tree, expression_id);
         let has_inner_decorator_prefix_annotation =
             expression_has_effective_decorator_prefix_annotation(f.context(), expression_id);
         let parent_is_postfix_continuation =
@@ -952,16 +961,18 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     token(")")
                 ]
             )?;
-        } else if expression_is_union_or_intersection_binary(inner_expression)
-            && (has_parenthesized_leading_inner_trivia
-                || f.context().has_annotation(expression_id)
-                || f.context().node_has_newline(expression_id))
+        } else if (parenthesized_starts_with_type_operator && inner_expression_has_comments)
+            || (expression_is_union_or_intersection_binary(inner_expression)
+                && (expression_has_effective_prefix_annotation(f.context(), expression_id)
+                    || has_parenthesized_leading_inner_comments
+                    || inner_expression_has_comments))
+            || union_or_intersection_member_count > 2
         {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if matches!(inner_expression, Expression::TypeConditional { .. }) {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if has_parenthesized_leading_inner_trivia
-            && f.context().has_prefix_annotation(expression_id)
+            && expression_has_effective_prefix_annotation(f.context(), expression_id)
         {
             write!(f, [token("("), soft_block_indent(&expression), token(")")])?;
         } else if parent_is_postfix_continuation
@@ -1011,6 +1022,84 @@ fn expression_is_union_or_intersection_binary(expression: &Expression) -> bool {
     )
 }
 
+/// Return the member count for one union or intersection binary chain.
+fn expression_union_or_intersection_member_count(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> usize {
+    match tree.get(expression_id) {
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+            left,
+            right,
+        } => {
+            expression_union_or_intersection_member_count(tree, *left)
+                + expression_union_or_intersection_member_count(tree, *right)
+        }
+        _ => 1,
+    }
+}
+
+/// Return whether one parenthesized inner expression starts with a type operator token.
+fn parenthesized_inner_starts_with_type_operator(
+    context: &DestackFormatContext<'_>,
+    parenthesized_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parenthesized_span = context.span(parenthesized_id);
+    let inner_span = context.span(inner_expression_id);
+    let mut search_start = parenthesized_span.start.saturating_add(1);
+    if search_start >= inner_span.end || parenthesized_span.file != inner_span.file {
+        return false;
+    }
+
+    loop {
+        let Some(token) = context.first_non_trivia_token_between(search_start, inner_span.end)
+        else {
+            return false;
+        };
+
+        if token.token.ty == ast::TokenType::OpenParenthesis {
+            if token.span.end <= search_start {
+                return false;
+            }
+            search_start = token.span.end;
+            continue;
+        }
+
+        return matches!(
+            token.token.ty,
+            ast::TokenType::ElementwiseOr | ast::TokenType::ElementwiseAnd
+        );
+    }
+}
+
+/// Return whether one expression starts with one effective prefix annotation.
+fn expression_has_effective_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let mut current_id = expression_id;
+
+    loop {
+        if context.has_prefix_annotation(current_id) {
+            return true;
+        }
+
+        let next_id = match context.tree.get(current_id) {
+            Expression::Statement(expression) | Expression::Parenthesized { expression } => {
+                Some(*expression)
+            }
+            Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => Some(*left),
+            _ => None,
+        };
+        let Some(next_id) = next_id else {
+            return false;
+        };
+        current_id = next_id;
+    }
+}
+
 /// Return whether one parenthesized expression continues into a postfix chain parent.
 fn expression_parent_is_postfix_continuation(
     context: &DestackFormatContext<'_>,
@@ -1050,7 +1139,7 @@ fn expression_is_ternary_branch(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     let Expression::If {
-        kind: destack_ast::IfKind::Ternary,
+        kind: ast::IfKind::Ternary,
         then_expression,
         else_expression,
         ..
@@ -1087,7 +1176,7 @@ fn expression_is_in_assignment_value_context(
                 }
 
                 if let Expression::If {
-                    kind: destack_ast::IfKind::Ternary,
+                    kind: ast::IfKind::Ternary,
                     condition,
                     then_expression,
                     else_expression,
@@ -1095,7 +1184,7 @@ fn expression_is_in_assignment_value_context(
                 {
                     let is_ternary_test = matches!(
                         condition,
-                        destack_ast::IfCondition::Expression { condition }
+                        ast::IfCondition::Expression { condition }
                             if *condition == current_id
                     );
                     let is_ternary_branch = *then_expression == current_id

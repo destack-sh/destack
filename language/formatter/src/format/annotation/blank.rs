@@ -25,10 +25,7 @@ use super::ownership::{
     promote_owner_to_nearest_statement_boundary, promote_owner_to_node_type_ancestor,
     promote_owner_to_statement_boundary,
 };
-use super::semicolon::{
-    SemicolonGuardCommentSeam, classify_semicolon_guard_comment_seam,
-    semicolon_guard_targets_array_literal,
-};
+use super::semicolon::{SemicolonGuardCommentSeam, classify_semicolon_guard_comment_seam};
 
 impl<'ast> FormatNode<'ast, Blank> for Blank {
     /// Format one blank annotation node.
@@ -269,32 +266,6 @@ fn normalized_blank_seam_token_indexes(
     )
 }
 
-/// Return whether one owner has one `if` statement expression ancestor.
-fn owner_has_if_statement_ancestor(
-    tree: &NodeTree,
-    parents: &NodeParentIndex,
-    owner: Option<u32>,
-) -> bool {
-    let mut current_owner = owner;
-    while let Some(owner_id) = current_owner {
-        if tree.get_node_type(owner_id) == NodeType::Expression
-            && matches!(
-                tree.get(LocalNodeId::<Expression>::new(owner_id)),
-                Expression::If {
-                    kind: destack_ast::IfKind::If,
-                    ..
-                }
-            )
-        {
-            return true;
-        }
-
-        current_owner = parents.get_by_id(owner_id);
-    }
-
-    false
-}
-
 /// Return comment trivia facts across one token index range.
 fn comment_trivia_summary_in_token_range(
     semantic_tokens: &[TokenSpan],
@@ -513,24 +484,31 @@ fn blank_seam_owner_state(
         .and_then(|token_index| next_non_trivia_token_index(semantic_tokens, token_index));
     let following_owner_after_comment =
         start_owner_at_token(owner_index, token_after_comment_next_index);
-    let token_after_comment_target_type = token_after_comment_next_index
-        .and_then(|token_index| semantic_tokens.get(token_index))
-        .map(|token| token.token.ty);
-    let token_after_comment_continues_chain_or_index = matches!(
-        token_state.token_after_type,
-        Some(TokenType::Dot | TokenType::OpenBracket)
-    ) || matches!(
-        (token_state.token_after_type, token_after_comment_target_type),
-        (Some(comment_type), Some(TokenType::Dot | TokenType::OpenBracket))
-            if token_type_is_comment_trivia(comment_type)
-    );
-
     let shared_expression_owner = preceding_owner
         .zip(following_owner)
         .and_then(|(preceding_owner, following_owner)| {
             lowest_common_owner_ancestor(tree, parents, preceding_owner, following_owner)
         })
         .and_then(|owner| (tree.get_node_type(owner) == NodeType::Expression).then_some(owner));
+    let shares_statement_boundary =
+        preceding_owner
+            .zip(following_owner)
+            .is_some_and(|(preceding_owner, following_owner)| {
+                promote_owner_to_statement_boundary(tree, parents, preceding_owner)
+                    == promote_owner_to_statement_boundary(tree, parents, following_owner)
+            });
+    let token_after_comment_target_type = token_after_comment_next_index
+        .and_then(|token_index| semantic_tokens.get(token_index))
+        .map(|token| token.token.ty);
+    let token_after_comment_continues_chain_or_index = shares_statement_boundary
+        && (matches!(
+            token_state.token_after_type,
+            Some(TokenType::Dot | TokenType::OpenBracket)
+        ) || matches!(
+            (token_state.token_after_type, token_after_comment_target_type),
+            (Some(comment_type), Some(TokenType::Dot | TokenType::OpenBracket))
+                if token_type_is_comment_trivia(comment_type)
+        ));
     let preceding_match_case_owner = preceding_owner.and_then(|owner| {
         promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::MatchCase)
     });
@@ -557,6 +535,7 @@ struct BlankSeamFacts {
     token_after_span: Option<TokenSpan>,
     token_before_type: Option<TokenType>,
     token_after_type: Option<TokenType>,
+    raw_token_after_is_comment: bool,
     seam_has_comment: bool,
     seam_has_line_comment: bool,
     token_before_is_comment: bool,
@@ -575,7 +554,6 @@ struct BlankSeamFacts {
     token_after_is_open_parenthesis: bool,
     token_after_is_chain_or_index_boundary: bool,
     semicolon_guard_seam: SemicolonGuardCommentSeam,
-    is_if_semicolon_guard_array_separator_seam: bool,
 }
 
 /// Build one seam facts snapshot for blank seam phase handlers.
@@ -586,7 +564,6 @@ fn blank_seam_facts(
     token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     token_state: &BlankSeamTokenState,
     comment_state: &BlankSeamCommentState,
-    owner_state: &BlankSeamOwnerState,
 ) -> BlankSeamFacts {
     let token_before_type = token_state.token_before_type;
     let token_after_type = token_state.token_after_type;
@@ -619,6 +596,9 @@ fn blank_seam_facts(
         token_after_type,
         Some(TokenType::Dot | TokenType::OpenBracket)
     );
+    let raw_token_after_is_comment = token_state
+        .raw_token_after_type
+        .is_some_and(token_type_is_comment_trivia);
 
     let semicolon_guard_seam = classify_semicolon_guard_comment_seam(
         tree,
@@ -629,16 +609,6 @@ fn blank_seam_facts(
         token_after_type,
         token_after,
     );
-    let is_if_semicolon_guard_array_separator_seam = owner_has_if_statement_ancestor(
-        tree,
-        parents,
-        owner_state.preceding_owner_before_semicolon,
-    ) && semicolon_guard_targets_array_literal(
-        semicolon_guard_seam,
-        token_before_is_semicolon,
-        token_after_type,
-    );
-
     let token_after_keyword = comment_seam_keyword(token_keyword_by_span, token_after_span);
     let token_before_keyword = comment_seam_keyword(token_keyword_by_span, token_before_span);
     let token_after_is_else = token_after_keyword == CommentSeamKeyword::Else;
@@ -654,6 +624,7 @@ fn blank_seam_facts(
         token_after_span,
         token_before_type,
         token_after_type,
+        raw_token_after_is_comment,
         seam_has_comment,
         seam_has_line_comment,
         token_before_is_comment,
@@ -672,7 +643,6 @@ fn blank_seam_facts(
         token_after_is_open_parenthesis,
         token_after_is_chain_or_index_boundary,
         semicolon_guard_seam,
-        is_if_semicolon_guard_array_separator_seam,
     }
 }
 
@@ -685,6 +655,14 @@ fn try_attach_blank_specialized_handlers(
     owner_state: &BlankSeamOwnerState,
     facts: BlankSeamFacts,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
+    // statement-boundary blanks directly before comment trivia are represented by comment spacing
+    if !facts.seam_has_comment
+        && facts.token_before_is_statement_end
+        && (facts.token_after_is_comment || facts.raw_token_after_is_comment)
+    {
+        return Some(blank_infix_attachment());
+    }
+
     if let Some(attachment) = try_attach_comment_shape_blank_seam(
         tree,
         parents,
@@ -700,13 +678,9 @@ fn try_attach_blank_specialized_handlers(
         return Some(attachment);
     }
 
-    if let Some(attachment) = try_attach_semicolon_guard_blank_seam(
-        tree,
-        comment_state,
-        owner_state,
-        facts.semicolon_guard_seam,
-        facts.is_if_semicolon_guard_array_separator_seam,
-    ) {
+    if let Some(attachment) =
+        try_attach_semicolon_guard_blank_seam(tree, comment_state, facts.semicolon_guard_seam)
+    {
         return Some(attachment);
     }
 
@@ -832,34 +806,10 @@ fn attach_blank_default_fallback(
 
 /// Attach one if-specific or generic semicolon-guard blank seam.
 fn try_attach_semicolon_guard_blank_seam(
-    tree: &NodeTree,
-    comment_state: &BlankSeamCommentState,
-    owner_state: &BlankSeamOwnerState,
-    semicolon_guard_seam: SemicolonGuardCommentSeam,
-    is_if_semicolon_guard_array_separator_seam: bool,
+    _tree: &NodeTree,
+    _comment_state: &BlankSeamCommentState,
+    _semicolon_guard_seam: SemicolonGuardCommentSeam,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
-    let seam_has_comment = comment_state.seam_has_comment;
-    let blank_before_first_comment = comment_state.blank_before_first_comment;
-    let preceding_owner_before_semicolon = owner_state.preceding_owner_before_semicolon;
-    let preceding_owner = owner_state.preceding_owner;
-    let following_owner = owner_state.following_owner;
-
-    // if semicolon-guard array seams
-    if seam_has_comment
-        && blank_before_first_comment
-        && is_if_semicolon_guard_array_separator_seam
-        && let Some(target_node) = following_owner
-            .or(preceding_owner_before_semicolon)
-            .or(preceding_owner)
-    {
-        return Some(block_prefix_attachment(tree, target_node));
-    }
-
-    // generic semicolon guard seams
-    if seam_has_comment && semicolon_guard_seam.has_guard_shape() {
-        return Some(blank_infix_attachment());
-    }
-
     None
 }
 
@@ -885,7 +835,11 @@ fn try_attach_statement_end_comment_blank_seam(
         owner_state.token_after_comment_continues_chain_or_index;
 
     // statement-end seams with line comments
-    if seam_has_line_comment && blank_before_first_comment && token_before_is_statement_end {
+    if seam_has_line_comment
+        && blank_before_first_comment
+        && token_before_is_statement_end
+        && !semicolon_guard_seam.has_guard_shape()
+    {
         if token_after_comment_continues_chain_or_index
             && let Some(target_node) = preceding_token_owner
                 .or(preceding_owner_before_semicolon)
@@ -1223,7 +1177,6 @@ pub(crate) fn blank_trivia_attachment(
         token_keyword_by_span,
         &token_state,
         &comment_state,
-        &owner_state,
     );
 
     // specialized seam handlers

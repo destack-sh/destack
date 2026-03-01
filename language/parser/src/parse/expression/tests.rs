@@ -6540,6 +6540,36 @@ fn test_parse_arrow_body_with_multiline_class_heritage_static_arguments() {
     });
 }
 
+#[test]
+fn test_parse_call_with_instantiation_callee_and_inline_block_comment() {
+    let mut test =
+        TestParser::new_with_options("foo/* marker */<string>(1)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, static_arguments: Some(static_arguments), dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        assert_eq!(static_arguments.len(), 1);
+    });
+}
+
+#[test]
+fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments() {
+    let mut test =
+        TestParser::new_with_options("foo<string>// marker\n(1)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, static_arguments: None, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, static_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_eq!(static_arguments.len(), 1);
+        });
+    });
+}
+
 /// Parse TSX typed arrow parameters whose type is a generic function type.
 #[test]
 fn test_parse_tsx_typed_arrow_parameter_with_generic_function_type_annotation() {
