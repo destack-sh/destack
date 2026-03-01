@@ -1,8 +1,8 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { AudioDeviceHandle, AudioStreamHandle } from "../resource/index.ds";
+import { AudioBackend } from "./backend.ds";
 import {
-    AudioBackend,
     AudioChannelLayout,
     AudioSampleFormat,
     AudioShareMode,

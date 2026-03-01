@@ -1,7 +1,7 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { AudioEventHandle, AudioStreamHandle } from "../resource/index.ds";
-import { AudioBackend, AudioBackendSelectionPolicy } from "./device.ds";
+import { AudioBackend, AudioBackendSelectionPolicy } from "./backend.ds";
 import { AudioStreamStatusFlags } from "./stream.ds";
 
 /// Event subscription flags.
@@ -67,6 +67,105 @@ export enum AudioEventKind {
     BackendReset = 14,
 }
 
+/// Device-added event payload.
+export struct AudioDeviceAddedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Device-removed event payload.
+export struct AudioDeviceRemovedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Default-playback-changed event payload.
+export struct AudioDefaultPlaybackChangedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Default-capture-changed event payload.
+export struct AudioDefaultCaptureChangedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Default-loopback-changed event payload.
+export struct AudioDefaultLoopbackChangedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Device-format-changed event payload.
+export struct AudioDeviceFormatChangedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Device-rerouted event payload.
+export struct AudioDeviceReroutedPayload {
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Interruption-began event payload.
+export struct AudioInterruptionBeganPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+}
+
+/// Interruption-ended event payload.
+export struct AudioInterruptionEndedPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+}
+
+/// Backend-disconnected event payload.
+export struct AudioBackendDisconnectedPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+}
+
+/// Stream-xrun event payload.
+export struct AudioStreamXRunPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
+    /// Xrun count delta for this event.
+    xrunCountDelta: uint64;
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Stream-device-changed event payload.
+export struct AudioStreamDeviceChangedPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
+    /// Target device identifier when present.
+    deviceId: string | void;
+}
+
+/// Stream-state-changed event payload.
+export struct AudioStreamStateChangedPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+    /// Current stream status flags.
+    statusFlags: AudioStreamStatusFlags;
+}
+
+/// Backend-reset event payload.
+export struct AudioBackendResetPayload {
+    /// Target stream handle when present.
+    stream: AudioStreamHandle | void;
+}
+
+/// Typed audio event payload.
+export newtype AudioEventPayload = AudioDeviceAddedPayload | AudioDeviceRemovedPayload | AudioDefaultPlaybackChangedPayload | AudioDefaultCaptureChangedPayload | AudioDefaultLoopbackChangedPayload | AudioDeviceFormatChangedPayload | AudioDeviceReroutedPayload | AudioInterruptionBeganPayload | AudioInterruptionEndedPayload | AudioBackendDisconnectedPayload | AudioStreamXRunPayload | AudioStreamDeviceChangedPayload | AudioStreamStateChangedPayload | AudioBackendResetPayload;
+
 /// Event subscription options.
 export struct AudioEventSubscriptionOptions {
     /// Backend selector for this subscription.
@@ -103,14 +202,8 @@ export struct AudioEvent {
     backend: AudioBackend;
     /// Event flags.
     flags: uint32;
-    /// Current stream status flags when event kind is stream-related.
-    statusFlags: AudioStreamStatusFlags;
-    /// Xrun count delta when event kind is stream-related.
-    xrunCountDelta: uint64;
-    /// Target device identifier when present.
-    deviceId: string | void;
-    /// Target stream handle when present.
-    stream: AudioStreamHandle | void;
+    /// Typed event payload.
+    payload: AudioEventPayload;
 }
 
 /// Audio event bindings.
