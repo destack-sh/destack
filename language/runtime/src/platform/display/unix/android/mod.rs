@@ -1,7 +1,6 @@
 mod core;
 mod monitor;
 mod monitor_event;
-mod win32;
 mod window;
 mod window_event;
 

@@ -11,7 +11,4 @@ mod windows;
 pub(crate) use windows::*;
 
 #[cfg(not(any(unix, windows)))]
-#[path = "unsupported.rs"]
-mod unsupported;
-#[cfg(not(any(unix, windows)))]
-pub(crate) use unsupported::*;
+pub(crate) use super::unsupported::*;

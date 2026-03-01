@@ -2,12 +2,14 @@
 
 use destack_vm as vm;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice, display};
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
 mod harness;
+pub(crate) use harness::HarnessValue;
 
 /// Test harness context used by tests.
 pub(crate) struct DisplayHarnessContext<'call> {
@@ -113,4 +115,228 @@ where
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Build one harness string payload for native and VM binding calls.
+pub(crate) fn harness_string(
+    context: &mut DisplayHarnessContext<'_>,
+    value: &str,
+) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+    match context.vm_context {
+        Some(vm_context) => {
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            Ok(HarnessValue::Vm(vm::StringHandle::new(
+                vm_context.intern_string(value),
+            )))
+        }
+        None => Ok(HarnessValue::Native(
+            context.call_context.store_string(value),
+        )),
+    }
+}
+
+/// Decode one monitor list payload into plain Rust records.
+pub(crate) fn decode_monitor_list(
+    context: &mut DisplayHarnessContext<'_>,
+    value: HarnessValue<
+        NativeSlice<display::DisplayDescriptor>,
+        VmSlice<display::DisplayDescriptorVm>,
+    >,
+) -> RuntimeResult<Vec<(String, String, bool)>> {
+    match value {
+        HarnessValue::Native(values) => {
+            let values = unsafe { values.as_slice()? };
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                let id = unsafe { value.id.as_str()? }.to_string();
+                let name = unsafe { value.name.as_str()? }.to_string();
+                decoded.push((id, name, value.primary));
+            }
+
+            Ok(decoded)
+        }
+        HarnessValue::Vm(values) => {
+            let Some(vm_context) = context.vm_context else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let values = values.read_values(vm_context)?;
+            let mut decoded = Vec::with_capacity(values.len());
+
+            for value in values {
+                let id = vm_context
+                    .string_ref(value.id)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                let name = vm_context
+                    .string_ref(value.name)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                decoded.push((id, name, value.primary));
+            }
+
+            Ok(decoded)
+        }
+    }
+}
+
+/// Decode one monitor modes payload.
+pub(crate) fn decode_monitor_modes(
+    context: &mut DisplayHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<display::DisplayMode>, VmSlice<display::DisplayModeVm>>,
+) -> RuntimeResult<Vec<display::DisplayMode>> {
+    match value {
+        HarnessValue::Native(values) => {
+            let values = unsafe { values.as_slice()? };
+            Ok(values.to_vec())
+        }
+        HarnessValue::Vm(values) => {
+            let Some(vm_context) = context.vm_context else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            Ok(values.read_values(vm_context)?)
+        }
+    }
+}
+
+/// Decode one display descriptor payload into plain Rust values.
+pub(crate) fn decode_display_descriptor(
+    context: &mut DisplayHarnessContext<'_>,
+    value: HarnessValue<display::DisplayDescriptor, display::DisplayDescriptorVm>,
+) -> RuntimeResult<(String, String, bool)> {
+    match value {
+        HarnessValue::Native(value) => {
+            let id = unsafe { value.id.as_str()? }.to_string();
+            let name = unsafe { value.name.as_str()? }.to_string();
+            Ok((id, name, value.primary))
+        }
+        HarnessValue::Vm(value) => {
+            let Some(vm_context) = context.vm_context else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let id = vm_context
+                .string_ref(value.id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            let name = vm_context
+                .string_ref(value.name)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            Ok((id, name, value.primary))
+        }
+    }
+}
+
+/// Decode one window descriptor payload into plain Rust values.
+pub(crate) fn decode_window_descriptor(
+    context: &mut DisplayHarnessContext<'_>,
+    value: HarnessValue<display::WindowDescriptor, display::WindowDescriptorVm>,
+) -> RuntimeResult<(String, String)> {
+    match value {
+        HarnessValue::Native(value) => {
+            let id = unsafe { value.id.as_str()? }.to_string();
+            let title = unsafe { value.title.as_str()? }.to_string();
+            Ok((id, title))
+        }
+        HarnessValue::Vm(value) => {
+            let Some(vm_context) = context.vm_context else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument(
+                    "missing vm context",
+                ))
+                .boxed());
+            };
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            let id = vm_context
+                .string_ref(value.id)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            let title = vm_context
+                .string_ref(value.title)
+                .map_err(|error| RuntimeError::from(error).boxed())?
+                .as_str()
+                .to_string();
+            Ok((id, title))
+        }
+    }
+}
+
+/// Build one default window-options payload for harness calls.
+pub(crate) fn default_window_options(
+    context: &mut DisplayHarnessContext<'_>,
+    title: &str,
+) -> RuntimeResult<HarnessValue<display::WindowOptions, display::WindowOptionsVm>> {
+    let options = match context.vm_context {
+        Some(vm_context) => {
+            let vm_context = unsafe { &mut *(vm_context as *mut vm::ExternalCallContext<'_>) };
+            HarnessValue::Vm(display::WindowOptionsVm {
+                title: vm::StringHandle::new(vm_context.intern_string(title)),
+                size_logical: display::WindowLogicalSizeVm {
+                    width: 1280.0,
+                    height: 720.0,
+                },
+                position: Some(display::WindowPositionVm { x: 40, y: 50 }),
+                constraints: None,
+                display: None,
+                mode: display::WindowModeOptionsVm {
+                    mode: display::WindowMode::Windowed,
+                    display: None,
+                    display_mode: None,
+                },
+                visibility: display::WindowVisibility::Visible,
+                resizable: true,
+                decorated: true,
+                transparent: false,
+                focus_on_show: true,
+                always_on_top: false,
+            })
+        }
+        None => HarnessValue::Native(display::WindowOptions {
+            title: context.call_context.store_string(title),
+            size_logical: display::WindowLogicalSize {
+                width: 1280.0,
+                height: 720.0,
+            },
+            position: Some(display::WindowPosition { x: 40, y: 50 }),
+            constraints: None,
+            display: None,
+            mode: display::WindowModeOptions {
+                mode: display::WindowMode::Windowed,
+                display: None,
+                display_mode: None,
+            },
+            visibility: display::WindowVisibility::Visible,
+            resizable: true,
+            decorated: true,
+            transparent: false,
+            focus_on_show: true,
+            always_on_top: false,
+        }),
+    };
+
+    Ok(options)
+}
+
+/// Decode one harness value where native and vm payloads share one ABI shape.
+pub(crate) fn decode_harness_value<T>(value: HarnessValue<T, T>) -> T {
+    match value {
+        HarnessValue::Native(value) => value,
+        HarnessValue::Vm(value) => value,
+    }
 }
