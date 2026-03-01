@@ -272,3 +272,135 @@ fn test_window_event_stream_receives_host_close_message() {
         Ok(())
     });
 }
+
+#[cfg(windows)]
+#[test]
+fn test_window_close_emits_single_lifecycle_events_after_host_close_request() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "window-close-lifecycle")?;
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let stream = context.destack_display_window_event_open(window_event_open_options(
+            &context,
+            64,
+            DisplayEventOverflowPolicy::DropOldest,
+        ))?;
+
+        let hwnd = context
+            .call_context
+            .runtime()
+            .resources
+            .with_entry(window.0, |entry| entry.raw_handle)
+            .flatten()
+            .expect("window resource should expose raw hwnd");
+        unsafe {
+            let _ = SendMessageW(hwnd as isize, WM_CLOSE, 0, 0);
+        }
+
+        context.destack_display_window_close(window)?;
+
+        let mut close_requested_count = 0usize;
+        let mut destroyed_count = 0usize;
+        loop {
+            let event = context.destack_display_window_event_try_read(stream);
+            let event = match event {
+                Ok(event) => event,
+                Err(error) => {
+                    if error_code(&error) == Some(PlatformErrorCode::IoWouldBlock) {
+                        break;
+                    }
+
+                    context.destack_display_window_event_close(stream)?;
+                    return Err(error);
+                }
+            };
+
+            if matches!(
+                event,
+                super::HarnessValue::Native(
+                    crate::platform::display::WindowEvent::WindowCloseRequestedEvent(_)
+                ) | super::HarnessValue::Vm(
+                    crate::platform::display::WindowEventVm::WindowCloseRequestedEvent(_)
+                )
+            ) {
+                close_requested_count = close_requested_count.saturating_add(1);
+            }
+
+            if matches!(
+                event,
+                super::HarnessValue::Native(
+                    crate::platform::display::WindowEvent::WindowDestroyedEvent(_)
+                ) | super::HarnessValue::Vm(
+                    crate::platform::display::WindowEventVm::WindowDestroyedEvent(_)
+                )
+            ) {
+                destroyed_count = destroyed_count.saturating_add(1);
+            }
+        }
+
+        assert_eq!(close_requested_count, 1);
+        assert_eq!(destroyed_count, 1);
+        context.destack_display_window_event_close(stream)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_state_read_does_not_synthesize_window_events() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "window-state-no-events")?;
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let stream = context.destack_display_window_event_open(window_event_open_options(
+            &context,
+            64,
+            DisplayEventOverflowPolicy::DropOldest,
+        ))?;
+
+        // drain any host-originated events that were already queued
+        loop {
+            let event = context.destack_display_window_event_try_read(stream);
+            let Err(error) = event else {
+                continue;
+            };
+            if error_code(&error) == Some(PlatformErrorCode::IoWouldBlock) {
+                break;
+            }
+
+            context.destack_display_window_event_close(stream)?;
+            context.destack_display_window_close(window)?;
+            return Err(error);
+        }
+
+        let _ = context.destack_display_window_state(window)?;
+        let read_result = context.destack_display_window_event_try_read(stream);
+        let read_error = read_result.expect_err("window state read should not emit events");
+        assert_eq!(
+            error_code(&read_error),
+            Some(PlatformErrorCode::IoWouldBlock)
+        );
+
+        context.destack_display_window_event_close(stream)?;
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
