@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_vm as vm;
+use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions};
 
 use crate::diagnostic::RuntimeResult;
@@ -10,7 +10,7 @@ use crate::platform::time::TimerClock;
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::Agent;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue, NativeContinuation,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -93,17 +93,9 @@ pub(super) struct TestEngine {
 impl Engine for TestEngine {
     /// Entry payload for this engine.
     type Entry = ();
-    /// Runtime output type for this engine.
-    type Output = AgentOutput;
-    /// Runtime value type for this engine.
-    type Value = AgentValue;
 
     /// Run one entrypoint without yielding.
-    fn run(
-        &mut self,
-        _entry: &Self::Entry,
-        _args: &[Self::Value],
-    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Value>> {
+    fn run(&mut self, _entry: &Self::Entry, _args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
         Ok(EngineOutcome::Completed {
             output: void_output(),
         })
@@ -113,14 +105,14 @@ impl Engine for TestEngine {
     fn resume(
         &mut self,
         _continuation: EngineContinuation,
-        _value: Self::Value,
-    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Value>> {
+        _value: heap::Value,
+    ) -> RuntimeResult<EngineOutcome> {
         // return one yielded continuation on the first resume
         if self.resume_calls == 0 {
             self.resume_calls += 1;
             return Ok(EngineOutcome::Yielded {
                 continuation: EngineContinuation::Native(NativeContinuation::new(2)),
-                value: AgentValue::VOID,
+                value: heap::Value::VOID,
             });
         }
 
@@ -168,8 +160,10 @@ impl TestRuntime {
     pub(super) fn enqueue_task_native(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
         self.agent.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
-            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-            resume_value: AgentValue::VOID,
+            runnable: EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                continuation_id,
+            ))),
+            resume_value: heap::Value::VOID,
             status: TaskStatus::Ready,
             priority,
         });
@@ -179,8 +173,10 @@ impl TestRuntime {
     pub(super) fn enqueue_microtask_native(&mut self, microtask_id: u64, continuation_id: u64) {
         self.agent.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
-            continuation: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-            resume_value: AgentValue::VOID,
+            continuation: EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                continuation_id,
+            ))),
+            resume_value: heap::Value::VOID,
             status: TaskStatus::Ready,
         });
     }
@@ -198,8 +194,10 @@ impl TestRuntime {
         self.agent
             .watch_timer(
                 ResourceId(handle),
-                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                AgentValue::VOID,
+                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                    continuation_id,
+                ))),
+                heap::Value::VOID,
                 priority,
             )
             .expect("timer watch should register");
@@ -244,8 +242,10 @@ impl TestRuntime {
         self.agent
             .watch_event(
                 PollerToken(token),
-                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                AgentValue::VOID,
+                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                    continuation_id,
+                ))),
+                heap::Value::VOID,
                 priority,
             )
             .expect("event watch should register");
@@ -261,8 +261,10 @@ impl TestRuntime {
         self.agent
             .watch_host_event(
                 kind,
-                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                AgentValue::VOID,
+                EngineContinuation::Native(NativeContinuation::new(continuation_handle(
+                    continuation_id,
+                ))),
+                heap::Value::VOID,
                 priority,
             )
             .expect("host event watch should register");
@@ -288,46 +290,36 @@ impl TestRuntime {
     }
 
     /// Tick once and fail loudly on runtime errors.
-    pub(super) fn tick_once<E: Engine<Output = AgentOutput, Value = AgentValue>>(
-        &mut self,
-        engine: &mut E,
-    ) -> bool {
+    pub(super) fn tick_once<E: Engine>(&mut self, engine: &mut E) -> bool {
         self.agent
             .tick_once(engine)
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
-    pub(super) fn tick_until_idle<E: Engine<Output = AgentOutput, Value = AgentValue>>(
-        &mut self,
-        engine: &mut E,
-    ) {
+    pub(super) fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) {
         self.agent
             .tick_until_idle(engine)
             .expect("tick until idle should complete");
     }
 
     /// Run until one task completes.
-    pub(super) fn run_loop_until_task_complete<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(super) fn run_loop_until_task_complete<E: Engine>(
         &mut self,
         engine: &mut E,
         task_id: u64,
-    ) -> RuntimeResult<AgentOutput> {
+    ) -> RuntimeResult<EngineOutput> {
         self.agent
             .run_loop_until_task_complete(engine, TaskId::new(task_id))
     }
 
     /// Run until one task completes or one timeout elapses.
-    pub(super) fn run_loop_until_task_complete_with_timeout<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(super) fn run_loop_until_task_complete_with_timeout<E: Engine>(
         &mut self,
         engine: &mut E,
         task_id: u64,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
             engine,
             TaskId::new(task_id),
@@ -401,7 +393,7 @@ fn agent_for_options_with_host_clock_source(
         .expect("scheduler options should configure");
 
     // apply runtime options to binding policy state
-    agent.bindings.apply_runtime_options(options);
+    agent.bindings.apply_runtime_defaults(options);
 
     // drain initial host bootstrap events for deterministic scheduler tests
     agent
@@ -413,11 +405,16 @@ fn agent_for_options_with_host_clock_source(
 }
 
 /// Build one void runtime output.
-fn void_output() -> AgentOutput {
-    AgentOutput {
-        value: AgentValue::VOID,
-        statistics: vm::telemetry::Statistics::default(),
+fn void_output() -> EngineOutput {
+    EngineOutput {
+        value: heap::Value::VOID,
+        telemetry: Default::default(),
         heap_cells: 0,
         raw_heap_cells: 0,
     }
+}
+
+/// Convert one test continuation identifier into one native continuation handle.
+fn continuation_handle(value: u64) -> usize {
+    usize::try_from(value).expect("test continuation id should fit usize")
 }

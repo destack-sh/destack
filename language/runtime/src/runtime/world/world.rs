@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use crate::diagnostic::RuntimeResult;
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine, BindingReplayPayload};
 use crate::runtime::policy::{
@@ -31,16 +32,6 @@ pub struct World {
 }
 
 impl World {
-    /// Create a world with empty policy rules.
-    pub fn new() -> Self {
-        Self::new_with_state(
-            Policy::default(),
-            Clock::default(),
-            Random::default(),
-            ReplayController::default(),
-        )
-    }
-
     /// Create a world for runtime bootstrap domains.
     pub(crate) fn for_runtime(
         policy: Policy,
@@ -48,16 +39,11 @@ impl World {
         random: Random,
         replay: ReplayController,
     ) -> Self {
-        Self::new_with_state(policy, clock, random, replay)
+        Self::new(policy, clock, random, replay)
     }
 
     /// Create a world with explicit policy and domain state.
-    fn new_with_state(
-        policy: Policy,
-        clock: Clock,
-        random: Random,
-        replay: ReplayController,
-    ) -> Self {
+    fn new(policy: Policy, clock: Clock, random: Random, replay: ReplayController) -> Self {
         Self {
             simulation: RwLock::new(Simulation::default()),
             next_agent_id: AtomicU64::new(1),
@@ -103,24 +89,14 @@ impl World {
         &self.replay
     }
 
-    /// Snapshot the active policy.
-    pub fn policy(&self) -> Policy {
-        self.policy.read().spec.clone()
-    }
-
-    /// Return the number of enabled policy rules.
-    pub fn policy_rule_count(&self) -> usize {
-        self.policy.read().enabled_rule_count()
-    }
-
     /// Replace the active policy.
-    pub fn set_policy(&self, policy: Policy) {
-        self.policy.write().set_policy(policy);
+    pub fn set_policy(&self, policy: Policy) -> RuntimeResult<()> {
+        self.policy.write().set_policy(policy)
     }
 
     /// Apply one policy command to the active world policy.
-    pub fn apply_policy_command(&self, command: PolicyCommand) {
-        self.policy.write().apply_policy_command(command);
+    pub fn apply_policy_command(&self, command: PolicyCommand) -> RuntimeResult<()> {
+        self.policy.write().apply_policy_command(command)
     }
 
     /// Resolve one access decision for one binding call.
@@ -193,7 +169,13 @@ impl World {
 }
 
 impl Default for World {
+    /// Create a world with empty policy rules.
     fn default() -> Self {
-        Self::new()
+        Self::new(
+            Policy::default(),
+            Clock::default(),
+            Random::default(),
+            ReplayController::default(),
+        )
     }
 }

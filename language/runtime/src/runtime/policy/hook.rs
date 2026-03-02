@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -235,6 +236,8 @@ pub struct Hooks {
     mode: ExecutionMode,
     /// Callback-style hook registry.
     registry: RwLock<HookRegistry>,
+    /// Total policy decisions accepted but not yet executed.
+    unapplied_policy_decisions: AtomicU64,
 }
 
 impl Hooks {
@@ -251,6 +254,7 @@ impl Hooks {
             world,
             mode,
             registry: RwLock::new(HookRegistry::default()),
+            unapplied_policy_decisions: AtomicU64::new(0),
         }
     }
 
@@ -343,9 +347,9 @@ impl Hooks {
         self.on_hook(Hook::ResourceDetach, None, state, false);
     }
 
-    /// Return the number of configured rules.
-    pub fn rule_count(&self) -> usize {
-        self.world.policy_rule_count()
+    /// Return the total number of unapplied policy decisions.
+    pub fn unapplied_policy_decision_count(&self) -> u64 {
+        self.unapplied_policy_decisions.load(Ordering::Relaxed)
     }
 
     /// Evaluate one effect hook.
@@ -367,7 +371,7 @@ impl Hooks {
 
         let hook_decision = self.dispatch_hook_event(&event);
 
-        // NOTE #Incomplete: fault execution wiring is pending, this only updates trigger state
+        // TODO #Incomplete: execute policy decisions after trigger evaluation
         let decisions = self
             .world
             .evaluate_policy_event(self.mode, &self.identity, &event);
@@ -383,7 +387,12 @@ impl Hooks {
             return;
         }
 
-        // NOTE #Incomplete: execute decisions through host and simulation backends
+        // track unapplied decisions until execution wiring lands
+        let unapplied = u64::try_from(decisions.len()).unwrap_or(u64::MAX);
+        self.unapplied_policy_decisions
+            .fetch_add(unapplied, Ordering::Relaxed);
+
+        // TODO #Incomplete: execute decisions through host and simulation backends
         let _ = decisions;
     }
 

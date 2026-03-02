@@ -87,20 +87,22 @@ fn test_agent_world_control_update_refreshes_policy() {
     assert!(baseline_result.is_ok());
 
     // install one deny rule in the shared world
-    world.set_policy(Policy {
-        rules: vec![Rule {
-            id: RuleId("test.runtime.live.policy".to_string()),
-            enabled: true,
-            when: RuntimeSelector {
-                binding: Some("destack.test.live.policy".to_string()),
-                ..RuntimeSelector::default()
-            },
-            action: Effect::SetAccess {
-                access: RuntimeAccess::Deny,
-            },
-            trigger: None,
-        }],
-    });
+    world
+        .set_policy(Policy {
+            rules: vec![Rule {
+                id: RuleId("test.runtime.live.policy".to_string()),
+                enabled: true,
+                when: RuntimeSelector {
+                    binding: Some("destack.test.live.policy".to_string()),
+                    ..RuntimeSelector::default()
+                },
+                action: Effect::SetAccess {
+                    access: RuntimeAccess::Deny,
+                },
+                trigger: None,
+            }],
+        })
+        .expect("policy update should succeed");
 
     // updated policy should deny the same call without agent refresh
     let refreshed_call_context = BindingCallContext::new(
@@ -121,37 +123,43 @@ fn test_agent_world_control_update_refreshes_hooks() {
     let agent =
         Agent::from_options_in_world(PlatformContext::new(Vec::new()), &options, world.clone())
             .expect("agent should construct in world");
-    assert_eq!(agent.hooks.rule_count(), 0);
+    let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
     // install one hook-bearing fault rule in the shared world
-    world.set_policy(Policy {
-        rules: vec![Rule {
-            id: RuleId("test.runtime.live.hooks".to_string()),
-            enabled: true,
-            when: RuntimeSelector::default(),
-            action: Effect::Fault {
-                fault: Fault {
-                    target: FaultTarget::Call {},
-                    fault_type: FaultType::Drop {},
+    world
+        .set_policy(Policy {
+            rules: vec![Rule {
+                id: RuleId("test.runtime.live.hooks".to_string()),
+                enabled: true,
+                when: RuntimeSelector::default(),
+                action: Effect::Fault {
+                    fault: Fault {
+                        target: FaultTarget::Call {},
+                        fault_type: FaultType::Drop {},
+                    },
                 },
-            },
-            trigger: Some(Trigger {
-                on: Hook::BindingBefore,
-                activation: None,
-                lifetime: None,
-                activation_ppm: None,
-                probability_ppm: None,
-                max_occurrences: None,
-                cooldown_ns: None,
-                burst: None,
-                interval_hits: None,
-                skip_hits: None,
-            }),
-        }],
-    });
+                trigger: Some(Trigger {
+                    on: Hook::BindingBefore,
+                    activation: None,
+                    lifetime: None,
+                    activation_ppm: None,
+                    probability_ppm: None,
+                    max_occurrences: None,
+                    cooldown_ns: None,
+                    burst: None,
+                    interval_hits: None,
+                    skip_hits: None,
+                }),
+            }],
+        })
+        .expect("policy update should succeed");
 
-    // hook plan should now contain the installed rule
-    assert_eq!(agent.hooks.rule_count(), 1);
+    // firing the matching hook should now update world policy counters
+    let hook_result = agent
+        .hooks
+        .on_before_binding(descriptor, HookState::empty());
+    assert!(hook_result.is_ok());
+    assert_eq!(world.policy_matched_effects_seen(), vec![1]);
 }
 
 /// Ensures agent selectors match only the targeted agent in one shared world.
@@ -168,37 +176,39 @@ fn test_agent_world_control_agent_selector() {
             .expect("agent should construct in world");
 
     // install one scheduler hook rule scoped to agent_a
-    world.set_policy(Policy {
-        rules: vec![Rule {
-            id: RuleId("test.runtime.selector.instance".to_string()),
-            enabled: true,
-            when: RuntimeSelector {
-                agent: Some(RuntimeIdentitySelector {
-                    name: Some(agent_a.name.clone()),
-                    labels: None,
-                }),
-                ..RuntimeSelector::default()
-            },
-            action: Effect::Fault {
-                fault: Fault {
-                    target: FaultTarget::Call {},
-                    fault_type: FaultType::Drop {},
+    world
+        .set_policy(Policy {
+            rules: vec![Rule {
+                id: RuleId("test.runtime.selector.instance".to_string()),
+                enabled: true,
+                when: RuntimeSelector {
+                    agent: Some(RuntimeIdentitySelector {
+                        name: Some(agent_a.name.clone()),
+                        labels: None,
+                    }),
+                    ..RuntimeSelector::default()
                 },
-            },
-            trigger: Some(Trigger {
-                on: Hook::SchedulerDequeue,
-                activation: None,
-                lifetime: None,
-                activation_ppm: None,
-                probability_ppm: None,
-                max_occurrences: None,
-                cooldown_ns: None,
-                burst: None,
-                interval_hits: None,
-                skip_hits: None,
-            }),
-        }],
-    });
+                action: Effect::Fault {
+                    fault: Fault {
+                        target: FaultTarget::Call {},
+                        fault_type: FaultType::Drop {},
+                    },
+                },
+                trigger: Some(Trigger {
+                    on: Hook::SchedulerDequeue,
+                    activation: None,
+                    lifetime: None,
+                    activation_ppm: None,
+                    probability_ppm: None,
+                    max_occurrences: None,
+                    cooldown_ns: None,
+                    burst: None,
+                    interval_hits: None,
+                    skip_hits: None,
+                }),
+            }],
+        })
+        .expect("policy update should succeed");
 
     // apply control updates on both agents
     let mut engine = TestEngine::default();

@@ -51,11 +51,6 @@ impl BindingPolicy {
         self.default_replay_payload = replay_payload_from_mode(options.replay.payload);
     }
 
-    /// Apply runtime options to this policy.
-    pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
-        self.apply_runtime_defaults(options);
-    }
-
     /// Set the active capability set used for requirement checks.
     pub fn set_capabilities(&mut self, capabilities: PlatformCapabilitySet) {
         // replace active capabilities
