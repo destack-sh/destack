@@ -82,7 +82,7 @@ just language/test-release
 ### Parser conformance coverage
 
 ```sh
-cargo test --release -p destack_test --test conformance
+cargo test --release -p destack_test --test parser-conformance
 ```
 
 ### Parser performance and fuzzing

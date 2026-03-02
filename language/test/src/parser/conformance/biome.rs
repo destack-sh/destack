@@ -17,7 +17,7 @@ pub struct BiomeSuite {
 
 impl BiomeSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("conformance");
+        let conformance_dir = fixtures_dir().join("parser").join("conformance");
         let root = conformance_dir.join("biome");
         Self {
             root,
@@ -131,7 +131,7 @@ impl ConformanceSuite for BiomeSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/conformance/biome-fetch.sh\n"
+               ./language/test/fixtures/parser/conformance/biome-fetch.sh\n"
         )
     }
 }

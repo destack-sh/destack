@@ -6,7 +6,7 @@ mod oxfmt;
 mod prettier;
 mod runner;
 
-pub use harness::{ConformanceHarnessSuite, ConformanceSelection};
+pub use harness::{FormatterConformanceHarnessSuite, FormatterConformanceSelection};
 pub use oxfmt::{OxfmtSuite, run_oxfmt};
 pub use prettier::{PrettierSuite, run_prettier};
 pub use runner::{

@@ -12,7 +12,7 @@ Integration and fixture-based tests for the Destack language toolchain.
 | **Codegen** | `fixtures/codegen/` | Transpilation output matches expected snapshots |
 | **Specification** | `fixtures/specification/` | MDTest-driven type checking and diagnostics |
 | **Query** | `fixtures/query/` | MDTest-driven IDE/LSP queries (goto definition, completion, rename) |
-| **Conformance** | `fixtures/conformance/` | Parser conformance against established test suites |
+| **Conformance** | `fixtures/parser/conformance/` | Parser conformance against established test suites |
 | **Formatter** | `fixtures/formatter/` | Format roundtrip stability |
 | **Resolver** | `fixtures/resolver/` | Module resolution (from enhanced-resolve) |
 | **Ecosystem** | `fixtures/ecosystem/` | Real-world package tests |
@@ -39,7 +39,7 @@ cargo test --test smoke           # smoke tests only
 cargo test --test codegen         # codegen tests only
 cargo test --test specification   # type checking specification tests
 cargo test --test query           # IDE query tests
-cargo test --test conformance     # parser conformance tests
+cargo test --test parser-conformance     # parser conformance tests
 cargo test --test formatter       # formatter tests
 cargo test --test ecosystem       # ecosystem tests (requires fetched packages)
 cargo test --test stress          # stress tests (requires generated fixtures)

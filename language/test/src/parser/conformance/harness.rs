@@ -7,9 +7,9 @@ use super::{
     update_readme,
 };
 
-/// Selection of conformance suites to run.
+/// Selection of parser conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ConformanceSelection {
+pub struct ParserConformanceSelection {
     /// Run test262 suite.
     pub test262: bool,
     /// Run Babel parser suite.
@@ -20,29 +20,29 @@ pub struct ConformanceSelection {
     pub biome: bool,
 }
 
-impl ConformanceSelection {
+impl ParserConformanceSelection {
     pub fn is_all_disabled(&self) -> bool {
         !self.test262 && !self.babel && !self.swc && !self.biome
     }
 }
 
-/// A conformance test suite.
+/// A parser conformance test suite.
 #[derive(Debug)]
-pub struct ConformanceHarnessSuite {
-    /// Selection of conformance suites to run.
-    pub selection: ConformanceSelection,
+pub struct ParserConformanceHarnessSuite {
+    /// Selection of parser conformance suites to run.
+    pub selection: ParserConformanceSelection,
     /// Update known-failures file with current failures.
     pub update_known_failures: bool,
     /// Filter tests inside a selected suite.
     pub suite_filter: Option<String>,
-    /// Results of the conformance tests.
+    /// Results of the parser conformance tests.
     results: Mutex<Vec<SuiteResult>>,
 }
 
-impl ConformanceHarnessSuite {
-    /// Create a new conformance test suite.
+impl ParserConformanceHarnessSuite {
+    /// Create a new parser conformance test suite.
     pub fn new(
-        selection: ConformanceSelection,
+        selection: ParserConformanceSelection,
         update_known_failures: bool,
         suite_filter: Option<String>,
     ) -> Self {
@@ -55,9 +55,9 @@ impl ConformanceHarnessSuite {
     }
 }
 
-impl Suite for ConformanceHarnessSuite {
+impl Suite for ParserConformanceHarnessSuite {
     fn name(&self) -> &'static str {
-        "conformance"
+        "parser-conformance"
     }
 
     fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
@@ -69,8 +69,8 @@ impl Suite for ConformanceHarnessSuite {
         if run_all || self.selection.test262 {
             cases.push(TestCase::directory(
                 "test262",
-                "fixtures/conformance/test262",
-                "destack_test::conformance",
+                "fixtures/parser/conformance/test262",
+                "destack_test::parser::conformance",
             ));
         }
 
@@ -78,8 +78,8 @@ impl Suite for ConformanceHarnessSuite {
         if run_all || self.selection.babel {
             cases.push(TestCase::directory(
                 "babel",
-                "fixtures/conformance/babel",
-                "destack_test::conformance",
+                "fixtures/parser/conformance/babel",
+                "destack_test::parser::conformance",
             ));
         }
 
@@ -87,8 +87,8 @@ impl Suite for ConformanceHarnessSuite {
         if run_all || self.selection.swc {
             cases.push(TestCase::directory(
                 "swc",
-                "fixtures/conformance/swc",
-                "destack_test::conformance",
+                "fixtures/parser/conformance/swc",
+                "destack_test::parser::conformance",
             ));
         }
 
@@ -96,8 +96,8 @@ impl Suite for ConformanceHarnessSuite {
         if run_all || self.selection.biome {
             cases.push(TestCase::directory(
                 "biome",
-                "fixtures/conformance/biome",
-                "destack_test::conformance",
+                "fixtures/parser/conformance/biome",
+                "destack_test::parser::conformance",
             ));
         }
 
@@ -117,14 +117,17 @@ impl Suite for ConformanceHarnessSuite {
             "biome" => run_biome(&suite_options, self.update_known_failures),
             other => {
                 return TestResult::Failed {
-                    message: format!("unknown conformance suite: {other}"),
+                    message: format!("unknown parser conformance suite: {other}"),
                 };
             }
         };
 
         let Some(suite_result) = suite_result else {
             return TestResult::Failed {
-                message: format!("conformance fixture setup failed for suite '{}'", case.name),
+                message: format!(
+                    "parser conformance fixture setup failed for suite '{}'",
+                    case.name
+                ),
             };
         };
 

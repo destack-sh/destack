@@ -1176,6 +1176,7 @@ impl ReadmeResults {
 pub fn load_readme_baseline() -> Option<ReadmeResults> {
     let readme_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
+        .join("parser")
         .join("conformance")
         .join("README.md");
 
@@ -1372,6 +1373,7 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
 pub fn update_readme(results: &[SuiteResult], is_partial: bool) -> bool {
     let readme_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
+        .join("parser")
         .join("conformance")
         .join("README.md");
 
@@ -1654,7 +1656,7 @@ mod tests {
         fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
 
         let suite_name = "autofetch";
-        let conformance_dir = temp_dir.join("conformance");
+        let conformance_dir = temp_dir.join("parser").join("conformance");
         fs::create_dir_all(&conformance_dir).expect("failed to create conformance directory");
 
         let suite = FakeSuite {
@@ -1684,7 +1686,7 @@ mod tests {
         fs::create_dir_all(&temp_dir).expect("failed to create temp directory");
 
         let suite_name = "missing-script";
-        let conformance_dir = temp_dir.join("conformance");
+        let conformance_dir = temp_dir.join("parser").join("conformance");
         fs::create_dir_all(&conformance_dir).expect("failed to create conformance directory");
 
         let suite = FakeSuite {

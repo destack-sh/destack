@@ -147,7 +147,7 @@ impl SharedConformanceEnvironment {
     /// Create a new shared environment for conformance tests.
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let cwd = PathBuf::from("/test/conformance");
+        let cwd = PathBuf::from("/test/parser/conformance");
         let session = Arc::new(
             Session::new(cwd.clone())
                 .with_fs(fs.clone())
@@ -167,7 +167,7 @@ impl SharedConformanceEnvironment {
             .file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("case");
-        PathBuf::from("/test/conformance").join(format!("{stem}-{id}"))
+        PathBuf::from("/test/parser/conformance").join(format!("{stem}-{id}"))
     }
 
     /// Build a synthetic file path for a test case.

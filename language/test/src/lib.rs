@@ -1,10 +1,10 @@
 pub mod codegen;
-pub mod conformance;
 pub mod ecosystem;
 pub mod formatter;
 pub mod harness;
 pub mod mdtest;
 pub mod optimize;
+pub mod parser;
 pub mod query;
 pub mod smoke;
 pub mod specification;

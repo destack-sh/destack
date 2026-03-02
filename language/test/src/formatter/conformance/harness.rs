@@ -8,14 +8,14 @@ use super::{
 
 /// Selection of formatter conformance suites to run.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ConformanceSelection {
+pub struct FormatterConformanceSelection {
     /// Run Prettier formatter suite.
     pub prettier: bool,
     /// Run oxfmt formatter suite.
     pub oxfmt: bool,
 }
 
-impl ConformanceSelection {
+impl FormatterConformanceSelection {
     pub fn is_all_disabled(&self) -> bool {
         !self.prettier && !self.oxfmt
     }
@@ -23,9 +23,9 @@ impl ConformanceSelection {
 
 /// A formatter conformance test suite.
 #[derive(Debug)]
-pub struct ConformanceHarnessSuite {
+pub struct FormatterConformanceHarnessSuite {
     /// Selection of conformance suites to run.
-    pub selection: ConformanceSelection,
+    pub selection: FormatterConformanceSelection,
     /// Update known-failures file with current failures.
     pub update_known_failures: bool,
     /// Filter tests inside a selected conformance suite.
@@ -34,10 +34,10 @@ pub struct ConformanceHarnessSuite {
     results: Mutex<Vec<SuiteResult>>,
 }
 
-impl ConformanceHarnessSuite {
+impl FormatterConformanceHarnessSuite {
     /// Create a new formatter conformance test suite.
     pub fn new(
-        selection: ConformanceSelection,
+        selection: FormatterConformanceSelection,
         update_known_failures: bool,
         suite_filter: Option<String>,
     ) -> Self {
@@ -50,7 +50,7 @@ impl ConformanceHarnessSuite {
     }
 }
 
-impl Suite for ConformanceHarnessSuite {
+impl Suite for FormatterConformanceHarnessSuite {
     fn name(&self) -> &'static str {
         "formatter-conformance"
     }

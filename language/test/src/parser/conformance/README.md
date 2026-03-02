@@ -1,4 +1,4 @@
-# Conformance Tests
+# Parser Conformance Tests
 
 Conformance tests check that the Destack parser conforms both to the ECMAScript specification and various other established "real-world" test suites.
 
