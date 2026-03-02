@@ -8,11 +8,13 @@ use parking_lot::RwLock;
 use crate::platform;
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
-    VmBindingSet,
 };
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::{BindingCallContext, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
+
+#[cfg(test)]
+use crate::runtime::bindings::VmBindingSet;
 
 /// Registry for external bindings and shims.
 #[derive(Debug, Default)]
@@ -46,12 +48,6 @@ impl BindingRegistry {
         self.policy.read().clone()
     }
 
-    /// Apply runtime options to binding policy.
-    pub fn apply_runtime_options(&mut self, options: &RuntimeOptions) {
-        let mut policy = self.policy.write();
-        policy.apply_runtime_options(options);
-    }
-
     /// Apply runtime defaults to binding policy without loading control rules.
     pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
         let mut policy = self.policy.write();
@@ -71,6 +67,7 @@ impl BindingRegistry {
     }
 
     /// Install default VM bindings into a VM isolate.
+    #[cfg(test)]
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
         for set in platform::PLATFORM_VM_BINDINGS {
             self.install_vm_binding_set(isolate, set);
@@ -85,6 +82,7 @@ impl BindingRegistry {
     }
 
     /// Install a binding set into a VM isolate.
+    #[cfg(test)]
     pub(crate) fn install_vm_binding_set(&mut self, isolate: &mut Isolate, set: &VmBindingSet) {
         // dispatch to the binding set install hook
         (set.install)(self, isolate);

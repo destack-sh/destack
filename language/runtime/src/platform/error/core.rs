@@ -167,7 +167,7 @@ pub fn platform_error_vm(
 /// Convert a diagnostic path payload into utf16 units.
 fn payload_utf16_units(payload: &DiagnosticPlatformPathPayload) -> Vec<u16> {
     // utf16 payloads must always contain complete code units
-    if payload.data.len() % 2 != 0 {
+    if !payload.data.len().is_multiple_of(2) {
         panic!(
             "internal platform error payload invariant violated: utf16 payload has odd byte length {}",
             payload.data.len()

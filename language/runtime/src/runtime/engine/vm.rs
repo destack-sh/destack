@@ -1,23 +1,17 @@
-use destack_vm as vm;
 use destack_vm::Isolate;
+use {destack_heap as heap, destack_vm as vm};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue, VmEntry,
+    Engine, EngineContinuation, EngineOutcome, EngineOutput, EngineTelemetry, VmEntry,
 };
 
 /// VM engine implementation for one agent.
 impl Engine for Isolate {
     type Entry = VmEntry;
-    type Output = AgentOutput;
-    type Value = AgentValue;
 
     /// Run a VM entrypoint by name.
-    fn run(
-        &mut self,
-        entry: &VmEntry,
-        args: &[AgentValue],
-    ) -> RuntimeResult<EngineOutcome<AgentOutput, AgentValue>> {
+    fn run(&mut self, entry: &VmEntry, args: &[heap::Value]) -> RuntimeResult<EngineOutcome> {
         let outcome = self
             .run_function_by_name_yielding(&entry.name, args)
             .map_err(Box::<RuntimeError>::from)?;
@@ -28,8 +22,8 @@ impl Engine for Isolate {
     fn resume(
         &mut self,
         continuation: EngineContinuation,
-        value: AgentValue,
-    ) -> RuntimeResult<EngineOutcome<AgentOutput, AgentValue>> {
+        value: heap::Value,
+    ) -> RuntimeResult<EngineOutcome> {
         let EngineContinuation::Vm(continuation) = continuation else {
             return Err(RuntimeError::Internal {
                 message: "vm engine cannot resume native continuation".to_string(),
@@ -44,12 +38,33 @@ impl Engine for Isolate {
 }
 
 /// Convert one VM execution outcome into one engine outcome.
-fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome<AgentOutput, AgentValue> {
+fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome {
     match outcome {
-        vm::ExecutionOutcome::Completed { output } => EngineOutcome::Completed { output },
+        vm::ExecutionOutcome::Completed { output } => EngineOutcome::Completed {
+            output: map_vm_output(output),
+        },
         vm::ExecutionOutcome::Yielded { yielded } => EngineOutcome::Yielded {
             continuation: EngineContinuation::Vm(yielded.continuation),
             value: yielded.value,
         },
+    }
+}
+
+/// Convert one VM execution output into one runtime engine output.
+fn map_vm_output(output: vm::ExecutionOutput) -> EngineOutput {
+    EngineOutput {
+        value: output.value,
+        telemetry: EngineTelemetry {
+            mir_instructions_executed: output.statistics.mir_instructions_executed,
+            threaded_instructions_executed: output.statistics.threaded_instructions_executed,
+            calls_made: output.statistics.calls_made,
+            max_stack_depth: output.statistics.max_stack_depth,
+            heap_allocations: output.statistics.heap_allocations,
+            branches: output.statistics.branches(),
+            loads: output.statistics.loads(),
+            stores: output.statistics.stores(),
+        },
+        heap_cells: output.heap_cells,
+        raw_heap_cells: output.raw_heap_cells,
     }
 }

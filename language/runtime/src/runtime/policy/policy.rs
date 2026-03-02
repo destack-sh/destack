@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingEffect, BindingEffectClass, BindingEngine,
@@ -17,7 +18,7 @@ use destack_workspace::{
 
 use super::{
     Effect, Hook, HookEvent, Lifetime, ProbabilityPpm, Rule, RuleId, Trigger,
-    assert_rule_fault_compatibility,
+    validate_rule_fault_compatibility,
 };
 
 /// Runtime policy specification.
@@ -32,27 +33,27 @@ pub struct Policy {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum PolicyCommand {
     /// Install one runtime rule into the mutable rule set.
-    InstallRule {
+    Install {
         /// Rule payload to install.
         rule: Rule,
     },
     /// Remove one runtime rule from the mutable rule set.
-    RemoveRule {
+    Remove {
         /// Stable rule identifier.
         rule_id: RuleId,
     },
     /// Enable one runtime rule in the mutable rule set.
-    EnableRule {
+    Enable {
         /// Stable rule identifier.
         rule_id: RuleId,
     },
     /// Disable one runtime rule in the mutable rule set.
-    DisableRule {
+    Disable {
         /// Stable rule identifier.
         rule_id: RuleId,
     },
     /// Replace one runtime rule in the mutable rule set.
-    ReplaceRule {
+    Replace {
         /// Stable rule identifier.
         rule_id: RuleId,
         /// Replacement rule payload.
@@ -93,15 +94,23 @@ impl Policy {
         Self { rules }
     }
 
+    /// Validate all policy invariants.
+    pub fn validate(&self) -> RuntimeResult<()> {
+        self.validate_unique_rule_ids()?;
+
+        // validate each rule payload
+        for rule in &self.rules {
+            validate_rule_fault_compatibility(rule)?;
+        }
+
+        Ok(())
+    }
+
     /// Return all enabled rules in declaration order.
     pub fn enabled_rules(&self) -> Vec<Rule> {
-        self.assert_unique_rule_ids();
-
-        // filter enabled rules after compatibility validation
+        // filter enabled rules in declaration order
         let mut enabled_rules = Vec::new();
         for rule in &self.rules {
-            assert_rule_fault_compatibility(rule);
-
             if !rule.enabled {
                 continue;
             }
@@ -113,54 +122,86 @@ impl Policy {
     }
 
     /// Apply one runtime command to this policy.
-    pub(crate) fn apply_command(&mut self, command: PolicyCommand) {
+    pub(crate) fn apply_command(&mut self, command: PolicyCommand) -> RuntimeResult<()> {
+        // validate the command at the boundary first
+        self.validate_command(&command)?;
+
+        // apply the command under trusted invariants
+        self.apply_command_unchecked(command);
+
+        Ok(())
+    }
+
+    /// Validate one runtime command against the current policy.
+    fn validate_command(&self, command: &PolicyCommand) -> RuntimeResult<()> {
         match command {
-            PolicyCommand::InstallRule { mut rule } => {
-                assert!(
-                    !self.has_rule_id(&rule.id),
-                    "runtime installRule requires unique rule ids: {}",
-                    rule.id.0
-                );
+            PolicyCommand::Install { rule } => {
+                if self.has_rule_id(&rule.id) {
+                    return Err(Self::invalid_command_error(format!(
+                        "runtime install requires unique rule ids: {}",
+                        rule.id.0
+                    )));
+                }
+
+                validate_rule_fault_compatibility(rule)?;
+            }
+            PolicyCommand::Remove { rule_id }
+            | PolicyCommand::Enable { rule_id }
+            | PolicyCommand::Disable { rule_id } => {
+                if self.has_rule_id(rule_id) {
+                    return Ok(());
+                }
+
+                return Err(Self::invalid_command_error(format!(
+                    "runtime command requires one installed rule id: {}",
+                    rule_id.0
+                )));
+            }
+            PolicyCommand::Replace { rule_id, rule } => {
+                if rule.id != *rule_id {
+                    return Err(Self::invalid_command_error(format!(
+                        "runtime replace requires replacement id to match: {}",
+                        rule_id.0
+                    )));
+                }
+
+                if !self.has_rule_id(rule_id) {
+                    return Err(Self::invalid_command_error(format!(
+                        "runtime replace requires one installed rule id: {}",
+                        rule_id.0
+                    )));
+                }
+
+                validate_rule_fault_compatibility(rule)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply one already-validated command to this policy.
+    fn apply_command_unchecked(&mut self, command: PolicyCommand) {
+        match command {
+            PolicyCommand::Install { mut rule } => {
                 rule.enabled = true;
                 self.rules.push(rule);
             }
-            PolicyCommand::RemoveRule { rule_id } => {
+            PolicyCommand::Remove { rule_id } => {
                 let is_removed = self.remove_rule(&rule_id);
-                assert!(
-                    is_removed,
-                    "runtime removeRule requires one installed rule id: {}",
-                    rule_id.0
-                );
+                debug_assert!(is_removed);
             }
-            PolicyCommand::EnableRule { rule_id } => {
+            PolicyCommand::Enable { rule_id } => {
                 let is_updated = self.set_rule_enabled(&rule_id, true);
-                assert!(
-                    is_updated,
-                    "runtime enableRule requires one installed rule id: {}",
-                    rule_id.0
-                );
+                debug_assert!(is_updated);
             }
-            PolicyCommand::DisableRule { rule_id } => {
+            PolicyCommand::Disable { rule_id } => {
                 let is_updated = self.set_rule_enabled(&rule_id, false);
-                assert!(
-                    is_updated,
-                    "runtime disableRule requires one installed rule id: {}",
-                    rule_id.0
-                );
+                debug_assert!(is_updated);
             }
-            PolicyCommand::ReplaceRule { rule_id, mut rule } => {
-                assert!(
-                    rule.id == rule_id,
-                    "runtime replaceRule requires replacement id to match: {}",
-                    rule_id.0
-                );
+            PolicyCommand::Replace { rule_id, mut rule } => {
                 rule.enabled = true;
                 let is_replaced = self.replace_rule(&rule_id, rule);
-                assert!(
-                    is_replaced,
-                    "runtime replaceRule requires one installed rule id: {}",
-                    rule_id.0
-                );
+                debug_assert!(is_replaced);
             }
         }
     }
@@ -209,16 +250,37 @@ impl Policy {
         is_updated
     }
 
-    /// Panic when this policy contains duplicate rule ids.
-    fn assert_unique_rule_ids(&self) {
+    /// Return one invalid-policy error.
+    fn invalid_policy_error(message: impl Into<String>) -> Box<RuntimeError> {
+        RuntimeError::Internal {
+            message: message.into(),
+        }
+        .boxed()
+    }
+
+    /// Return one invalid-policy-command error.
+    fn invalid_command_error(message: impl Into<String>) -> Box<RuntimeError> {
+        RuntimeError::Internal {
+            message: message.into(),
+        }
+        .boxed()
+    }
+
+    /// Validate that this policy contains unique rule ids.
+    fn validate_unique_rule_ids(&self) -> RuntimeResult<()> {
         let mut installed_rule_ids: HashSet<RuleId> = HashSet::new();
         for rule in &self.rules {
-            assert!(
-                installed_rule_ids.insert(rule.id.clone()),
+            if installed_rule_ids.insert(rule.id.clone()) {
+                continue;
+            }
+
+            return Err(Self::invalid_policy_error(format!(
                 "runtime rules require unique rule ids: {}",
                 rule.id.0
-            );
+            )));
         }
+
+        Ok(())
     }
 }
 
@@ -274,6 +336,7 @@ pub(crate) struct PolicyState {
 impl PolicyState {
     /// Create one active policy with empty runtime state.
     pub(crate) fn new(policy: Policy) -> Self {
+        debug_assert!(policy.validate().is_ok());
         let enabled_rules = policy.enabled_rules();
 
         Self {
@@ -287,24 +350,25 @@ impl PolicyState {
     }
 
     /// Replace active policy and reset runtime trigger state.
-    pub(crate) fn set_policy(&mut self, policy: Policy) {
+    pub(crate) fn set_policy(&mut self, policy: Policy) -> RuntimeResult<()> {
+        policy.validate()?;
+
         self.spec = policy;
         self.revision = self.revision.saturating_add(1);
         self.refresh_enabled_rules();
         self.reset_runtime_state();
+
+        Ok(())
     }
 
     /// Apply one policy command and reset runtime trigger state.
-    pub(crate) fn apply_policy_command(&mut self, command: PolicyCommand) {
-        self.spec.apply_command(command);
+    pub(crate) fn apply_policy_command(&mut self, command: PolicyCommand) -> RuntimeResult<()> {
+        self.spec.apply_command(command)?;
         self.revision = self.revision.saturating_add(1);
         self.refresh_enabled_rules();
         self.reset_runtime_state();
-    }
 
-    /// Return the number of enabled rules in this revision.
-    pub(crate) fn enabled_rule_count(&self) -> usize {
-        self.enabled_rules.len()
+        Ok(())
     }
 
     /// Resolve one access decision for one binding call.
@@ -882,7 +946,7 @@ impl RuleState {
             .active_hits_seen
             .saturating_sub(skip_hits.saturating_add(1));
 
-        cadence_offset % interval_hits == 0
+        cadence_offset.is_multiple_of(interval_hits)
     }
 
     /// Return true when this state passes cooldown controls.

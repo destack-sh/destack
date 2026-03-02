@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_vm::Isolate;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformContext;
-use crate::runtime::engine::{Engine, AgentOutput, AgentValue};
+use crate::runtime::engine::{Engine, EngineOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::world::World;
+use destack_heap as heap;
 use destack_workspace::RuntimeOptions;
 
 use super::poller::poller_for_options;
@@ -79,8 +78,8 @@ impl Runtime {
     }
 
     /// Return the shared world for this runtime.
-    pub fn world(&self) -> &Arc<World> {
-        &self.world
+    pub fn world(&self) -> &World {
+        self.world.as_ref()
     }
 
     /// Return the stable runtime name.
@@ -137,50 +136,24 @@ impl Runtime {
         self.poller = Some(poller);
     }
 
-    /// Install default VM bindings into one isolate using the primary agent.
-    pub fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
-        let primary_agent_id = self.primary_agent_id;
-        let primary_agent = self
-            .agents
-            .get_mut(&primary_agent_id)
-            .unwrap_or_else(|| panic!("runtime primary agent {} is missing", primary_agent_id.0));
-        primary_agent.install_vm_defaults(isolate);
-    }
-
-    /// Install default VM bindings into one isolate using one explicit agent.
-    pub fn install_vm_defaults_for_agent(
-        &mut self,
-        agent_id: AgentId,
-        isolate: &mut Isolate,
-    ) -> RuntimeResult<()> {
-        let agent = self.agents.get_mut(&agent_id).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: format!("runtime agent {} does not exist", agent_id.0),
-            }
-            .boxed()
-        })?;
-        agent.install_vm_defaults(isolate);
-        Ok(())
-    }
-
     /// Run one entrypoint through the default runtime agent event loop.
-    pub fn run_entrypoint<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub fn run_entrypoint<E: Engine>(
         &mut self,
         engine: &mut E,
         entry: &E::Entry,
-        args: &[AgentValue],
-    ) -> RuntimeResult<AgentOutput> {
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutput> {
         self.run_entrypoint_for_agent(self.primary_agent_id, engine, entry, args)
     }
 
     /// Run one entrypoint through one explicit runtime agent event loop.
-    pub fn run_entrypoint_for_agent<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub fn run_entrypoint_for_agent<E: Engine>(
         &mut self,
         agent_id: AgentId,
         engine: &mut E,
         entry: &E::Entry,
-        args: &[AgentValue],
-    ) -> RuntimeResult<AgentOutput> {
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutput> {
         let (agent, poller) = self.agent_and_poller_mut(agent_id)?;
         agent.run_entrypoint_with_poller(engine, entry, args, poller)
     }

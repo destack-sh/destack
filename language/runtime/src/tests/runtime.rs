@@ -10,7 +10,9 @@ use crate::platform::random::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{PlatformContext, PlatformError};
-use crate::runtime::{Agent, BindingCallContext, enter_binding_call_context};
+use crate::runtime::{
+    Agent, BindingCallContext, enter_binding_call_context, enter_current_agent_context,
+};
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
@@ -81,7 +83,7 @@ impl TestRuntime {
 
     /// Install default VM bindings using the test agent.
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
-        self.agent.install_vm_defaults(isolate);
+        self.agent.bindings.install_vm_defaults(isolate);
     }
 
     /// Execute a native binding within a runtime call context.
@@ -89,6 +91,11 @@ impl TestRuntime {
         &self,
         run: impl FnOnce(&BindingCallContext) -> T,
     ) -> T {
+        // install current agent context for vm callback bridges
+        let runtime = self.agent.as_ref() as *const Agent;
+        let event_loop = self.agent.event_loop.as_ref() as *const _;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop);
+
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
             &self.agent,
@@ -106,6 +113,11 @@ impl TestRuntime {
         &self,
         run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
     ) -> T {
+        // install current agent context for vm callback bridges
+        let runtime = self.agent.as_ref() as *const Agent;
+        let event_loop = self.agent.event_loop.as_ref() as *const _;
+        let _agent_guard = enter_current_agent_context(runtime, event_loop);
+
         // run the VM call with a fresh runtime call context
         let mut isolate = self.vm_isolate.borrow_mut();
         isolate.with_runtime_context(|context| {

@@ -1,41 +1,38 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource;
 use crate::runtime::HookState;
-use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue,
-};
+use crate::runtime::engine::{Engine, EngineContinuation, EngineOutcome, EngineOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::replay::{QueueEventKind, ReplayEvent, TaskQueue, TaskQueueEvent, TaskSubject};
 use crate::runtime::scheduler::{
     EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, current_event_loop_scope,
     enter_event_loop_scope,
 };
+use destack_heap as heap;
 use destack_workspace::TimeMode;
 
 use super::{Agent, enter_current_agent_context};
 
 impl Agent {
     /// Run an entrypoint through the event loop.
-    pub fn run_entrypoint<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub fn run_entrypoint<E: Engine>(
         &mut self,
         engine: &mut E,
         entry: &E::Entry,
-        args: &[AgentValue],
-    ) -> RuntimeResult<AgentOutput> {
+        args: &[heap::Value],
+    ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_entrypoint_with_poller(engine, entry, args, &mut poller)
     }
 
     /// Run an entrypoint through the event loop with one external poller.
-    pub(crate) fn run_entrypoint_with_poller<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(crate) fn run_entrypoint_with_poller<E: Engine>(
         &mut self,
         engine: &mut E,
         entry: &E::Entry,
-        args: &[AgentValue],
+        args: &[heap::Value],
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<AgentOutput> {
+    ) -> RuntimeResult<EngineOutput> {
         let runtime = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let _context_guard = enter_current_agent_context(runtime, event_loop);
@@ -61,24 +58,22 @@ impl Agent {
     }
 
     /// Run the loop until the specified task completes.
-    pub fn run_loop_until_task_complete<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub fn run_loop_until_task_complete<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
-    ) -> RuntimeResult<AgentOutput> {
+    ) -> RuntimeResult<EngineOutput> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_loop_until_task_complete_with_poller(engine, target_task, &mut poller)
     }
 
     /// Run the loop until the specified task completes with one external poller.
-    pub(crate) fn run_loop_until_task_complete_with_poller<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(crate) fn run_loop_until_task_complete_with_poller<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<AgentOutput> {
+    ) -> RuntimeResult<EngineOutput> {
         let output = self.run_loop_until_task_complete_with_timeout_and_poller(
             engine,
             target_task,
@@ -94,14 +89,12 @@ impl Agent {
     }
 
     /// Run the loop until the specified task completes or one timeout elapses.
-    pub fn run_loop_until_task_complete_with_timeout<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub fn run_loop_until_task_complete_with_timeout<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.run_loop_until_task_complete_with_timeout_and_poller(
             engine,
@@ -112,15 +105,13 @@ impl Agent {
     }
 
     /// Run the loop until one task completes or one timeout elapses with one external poller.
-    pub(crate) fn run_loop_until_task_complete_with_timeout_and_poller<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(crate) fn run_loop_until_task_complete_with_timeout_and_poller<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = self.world.clock().mono_nanos();
 
@@ -163,18 +154,13 @@ impl Agent {
     }
 
     /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle<E: Engine<Output = AgentOutput, Value = AgentValue>>(
-        &mut self,
-        engine: &mut E,
-    ) -> RuntimeResult<()> {
+    pub fn tick_until_idle<E: Engine>(&mut self, engine: &mut E) -> RuntimeResult<()> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.tick_until_idle_with_poller(engine, &mut poller)
     }
 
     /// Run runtime ticks until no work remains with one external poller.
-    pub(crate) fn tick_until_idle_with_poller<
-        E: Engine<Output = AgentOutput, Value = AgentValue>,
-    >(
+    pub(crate) fn tick_until_idle_with_poller<E: Engine>(
         &mut self,
         engine: &mut E,
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -190,16 +176,13 @@ impl Agent {
     }
 
     /// Execute one runtime tick.
-    pub fn tick_once<E: Engine<Output = AgentOutput, Value = AgentValue>>(
-        &mut self,
-        engine: &mut E,
-    ) -> RuntimeResult<bool> {
+    pub fn tick_once<E: Engine>(&mut self, engine: &mut E) -> RuntimeResult<bool> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         self.tick_once_with_poller(engine, &mut poller)
     }
 
     /// Execute one runtime tick with one external poller.
-    pub(crate) fn tick_once_with_poller<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub(crate) fn tick_once_with_poller<E: Engine>(
         &mut self,
         engine: &mut E,
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -217,23 +200,23 @@ impl Agent {
     }
 
     /// Tick the loop once and return output for the target task.
-    pub fn tick_loop_once<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    pub fn tick_loop_once<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: TaskId,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         let mut poller: Option<Box<dyn HostPoller>> = None;
         let (_, output) = self.tick_loop(engine, Some(target_task), &mut poller)?;
         Ok(output)
     }
 
     /// Tick the loop once and return progress and optional target output.
-    fn tick_loop<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    fn tick_loop<E: Engine>(
         &mut self,
         engine: &mut E,
         target_task: Option<TaskId>,
         poller: &mut Option<Box<dyn HostPoller>>,
-    ) -> RuntimeResult<(bool, Option<AgentOutput>)> {
+    ) -> RuntimeResult<(bool, Option<EngineOutput>)> {
         let runtime = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let _context_guard = enter_current_agent_context(runtime, event_loop);
@@ -366,7 +349,7 @@ impl Agent {
         &mut self,
         task_id: TaskId,
         runnable: EngineContinuation,
-        resume_value: AgentValue,
+        resume_value: heap::Value,
     ) -> RuntimeResult<()> {
         // build the task metadata
         let task = Task {
@@ -381,12 +364,12 @@ impl Agent {
     }
 
     /// Execute one task and return output when it completes the target task.
-    fn execute_dequeued_task<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    fn execute_dequeued_task<E: Engine>(
         &mut self,
         engine: &mut E,
         task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         // record dequeue state for one task
         self.record_task_queue_event(
             TaskSubject::Task(task.id),
@@ -402,12 +385,12 @@ impl Agent {
     }
 
     /// Execute one task and return output when it completes the target task.
-    fn execute_task<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    fn execute_task<E: Engine>(
         &mut self,
         engine: &mut E,
         mut task: Task,
         target_task: Option<TaskId>,
-    ) -> RuntimeResult<Option<AgentOutput>> {
+    ) -> RuntimeResult<Option<EngineOutput>> {
         // run the task runnable
         task.status = TaskStatus::Waiting;
         let _guard = enter_event_loop_scope(EventLoopScope::for_task(task.id));
@@ -466,7 +449,7 @@ impl Agent {
     }
 
     /// Execute one microtask to completion.
-    fn execute_microtask<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    fn execute_microtask<E: Engine>(
         &mut self,
         engine: &mut E,
         microtask: Microtask,
@@ -506,10 +489,7 @@ impl Agent {
     }
 
     /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
-    fn drain_microtasks<E: Engine<Output = AgentOutput, Value = AgentValue>>(
-        &mut self,
-        engine: &mut E,
-    ) -> RuntimeResult<(usize, bool)> {
+    fn drain_microtasks<E: Engine>(&mut self, engine: &mut E) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
         let microtask_budget = self
             .event_loop
@@ -554,12 +534,12 @@ impl Agent {
     }
 
     /// Resume one engine continuation with one runtime value.
-    fn execute_runnable<E: Engine<Output = AgentOutput, Value = AgentValue>>(
+    fn execute_runnable<E: Engine>(
         &mut self,
         engine: &mut E,
         runnable: EngineContinuation,
-        resume_value: AgentValue,
-    ) -> RuntimeResult<EngineOutcome<AgentOutput, AgentValue>> {
+        resume_value: heap::Value,
+    ) -> RuntimeResult<EngineOutcome> {
         engine.resume(runnable, resume_value)
     }
 

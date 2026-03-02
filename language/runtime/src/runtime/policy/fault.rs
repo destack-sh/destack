@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+
 use super::{Effect, Rule};
 
 /// Jitter distribution for runtime delay faults.
@@ -370,18 +372,24 @@ pub struct Fault {
     pub fault_type: FaultType,
 }
 
-/// Panic when one fault rule includes one incompatible target and fault pair.
-pub(crate) fn assert_rule_fault_compatibility(rule: &Rule) {
+/// Validate one fault rule target and fault pair.
+pub(crate) fn validate_rule_fault_compatibility(rule: &Rule) -> RuntimeResult<()> {
     let Effect::Fault { fault } = &rule.action else {
-        return;
+        return Ok(());
     };
 
     let is_compatible = is_fault_target_compatible(&fault.target, &fault.fault_type);
-    assert!(
-        is_compatible,
-        "runtime fault is incompatible with target in rule {}",
-        rule.id.0
-    );
+    if is_compatible {
+        return Ok(());
+    }
+
+    Err(RuntimeError::Internal {
+        message: format!(
+            "runtime fault is incompatible with target in rule {}",
+            rule.id.0
+        ),
+    }
+    .boxed())
 }
 
 /// Fault class used by the target-fault compatibility matrix.

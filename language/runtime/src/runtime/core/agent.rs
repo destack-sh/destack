@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_vm::Isolate;
+use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{AgentErrorStore, RuntimeResult};
@@ -9,7 +9,7 @@ use crate::host::{Host, HostEventKind};
 use crate::platform::{PlatformContext, ResourceId, ResourceTable};
 use crate::runtime::Hooks;
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry, BindingReplayPayload};
-use crate::runtime::engine::{EngineContinuation, AgentValue};
+use crate::runtime::engine::EngineContinuation;
 use crate::runtime::memory::Heap;
 use crate::runtime::policy::{Policy, PolicyIdentity};
 use crate::runtime::poller::PollerToken;
@@ -157,6 +157,7 @@ impl Agent {
                 };
                 let random = Random::new(options.random.seed.unwrap_or(0), random_mode);
                 let policy = Policy::from_workspace_policy_rules(&options.rules);
+                policy.validate()?;
                 let replay =
                     ReplayController::new(options.execution, replay_payload, replay_header);
 
@@ -253,11 +254,6 @@ impl Agent {
         }
     }
 
-    /// Install default VM bindings for this agent.
-    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
-        self.bindings.install_vm_defaults(isolate);
-    }
-
     /// Borrow host integration.
     pub fn host(&self) -> &Host {
         &self.host
@@ -278,7 +274,7 @@ impl Agent {
         &mut self,
         handle: ResourceId,
         runnable: EngineContinuation,
-        resume_value: AgentValue,
+        resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
@@ -299,7 +295,7 @@ impl Agent {
         &mut self,
         token: PollerToken,
         runnable: EngineContinuation,
-        resume_value: AgentValue,
+        resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
@@ -320,7 +316,7 @@ impl Agent {
         &mut self,
         kind: HostEventKind,
         runnable: EngineContinuation,
-        resume_value: AgentValue,
+        resume_value: heap::Value,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
