@@ -1,17 +1,8 @@
+import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { DisplayHandle, WindowHandle } from "../resource/index.ds";
 import { DisplayBackend, DisplayBackendSelectionPolicy } from "./backend.ds";
 import { DisplayMode } from "./monitor.ds";
-
-/// Window mode selector.
-export enum WindowMode {
-    /// Standard decorated host window mode.
-    Windowed = 1,
-    /// Borderless host window mode.
-    Borderless = 2,
-    /// Exclusive fullscreen mode.
-    ExclusiveFullscreen = 3,
-}
 
 /// Window visibility state.
 export enum WindowVisibility {
@@ -97,6 +88,44 @@ export enum WindowCursorIcon {
     ZoomOut = 28,
 }
 
+/// Window icon pixel format selector.
+export enum WindowIconPixelFormat {
+    /// Uncompressed `RGBA8` icon pixel bytes.
+    Rgba8 = 1,
+    /// Uncompressed `BGRA8` icon pixel bytes.
+    Bgra8 = 2,
+}
+
+/// Window resize edge selector for interactive host resize requests.
+export enum WindowResizeEdge {
+    /// North resize edge.
+    North = 1,
+    /// South resize edge.
+    South = 2,
+    /// East resize edge.
+    East = 3,
+    /// West resize edge.
+    West = 4,
+    /// North-east resize edge.
+    NorthEast = 5,
+    /// North-west resize edge.
+    NorthWest = 6,
+    /// South-east resize edge.
+    SouthEast = 7,
+    /// South-west resize edge.
+    SouthWest = 8,
+}
+
+/// Window chrome style selector.
+export enum WindowChromeKind {
+    /// Standard application window style.
+    Standard = 1,
+    /// Tool or utility window style.
+    Tool = 2,
+    /// Popup-style undecorated window.
+    Popup = 3,
+}
+
 /// Attention request level.
 export enum WindowAttentionLevel {
     /// Non-critical attention request.
@@ -117,6 +146,16 @@ export enum WindowTheme {
     HighContrastLight = 3,
     /// Dark high-contrast theme value.
     HighContrastDark = 4,
+}
+
+/// Window occlusion state.
+export enum WindowOcclusionState {
+    /// Backend cannot determine occlusion state.
+    Unknown = 0,
+    /// Window is not occluded.
+    Unoccluded = 1,
+    /// Window is occluded.
+    Occluded = 2,
 }
 
 /// Logical window size in platform points.
@@ -151,19 +190,78 @@ export struct WindowSizeConstraints {
     max: WindowLogicalSize | void;
 }
 
-/// Window mode configuration.
-export struct WindowModeOptions {
-    /// Target window mode.
-    mode: WindowMode;
+/// Window aspect-ratio lock.
+export struct WindowAspectRatio {
+    /// Aspect-ratio numerator.
+    numerator: uint32;
+    /// Aspect-ratio denominator.
+    denominator: uint32;
+}
+
+/// Windowed mode configuration.
+export struct WindowWindowedModeOptions {
+    /// Discriminator for this mode variant.
+    kind: "windowed";
+}
+
+/// Borderless mode configuration.
+export struct WindowBorderlessModeOptions {
+    /// Discriminator for this mode variant.
+    kind: "borderless";
     /// Preferred display for fullscreen transitions.
     display: DisplayHandle | void;
+}
+
+/// Exclusive fullscreen mode configuration.
+export struct WindowExclusiveFullscreenModeOptions {
+    /// Discriminator for this mode variant.
+    kind: "exclusiveFullscreen";
+    /// Required display for exclusive fullscreen transitions.
+    display: DisplayHandle;
     /// Preferred exclusive fullscreen mode.
     displayMode: DisplayMode | void;
 }
 
+/// Window mode configuration.
+export newtype WindowModeOptions =
+    WindowWindowedModeOptions
+    | WindowBorderlessModeOptions
+    | WindowExclusiveFullscreenModeOptions;
+
+/// Safe-area insets in physical pixels.
+export struct WindowSafeAreaInsets {
+    /// Left inset in physical pixels.
+    leftPx: uint32;
+    /// Top inset in physical pixels.
+    topPx: uint32;
+    /// Right inset in physical pixels.
+    rightPx: uint32;
+    /// Bottom inset in physical pixels.
+    bottomPx: uint32;
+}
+
+/// Window icon image payload.
+export struct WindowIconImage {
+    /// Icon width in pixels.
+    width: uint32;
+    /// Icon height in pixels.
+    height: uint32;
+    /// Icon pixel format selector.
+    pixelFormat: WindowIconPixelFormat;
+    /// Packed icon pixel bytes in row-major order.
+    pixels: Slice<uint8>;
+}
+
+/// Window icon set payload.
+export struct WindowIconSet {
+    /// Candidate icon images in preferred order.
+    images: Slice<WindowIconImage>;
+}
+
 /// Window creation options.
 export struct WindowOptions {
-    /// Preferred backend selector.
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
     backend: DisplayBackend;
     /// Backend selection policy.
     backendPolicy: DisplayBackendSelectionPolicy;
@@ -187,10 +285,29 @@ export struct WindowOptions {
     decorated: boolean;
     /// Whether compositor alpha transparency is requested.
     transparent: boolean;
+    /// Initial window chrome style.
+    chrome: WindowChromeKind;
+    /// Whether this window should appear in task switching surfaces.
+    taskbarVisible: boolean;
+    /// Initial window opacity in `[0.0, 1.0]`, or `void` for backend default.
+    opacity: float64 | void;
     /// Whether the window should request focus at creation.
     focusOnShow: boolean;
     /// Whether this window should stay above standard windows.
     alwaysOnTop: boolean;
+    /// Parent window relationship when supported.
+    /// Ignored when `transientFor` is set.
+    parent: WindowHandle | void;
+    /// Transient-owner window relationship when supported.
+    /// Takes precedence over `parent` when both are provided.
+    transientFor: WindowHandle | void;
+    /// Initial modal relationship when supported.
+    /// This requires `transientFor` or `parent` to be set.
+    modal: boolean | void;
+    /// Initial mouse passthrough state when supported.
+    mousePassthrough: boolean | void;
+    /// Initial aspect-ratio lock when supported.
+    aspectRatio: WindowAspectRatio | void;
 }
 
 /// Window descriptor payload.
@@ -209,10 +326,26 @@ export struct WindowDescriptor {
     resizable: boolean;
     /// Whether this window uses host decorations.
     decorated: boolean;
+    /// Current window chrome style.
+    chrome: WindowChromeKind;
+    /// Whether this window is currently visible in task switching surfaces.
+    taskbarVisible: boolean;
     /// Whether this window requested compositor transparency.
     transparent: boolean;
+    /// Current whole-window opacity in `[0.0, 1.0]`.
+    opacity: float64;
     /// Whether this window is configured as always-on-top.
     alwaysOnTop: boolean;
+    /// Current parent window relationship.
+    parent: WindowHandle | void;
+    /// Current transient-owner window relationship.
+    transientFor: WindowHandle | void;
+    /// Whether this window is currently modal.
+    modal: boolean;
+    /// Whether this window is currently mouse-passthrough.
+    mousePassthrough: boolean;
+    /// Current aspect-ratio lock.
+    aspectRatio: WindowAspectRatio | void;
 }
 
 /// Window state snapshot.
@@ -233,12 +366,30 @@ export struct WindowState {
     display: DisplayHandle | void;
     /// Whether this window currently has keyboard focus.
     focused: boolean;
-    /// Whether this window is currently occluded.
-    occluded: boolean;
+    /// Current window occlusion state.
+    occlusion: WindowOcclusionState;
+    /// Current safe-area insets in physical pixels when provided by the backend.
+    safeAreaInsets: WindowSafeAreaInsets | void;
     /// Current theme for this window.
     theme: WindowTheme;
+    /// Current window chrome style.
+    chrome: WindowChromeKind;
+    /// Whether this window is currently visible in task switching surfaces.
+    taskbarVisible: boolean;
+    /// Current whole-window opacity in `[0.0, 1.0]`.
+    opacity: float64;
     /// Whether this window is currently always-on-top.
     alwaysOnTop: boolean;
+    /// Current parent window relationship.
+    parent: WindowHandle | void;
+    /// Current transient-owner window relationship.
+    transientFor: WindowHandle | void;
+    /// Whether this window is currently modal.
+    modal: boolean;
+    /// Whether this window is currently mouse-passthrough.
+    mousePassthrough: boolean;
+    /// Current aspect-ratio lock.
+    aspectRatio: WindowAspectRatio | void;
 }
 
 /// Window bindings.
@@ -250,7 +401,8 @@ declare namespace display {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses winit or SDL class host backends over Wayland or X11 or Win32 windowing APIs.
+    /// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
+    /// Uses host window-system APIs on Win32, X11, and Wayland desktop backends.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -374,6 +526,34 @@ declare namespace display {
     })
     export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>;
 
+    /// Set one window icon set.
+    ///
+    /// Apply one host window icon set from packed pixel bytes.
+    /// Backends can select the closest icon size per host surface.
+    /// Passing `void` clears custom icons and restores host default behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window icon APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setIcons", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetIcons(window: WindowHandle, icons: WindowIconSet | void): Result<void, PlatformError>;
+
     /// Set one window position.
     ///
     /// Apply one host window position in desktop coordinates.
@@ -416,7 +596,7 @@ declare namespace display {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.display.window.setSize", {
+    @binding("destack.display.window.setSizeLogical", {
         effect: "external",
         replay: "recordable",
         capabilities: ["display.window"],
@@ -482,6 +662,36 @@ declare namespace display {
         constraints: WindowSizeConstraints | void,
     ): Result<void, PlatformError>;
 
+    /// Set one window aspect-ratio lock.
+    ///
+    /// Apply one aspect-ratio lock for one opened window.
+    /// Passing `void` clears any currently active aspect-ratio lock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific aspect-ratio lock operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setAspectRatio", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetAspectRatio(
+        window: WindowHandle,
+        aspectRatio: WindowAspectRatio | void,
+    ): Result<void, PlatformError>;
+
     /// Set one window visibility state.
     ///
     /// Apply one window visibility state transition.
@@ -507,6 +717,84 @@ declare namespace display {
         blocking: "sometimes",
     })
     export function windowSetVisibility(window: WindowHandle, visibility: WindowVisibility): Result<void, PlatformError>;
+
+    /// Minimize one window.
+    ///
+    /// Transition one opened window to minimized host state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific minimize operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.minimize", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowMinimize(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Maximize one window.
+    ///
+    /// Transition one opened window to maximized host state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific maximize operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.maximize", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowMaximize(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Restore one window.
+    ///
+    /// Restore one minimized or maximized window to standard visible state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific restore operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.restore", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowRestore(window: WindowHandle): Result<void, PlatformError>;
 
     /// Set one window mode.
     ///
@@ -586,6 +874,58 @@ declare namespace display {
     })
     export function windowSetDecorated(window: WindowHandle, decorated: boolean): Result<void, PlatformError>;
 
+    /// Set one window chrome style.
+    ///
+    /// Apply one backend chrome style policy for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window style and type operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setChrome", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetChrome(window: WindowHandle, chrome: WindowChromeKind): Result<void, PlatformError>;
+
+    /// Set taskbar visibility for one window.
+    ///
+    /// Control whether one window is visible in task switching and taskbar surfaces.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific taskbar and dock visibility operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setTaskbarVisible", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetTaskbarVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>;
+
     /// Set always-on-top state.
     ///
     /// Toggle host always-on-top policy for one opened window.
@@ -611,6 +951,222 @@ declare namespace display {
         blocking: "sometimes",
     })
     export function windowSetAlwaysOnTop(window: WindowHandle, alwaysOnTop: boolean): Result<void, PlatformError>;
+
+    /// Set one window opacity.
+    ///
+    /// Apply one whole-window opacity value in `[0.0, 1.0]`.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific whole-window opacity APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setOpacity", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetOpacity(window: WindowHandle, opacity: float64): Result<void, PlatformError>;
+
+    /// Read one window opacity value.
+    ///
+    /// Read one point-in-time whole-window opacity value in `[0.0, 1.0]`.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific whole-window opacity queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.opacity", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>;
+
+    /// Focus one window.
+    ///
+    /// Request keyboard focus for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific focus request operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.focus", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowFocus(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Raise one window.
+    ///
+    /// Request that one opened window moves to the top of its stack group.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific raise and stack-order operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.raise", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowRaise(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Set one parent window relationship.
+    ///
+    /// Apply one parent relationship where backend policy allows.
+    /// This relationship is ignored when `transientFor` is also set.
+    /// Passing `void` removes the parent relationship.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific parent-window relationship operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.parenting`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setParent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.parenting"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetParent(window: WindowHandle, parent: WindowHandle | void): Result<void, PlatformError>;
+
+    /// Set one transient-owner relationship.
+    ///
+    /// Apply one transient-owner relationship where backend policy allows.
+    /// This relationship takes precedence over `parent`.
+    /// Passing `void` removes the transient-owner relationship.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific transient-window relationship operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.parenting`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setTransientFor", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.parenting"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetTransientFor(
+        window: WindowHandle,
+        transientFor: WindowHandle | void,
+    ): Result<void, PlatformError>;
+
+    /// Set one window modal relationship.
+    ///
+    /// Enable or disable one modal relationship where backend policy allows.
+    /// Modal mode requires one active `transientFor` or `parent` relationship.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific modal-window operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.modal`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setModal", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window.modal"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetModal(window: WindowHandle, modal: boolean): Result<void, PlatformError>;
+
+    /// Set mouse passthrough behavior for one window.
+    ///
+    /// Enable or disable pointer hit-test passthrough for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific hit-test and pointer-input region operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.setMousePassthrough", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowSetMousePassthrough(window: WindowHandle, passthrough: boolean): Result<void, PlatformError>;
 
     /// Request one redraw for one window.
     ///
@@ -768,6 +1324,58 @@ declare namespace display {
     })
     export function windowSetCursorPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>;
 
+    /// Begin one native move-drag interaction.
+    ///
+    /// Start one host-controlled move-drag interaction for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific interactive move-drag operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.beginMoveDrag", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>;
+
+    /// Begin one native resize-drag interaction.
+    ///
+    /// Start one host-controlled resize-drag interaction for one opened window and one selected edge.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific interactive resize-drag operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.window.beginResizeDrag", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.window"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function windowBeginResizeDrag(window: WindowHandle, edge: WindowResizeEdge): Result<void, PlatformError>;
+
     /// Present one frame interval marker.
     ///
     /// Block until the next present interval for one window when host backends support vsync synchronization.
@@ -780,14 +1388,14 @@ declare namespace display {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `display.vsync`.
+    /// Requires `display.window`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.display.window.vsyncWait", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["display.vsync"],
+        capabilities: ["display.window"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "sometimes",

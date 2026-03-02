@@ -1,5 +1,6 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
+import { OsPath } from "../fs/path.ds";
 import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
 import {
     DisplayBackend,
@@ -7,68 +8,196 @@ import {
     DisplayEventQueueOptions,
 } from "./backend.ds";
 import {
+    WindowAspectRatio,
+    WindowChromeKind,
     WindowLogicalSize,
     WindowModeOptions,
+    WindowOcclusionState,
     WindowPhysicalSize,
     WindowPosition,
+    WindowSafeAreaInsets,
     WindowTheme,
     WindowVisibility,
 } from "./window.ds";
 
 /// Window focus-change payload.
 export struct WindowFocusPayload {
-    /// Whether the window is focused after this event.
-    focused: boolean;
+    /// Focus state before this event.
+    previousFocused: boolean;
+    /// Focus state after this event.
+    currentFocused: boolean;
 }
 
 /// Window visibility-change payload.
 export struct WindowVisibilityPayload {
+    /// Visibility state before this event.
+    previousVisibility: WindowVisibility;
     /// Visibility state after this event.
-    visibility: WindowVisibility;
+    currentVisibility: WindowVisibility;
 }
 
 /// Window occlusion-change payload.
 export struct WindowOcclusionPayload {
-    /// Whether the window is occluded after this event.
-    occluded: boolean;
+    /// Occlusion state before this event.
+    previousOcclusion: WindowOcclusionState;
+    /// Occlusion state after this event.
+    currentOcclusion: WindowOcclusionState;
 }
 
 /// Window position-change payload.
 export struct WindowPositionPayload {
+    /// Position before this event.
+    previousPosition: WindowPosition;
     /// Position after this event.
-    position: WindowPosition;
+    currentPosition: WindowPosition;
 }
 
 /// Window size-change payload.
 export struct WindowSizePayload {
+    /// Logical size before this event.
+    previousSizeLogical: WindowLogicalSize;
+    /// Physical size before this event.
+    previousSizePhysical: WindowPhysicalSize;
     /// Logical size after this event.
-    sizeLogical: WindowLogicalSize;
+    currentSizeLogical: WindowLogicalSize;
     /// Physical size after this event.
-    sizePhysical: WindowPhysicalSize;
+    currentSizePhysical: WindowPhysicalSize;
 }
 
 /// Window scale-factor payload.
 export struct WindowScaleFactorPayload {
-    /// Scale factor in milli-scale units.
-    scaleFactorMilli: uint32;
+    /// Scale factor before this event in milli-scale units.
+    previousScaleFactorMilli: uint32;
+    /// Scale factor after this event in milli-scale units.
+    currentScaleFactorMilli: uint32;
 }
 
 /// Window mode-change payload.
 export struct WindowModePayload {
+    /// Mode before this event.
+    previousMode: WindowModeOptions;
     /// Mode after this event.
-    mode: WindowModeOptions;
+    currentMode: WindowModeOptions;
 }
 
 /// Window display-change payload.
 export struct WindowDisplayPayload {
+    /// Display before this event.
+    previousDisplay: DisplayHandle | void;
     /// Display after this event.
-    display: DisplayHandle | void;
+    currentDisplay: DisplayHandle | void;
 }
 
 /// Window theme-change payload.
 export struct WindowThemePayload {
+    /// Theme value before this event.
+    previousTheme: WindowTheme;
     /// Theme value after this event.
-    theme: WindowTheme;
+    currentTheme: WindowTheme;
+}
+
+/// Window chrome-style-change payload.
+export struct WindowChromePayload {
+    /// Chrome style before this event.
+    previousChrome: WindowChromeKind;
+    /// Chrome style after this event.
+    currentChrome: WindowChromeKind;
+}
+
+/// Window taskbar-visibility-change payload.
+export struct WindowTaskbarVisibilityPayload {
+    /// Taskbar visibility before this event.
+    previousTaskbarVisible: boolean;
+    /// Taskbar visibility after this event.
+    currentTaskbarVisible: boolean;
+}
+
+/// Window safe-area-change payload.
+export struct WindowSafeAreaPayload {
+    /// Safe-area insets before this event when available.
+    previousSafeAreaInsets: WindowSafeAreaInsets | void;
+    /// Safe-area insets after this event when available.
+    currentSafeAreaInsets: WindowSafeAreaInsets | void;
+}
+
+/// Window opacity-change payload.
+export struct WindowOpacityPayload {
+    /// Opacity before this event.
+    previousOpacity: float64;
+    /// Opacity after this event.
+    currentOpacity: float64;
+}
+
+/// Window parent-change payload.
+export struct WindowParentPayload {
+    /// Parent before this event.
+    previousParent: WindowHandle | void;
+    /// Parent after this event.
+    currentParent: WindowHandle | void;
+}
+
+/// Window transient-owner-change payload.
+export struct WindowTransientPayload {
+    /// Transient-owner relationship before this event.
+    previousTransientFor: WindowHandle | void;
+    /// Transient-owner relationship after this event.
+    currentTransientFor: WindowHandle | void;
+}
+
+/// Window modal-change payload.
+export struct WindowModalPayload {
+    /// Modal state before this event.
+    previousModal: boolean;
+    /// Modal state after this event.
+    currentModal: boolean;
+}
+
+/// Window mouse-passthrough-change payload.
+export struct WindowMousePassthroughPayload {
+    /// Mouse-passthrough state before this event.
+    previousMousePassthrough: boolean;
+    /// Mouse-passthrough state after this event.
+    currentMousePassthrough: boolean;
+}
+
+/// Window aspect-ratio-change payload.
+export struct WindowAspectRatioPayload {
+    /// Aspect-ratio lock before this event.
+    previousAspectRatio: WindowAspectRatio | void;
+    /// Aspect-ratio lock after this event.
+    currentAspectRatio: WindowAspectRatio | void;
+}
+
+/// Window file-drop payload.
+export struct WindowDropFilePayload {
+    /// Dropped path payload.
+    path: OsPath | void;
+    /// Drop position in desktop coordinates when provided by the backend.
+    position: WindowPosition | void;
+}
+
+/// Window text-drop payload.
+export struct WindowDropTextPayload {
+    /// Dropped text content.
+    text: string;
+    /// Drop position in desktop coordinates when provided by the backend.
+    position: WindowPosition | void;
+}
+
+/// Window drop-hover payload.
+export struct WindowDropHoverPayload {
+    /// Hovered path payload.
+    path: OsPath | void;
+    /// Hover position in desktop coordinates when provided by the backend.
+    position: WindowPosition | void;
+}
+
+/// Window drop-hover-leave payload.
+export struct WindowDropHoverLeavePayload {
+    /// Last hovered path payload when available.
+    previousPath: OsPath | void;
+    /// Last hover position in desktop coordinates when provided by the backend.
+    position: WindowPosition | void;
 }
 
 /// Shared metadata for all window events.
@@ -81,6 +210,8 @@ export struct WindowEventMetadata {
     timestampNs: uint64;
     /// Monotonic event sequence number.
     sequence: uint64;
+    /// Number of events dropped by this stream before this event.
+    droppedCount: uint64;
 }
 
 /// Window-created event.
@@ -205,17 +336,244 @@ export struct WindowThemeChangedEvent {
     payload: WindowThemePayload;
 }
 
+/// Window chrome-style-changed event.
+export struct WindowChromeChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "chromeChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Chrome-style-change payload.
+    payload: WindowChromePayload;
+}
+
+/// Window taskbar-visibility-changed event.
+export struct WindowTaskbarVisibilityChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "taskbarVisibilityChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Taskbar-visibility-change payload.
+    payload: WindowTaskbarVisibilityPayload;
+}
+
+/// Window safe-area-changed event.
+export struct WindowSafeAreaChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "safeAreaChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Safe-area-change payload.
+    payload: WindowSafeAreaPayload;
+}
+
+/// Window opacity-changed event.
+export struct WindowOpacityChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "opacityChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Opacity-change payload.
+    payload: WindowOpacityPayload;
+}
+
+/// Window parent-changed event.
+export struct WindowParentChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "parentChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Parent-change payload.
+    payload: WindowParentPayload;
+}
+
+/// Window transient-owner-changed event.
+export struct WindowTransientChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "transientChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Transient-owner-change payload.
+    payload: WindowTransientPayload;
+}
+
+/// Window modal-changed event.
+export struct WindowModalChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "modalChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Modal-change payload.
+    payload: WindowModalPayload;
+}
+
+/// Window mouse-passthrough-changed event.
+export struct WindowMousePassthroughChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "mousePassthroughChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Mouse-passthrough-change payload.
+    payload: WindowMousePassthroughPayload;
+}
+
+/// Window aspect-ratio-changed event.
+export struct WindowAspectRatioChangedEvent {
+    /// Discriminator for this window event variant.
+    kind: "aspectRatioChanged";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Aspect-ratio-change payload.
+    payload: WindowAspectRatioPayload;
+}
+
+/// Window drop-session-started event.
+export struct WindowDropStartedEvent {
+    /// Discriminator for this window event variant.
+    kind: "dropStarted";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window file-hovered event.
+export struct WindowFileHoveredEvent {
+    /// Discriminator for this window event variant.
+    kind: "fileHovered";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Drop-hover payload.
+    payload: WindowDropHoverPayload;
+}
+
+/// Window drop-session-cancelled event.
+export struct WindowDropCancelledEvent {
+    /// Discriminator for this window event variant.
+    kind: "dropCancelled";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window drop-session-completed event.
+export struct WindowDropCompletedEvent {
+    /// Discriminator for this window event variant.
+    kind: "dropCompleted";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+}
+
+/// Window file-hover-left event.
+export struct WindowFileHoverLeftEvent {
+    /// Discriminator for this window event variant.
+    kind: "fileHoverLeft";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Drop-hover-leave payload.
+    payload: WindowDropHoverLeavePayload;
+}
+
+/// Window file-dropped event.
+export struct WindowFileDroppedEvent {
+    /// Discriminator for this window event variant.
+    kind: "fileDropped";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// File-drop payload.
+    payload: WindowDropFilePayload;
+}
+
+/// Window text-dropped event.
+export struct WindowTextDroppedEvent {
+    /// Discriminator for this window event variant.
+    kind: "textDropped";
+    /// Shared event metadata.
+    metadata: WindowEventMetadata;
+    /// Text-drop payload.
+    payload: WindowDropTextPayload;
+}
+
 /// Window event payload.
-export newtype WindowEvent = WindowCreatedEvent | WindowCloseRequestedEvent | WindowDestroyedEvent | WindowFocusChangedEvent | WindowVisibilityChangedEvent | WindowOcclusionChangedEvent | WindowPositionChangedEvent | WindowSizeChangedEvent | WindowScaleFactorChangedEvent | WindowRefreshRequestedEvent | WindowModeChangedEvent | WindowDisplayChangedEvent | WindowThemeChangedEvent;
+export newtype WindowEvent = WindowCreatedEvent | WindowCloseRequestedEvent | WindowDestroyedEvent | WindowFocusChangedEvent | WindowVisibilityChangedEvent | WindowOcclusionChangedEvent | WindowPositionChangedEvent | WindowSizeChangedEvent | WindowScaleFactorChangedEvent | WindowRefreshRequestedEvent | WindowModeChangedEvent | WindowDisplayChangedEvent | WindowThemeChangedEvent | WindowChromeChangedEvent | WindowTaskbarVisibilityChangedEvent | WindowSafeAreaChangedEvent | WindowOpacityChangedEvent | WindowParentChangedEvent | WindowTransientChangedEvent | WindowModalChangedEvent | WindowMousePassthroughChangedEvent | WindowAspectRatioChangedEvent | WindowDropStartedEvent | WindowFileHoveredEvent | WindowDropCancelledEvent | WindowDropCompletedEvent | WindowFileHoverLeftEvent | WindowFileDroppedEvent | WindowTextDroppedEvent;
+
+/// Window-event kind filter mask.
+export newtype WindowEventKindMask = uint64;
+
+/// Event kind bit for `created`.
+export const WINDOW_EVENT_KIND_CREATED: WindowEventKindMask = WindowEventKindMask(0x1);
+/// Event kind bit for `closeRequested`.
+export const WINDOW_EVENT_KIND_CLOSE_REQUESTED: WindowEventKindMask = WindowEventKindMask(0x2);
+/// Event kind bit for `destroyed`.
+export const WINDOW_EVENT_KIND_DESTROYED: WindowEventKindMask = WindowEventKindMask(0x4);
+/// Event kind bit for `focusChanged`.
+export const WINDOW_EVENT_KIND_FOCUS_CHANGED: WindowEventKindMask = WindowEventKindMask(0x8);
+/// Event kind bit for `visibilityChanged`.
+export const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x10);
+/// Event kind bit for `occlusionChanged`.
+export const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: WindowEventKindMask = WindowEventKindMask(0x20);
+/// Event kind bit for `positionChanged`.
+export const WINDOW_EVENT_KIND_POSITION_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40);
+/// Event kind bit for `sizeChanged`.
+export const WINDOW_EVENT_KIND_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80);
+/// Event kind bit for `scaleFactorChanged`.
+export const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100);
+/// Event kind bit for `refreshRequested`.
+export const WINDOW_EVENT_KIND_REFRESH_REQUESTED: WindowEventKindMask = WindowEventKindMask(0x200);
+/// Event kind bit for `modeChanged`.
+export const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(0x400);
+/// Event kind bit for `displayChanged`.
+export const WINDOW_EVENT_KIND_DISPLAY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x800);
+/// Event kind bit for `themeChanged`.
+export const WINDOW_EVENT_KIND_THEME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x1000);
+/// Event kind bit for `chromeChanged`.
+export const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(0x2000);
+/// Event kind bit for `taskbarVisibilityChanged`.
+export const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x4000);
+/// Event kind bit for `safeAreaChanged`.
+export const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask = WindowEventKindMask(0x8000);
+/// Event kind bit for `opacityChanged`.
+export const WINDOW_EVENT_KIND_OPACITY_CHANGED: WindowEventKindMask = WindowEventKindMask(0x10000);
+/// Event kind bit for `parentChanged`.
+export const WINDOW_EVENT_KIND_PARENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x20000);
+/// Event kind bit for `transientChanged`.
+export const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEventKindMask(0x40000);
+/// Event kind bit for `modalChanged`.
+export const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKindMask(0x80000);
+/// Event kind bit for `mousePassthroughChanged`.
+export const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask = WindowEventKindMask(0x100000);
+/// Event kind bit for `aspectRatioChanged`.
+export const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask = WindowEventKindMask(0x200000);
+/// Event kind bit for `dropStarted`.
+export const WINDOW_EVENT_KIND_DROP_STARTED: WindowEventKindMask = WindowEventKindMask(0x400000);
+/// Event kind bit for `fileHovered`.
+export const WINDOW_EVENT_KIND_FILE_HOVERED: WindowEventKindMask = WindowEventKindMask(0x800000);
+/// Event kind bit for `dropCancelled`.
+export const WINDOW_EVENT_KIND_DROP_CANCELLED: WindowEventKindMask = WindowEventKindMask(0x1000000);
+/// Event kind bit for `dropCompleted`.
+export const WINDOW_EVENT_KIND_DROP_COMPLETED: WindowEventKindMask = WindowEventKindMask(0x2000000);
+/// Event kind bit for `fileHoverLeft`.
+export const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: WindowEventKindMask = WindowEventKindMask(0x4000000);
+/// Event kind bit for `fileDropped`.
+export const WINDOW_EVENT_KIND_FILE_DROPPED: WindowEventKindMask = WindowEventKindMask(0x8000000);
+/// Event kind bit for `textDropped`.
+export const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(0x10000000);
+
+/// Window-event stream filter options.
+export struct WindowEventFilter {
+    /// Restrict events to one window when set.
+    window: WindowHandle | void;
+    /// Restrict events to selected kinds when set.
+    kindMask: WindowEventKindMask | void;
+}
 
 /// Window event stream open options.
 export struct WindowEventOpenOptions {
-    /// Preferred backend selector.
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
     backend: DisplayBackend;
     /// Backend selection policy.
     backendPolicy: DisplayBackendSelectionPolicy;
     /// Event queue configuration.
     queue: DisplayEventQueueOptions;
+    /// Optional filter for narrowing delivered events.
+    filter: WindowEventFilter | void;
 }
 
 /// Window event bindings.
@@ -224,11 +582,13 @@ declare namespace display {
     ///
     /// Open one host window-event stream for all windows in this runtime.
     /// Event ordering follows host event-loop delivery behavior.
+    /// Stream payloads include drop-session lifecycle events and final drop payload events.
     /// This stream should be consumed from one runtime event-loop thread.
+    /// Dropped events are reported through `metadata.droppedCount`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses one host event-loop stream model aligned with winit and SDL style window id routing.
+    /// Uses one host event-loop stream model with stable window-handle routing.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
