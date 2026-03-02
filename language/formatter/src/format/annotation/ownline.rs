@@ -166,7 +166,7 @@ fn attach_before_jsx_statement_head_comment(
         seam.token_before_type,
         Some(TokenType::Semicolon | TokenType::CloseBrace | TokenType::CloseParenthesis)
     );
-    if seam.comment_is_line
+    if (seam.comment_is_line || seam.comment_is_star)
         && token_before_is_statement_end
         && seam.token_after_is(TokenType::LessThan)
         && let Some(target_node) = following_owner

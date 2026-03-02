@@ -13,7 +13,9 @@ use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
     CommentSeamData, comment_enclosing_owner, seam_is_template_interpolation_open_brace,
 };
-use super::facts::next_non_trivia_token_index;
+use super::facts::{
+    is_tree_closing_tag_head_seam, next_non_trivia_token_index, previous_non_trivia_token_index,
+};
 use super::operator::try_attach_comment_expression_operator;
 use super::ownership::{
     find_owner_at_or_after_token, find_owner_in_ancestor_chain, find_owner_in_candidate_ancestry,
@@ -134,6 +136,66 @@ fn is_call_or_new_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
         tree.get(expression_id),
         Expression::Call { .. } | Expression::New { .. }
     )
+}
+
+/// Return whether one owner is a tree expression owner.
+fn is_tree_expression_owner(tree: &NodeTree, owner_id: u32) -> bool {
+    tree.get_node_type(owner_id) == NodeType::Expression
+        && matches!(
+            tree.get(LocalNodeId::<Expression>::new(owner_id)),
+            Expression::TreeExpression { .. }
+        )
+}
+
+/// Return whether one seam is inside one JSX closing-tag head.
+fn seam_is_tree_closing_tag_head(
+    seam_context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+) -> bool {
+    let token_before_predecessor_type = seam_context
+        .token_before
+        .and_then(|token_before_index| {
+            previous_non_trivia_token_index(seam_context.semantic_tokens, token_before_index)
+        })
+        .and_then(|token_index| seam_context.semantic_tokens.get(token_index))
+        .map(|token| token.token.ty);
+    let token_after_successor_type = seam_context
+        .token_after
+        .and_then(|token_after_index| {
+            next_non_trivia_token_index(seam_context.semantic_tokens, token_after_index)
+        })
+        .and_then(|token_index| seam_context.semantic_tokens.get(token_index))
+        .map(|token| token.token.ty);
+
+    is_tree_closing_tag_head_seam(
+        seam.token_before_type,
+        token_before_predecessor_type,
+        seam.token_after_type,
+        token_after_successor_type,
+    )
+}
+
+/// Return one tree-expression owner for one JSX closing-tag seam.
+fn tree_expression_owner_for_closing_tag_seam(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    preceding_owner: Option<u32>,
+    following_owner: Option<u32>,
+    preceding_token_owner: Option<u32>,
+    following_token_owner: Option<u32>,
+    enclosing_owner: Option<u32>,
+) -> Option<u32> {
+    [
+        preceding_token_owner,
+        following_token_owner,
+        preceding_owner,
+        following_owner,
+        enclosing_owner,
+    ]
+    .into_iter()
+    .flatten()
+    .map(|owner_id| promote_owner_to_tree_expression_parent(tree, parents, owner_id))
+    .find(|owner_id| is_tree_expression_owner(tree, *owner_id))
 }
 
 /// Promote one owner to the nearest call or new expression ancestor.
@@ -922,12 +984,15 @@ fn attach_expression_middle_label_and_separator_comments(
 ) -> Option<CommentAttachment> {
     let tree = comment_context.tree;
     let parents = comment_context.parents;
+    let seam_context = comment_context.seam_context;
     let seam = comment_context.seam;
     let preceding_owner = comment_context.preceding_owner;
     let following_owner = comment_context.following_owner;
     let token_before_span = comment_context.token_before_span;
     let token_before_source_span = comment_context.token_before_source_span;
     let preceding_token_owner = comment_context.preceding_token_owner;
+    let following_token_owner = comment_context.following_token_owner;
+    let enclosing_owner = comment_context.enclosing_owner;
     let is_inline_star_comment = comment_context.is_inline_star_comment;
     let is_trailing_line_comment = comment_context.is_trailing_line_comment;
     let comment_is_line = comment_context.comment_is_line;
@@ -944,6 +1009,26 @@ fn attach_expression_middle_label_and_separator_comments(
     let token_before_is_close_bracket = seam.token_before_is(TokenType::CloseBracket);
     let token_before_is_close_parenthesis = seam.token_before_is(TokenType::CloseParenthesis);
 
+    // closing-tag seams normalize to tree-expression boundary ownership
+    if seam_is_tree_closing_tag_head(seam_context, seam)
+        && let Some(target_node) = tree_expression_owner_for_closing_tag_seam(
+            tree,
+            parents,
+            preceding_owner,
+            following_owner,
+            preceding_token_owner,
+            following_token_owner,
+            enclosing_owner,
+        )
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let position = if comment_is_line {
+            AnnotationPosition::LinePostfixBoundary
+        } else {
+            AnnotationPosition::BlockPostfix
+        };
+        return Some((Some(target_node), position));
+    }
     // line comments after label colons stay with the labelled statement owner
     if is_trailing_line_comment
         && token_before_is_colon
