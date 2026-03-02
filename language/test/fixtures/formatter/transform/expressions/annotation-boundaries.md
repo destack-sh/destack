@@ -28,6 +28,18 @@ var newArray = (/** @type {array} */ numberOrString).map((x) => x)
 var newArray = /** @type {array} */ numberOrString.map((x) => x);
 ```
 
+### closure type cast assignment seam member expression
+
+Type cast docs on assignment seams stay inline with the right-hand member expression.
+
+```js:main.js
+foo = (/** @type {!Baz} */ (baz).bar);
+```
+
+```js expected
+foo = /** @type {!Baz} */ (baz).bar;
+```
+
 ### closure type cast with neighboring block comment
 
 Neighboring block comments keep their relative order with type cast comments.

@@ -10,6 +10,7 @@ pub(crate) use predicate::{
     call_arguments_preserve_blank_line_between, call_has_leading_block_callback_with_simple_tail,
     call_has_static_arguments, first_non_trivia_token_in_span, is_call_like_argument,
     is_simple_static_argument, is_tree_attribute_expression, last_non_trivia_token_in_span,
-    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
-    previous_non_whitespace_token_before_span, token_is_keyword,
+    next_non_whitespace_token_after_annotation, nth_non_trivia_token_in_span,
+    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
+    token_is_keyword,
 };

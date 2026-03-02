@@ -1,6 +1,6 @@
 use crate::Annotation;
 use crate::format::analysis::{
-    first_non_trivia_token_in_span, last_non_trivia_token_in_span, timing,
+    last_non_trivia_token_in_span, nth_non_trivia_token_in_span, timing,
 };
 use crate::format::call::argument_satisfies_static_seam_comment_annotation_id;
 use crate::format::chain::{
@@ -11,7 +11,7 @@ use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     LocalNodeId, ParenthesizedDropMode, TokenType, TypeBinaryOperator,
     expression_has_leading_prefix_comment, format_with, group, hard_line_break, if_group_breaks,
-    indent, should_drop_parenthesized, soft_line_break_or_space, space, token,
+    indent, should_drop_parenthesized, soft_block_indent, soft_line_break_or_space, space, token,
     transparent_inner_expression, type_binary_is_parenthesized_new_callee,
     type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
 };
@@ -1075,8 +1075,16 @@ fn cast_prefers_angle_assertion_syntax(
         return false;
     };
 
-    first_non_trivia_token_in_span(context, main_span)
-        .is_some_and(|token| token.token.ty == TokenType::LessThan)
+    let mut token_index = 0usize;
+    while let Some(token) = nth_non_trivia_token_in_span(context, main_span, token_index) {
+        match token.token.ty {
+            TokenType::OpenParenthesis => token_index += 1,
+            TokenType::LessThan => return true,
+            _ => return false,
+        }
+    }
+
+    false
 }
 
 /// Return one satisfies seam line comment node from rhs ownership variants.
@@ -1194,7 +1202,39 @@ pub(crate) fn format_type_binary_expression<'ast>(
     };
 
     if cast_uses_angle_assertion {
-        write!(f, [token("<"), right, token(">"), format_with(format_left)])?;
+        if f.context().has_prefix_annotation(right) {
+            let format_cast = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                write!(
+                    f,
+                    [token("<"), group(&soft_block_indent(&right)), token(">")]
+                )
+            });
+            write!(f, [format_cast, format_with(format_left)])?;
+        } else {
+            let should_preserve_parenthesized_left_newline =
+                matches!(
+                    f.context().tree.get(formatted_left),
+                    Expression::Parenthesized { .. }
+                ) && f.context().node_has_newline(formatted_left);
+            if should_preserve_parenthesized_left_newline
+                && let Expression::Parenthesized { expression } =
+                    f.context().tree.get(formatted_left)
+            {
+                write!(
+                    f,
+                    [
+                        token("<"),
+                        right,
+                        token(">"),
+                        token("("),
+                        soft_block_indent(expression),
+                        token(")")
+                    ]
+                )?;
+            } else {
+                write!(f, [token("<"), right, token(">"), format_with(format_left)])?;
+            }
+        }
         return Ok(());
     }
 

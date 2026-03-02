@@ -260,6 +260,7 @@ fn should_avoid_head_promotion_for_nonhead_callbacks(
 fn promote_chain_head_operations(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
+    root_id: LocalNodeId<Expression>,
     base: &mut ChainExpressionBase,
     body: &mut Vec<ChainExpression>,
     should_avoid_head_promotion_for_nonhead_callbacks: bool,
@@ -278,6 +279,8 @@ fn promote_chain_head_operations(
     let allow_wide_head = is_call_like_argument(context, node_id)
         || is_conditional_branch
         || assignment_like_parent(context, node_id).is_some();
+    let root_is_parenthesized =
+        matches!(context.tree.get(root_id), Expression::Parenthesized { .. });
 
     // move selected leading operations from body into base
     let head_ops_count = split_chain_head_operations(
@@ -286,6 +289,7 @@ fn promote_chain_head_operations(
         body,
         allow_wide_head,
         is_conditional_branch,
+        root_is_parenthesized,
     );
     if head_ops_count == 0 {
         return;
@@ -765,6 +769,7 @@ pub(crate) fn chain_layout(
     promote_chain_head_operations(
         context,
         node_id,
+        root_id,
         &mut base,
         &mut body,
         should_avoid_head_promotion_for_nonhead_callbacks,
@@ -850,7 +855,8 @@ pub(crate) fn group_chain_expression_lines(
         lines.push(line);
     }
 
-    merge_direct_index_lines(context, lines)
+    let lines = merge_direct_index_lines(context, lines);
+    merge_leading_must_lines(context, lines)
 }
 
 type ChainOperationIter = std::iter::Peekable<std::vec::IntoIter<ChainExpression>>;
@@ -913,6 +919,39 @@ fn merge_direct_index_lines(
 
     for line in lines {
         if line_starts_with_mergeable_direct_index(context, &line)
+            && let Some(previous_line) = merged_lines.last_mut()
+        {
+            previous_line.extend(line);
+            continue;
+        }
+
+        merged_lines.push(line);
+    }
+
+    merged_lines
+}
+
+/// Return whether a chain line starts with a mergeable must operation.
+fn line_starts_with_mergeable_must(
+    context: &DestackFormatContext<'_>,
+    line: &[ChainExpression],
+) -> bool {
+    let Some(ChainExpression::Must { node_id, .. }) = line.first() else {
+        return false;
+    };
+
+    !chain_node_has_non_inline_annotation(context, *node_id)
+}
+
+/// Merge must-leading chain lines into the previous line.
+fn merge_leading_must_lines(
+    context: &DestackFormatContext<'_>,
+    lines: Vec<SmallVec<[ChainExpression; 2]>>,
+) -> Vec<SmallVec<[ChainExpression; 2]>> {
+    let mut merged_lines: Vec<SmallVec<[ChainExpression; 2]>> = Vec::with_capacity(lines.len());
+
+    for line in lines {
+        if line_starts_with_mergeable_must(context, &line)
             && let Some(previous_line) = merged_lines.last_mut()
         {
             previous_line.extend(line);

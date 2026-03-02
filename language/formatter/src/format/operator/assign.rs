@@ -13,10 +13,11 @@ use crate::format::expression::{
 use crate::format::operator::{
     Annotation, AnnotationPosition, TokenType, expression_is_trivial_inline_without_annotations,
 };
-use destack_ast::{Comment, CommentStyle, Declaration, ScalarLiteral};
+use destack_ast::{Comment, CommentStyle, Declaration, Doc, DocStyle, ScalarLiteral};
 use destack_fir::format::Buffer;
 use destack_fir::prelude::dedent;
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 /// Return whether one token is an assignment operator token.
 #[inline]
@@ -57,50 +58,159 @@ pub(crate) fn expression_has_assignment_seam_inline_prefix_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
-        .visit_annotations(expression_id, |annotation_ids| {
-            annotation_ids.iter().any(|annotation_id| {
-                let Annotation::Comment { node, position } = context.annotation(*annotation_id)
-                else {
-                    return false;
-                };
-                if position != AnnotationPosition::LinePrefix {
-                    return false;
-                }
+    expression_has_assignment_seam_inline_prefix_annotation_style(context, expression_id, |_| true)
+}
 
-                let comment = context.tree.get::<Comment>(node);
-                let Some(previous_token) =
-                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                else {
-                    return false;
-                };
-                if !is_assignment_operator_token(previous_token.token.ty) {
-                    return false;
-                }
+/// Return whether one expression has an inline slash prefix comment on an assignment seam.
+fn expression_has_assignment_seam_inline_prefix_slash_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    expression_has_assignment_seam_inline_prefix_annotation_style(
+        context,
+        expression_id,
+        |annotation_style| annotation_style == AssignmentSeamAnnotationStyle::Slash,
+    )
+}
 
-                let comment_span = context.span(node);
-                let assignment_and_comment_share_line = context.file.is_same_line(
-                    previous_token.span.end.saturating_sub(1),
-                    comment_span.start,
-                );
-                if !assignment_and_comment_share_line {
-                    return false;
-                }
+/// Return whether one expression has an inline prefix assignment-seam annotation matching one filter.
+fn expression_has_assignment_seam_inline_prefix_annotation_style(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    mut style_filter: impl FnMut(AssignmentSeamAnnotationStyle) -> bool,
+) -> bool {
+    let mut current_expression_id = transparent_inner_expression(context, expression_id);
 
-                if context.annotation_starts_on_own_line(*annotation_id) {
-                    return false;
-                }
-
-                match comment.style {
-                    CommentStyle::Slash => true,
-                    CommentStyle::Star => {
-                        !context.has_newline(comment_span)
-                            && context.annotation_next_token_is_on_same_line(*annotation_id)
-                    }
-                }
+    loop {
+        let has_inline_seam_comment = context
+            .visit_annotations(current_expression_id, |annotation_ids| {
+                annotation_ids.iter().copied().any(|annotation_id| {
+                    annotation_is_assignment_seam_inline_prefix_comment(
+                        context,
+                        annotation_id,
+                        &mut style_filter,
+                    )
+                })
             })
-        })
-        .unwrap_or(false)
+            .unwrap_or(false);
+        if has_inline_seam_comment {
+            return true;
+        }
+
+        let Some(next_expression_id) =
+            next_assignment_seam_left_spine_expression(context, current_expression_id)
+        else {
+            return false;
+        };
+        current_expression_id = next_expression_id;
+    }
+}
+
+/// Return whether one annotation is an inline assignment-seam prefix comment.
+fn annotation_is_assignment_seam_inline_prefix_comment(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+    style_filter: &mut impl FnMut(AssignmentSeamAnnotationStyle) -> bool,
+) -> bool {
+    let Some((comment_span, annotation_position, annotation_style)) =
+        assignment_seam_annotation_style(context, annotation_id)
+    else {
+        return false;
+    };
+    if !matches!(
+        annotation_position,
+        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+    ) {
+        return false;
+    }
+    if !style_filter(annotation_style) {
+        return false;
+    }
+
+    let Some(previous_token) =
+        previous_non_whitespace_token_before_annotation(context, annotation_id)
+    else {
+        return false;
+    };
+    if !is_assignment_operator_token(previous_token.token.ty) {
+        return false;
+    }
+
+    let assignment_and_comment_share_line = context.file.is_same_line(
+        previous_token.span.end.saturating_sub(1),
+        comment_span.start,
+    );
+    if !assignment_and_comment_share_line {
+        return false;
+    }
+
+    if context.annotation_starts_on_own_line(annotation_id) {
+        return false;
+    }
+
+    match annotation_style {
+        AssignmentSeamAnnotationStyle::Slash => true,
+        AssignmentSeamAnnotationStyle::Star => {
+            !context.has_newline(comment_span)
+                && context.annotation_next_token_is_on_same_line(annotation_id)
+        }
+    }
+}
+
+/// Style of assignment-seam inline prefix annotations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AssignmentSeamAnnotationStyle {
+    /// One line `//` or `///` style annotation.
+    Slash,
+    /// Block `/* ... */` or `/** ... */` style annotation.
+    Star,
+}
+
+/// Return node id, position, and style for one assignment-seam annotation.
+fn assignment_seam_annotation_style(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> Option<(Span, AnnotationPosition, AssignmentSeamAnnotationStyle)> {
+    match context.annotation(annotation_id) {
+        Annotation::Comment { node, position } => {
+            let style = match context.tree.get::<Comment>(node).style {
+                CommentStyle::Slash => AssignmentSeamAnnotationStyle::Slash,
+                CommentStyle::Star => AssignmentSeamAnnotationStyle::Star,
+            };
+            Some((context.span(node), position, style))
+        }
+        Annotation::Doc { node, position } => {
+            let style = match context.tree.get::<Doc>(node).style {
+                DocStyle::Slash => AssignmentSeamAnnotationStyle::Slash,
+                DocStyle::Star => AssignmentSeamAnnotationStyle::Star,
+            };
+            Some((context.span(node), position, style))
+        }
+        _ => None,
+    }
+}
+
+/// Return the next lhs-like expression on the assignment seam left spine.
+fn next_assignment_seam_left_spine_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    match context.tree.get(expression_id) {
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Some(*expression)
+        }
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::New { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::TypeBinary { left, .. }
+        | Expression::Binary { left, .. } => Some(*left),
+        _ => None,
+    }
 }
 
 /// Return whether one assignment seam has a slash line comment between left and right.
@@ -631,6 +741,15 @@ pub(crate) fn format_assign_expression<'ast>(
 
     // keep assignment seam inline prefix comments with the operator
     if right_has_assignment_seam_inline_prefix_comment {
+        let right_has_inline_seam_slash_comment =
+            expression_has_assignment_seam_inline_prefix_slash_comment(f.context(), right);
+        if !right_has_inline_seam_slash_comment
+            && !right_has_newline
+            && !right_has_own_line_prefix_annotation
+        {
+            return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
+        }
+
         return write_grouped_inline_indented_assignment(
             f,
             left,

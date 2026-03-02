@@ -621,6 +621,14 @@ pub(crate) fn operation_is_call_or_numeric_index(
     operation_is_call_like(operation) || operation_is_numeric_index(context, operation)
 }
 
+/// Return whether member-pair promotion should stop after one promotion.
+pub(crate) fn should_stop_after_member_promotion_cap(
+    cap_member_promotion_before_call_tail: bool,
+    head_ops_count: usize,
+) -> bool {
+    cap_member_promotion_before_call_tail && head_ops_count > 0
+}
+
 /// Return whether index-heavy member chains should keep the split.
 pub(crate) fn should_keep_index_heavy_member_chain_split(
     starts_with_member: bool,
@@ -629,14 +637,6 @@ pub(crate) fn should_keep_index_heavy_member_chain_split(
     allow_wide_head: bool,
 ) -> bool {
     starts_with_member && has_index_tail && !has_call_like_tail && !allow_wide_head
-}
-
-/// Return whether member-pair promotion should stop after one promotion.
-pub(crate) fn should_stop_after_member_promotion_cap(
-    cap_member_promotion_before_call_tail: bool,
-    head_ops_count: usize,
-) -> bool {
-    cap_member_promotion_before_call_tail && head_ops_count > 0
 }
 
 /// Return whether one chain contains any index operation.
@@ -777,6 +777,7 @@ pub(crate) fn split_chain_head_operations(
     operations: &[ChainExpression],
     allow_wide_head: bool,
     is_conditional_branch: bool,
+    root_is_parenthesized: bool,
 ) -> usize {
     // nothing to split when there are no operations
     if operations.is_empty() {
@@ -791,14 +792,16 @@ pub(crate) fn split_chain_head_operations(
     let has_call_like_tail = operations.iter().any(operation_is_call_like);
     let cap_member_promotion_before_call_tail =
         starts_with_member && has_call_like_tail && !allow_wide_head;
-
     let has_index_tail = chain_has_index_tail(operations);
+
+    // preserve indexed-member split layout unless parenthesized roots need compact cast chains
     if should_keep_index_heavy_member_chain_split(
         starts_with_member,
         has_index_tail,
         has_call_like_tail,
         allow_wide_head,
-    ) {
+    ) && !root_is_parenthesized
+    {
         return 0;
     }
 

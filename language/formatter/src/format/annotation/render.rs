@@ -122,7 +122,7 @@ fn format_comment_like_raw_text<'ast>(
 ) -> FormatResult<()> {
     let is_multiline_comment = raw_comment.contains('\n');
 
-    // render one-line comments as-is after trimming trailing whitespace noise
+    // render one-line comments with trailing whitespace normalized
     if !is_multiline_comment {
         write!(f, [text(raw_comment.trim_end())])?;
         return Ok(());
@@ -262,6 +262,7 @@ fn token_type_is_separator_after_annotation(token_type: TokenType) -> bool {
         token_type,
         TokenType::Comma
             | TokenType::Semicolon
+            | TokenType::LessThan
             | TokenType::OpenParenthesis
             | TokenType::CloseParenthesis
             | TokenType::OpenBracket
@@ -297,6 +298,7 @@ fn inline_block_comment_allows_tight_separator(next_token_type: Option<TokenType
         next_token_type,
         TokenType::Comma
             | TokenType::Semicolon
+            | TokenType::LessThan
             | TokenType::CloseParenthesis
             | TokenType::CloseBracket
             | TokenType::CloseBrace
@@ -681,7 +683,16 @@ pub(crate) fn annotation_is_declaration_generic_head_comment<T: Node>(
         return false;
     }
 
-    context.annotation_next_non_whitespace_token_type(annotation_id) == Some(TokenType::LessThan)
+    let next_token_is_less_than = context.annotation_next_non_whitespace_token_type(annotation_id)
+        == Some(TokenType::LessThan);
+    if next_token_is_less_than
+        && context.annotation_previous_non_whitespace_token_type(annotation_id)
+            == Some(TokenType::LessThan)
+    {
+        return false;
+    }
+
+    next_token_is_less_than
         || context.annotation_next_token_is_keyword(annotation_id, Keyword::Extends)
         || context.annotation_next_token_is_keyword(annotation_id, Keyword::Implements)
 }

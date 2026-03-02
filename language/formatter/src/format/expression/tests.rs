@@ -42,6 +42,15 @@ fn prettier_javascript_format_options() -> DestackFormatOptions {
     DestackFormatOptions::from_formatter_options(formatter_options, LanguageType::JavaScript)
 }
 
+/// Build the TypeScript options used by oxfmt conformance tests.
+fn oxfmt_typescript_format_options() -> DestackFormatOptions {
+    let formatter_options = FormatterOptions::default()
+        .with_indent_width(2)
+        .with_line_width(80)
+        .with_quote_style(QuoteStyle::Double);
+    DestackFormatOptions::from_formatter_options(formatter_options, LanguageType::TypeScript)
+}
+
 /// Find the first parenthesized expression whose inner expression satisfies a predicate.
 fn find_parenthesized_expression_by_inner(
     tree: &NodeTree,
@@ -301,6 +310,17 @@ fn test_format_declarator_assignment_seam_inline_block_comment_roundtrip() {
     );
 }
 
+/// Assignment seams with closure type-cast docs stay inline and idempotent.
+#[test]
+fn test_format_assignment_seam_inline_doc_comment_roundtrip() {
+    assert_format_program_roundtrip_with_file_type(
+        "foo = (/** @type {!Baz} */ (baz).bar);\n",
+        "foo = /** @type {!Baz} */ (baz).bar;\n",
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
 /// Parenthesized member objects with boundary comments should not unwrap.
 #[test]
 fn test_parenthesis_rules_reject_member_object_boundary_comment() {
@@ -519,6 +539,59 @@ fn test_format_non_null_object_chain_base_keeps_grouping_idempotent() {
         FileType::TypeScript,
         |p| p.eat_block(BlockContext::Expression),
         DestackFormatOptions::default(),
+    );
+}
+
+/// Multiline type-assertion roots should keep non-null and member tails attached on one line.
+#[test]
+fn test_format_non_null_static_member_chain_after_multiline_type_assertion_matches_oxfmt() {
+    let source = r#"(<IJSONSchema>(
+  compoundConfigurationsSchema.items
+)).oneOf![1].properties!.folder.enum = folderNames;
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        source,
+        FileType::TypeScript,
+        oxfmt_typescript_format_options(),
+    );
+}
+
+/// Heritage heads with optional and non-null member chains should stay parse-safe and idempotent.
+#[test]
+fn test_format_heritage_member_expression_like_non_null_chain_is_idempotent() {
+    let source = r#"class A_long_long_long_long_long_long_long_long_name1
+  extends eslint.Rule.RuleModule {}
+
+class Short
+  extends eslint.Rule.RuleModule {}
+
+class A_long_long_long_long_long_long_long_long_name12
+  extends eslint.Rule?.RuleModule {}
+
+class A_long_long_long_long_long_long_long_long_name12
+  extends eslint.Rule.RuleModule! {}
+class A_long_long_long_long_long_long_long_long_name12
+  extends eslint?.Rule.RuleModule! {}
+class A_long_long_long_long_long_long_long_long_name12
+  extends eslint.Rule.RuleModule!! {}
+
+interface A_long_long_long_long_long_long_long_long_name2
+  extends eslint.Rule.RuleModule {}
+
+class A_long_long_long_long_long_long_long_long_name2
+  implements eslint.Rule.RuleModule {}
+
+class A_long_long_long_long_long_long_long_long_name3
+  extends eslint.Rule.RuleModule
+  implements eslint.Rule.RuleModule {}
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        oxfmt_typescript_format_options(),
     );
 }
 
@@ -1499,6 +1572,49 @@ fn test_format_type_import_without_qualifier() {
         r#"type Imported = import("mod")"#,
         r#"type Imported = import("mod");"#,
         |p| p.eat_expression(Default::default())
+    );
+}
+
+/// Keep import expression trailing comments at the argument boundary.
+#[test]
+fn test_format_import_expression_trailing_argument_comments() {
+    let source = r#"
+import(
+  // comment1
+  `../alias/${base}.js`
+  // comment2
+);
+
+import(
+  // comment1
+  `../alias/${base}.js`,
+  // comment2
+  { with: { type: "json" }}
+  // comment2
+);
+"#
+    .trim_start();
+    let expected = r#"
+import(
+    // comment1
+    `../alias/${base}.js`
+    // comment2
+);
+
+import(
+    // comment1
+    `../alias/${base}.js`,
+    // comment2
+    { with: { type: "json" } }
+    // comment2
+);
+"#
+    .trim_start();
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
     );
 }
 
@@ -2697,7 +2813,7 @@ fn test_format_yield_chain_blank_line_comment_keeps_continuation_indent() {
 #[test]
 fn test_format_member_chain_blank_seam_without_comment_collapses() {
     let source = "{\n  value\n\n  .prop;\n}";
-    let expected = "{\n\n    value.prop;\n}";
+    let expected = "{\n    value.prop;\n}";
     assert_format_roundtrip_with_file_type(
         source,
         expected,

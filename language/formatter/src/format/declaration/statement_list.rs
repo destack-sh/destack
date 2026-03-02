@@ -234,24 +234,6 @@ fn expression_has_effective_blank_prefix_annotation(
     }
 }
 
-/// Return whether an expression or its declaration wrapper has postfix annotations.
-fn expression_has_effective_postfix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.has_postfix_annotation(expression_id) {
-        return true;
-    }
-
-    match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => context.has_postfix_annotation(*declaration_id),
-        Expression::Statement(inner_id) => {
-            expression_has_effective_postfix_annotation(context, *inner_id)
-        }
-        _ => false,
-    }
-}
-
 /// Return whether an expression or its declaration wrapper has blank postfix annotations.
 fn expression_has_effective_blank_postfix_annotation(
     context: &DestackFormatContext<'_>,
@@ -428,8 +410,6 @@ pub(crate) fn format_block_of_statements<'ast>(
                 expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
             let has_non_comment_prefix_annotation =
                 expression_has_effective_non_comment_prefix_annotation(f.context(), expression_id);
-            let previous_has_postfix_annotation =
-                expression_has_effective_postfix_annotation(f.context(), previous_expression_id);
             let previous_has_blank_postfix_annotation =
                 expression_has_effective_blank_postfix_annotation(
                     f.context(),
@@ -474,7 +454,7 @@ pub(crate) fn format_block_of_statements<'ast>(
             let uses_source_blank_line_without_leading_break = source_has_blank_line_between
                 && !has_blank_prefix_annotation
                 && !has_non_comment_prefix_annotation
-                && !previous_has_postfix_annotation
+                && !previous_has_blank_postfix_annotation
                 && !has_ignore_range;
             if !has_ignore_range {
                 if !has_blank_prefix_annotation

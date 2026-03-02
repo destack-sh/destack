@@ -249,7 +249,12 @@ fn format_interpolated_template_literal<'ast>(
             write!(
                 f,
                 [
-                    group(&format_args![token("${"), *argument, token("}")]),
+                    group(&format_args![
+                        token("${"),
+                        *argument,
+                        line_postfix_boundary(),
+                        token("}")
+                    ]),
                     *segment,
                 ]
             )?;
@@ -260,6 +265,7 @@ fn format_interpolated_template_literal<'ast>(
                     group(&format_args![
                         token("${"),
                         indent(&format_args![hard_line_break(), argument]),
+                        line_postfix_boundary(),
                         hard_line_break(),
                         token("}")
                     ])
@@ -274,6 +280,7 @@ fn format_interpolated_template_literal<'ast>(
                     group(&format_args![
                         token("${"),
                         indent(&format_args![soft_line_break(), argument]),
+                        line_postfix_boundary(),
                         soft_line_break(),
                         token("}")
                     ]),
