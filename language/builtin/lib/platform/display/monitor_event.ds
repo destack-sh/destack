@@ -6,7 +6,11 @@ import {
     DisplayBackendSelectionPolicy,
     DisplayEventQueueOptions,
 } from "./backend.ds";
-import { DisplayDescriptor, DisplayMode } from "./monitor.ds";
+import {
+    DisplayDescriptor,
+    DisplayMetricChangedMask,
+    DisplayMode,
+} from "./monitor.ds";
 
 /// Display added-event payload.
 export struct DisplayAddedPayload {
@@ -18,30 +22,38 @@ export struct DisplayAddedPayload {
 export struct DisplayRemovedPayload {
     /// Identifier for the removed display.
     id: string;
+    /// Last known descriptor before removal when available.
+    descriptor: DisplayDescriptor | void;
 }
 
 /// Display primary-change payload.
 export struct DisplayPrimaryPayload {
+    /// Previous primary display identifier when available.
+    previousId: string | void;
     /// Current primary display identifier when available.
-    id: string | void;
+    currentId: string | void;
 }
 
 /// Display descriptor-change payload.
 export struct DisplayDescriptorChangedPayload {
+    /// Descriptor before this event when available.
+    previous: DisplayDescriptor | void;
     /// Descriptor after this event.
-    descriptor: DisplayDescriptor;
+    current: DisplayDescriptor;
     /// Changed descriptor fields as bit flags.
-    changedMask: uint32;
+    changedMask: DisplayMetricChangedMask;
 }
 
 /// Display mode-change payload.
 export struct DisplayModeChangedPayload {
+    /// Active mode before this event when available.
+    previous: DisplayMode | void;
     /// Active mode after this event.
-    mode: DisplayMode;
+    current: DisplayMode;
 }
 
 /// Shared metadata for all display monitor events.
-export struct DisplayEventMetadata {
+export struct DisplayMonitorEventMetadata {
     /// Resolved backend that produced this event.
     backend: DisplayBackend;
     /// Display identifier associated with this event.
@@ -50,6 +62,8 @@ export struct DisplayEventMetadata {
     timestampNs: uint64;
     /// Monotonic event sequence number.
     sequence: uint64;
+    /// Number of events dropped by this stream before this event.
+    droppedCount: uint64;
 }
 
 /// Display-added event.
@@ -57,7 +71,7 @@ export struct DisplayAddedEvent {
     /// Discriminator for this display event variant.
     kind: "added";
     /// Shared event metadata.
-    metadata: DisplayEventMetadata;
+    metadata: DisplayMonitorEventMetadata;
     /// Added payload.
     payload: DisplayAddedPayload;
 }
@@ -67,7 +81,7 @@ export struct DisplayRemovedEvent {
     /// Discriminator for this display event variant.
     kind: "removed";
     /// Shared event metadata.
-    metadata: DisplayEventMetadata;
+    metadata: DisplayMonitorEventMetadata;
     /// Removed payload.
     payload: DisplayRemovedPayload;
 }
@@ -77,7 +91,7 @@ export struct DisplayPrimaryChangedEvent {
     /// Discriminator for this display event variant.
     kind: "primaryChanged";
     /// Shared event metadata.
-    metadata: DisplayEventMetadata;
+    metadata: DisplayMonitorEventMetadata;
     /// Primary-change payload.
     payload: DisplayPrimaryPayload;
 }
@@ -87,7 +101,7 @@ export struct DisplayDescriptorChangedEvent {
     /// Discriminator for this display event variant.
     kind: "descriptorChanged";
     /// Shared event metadata.
-    metadata: DisplayEventMetadata;
+    metadata: DisplayMonitorEventMetadata;
     /// Descriptor-change payload.
     payload: DisplayDescriptorChangedPayload;
 }
@@ -97,22 +111,47 @@ export struct DisplayModeChangedEvent {
     /// Discriminator for this display event variant.
     kind: "modeChanged";
     /// Shared event metadata.
-    metadata: DisplayEventMetadata;
+    metadata: DisplayMonitorEventMetadata;
     /// Mode-change payload.
     payload: DisplayModeChangedPayload;
 }
 
 /// Monitor event payload.
-export newtype DisplayEvent = DisplayAddedEvent | DisplayRemovedEvent | DisplayPrimaryChangedEvent | DisplayDescriptorChangedEvent | DisplayModeChangedEvent;
+export newtype DisplayMonitorEvent = DisplayAddedEvent | DisplayRemovedEvent | DisplayPrimaryChangedEvent | DisplayDescriptorChangedEvent | DisplayModeChangedEvent;
+
+/// Monitor-event kind filter mask.
+export newtype DisplayMonitorEventKindMask = uint32;
+
+/// Event kind bit for `added`.
+export const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x1);
+/// Event kind bit for `removed`.
+export const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x2);
+/// Event kind bit for `primaryChanged`.
+export const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x4);
+/// Event kind bit for `descriptorChanged`.
+export const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x8);
+/// Event kind bit for `modeChanged`.
+export const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask = DisplayMonitorEventKindMask(0x10);
+
+/// Monitor-event stream filter options.
+export struct DisplayMonitorEventFilter {
+    /// Restrict events to one display identifier when set.
+    displayId: string | void;
+    /// Restrict events to selected kinds when set.
+    kindMask: DisplayMonitorEventKindMask | void;
+}
 
 /// Monitor event stream open options.
 export struct DisplayMonitorEventOpenOptions {
-    /// Preferred backend selector.
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
     backend: DisplayBackend;
     /// Backend selection policy.
     backendPolicy: DisplayBackendSelectionPolicy;
     /// Event queue configuration.
     queue: DisplayEventQueueOptions;
+    /// Optional filter for narrowing delivered events.
+    filter: DisplayMonitorEventFilter | void;
 }
 
 /// Display monitor event bindings.
@@ -122,10 +161,11 @@ declare namespace display {
     /// Open one host monitor-event stream for display hotplug and metrics-change routing.
     /// Event ordering follows host event-loop delivery behavior.
     /// This stream should be consumed from one runtime event-loop thread.
+    /// Dropped events are reported through `metadata.droppedCount`.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host monitor callback or message subscriptions similar to GLFW monitor callbacks and SDL display events.
+    /// Uses host monitor callback and message subscription APIs.
     ///
     /// # Errors
     /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
@@ -197,7 +237,7 @@ declare namespace display {
         scope: "host",
         blocking: "sometimes",
     })
-    export function monitorEventRead(handle: DisplayEventHandle, timeoutNs: uint64): Result<DisplayEvent, PlatformError>;
+    export function monitorEventRead(handle: DisplayEventHandle, timeoutNs: uint64): Result<DisplayMonitorEvent, PlatformError>;
 
     /// Poll one monitor event without blocking.
     ///
@@ -224,7 +264,7 @@ declare namespace display {
         scope: "host",
         blocking: "never",
     })
-    export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayEvent, PlatformError>;
+    export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>;
 
     /// Wait for one batch of monitor events.
     ///
@@ -254,7 +294,7 @@ declare namespace display {
         handle: DisplayEventHandle,
         maxEvents: uint32,
         timeoutNs: uint64,
-    ): Result<Array<DisplayEvent>, PlatformError>;
+    ): Result<Array<DisplayMonitorEvent>, PlatformError>;
 
     /// Poll one batch of monitor events without blocking.
     ///
@@ -283,5 +323,5 @@ declare namespace display {
     export function monitorEventTryReadBatch(
         handle: DisplayEventHandle,
         maxEvents: uint32,
-    ): Result<Array<DisplayEvent>, PlatformError>;
+    ): Result<Array<DisplayMonitorEvent>, PlatformError>;
 }

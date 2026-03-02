@@ -18,19 +18,29 @@ export enum DisplayOrientation {
 }
 
 /// Display descriptor metric bit flags.
-export enum DisplayMetricChanged {
-    /// Display name changed.
-    Name = 1,
-    /// Primary display status changed.
-    Primary = 2,
-    /// Display desktop bounds changed.
-    Bounds = 4,
-    /// Display work-area bounds changed.
-    WorkArea = 8,
-    /// Scale factor changed.
-    ScaleFactor = 16,
-    /// Display orientation changed.
-    Orientation = 32,
+export newtype DisplayMetricChangedMask = uint32;
+
+/// Display metric changed-mask bit for display-name updates.
+export const DISPLAY_METRIC_CHANGED_NAME: DisplayMetricChangedMask = DisplayMetricChangedMask(0x1);
+/// Display metric changed-mask bit for primary-display updates.
+export const DISPLAY_METRIC_CHANGED_PRIMARY: DisplayMetricChangedMask = DisplayMetricChangedMask(0x2);
+/// Display metric changed-mask bit for desktop-bounds updates.
+export const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask = DisplayMetricChangedMask(0x4);
+/// Display metric changed-mask bit for work-area updates.
+export const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask = DisplayMetricChangedMask(0x8);
+/// Display metric changed-mask bit for scale-factor updates.
+export const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask = DisplayMetricChangedMask(0x10);
+/// Display metric changed-mask bit for orientation updates.
+export const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask = DisplayMetricChangedMask(0x20);
+
+/// Support status for one capability that may be unknown on some hosts.
+export enum DisplaySupportStatus {
+    /// Backend cannot determine support status.
+    Unknown = 0,
+    /// Backend determined this capability is unsupported.
+    Unsupported = 1,
+    /// Backend determined this capability is supported.
+    Supported = 2,
 }
 
 /// One display mode descriptor.
@@ -45,6 +55,54 @@ export struct DisplayMode {
     format: uint32;
     /// Color depth in bits per pixel.
     bitDepth: uint16;
+}
+
+/// Display HDR policy mode.
+export enum DisplayHdrMode {
+    /// Backend does not expose a concrete HDR mode.
+    Unknown = 0,
+    /// Use host-default HDR policy.
+    System = 1,
+    /// Force SDR output mode.
+    Sdr = 2,
+    /// Force HDR output mode.
+    Hdr = 3,
+}
+
+/// Display color-space selector.
+export enum DisplayColorSpace {
+    /// Backend does not expose a concrete color space.
+    Unknown = 0,
+    /// Standard RGB color space.
+    Srgb = 1,
+    /// Display-P3 color space.
+    DisplayP3 = 2,
+    /// BT.2020 color space.
+    Bt2020 = 3,
+    /// scRGB color space.
+    ScRgb = 4,
+    /// HDR10 transfer and primaries.
+    Hdr10 = 5,
+}
+
+/// Display color-state snapshot.
+export struct DisplayColorState {
+    /// Current HDR policy mode.
+    hdrMode: DisplayHdrMode;
+    /// Current output color space.
+    colorSpace: DisplayColorSpace;
+    /// Effective color-channel depth in bits when available.
+    bitsPerChannel: uint16 | void;
+}
+
+/// Display gamma-ramp payload.
+export struct DisplayGammaRamp {
+    /// Red channel gamma table entries.
+    red: Slice<uint16>;
+    /// Green channel gamma table entries.
+    green: Slice<uint16>;
+    /// Blue channel gamma table entries.
+    blue: Slice<uint16>;
 }
 
 /// One monitor descriptor snapshot.
@@ -81,17 +139,18 @@ export struct DisplayDescriptor {
     scaleFactorMilli: uint32;
     /// Current orientation.
     orientation: DisplayOrientation;
-    /// Whether this display is one built-in panel.
-    isBuiltin: boolean;
-    /// Whether this display reports variable refresh support.
-    supportsVariableRefresh: boolean;
-    /// Whether this display reports hdr support.
-    supportsHdr: boolean;
+    /// Built-in panel status.
+    builtinPanel: DisplaySupportStatus;
+    /// Variable-refresh capability status.
+    variableRefreshSupport: DisplaySupportStatus;
+    /// HDR capability status.
+    hdrSupport: DisplaySupportStatus;
 }
 
 /// Display monitor list request.
 export struct DisplayMonitorListRequest {
-    /// Preferred backend selector.
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
     backend: DisplayBackend;
     /// Backend selection policy.
     backendPolicy: DisplayBackendSelectionPolicy;
@@ -99,7 +158,8 @@ export struct DisplayMonitorListRequest {
 
 /// Display monitor open options.
 export struct DisplayMonitorOpenOptions {
-    /// Preferred backend selector.
+    /// Preferred backend selector from the declared display backend set.
+    /// Runtime host builds can implement one subset of these backend kinds.
     backend: DisplayBackend;
     /// Backend selection policy.
     backendPolicy: DisplayBackendSelectionPolicy;
@@ -114,7 +174,8 @@ declare namespace display {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses DRM or Wayland or X11 display enumeration on Unix-like hosts and DXGI display enumeration on Windows.
+    /// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
+    /// Uses host display-enumeration APIs on Unix and Windows targets.
     ///
     /// # Errors
     /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
@@ -255,7 +316,7 @@ declare namespace display {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses drmModeGetConnector or compositor APIs on Unix-like hosts and DXGI mode queries on Windows.
+    /// Uses host mode-enumeration APIs on Unix and Windows targets.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
@@ -304,7 +365,7 @@ declare namespace display {
     /// Read the desktop-preferred mode for one opened display.
     ///
     /// Read one platform desktop mode for one opened display endpoint.
-    /// This aligns with SDL desktop-mode and Unreal desktop-resolution semantics.
+    /// This aligns with host desktop-resolution semantics.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -384,5 +445,135 @@ declare namespace display {
         blocking: "sometimes",
     })
     export function monitorSetMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>;
+
+    /// Read one display color-state snapshot.
+    ///
+    /// Read one point-in-time display color-state snapshot for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific color-state and colorspace query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.colorState", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>;
+
+    /// Read one display HDR policy mode.
+    ///
+    /// Read one point-in-time HDR policy mode for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific HDR query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.hdrMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>;
+
+    /// Set one display HDR policy mode.
+    ///
+    /// Apply one HDR policy mode to one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific HDR control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.display.monitor.setHdrMode", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["display.mode"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorSetHdrMode(handle: DisplayHandle, mode: DisplayHdrMode): Result<void, PlatformError>;
+
+    /// Read one display gamma ramp.
+    ///
+    /// Read one gamma-ramp table payload for one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend gamma-ramp query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.display.monitor.gammaRamp", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["display.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>;
+
+    /// Set one display gamma ramp.
+    ///
+    /// Apply one gamma-ramp table payload to one opened display endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend gamma-ramp control APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.mode`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.display.monitor.setGammaRamp", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["display.mode"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function monitorSetGammaRamp(handle: DisplayHandle, ramp: DisplayGammaRamp): Result<void, PlatformError>;
 
 }

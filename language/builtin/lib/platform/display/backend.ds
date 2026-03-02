@@ -2,6 +2,8 @@ import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 
 /// Display backend selector.
+/// This enum declares known backend kinds for the platform API.
+/// One runtime build can implement only a subset of these kinds.
 export enum DisplayBackend {
     /// Select the best backend for the current host.
     Auto = 0,
@@ -56,7 +58,7 @@ export struct DisplayBackendDescriptor {
     backend: DisplayBackend;
     /// Stable backend name.
     name: string;
-    /// Whether this backend is currently available on this host.
+    /// Whether this backend is implemented in this runtime build and currently usable on this host.
     available: boolean;
     /// Priority in default auto-selection order.
     priority: uint16;
@@ -66,30 +68,82 @@ export struct DisplayBackendDescriptor {
 
 /// Backend capability flag bit for window creation and management.
 export const DISPLAY_BACKEND_CAP_WINDOW: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1);
+/// Backend capability flag bit for point-in-time window state and descriptor reads.
+export const DISPLAY_BACKEND_CAP_WINDOW_STATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2);
 /// Backend capability flag bit for monitor enumeration and mode management.
-export const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2);
+export const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4);
 /// Backend capability flag bit for window-event streams.
-export const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4);
+export const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8);
 /// Backend capability flag bit for monitor-event streams.
-export const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8);
+export const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10);
+/// Backend capability flag bit for monitor mode-setting operations.
+export const DISPLAY_BACKEND_CAP_MONITOR_MODE_SET: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20);
+/// Backend capability flag bit for monitor color-state queries.
+export const DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40);
+/// Backend capability flag bit for monitor HDR-mode control.
+export const DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80);
+/// Backend capability flag bit for monitor gamma-ramp control.
+export const DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100);
 /// Backend capability flag bit for exclusive fullscreen.
-export const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10);
+export const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200);
 /// Backend capability flag bit for borderless fullscreen.
-export const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20);
+export const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x400);
 /// Backend capability flag bit for cursor lock mode.
-export const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40);
+export const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x800);
 /// Backend capability flag bit for cursor confine mode.
-export const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80);
+export const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1000);
+/// Backend capability flag bit for cursor warping and explicit cursor-position updates.
+export const DISPLAY_BACKEND_CAP_CURSOR_WARP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2000);
+/// Backend capability flag bit for cursor icon selection.
+export const DISPLAY_BACKEND_CAP_CURSOR_ICON: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4000);
+/// Backend capability flag bit for explicit cursor visibility control.
+export const DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8000);
 /// Backend capability flag bit for explicit vsync wait.
-export const DISPLAY_BACKEND_CAP_VSYNC_WAIT: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100);
+export const DISPLAY_BACKEND_CAP_VSYNC_WAIT: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10000);
 /// Backend capability flag bit for compositor transparency.
-export const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200);
+export const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20000);
+/// Backend capability flag bit for always-on-top state control.
+export const DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40000);
+/// Backend capability flag bit for host-level attention requests.
+export const DISPLAY_BACKEND_CAP_ATTENTION_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80000);
+/// Backend capability flag bit for explicit refresh-request signaling.
+export const DISPLAY_BACKEND_CAP_REFRESH_REQUEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100000);
+/// Backend capability flag bit for window theme reporting.
+export const DISPLAY_BACKEND_CAP_THEME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200000);
+/// Backend capability flag bit for occlusion reporting.
+export const DISPLAY_BACKEND_CAP_OCCLUSION: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x400000);
+/// Backend capability flag bit for safe-area and inset reporting.
+export const DISPLAY_BACKEND_CAP_SAFE_AREA: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x800000);
+/// Backend capability flag bit for native window icon updates.
+export const DISPLAY_BACKEND_CAP_WINDOW_ICON: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x1000000);
+/// Backend capability flag bit for whole-window opacity control.
+export const DISPLAY_BACKEND_CAP_WINDOW_OPACITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x2000000);
+/// Backend capability flag bit for explicit focus requests.
+export const DISPLAY_BACKEND_CAP_WINDOW_FOCUS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x4000000);
+/// Backend capability flag bit for explicit raise and stack-order requests.
+export const DISPLAY_BACKEND_CAP_WINDOW_RAISE: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x8000000);
+/// Backend capability flag bit for mouse passthrough and hit-test policy control.
+export const DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x10000000);
+/// Backend capability flag bit for native move-drag and resize-drag operations.
+export const DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x20000000);
+/// Backend capability flag bit for parent and transient window relationships.
+export const DISPLAY_BACKEND_CAP_WINDOW_PARENTING: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x40000000);
+/// Backend capability flag bit for modal window behavior.
+export const DISPLAY_BACKEND_CAP_WINDOW_MODAL: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x80000000);
+/// Backend capability flag bit for aspect-ratio lock control.
+export const DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x100000000);
+/// Backend capability flag bit for file and text drop window events.
+export const DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x200000000);
+/// Backend capability flag bit for window chrome-style control.
+export const DISPLAY_BACKEND_CAP_WINDOW_CHROME: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x400000000);
+/// Backend capability flag bit for taskbar and dock visibility control.
+export const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabilityFlags = DisplayBackendCapabilityFlags(0x800000000);
 
 /// Display backend bindings.
 declare namespace display {
     /// List host display backends.
     ///
-    /// Enumerate available backend implementations and backend-level feature flags.
+    /// Enumerate backend kinds known to the API and report runtime availability and feature flags.
     ///
     /// # Platform
     /// Unix and Windows.
