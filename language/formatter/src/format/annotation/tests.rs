@@ -954,6 +954,42 @@ foo<string>// instantiation-call-marker-23
     );
 }
 
+/// Type-argument close-to-call line comments should follow call-boundary and argument-prefix ownership.
+#[test]
+fn test_format_call_type_argument_close_line_comments_are_stable() {
+    let source = r#"foo<string>// marker-13
+(1)
+foo<string>
+// marker-14
+(1)
+foo<string>// marker-23
+()
+foo<string>
+// marker-24
+()
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
+/// Block comments before newline-prefixed call type arguments should keep one stable call shape.
+#[test]
+fn test_format_call_newline_block_comment_before_type_arguments_is_stable() {
+    let source = r#"foo/* marker-31 */
+<string>(1)
+foo/* marker-41 */
+<string>()
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        typescript_format_options(),
+    );
+}
+
 /// Semicolon-guard own-line comments with indentation should stay on preceding boundaries.
 #[test]
 fn test_annotation_semicolon_guard_comment_before_parenthesized_call_uses_boundary_position() {
@@ -2412,6 +2448,44 @@ fn test_annotation_closing_delimiter_comma_own_line_comment_is_line_postfix_boun
     );
 }
 
+/// Own-line comments before a closing call delimiter should keep stable ownership.
+#[test]
+fn test_annotation_closing_delimiter_own_line_comment_has_stable_owner() {
+    let source = r#"import(
+  // comment1
+  `../alias/${base}.js`
+  // closing-delimiter-marker
+)"#;
+    let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+        p.eat_expression(Default::default())
+    })
+    .expect("parse closing delimiter comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "closing-delimiter-marker")
+        .expect("expected closing delimiter marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected closing delimiter marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    assert_ne!(
+        position,
+        AnnotationPosition::BlockInfix,
+        "owner={owner_node}, owner_type={owner_node_type:?}, position={position:?}"
+    );
+    assert!(
+        matches!(owner_node_type, NodeType::Argument | NodeType::Expression),
+        "expected closing delimiter marker owner to be argument or expression, got owner={owner_node}, owner_type={owner_node_type:?}"
+    );
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
 /// Format trailing comments on array elements to stay with the comma.
 #[test]
 fn test_format_trailing_comment_array() {
@@ -3327,6 +3401,59 @@ fn test_format_template_interpolation_member_comments_are_idempotent() {
 ${// keep interpolation member seam
 XRegExp.union([left, right], "", { conjunction: "or" }).source}
 `"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Template interpolation boundaries should keep line comments on their interpolation owner.
+#[test]
+fn test_format_template_interpolation_line_suffix_boundary_comments_are_idempotent() {
+    let source = r#"`${
+a +  // a
+  a
+}
+
+${a // comment
+}
+
+${b /* comment */}
+
+${/* comment */ c /* comment */}
+
+${// comment
+d //comment
+}
+
+${// $FlowFixMe found when converting React.createClass to ES6
+ExampleStory.getFragment('story')}
+`;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Call trailing-comma comment seams before `)` should stay idempotent.
+#[test]
+fn test_format_call_trailing_comma_comment_before_close_paren_is_idempotent() {
+    let source = r#"doThing(
+  someOtherStuff,
+
+  // This is important
+  true,
+  {
+    decline: (creditCard) => takeMoney(creditCard),
+  },
+
+);
+"#;
 
     assert_format_program_idempotent_with_file_type(
         source,

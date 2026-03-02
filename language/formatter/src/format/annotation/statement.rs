@@ -28,13 +28,57 @@ fn normalize_parameter_or_argument_owner(
         .or_else(|| {
             promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Argument)
         })
+        .or_else(|| dynamic_argument_owner_for_call_like_ancestor(tree, parents, owner_id))
         .unwrap_or(owner_id)
 }
 
 /// Normalize one owner to its argument container owner.
 fn normalize_argument_owner(tree: &NodeTree, parents: &NodeParentIndex, owner_id: u32) -> u32 {
     promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Argument)
+        .or_else(|| dynamic_argument_owner_for_call_like_ancestor(tree, parents, owner_id))
         .unwrap_or(owner_id)
+}
+
+/// Return one last dynamic argument owner for one call-like expression owner.
+fn last_dynamic_argument_owner_for_call_like(tree: &NodeTree, owner_id: u32) -> Option<u32> {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return None;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    match tree.get(expression_id) {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments.last().map(|argument_id| argument_id.id),
+        Expression::Import { arguments, .. } => arguments.as_ref().and_then(|dynamic_arguments| {
+            dynamic_arguments.last().map(|argument_id| argument_id.id)
+        }),
+        _ => None,
+    }
+}
+
+/// Resolve one last argument owner from call-like expression ancestry.
+fn dynamic_argument_owner_for_call_like_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> Option<u32> {
+    let mut current_owner = Some(owner_id);
+    while let Some(current_id) = current_owner {
+        if tree.get_node_type(current_id) == NodeType::Expression
+            && let Some(argument_owner) =
+                last_dynamic_argument_owner_for_call_like(tree, current_id)
+        {
+            return Some(argument_owner);
+        }
+
+        current_owner = parents.get_by_id(current_id);
+    }
+
+    None
 }
 
 /// Return whether one argument owner belongs to one call-like expression.
@@ -52,7 +96,7 @@ fn owner_is_call_like_argument(tree: &NodeTree, parents: &NodeParentIndex, owner
 
     matches!(
         tree.get(LocalNodeId::<Expression>::new(parent_id)),
-        Expression::Call { .. } | Expression::New { .. }
+        Expression::Call { .. } | Expression::New { .. } | Expression::Import { .. }
     )
 }
 

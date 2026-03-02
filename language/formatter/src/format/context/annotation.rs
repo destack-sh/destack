@@ -110,6 +110,24 @@ impl<'a> DestackFormatContext<'a> {
             .map(|token| token.token.ty)
     }
 
+    /// Return the previous non-trivia token type before one annotation span.
+    #[inline]
+    pub fn annotation_previous_non_trivia_token_type(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenType> {
+        self.previous_non_trivia_token_type_before_span(self.annotation_span(annotation_id))
+    }
+
+    /// Return the next non-trivia token type after one annotation span.
+    #[inline]
+    pub fn annotation_next_non_trivia_token_type(
+        &self,
+        annotation_id: LocalNodeId<Annotation>,
+    ) -> Option<ast::TokenType> {
+        self.next_non_trivia_token_type_after_span(self.annotation_span(annotation_id))
+    }
+
     /// Return the guard target token type after one annotation-following semicolon.
     #[inline]
     pub fn annotation_semicolon_guard_target_token_type(
@@ -121,8 +139,7 @@ impl<'a> DestackFormatContext<'a> {
             return None;
         }
 
-        self.next_non_trivia_token_after_span(token_after_annotation.span)
-            .map(|token| token.token.ty)
+        self.next_non_trivia_token_type_after_span(token_after_annotation.span)
     }
 
     /// Return whether one annotation starts after at least one leading indentation column.

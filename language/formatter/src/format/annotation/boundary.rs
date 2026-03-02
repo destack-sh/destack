@@ -303,6 +303,18 @@ pub(crate) fn seam_is_template_interpolation_open_brace(
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
 ) -> bool {
+    if matches!(
+        seam.token_before_type,
+        Some(
+            TokenType::TemplateString
+                | TokenType::TemplateStringStart
+                | TokenType::TemplateStringMiddle
+                | TokenType::TemplateStringEnd
+        )
+    ) {
+        return true;
+    }
+
     if !seam.token_before_is(TokenType::OpenBrace) {
         return false;
     }

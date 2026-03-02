@@ -14,6 +14,75 @@ use super::semicolon::{
     try_attach_comment_before_empty_statement_semicolon,
 };
 
+/// Prepared context for one remaining-placement seam comment.
+struct RemainingCommentContext<'a, 'ctx> {
+    /// The seam context.
+    context: &'a CommentSeamContext<'ctx>,
+    /// The seam facts.
+    seam: &'a CommentSeamData,
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// Span before the seam.
+    token_before_span: Option<Span>,
+    /// Span after the seam.
+    token_after_span: Option<Span>,
+    /// Owner before the seam.
+    preceding_owner: Option<u32>,
+    /// Owner after the seam.
+    following_owner: Option<u32>,
+    /// Owner after the seam with token fallback.
+    following_owner_with_token_fallback: Option<u32>,
+    /// Inline block comment classification.
+    is_inline_star_comment: bool,
+}
+
+/// Build one remaining-placement seam comment context.
+fn build_remaining_comment_context<'a, 'ctx>(
+    context: &'a CommentSeamContext<'ctx>,
+    seam: &'a CommentSeamData,
+    owners: CommentAttachmentNeighbors,
+) -> RemainingCommentContext<'a, 'ctx> {
+    let tree = context.tree;
+    let parents = context.parents;
+    let token_before_span = context.token_before_span.map(|token| token.span);
+    let token_after_span = context.token_after_span.map(|token| token.span);
+    let preceding_owner = owners.preceding;
+    let following_owner = owners.following;
+    let following_owner_with_token_fallback =
+        following_owner_with_token_after_fallback(tree, context, following_owner);
+    let is_inline_star_comment =
+        seam.comment_is_star && !seam.has_leading_newline && !seam.has_trailing_newline;
+
+    RemainingCommentContext {
+        context,
+        seam,
+        tree,
+        parents,
+        token_before_span,
+        token_after_span,
+        preceding_owner,
+        following_owner,
+        following_owner_with_token_fallback,
+        is_inline_star_comment,
+    }
+}
+
+/// Run one ordered remaining-placement handler sequence.
+fn run_remaining_comment_handlers(
+    comment_context: &RemainingCommentContext<'_, '_>,
+    handlers: &[fn(&RemainingCommentContext<'_, '_>) -> Option<CommentAttachment>],
+) -> Option<CommentAttachment> {
+    for handler in handlers {
+        if let Some(attachment) = handler(comment_context) {
+            return Some(attachment);
+        }
+    }
+
+    None
+}
+
 /// Attach same-line seams before preceding-preferring separators and operators.
 fn attach_token_after_prefers_preceding(
     tree: &NodeTree,
@@ -47,71 +116,88 @@ fn attach_following_owner(
     Some((Some(target_node), AnnotationPosition::LinePrefix))
 }
 
+/// Attach empty-statement semicolon ownership for remaining comments.
+fn attach_remaining_empty_statement_semicolon_comment(
+    comment_context: &RemainingCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_before_empty_statement_semicolon(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.context,
+        comment_context.seam,
+        comment_context.preceding_owner,
+        comment_context.following_owner_with_token_fallback,
+    )
+}
+
+/// Attach inline-before-semicolon ownership for remaining comments.
+fn attach_remaining_inline_before_semicolon_comment(
+    comment_context: &RemainingCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_inline_comment_before_semicolon(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.seam,
+        comment_context.preceding_owner,
+        comment_context.token_before_span,
+        comment_context.is_inline_star_comment,
+    )
+}
+
+/// Attach semicolon-guard head ownership for remaining comments.
+fn attach_remaining_semicolon_guard_head_comment(
+    comment_context: &RemainingCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_before_comment_semicolon_guard_head(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.context,
+        comment_context.seam,
+        comment_context.following_owner,
+    )
+}
+
+/// Attach preceding-preferring separator ownership for remaining comments.
+fn attach_remaining_preceding_separator_comment(
+    comment_context: &RemainingCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_token_after_prefers_preceding(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.seam,
+        comment_context.preceding_owner,
+        comment_context.token_before_span,
+    )
+}
+
+/// Attach default following-owner ownership for remaining comments.
+fn attach_remaining_default_following_comment(
+    comment_context: &RemainingCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_following_owner(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.following_owner,
+        comment_context.token_after_span,
+    )
+}
+
 /// Attach remaining inline comments when own-line and end-of-line rules do not apply.
 pub(crate) fn attach_remaining_comment(
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    let tree = context.tree;
-    let parents: &NodeParentIndex = context.parents;
-    let token_before_span = context.token_before_span.map(|token| token.span);
-    let token_after_span = context.token_after_span.map(|token| token.span);
-    let preceding_owner = owners.preceding;
-    let following_owner = owners.following;
-    let following_owner_with_token_fallback =
-        following_owner_with_token_after_fallback(tree, context, following_owner);
+    let comment_context = build_remaining_comment_context(context, seam, owners);
 
-    // empty-statement semicolon ownership
-    if let Some(attachment) = try_attach_comment_before_empty_statement_semicolon(
-        tree,
-        parents,
-        context,
-        seam,
-        preceding_owner,
-        following_owner_with_token_fallback,
-    ) {
-        return Some(attachment);
-    }
-
-    // same-line comment before semicolon ownership
-    let is_inline_star_comment =
-        seam.comment_is_star && !seam.has_leading_newline && !seam.has_trailing_newline;
-    if let Some(attachment) = attach_inline_comment_before_semicolon(
-        tree,
-        parents,
-        seam,
-        preceding_owner,
-        token_before_span,
-        is_inline_star_comment,
-    ) {
-        return Some(attachment);
-    }
-
-    // semicolon guard head ownership
-    if let Some(attachment) =
-        attach_before_comment_semicolon_guard_head(tree, parents, context, seam, following_owner)
-    {
-        return Some(attachment);
-    }
-
-    // preceding-preferring separators and operators
-    if let Some(attachment) = attach_token_after_prefers_preceding(
-        tree,
-        parents,
-        seam,
-        preceding_owner,
-        token_before_span,
-    ) {
-        return Some(attachment);
-    }
-
-    // default following-owner ownership
-    if let Some(attachment) =
-        attach_following_owner(tree, parents, following_owner, token_after_span)
-    {
-        return Some(attachment);
-    }
-
-    None
+    run_remaining_comment_handlers(
+        &comment_context,
+        &[
+            attach_remaining_empty_statement_semicolon_comment,
+            attach_remaining_inline_before_semicolon_comment,
+            attach_remaining_semicolon_guard_head_comment,
+            attach_remaining_preceding_separator_comment,
+            attach_remaining_default_following_comment,
+        ],
+    )
 }

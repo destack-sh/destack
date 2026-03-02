@@ -551,6 +551,7 @@ struct BlankSeamFacts {
     token_after_is_at: bool,
     token_after_is_semicolon: bool,
     token_after_is_close_brace: bool,
+    token_after_is_close_parenthesis: bool,
     token_after_is_open_parenthesis: bool,
     token_after_is_chain_or_index_boundary: bool,
     semicolon_guard_seam: SemicolonGuardCommentSeam,
@@ -591,6 +592,7 @@ fn blank_seam_facts(
     let token_after_is_at = token_after_type == Some(TokenType::At);
     let token_after_is_semicolon = token_after_type == Some(TokenType::Semicolon);
     let token_after_is_close_brace = token_after_type == Some(TokenType::CloseBrace);
+    let token_after_is_close_parenthesis = token_after_type == Some(TokenType::CloseParenthesis);
     let token_after_is_open_parenthesis = token_after_type == Some(TokenType::OpenParenthesis);
     let token_after_is_chain_or_index_boundary = matches!(
         token_after_type,
@@ -640,6 +642,7 @@ fn blank_seam_facts(
         token_after_is_at,
         token_after_is_semicolon,
         token_after_is_close_brace,
+        token_after_is_close_parenthesis,
         token_after_is_open_parenthesis,
         token_after_is_chain_or_index_boundary,
         semicolon_guard_seam,
@@ -706,6 +709,7 @@ fn try_attach_blank_specialized_handlers(
         facts.token_after_is_chain_or_index_boundary,
         facts.token_after_is_semicolon,
         facts.token_after_is_close_brace,
+        facts.token_after_is_close_parenthesis,
     ) {
         return Some(attachment);
     }
@@ -975,6 +979,7 @@ fn try_attach_chain_delimiter_blank_seam(
     token_after_is_chain_or_index_boundary: bool,
     token_after_is_semicolon: bool,
     token_after_is_close_brace: bool,
+    token_after_is_close_parenthesis: bool,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
     let seam_has_comment = comment_state.seam_has_comment;
     let blank_before_first_comment = comment_state.blank_before_first_comment;
@@ -983,6 +988,11 @@ fn try_attach_chain_delimiter_blank_seam(
 
     let preceding_owner = owner_state.preceding_owner;
     let following_owner = owner_state.following_owner;
+
+    // chain or index seams without comments are spacing-only markers
+    if !seam_has_comment && token_after_is_chain_or_index_boundary {
+        return Some(blank_infix_attachment());
+    }
 
     // chain or index seams with comments
     if seam_has_comment && token_after_is_chain_or_index_boundary {
@@ -1004,6 +1014,16 @@ fn try_attach_chain_delimiter_blank_seam(
         && token_after_is_semicolon
     {
         return Some(blank_infix_attachment());
+    }
+
+    // comma seams with comments
+    if seam_has_comment
+        && (blank_before_first_comment || blank_before_first_comment_in_after_range)
+        && token_before_is_comma
+        && token_after_is_close_parenthesis
+        && let Some(target_node) = preceding_owner
+    {
+        return Some(block_postfix_attachment(tree, target_node));
     }
 
     // comma seams with comments
