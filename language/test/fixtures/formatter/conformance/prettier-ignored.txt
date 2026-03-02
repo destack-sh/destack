@@ -12,6 +12,16 @@ js/comments/while-like/with.js
 js/no-semi/with-statement.js
 js/with/indent.js
 
+# oxc / prettier-conformance snapshot mismatches (oxfmt behavior is preferred)
+js/ignore/issue-10661.js
+js/comments/return-statement.js
+js/explicit-resource-management/valid-await-using-comments.js
+js/multiparser-html/lit-html.js
+typescript/angular-component-examples/test.component.ts
+typescript/arrow/comments.ts
+typescript/prettier-ignore/mapped-types.ts
+typescript/prettier-ignore/prettier-ignore-parenthesized-type.ts
+
 # unsupported flow and flow-repo syntax (1429)
 flow-repo/ambient_declarations/component_namespace.js
 flow-repo/ambient_declarations/flow-typed/components.js

@@ -714,7 +714,11 @@ pub(crate) fn single_argument_requires_expanded_list(
         argument_has_non_blank_non_boundary_annotation(context, argument_id)
             || expression_has_non_blank_non_boundary_annotation(context, raw_value_id)
             || expression_has_non_blank_non_boundary_annotation(context, value_id);
-    has_annotation_signal
+    let has_boundary_signal = argument_has_boundary_comment_annotation(context, argument_id)
+        || expression_has_boundary_comment_annotation(context, raw_value_id)
+        || expression_has_boundary_comment_annotation(context, value_id);
+
+    has_annotation_signal || has_boundary_signal
 }
 
 /// Return whether one argument has non-blank annotations excluding boundary postfix markers.
@@ -729,6 +733,18 @@ fn argument_has_non_blank_non_boundary_annotation(
         .unwrap_or(false)
 }
 
+/// Return whether one argument has one boundary postfix comment annotation.
+fn argument_has_boundary_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context
+        .visit_annotations(argument_id, |annotations| {
+            annotation_ids_have_boundary_comment_annotation(context, annotations)
+        })
+        .unwrap_or(false)
+}
+
 /// Return whether one expression has non-blank annotations excluding boundary postfix markers.
 fn expression_has_non_blank_non_boundary_annotation(
     context: &DestackFormatContext<'_>,
@@ -737,6 +753,18 @@ fn expression_has_non_blank_non_boundary_annotation(
     context
         .visit_annotations(expression_id, |annotations| {
             annotation_ids_have_non_blank_non_boundary_annotation(context, annotations)
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one expression has one boundary postfix comment annotation.
+fn expression_has_boundary_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotations| {
+            annotation_ids_have_boundary_comment_annotation(context, annotations)
         })
         .unwrap_or(false)
 }
@@ -756,6 +784,22 @@ fn annotation_ids_have_non_blank_non_boundary_annotation(
                 position != AnnotationPosition::LinePostfixBoundary
             }
         })
+}
+
+/// Return whether one annotation list has a boundary postfix comment annotation.
+fn annotation_ids_have_boundary_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_ids: &[LocalNodeId<Annotation>],
+) -> bool {
+    annotation_ids.iter().any(|annotation_id| {
+        matches!(
+            context.annotation(*annotation_id),
+            Annotation::Comment {
+                position: AnnotationPosition::LinePostfixBoundary,
+                ..
+            }
+        )
+    })
 }
 
 /// Return whether an expression should use chain-aware single-argument call layout rules.

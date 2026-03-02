@@ -1,4 +1,3 @@
-use crate::Annotation;
 use crate::format::analysis::timing;
 use crate::format::collection::{collection_nodes_have_annotations, collection_range_is_inline};
 use crate::format::directive::{
@@ -7,10 +6,11 @@ use crate::format::directive::{
 use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     HugOptions, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode, SeparatorLineCommentSource,
-    TypeModifier, TypePredicateSubject, argument_can_render_without_separator_line_comment,
-    argument_value_id, array_elements_are_fill_candidates, array_has_only_boundary_comments,
-    block_indent, format_boundary_comment_array, format_expression, format_fill_array,
-    format_hugged, format_scalar_literal, format_static_argument_list, format_struct_literal,
+    TokenType, TypeModifier, TypePredicateSubject,
+    argument_can_render_without_separator_line_comment, argument_value_id,
+    array_elements_are_fill_candidates, array_has_only_boundary_comments, block_indent,
+    format_boundary_comment_array, format_expression, format_fill_array, format_hugged,
+    format_scalar_literal, format_static_argument_list, format_struct_literal,
     format_template_literal, format_type_index_expression, format_type_template_literal,
     format_with, group, hard_line_break, indent, is_assignment_left_target, is_call_like_argument,
     is_complex_argument, is_expression_breakable, is_simple_static_argument, is_trivial_argument,
@@ -24,10 +24,107 @@ use crate::format::expression::{
     write_separator_line_comment_after_comma,
 };
 use crate::format::tree::format_tree_literal_expression;
+use crate::{Annotation, FormatNode};
 use destack_ast as ast;
 use destack_ast::{AnnotationPosition, NodeTree};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
+use smallvec::SmallVec;
+
+/// Build per-dot boundary annotation buckets for one path expression.
+pub(super) fn path_boundary_annotations_by_dot_seam(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    segment_count: usize,
+) -> Option<Vec<SmallVec<[LocalNodeId<Annotation>; 2]>>> {
+    if segment_count <= 1 {
+        return None;
+    }
+
+    let expression_span = context.span(expression_id);
+    let mut dot_starts = Vec::with_capacity(segment_count.saturating_sub(1));
+    for seam_index in 1..segment_count {
+        let dot_start =
+            context.nth_token_type_start_in_span(expression_span, TokenType::Dot, seam_index)?;
+        dot_starts.push(dot_start);
+    }
+
+    let mut buckets =
+        vec![SmallVec::<[LocalNodeId<Annotation>; 2]>::new(); segment_count.saturating_sub(1)];
+    let mut has_boundary_annotations = false;
+    context.visit_annotations(expression_id, |annotation_ids| {
+        for annotation_id in annotation_ids {
+            let annotation = context.annotation(*annotation_id);
+            if annotation.position() != AnnotationPosition::LinePostfixBoundary {
+                continue;
+            }
+
+            let Some(next_token) = context.annotation_next_non_whitespace_token(*annotation_id)
+            else {
+                continue;
+            };
+            if next_token.token.ty != TokenType::Dot {
+                continue;
+            }
+
+            let Some(bucket_index) = dot_starts
+                .iter()
+                .position(|dot_start| *dot_start == next_token.span.start)
+            else {
+                continue;
+            };
+            buckets[bucket_index].push(*annotation_id);
+            has_boundary_annotations = true;
+        }
+    });
+
+    if !has_boundary_annotations {
+        return None;
+    }
+
+    Some(buckets)
+}
+
+/// Format one path expression with seam-targeted boundary annotations.
+fn format_path_with_boundary_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    path: &ast::Path,
+    boundary_annotation_buckets: &[SmallVec<[LocalNodeId<Annotation>; 2]>],
+) -> FormatResult<()> {
+    let Some(first_segment) = path.segments.first().copied() else {
+        return Ok(());
+    };
+    write!(f, [first_segment])?;
+
+    for (segment_index, segment) in path.segments.iter().copied().enumerate().skip(1) {
+        let bucket_index = segment_index.saturating_sub(1);
+        let seam_annotations = boundary_annotation_buckets
+            .get(bucket_index)
+            .map_or(&[][..], SmallVec::as_slice);
+
+        if seam_annotations.is_empty() {
+            write!(f, [token("."), segment])?;
+            continue;
+        }
+
+        write!(
+            f,
+            [indent(&format_with(
+                |f: &mut DestackFormatter<'ast, '_>| {
+                    for annotation_id in seam_annotations {
+                        let annotation = f.context().annotation(*annotation_id);
+                        write!(f, [hard_line_break()])?;
+                        annotation.format_node(*annotation_id, f)?;
+                    }
+                    write!(f, [hard_line_break(), token("."), segment])?;
+                    Ok(())
+                }
+            ))]
+        )?;
+    }
+
+    Ok(())
+}
 
 /// Format an array literal primary expression.
 pub(crate) fn format_primary_array_expression<'ast>(
@@ -418,7 +515,13 @@ pub(crate) fn format_primary_expression<'ast>(
             let _timing = f
                 .context()
                 .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PATH);
-            write!(f, [path])?;
+            let boundary_annotation_buckets =
+                path_boundary_annotations_by_dot_seam(f.context(), node_id, path.segments.len());
+            if let Some(boundary_annotation_buckets) = boundary_annotation_buckets {
+                format_path_with_boundary_annotations(f, path, &boundary_annotation_buckets)?;
+            } else {
+                write!(f, [path])?;
+            }
 
             // static arguments
             if let Some(static_arguments) = static_arguments

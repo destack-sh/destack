@@ -1,10 +1,11 @@
+use crate::format::directive::any_ignore_range_for_nodes;
 use crate::format::expression::{
     ParenthesizedUnwrapMode, expression_has_complex_callback, is_assignment_left_target,
     should_unwrap_parenthesized,
 };
 use crate::format::operator::flatten_type_binary_expression;
 use crate::{
-    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
+    Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format, assert_format_idempotent_with_file_type, assert_format_output_eq,
     assert_format_program_idempotent_with_file_type,
     assert_format_program_roundtrip_with_file_type, assert_format_roundtrip_with_file_type,
@@ -2809,6 +2810,118 @@ fn test_format_yield_chain_blank_line_comment_keeps_continuation_indent() {
     assert_format_output_eq(expected, output);
 }
 
+/// Member-chain seam block comments should keep continuation shape across passes.
+#[test]
+fn test_format_member_chain_own_line_block_comment_keeps_continuation_shape() {
+    let source = r#"_.a(a)
+  /* very very very very very very very long such that it is longer than 80 columns */
+  .a();
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_roundtrip_with_file_type(source, source, FileType::JavaScript, options);
+}
+
+/// Member-chain own-line ignore comments should stay on the member continuation.
+#[test]
+fn test_format_member_chain_ignore_comment_stays_on_member_continuation() {
+    let source = r#"verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // Some other comment here
+    .c
+);
+"#;
+    let expected = r#"verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // Some other comment here
+    .c,
+);
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_roundtrip_with_file_type(source, expected, FileType::JavaScript, options);
+}
+
+/// Chain head block comments should not steal following member-chain seam comments across passes.
+#[test]
+fn test_format_member_chain_head_block_comment_then_flowfix_seam_is_idempotent() {
+    let source = r#"_.a(a)
+  /* very very very very very very very long such that it is longer than 80 columns */
+  .a()
+
+Something
+  // $FlowFixMe(>=0.41.0)
+  .getInstance(this.props.dao)
+  .getters()
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+}
+
+/// Parser should keep call argument member chains intact across ignore-comment seams.
+#[test]
+fn test_parse_member_chain_ignore_comment_inside_call_argument_is_call_expression() {
+    let source = r#"verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // Some other comment here
+    .c
+);
+"#;
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse member-chain ignore comment source");
+
+    assert_eq!(roots.len(), 1);
+
+    let statement_id = roots[0];
+    let Expression::Statement(expression_id) = formatter.tree.get(statement_id) else {
+        panic!("expected statement expression root");
+    };
+
+    let Expression::Call {
+        left,
+        dynamic_arguments,
+        ..
+    } = formatter.tree.get(*expression_id)
+    else {
+        panic!("expected call expression root");
+    };
+    assert!(!dynamic_arguments.is_empty());
+
+    let first_argument = formatter.tree.get(dynamic_arguments[0]);
+    let Argument::Positional { value, .. } = first_argument else {
+        panic!("expected positional call argument");
+    };
+    assert!(
+        matches!(
+            formatter.tree.get(*value),
+            Expression::Path { .. }
+                | Expression::Member { .. }
+                | Expression::PrivateMember { .. }
+                | Expression::Index { .. }
+        ),
+        "expected member-like first argument, got {:?}",
+        formatter.tree.get(*value)
+    );
+    assert!(
+        matches!(
+            formatter.tree.get(*left),
+            Expression::Path { .. } | Expression::Member { .. } | Expression::PrivateMember { .. }
+        ),
+        "expected call callee path-like expression, got {:?}",
+        formatter.tree.get(*left)
+    );
+
+    let context = context_from_formatter(&formatter);
+    let has_argument_ignore_range =
+        any_ignore_range_for_nodes(&context, dynamic_arguments, context.comment_tokens());
+    assert!(
+        !has_argument_ignore_range,
+        "expected call argument list to avoid ignore-range short-circuit"
+    );
+}
+
 /// Blank seams before `.` should collapse to one stable member-chain expression.
 #[test]
 fn test_format_member_chain_blank_seam_without_comment_collapses() {
@@ -4141,9 +4254,8 @@ KEYPAD_NUMBERS.map(num => ( // Buttons 0-9
         .iter()
         .enumerate()
         .find_map(|(entry_index, _)| {
-            let annotation_id = LocalNodeId::<crate::Annotation>::new(entry_index as u32);
-            let crate::Annotation::Comment { node, .. } = first_context.annotation(annotation_id)
-            else {
+            let annotation_id = LocalNodeId::<Annotation>::new(entry_index as u32);
+            let Annotation::Comment { node, .. } = first_context.annotation(annotation_id) else {
                 return None;
             };
 
