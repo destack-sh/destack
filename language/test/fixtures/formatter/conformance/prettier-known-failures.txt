@@ -1,7 +1,6 @@
 js/arrays/preserve_empty_lines.js
 js/arrows/currying-4.js
 js/binary-expressions/short-right.js
-js/comments/dangling_array.js
 js/comments/return-statement.js
 js/decorators/redux.js
 js/explicit-resource-management/valid-await-using-comments.js
@@ -10,7 +9,6 @@ js/function/iife.js
 js/ignore/issue-10661.js
 js/import/comments.js
 js/last-argument-expansion/edge_case.js
-js/last-argument-expansion/overflow.js
 js/logical-expressions/in-unary-expression.js
 js/multiparser-html/lit-html.js
 js/preserve-line/argument-list.js

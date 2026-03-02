@@ -546,6 +546,48 @@ pub(crate) fn decode_token_index(token_index: u32) -> Option<usize> {
     (token_index != NO_TOKEN_INDEX).then_some(token_index as usize)
 }
 
+/// Return whether one expression is delimited by one matching token pair.
+fn expression_matches_delimiter_pair(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    open_delimiter: TokenType,
+    close_delimiter: TokenType,
+) -> bool {
+    matches!(
+        (open_delimiter, close_delimiter, tree.get(expression_id)),
+        (
+            TokenType::OpenBracket,
+            TokenType::CloseBracket,
+            Expression::ArrayExpression { .. }
+        ) | (
+            TokenType::OpenBrace,
+            TokenType::CloseBrace,
+            Expression::ObjectExpression { .. }
+        )
+    )
+}
+
+/// Normalize one delimiter-interior container owner to the literal expression when wrapped by an argument.
+fn delimiter_interior_container_owner(
+    tree: &NodeTree,
+    container_owner: u32,
+    open_delimiter: TokenType,
+    close_delimiter: TokenType,
+) -> u32 {
+    if tree.get_node_type(container_owner) != NodeType::Argument {
+        return container_owner;
+    }
+
+    let argument_id = LocalNodeId::<Argument>::new(container_owner);
+    let value_expression_id = argument_value_expression_id(tree, argument_id);
+    if expression_matches_delimiter_pair(tree, value_expression_id, open_delimiter, close_delimiter)
+    {
+        return value_expression_id.id;
+    }
+
+    container_owner
+}
+
 /// Try to attach one comment inside matching delimiters as container infix trivia.
 fn try_attach_comment_delimiter_interior(
     tree: &NodeTree,
@@ -574,6 +616,12 @@ fn try_attach_comment_delimiter_interior(
                 token_after_span.span.end,
             )
         })?;
+    let container_owner = delimiter_interior_container_owner(
+        tree,
+        container_owner,
+        token_before_span.token.ty,
+        token_after_span.token.ty,
+    );
 
     let target_node = if tree.get_node_type(container_owner) == NodeType::Expression {
         let expression_id = LocalNodeId::<ast::Expression>::new(container_owner);
