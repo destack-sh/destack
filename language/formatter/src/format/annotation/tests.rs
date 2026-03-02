@@ -203,6 +203,58 @@ fn test_annotation_array_element_own_line_comment_attaches_to_following_element(
     }
 }
 
+/// Own-line comments inside empty array literals should stay on the array as infix annotations.
+#[test]
+fn test_annotation_empty_array_own_line_comment_attaches_as_array_infix() {
+    let source = r#"expect(() => {}).toTriggerReadyStateChanges([
+    // empty-array-dangling-marker
+]);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse empty array dangling comment source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "empty-array-dangling-marker")
+        .expect("expected empty array dangling marker annotation");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected empty array dangling marker owner node");
+    let owner_node_id = owner_node as u32;
+
+    assert_eq!(position, AnnotationPosition::BlockInfix);
+    assert_eq!(
+        context.tree.get_node_type(owner_node_id),
+        NodeType::Expression,
+        "expected expression owner for empty array dangling comment, got node {owner_node}"
+    );
+    assert!(
+        matches!(
+            context
+                .tree
+                .get(LocalNodeId::<Expression>::new(owner_node_id)),
+            Expression::ArrayExpression { .. }
+        ),
+        "expected array expression owner for empty array dangling comment, got {owner_node}"
+    );
+}
+
+/// Own-line comments inside empty call-argument arrays should keep one stable idempotent shape.
+#[test]
+fn test_format_empty_array_own_line_comment_in_call_argument_is_idempotent() {
+    let source = r#"expect(() => {}).toTriggerReadyStateChanges([
+  // Nothing.
+]);
+
+[1 /* first comment */, 2 /* second comment */, 3];
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 /// Inline comments between closing delimiters and semicolons should stay on the preceding boundary.
 #[test]
 fn test_annotation_inline_comment_between_closing_paren_and_semicolon_is_boundary_postfix() {
