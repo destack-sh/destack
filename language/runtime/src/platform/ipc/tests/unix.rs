@@ -74,10 +74,20 @@ fn test_unix_ancillary_send_receive_roundtrip() {
             .with_finalizer(UnixDescriptorFinalizer {
                 descriptor: sockets[1],
             });
-        let left =
-            resource::SocketHandle(context.call_context.runtime().resources.insert(left_entry));
-        let right =
-            resource::SocketHandle(context.call_context.runtime().resources.insert(right_entry));
+        let left = resource::SocketHandle(
+            context
+                .call_context
+                .runtime()
+                .resources
+                .insert(left_entry, Some(context.call_context.engine())),
+        );
+        let right = resource::SocketHandle(
+            context
+                .call_context
+                .runtime()
+                .resources
+                .insert(right_entry, Some(context.call_context.engine())),
+        );
 
         // register one transferable descriptor
         let duplicated = unsafe { libc::dup(sockets[0]) };
@@ -86,12 +96,12 @@ fn test_unix_ancillary_send_receive_roundtrip() {
                 .call_context
                 .runtime()
                 .resources
-                .remove_and_finalize(left.0);
+                .remove_and_finalize(left.0, Some(context.call_context.engine()));
             context
                 .call_context
                 .runtime()
                 .resources
-                .remove_and_finalize(right.0);
+                .remove_and_finalize(right.0, Some(context.call_context.engine()));
             return Err(unix_test_error(
                 "dup",
                 "failed to duplicate one test descriptor for transfer",
@@ -107,7 +117,7 @@ fn test_unix_ancillary_send_receive_roundtrip() {
                 .call_context
                 .runtime()
                 .resources
-                .insert(transferred_entry),
+                .insert(transferred_entry, Some(context.call_context.engine())),
         );
 
         // send one payload and descriptor over unix ancillary bindings
@@ -127,22 +137,22 @@ fn test_unix_ancillary_send_receive_roundtrip() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(left.0);
+            .remove_and_finalize(left.0, Some(context.call_context.engine()));
         context
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(right.0);
+            .remove_and_finalize(right.0, Some(context.call_context.engine()));
         context
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(transferred.0);
+            .remove_and_finalize(transferred.0, Some(context.call_context.engine()));
         context
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(handles[0].0);
+            .remove_and_finalize(handles[0].0, Some(context.call_context.engine()));
 
         Ok(())
     });

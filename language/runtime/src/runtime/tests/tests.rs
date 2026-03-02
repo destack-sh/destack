@@ -8,8 +8,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::platform::time::TimerClock;
 use crate::platform::{PlatformContext, ResourceId};
+use crate::runtime::Agent;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
+    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue, NativeContinuation,
 };
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -17,7 +18,6 @@ use crate::runtime::poller::{
 };
 use crate::runtime::scheduler::{Microtask, MicrotaskId, Task, TaskId, TaskStatus, Timer};
 use crate::runtime::time::HostClockSource;
-use crate::runtime::{Agent, RuntimeContext};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -94,9 +94,9 @@ impl Engine for TestEngine {
     /// Entry payload for this engine.
     type Entry = ();
     /// Runtime output type for this engine.
-    type Output = RuntimeOutput;
+    type Output = AgentOutput;
     /// Runtime value type for this engine.
-    type Value = RuntimeValue;
+    type Value = AgentValue;
 
     /// Run one entrypoint without yielding.
     fn run(
@@ -120,7 +120,7 @@ impl Engine for TestEngine {
             self.resume_calls += 1;
             return Ok(EngineOutcome::Yielded {
                 continuation: EngineContinuation::Native(NativeContinuation::new(2)),
-                value: RuntimeValue::VOID,
+                value: AgentValue::VOID,
             });
         }
 
@@ -169,7 +169,7 @@ impl TestRuntime {
         self.agent.event_loop.enqueue_task(Task {
             id: TaskId::new(task_id),
             runnable: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-            resume_value: RuntimeValue::VOID,
+            resume_value: AgentValue::VOID,
             status: TaskStatus::Ready,
             priority,
         });
@@ -180,7 +180,7 @@ impl TestRuntime {
         self.agent.event_loop.enqueue_microtask(Microtask {
             id: MicrotaskId::new(microtask_id),
             continuation: EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-            resume_value: RuntimeValue::VOID,
+            resume_value: AgentValue::VOID,
             status: TaskStatus::Ready,
         });
     }
@@ -199,7 +199,7 @@ impl TestRuntime {
             .watch_timer(
                 ResourceId(handle),
                 EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                RuntimeValue::VOID,
+                AgentValue::VOID,
                 priority,
             )
             .expect("timer watch should register");
@@ -245,7 +245,7 @@ impl TestRuntime {
             .watch_event(
                 PollerToken(token),
                 EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                RuntimeValue::VOID,
+                AgentValue::VOID,
                 priority,
             )
             .expect("event watch should register");
@@ -262,7 +262,7 @@ impl TestRuntime {
             .watch_host_event(
                 kind,
                 EngineContinuation::Native(NativeContinuation::new(continuation_id)),
-                RuntimeValue::VOID,
+                AgentValue::VOID,
                 priority,
             )
             .expect("host event watch should register");
@@ -288,7 +288,7 @@ impl TestRuntime {
     }
 
     /// Tick once and fail loudly on runtime errors.
-    pub(super) fn tick_once<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+    pub(super) fn tick_once<E: Engine<Output = AgentOutput, Value = AgentValue>>(
         &mut self,
         engine: &mut E,
     ) -> bool {
@@ -298,7 +298,7 @@ impl TestRuntime {
     }
 
     /// Tick until idle and fail loudly on runtime errors.
-    pub(super) fn tick_until_idle<E: Engine<Output = RuntimeOutput, Value = RuntimeValue>>(
+    pub(super) fn tick_until_idle<E: Engine<Output = AgentOutput, Value = AgentValue>>(
         &mut self,
         engine: &mut E,
     ) {
@@ -309,25 +309,25 @@ impl TestRuntime {
 
     /// Run until one task completes.
     pub(super) fn run_loop_until_task_complete<
-        E: Engine<Output = RuntimeOutput, Value = RuntimeValue>,
+        E: Engine<Output = AgentOutput, Value = AgentValue>,
     >(
         &mut self,
         engine: &mut E,
         task_id: u64,
-    ) -> RuntimeResult<RuntimeOutput> {
+    ) -> RuntimeResult<AgentOutput> {
         self.agent
             .run_loop_until_task_complete(engine, TaskId::new(task_id))
     }
 
     /// Run until one task completes or one timeout elapses.
     pub(super) fn run_loop_until_task_complete_with_timeout<
-        E: Engine<Output = RuntimeOutput, Value = RuntimeValue>,
+        E: Engine<Output = AgentOutput, Value = AgentValue>,
     >(
         &mut self,
         engine: &mut E,
         task_id: u64,
         timeout_nanos: Option<u64>,
-    ) -> RuntimeResult<Option<RuntimeOutput>> {
+    ) -> RuntimeResult<Option<AgentOutput>> {
         self.agent.run_loop_until_task_complete_with_timeout(
             engine,
             TaskId::new(task_id),
@@ -381,20 +381,18 @@ fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
 ) -> Agent {
-    // construct runtime state from explicit options
-    let state = if let Some(host_clock_source) = host_clock_source {
-        Arc::new(RuntimeContext::from_options_with_host_clock_source(
+    // construct one runtime agent from explicit options
+    let mut agent = if let Some(host_clock_source) = host_clock_source {
+        Agent::from_options_with_host_clock_source(
             PlatformContext::new(Vec::new()),
             options,
             host_clock_source,
-        ))
+        )
+        .expect("runtime test agent should build with host clock source")
     } else {
-        Arc::new(RuntimeContext::from_options(
-            PlatformContext::new(Vec::new()),
-            options,
-        ))
+        Agent::from_options(PlatformContext::new(Vec::new()), options)
+            .expect("runtime test agent should build")
     };
-    let mut agent = Agent::new(state);
 
     // configure scheduler options for deterministic tests
     agent
@@ -415,9 +413,9 @@ fn agent_for_options_with_host_clock_source(
 }
 
 /// Build one void runtime output.
-fn void_output() -> RuntimeOutput {
-    RuntimeOutput {
-        value: RuntimeValue::VOID,
+fn void_output() -> AgentOutput {
+    AgentOutput {
+        value: AgentValue::VOID,
         statistics: vm::telemetry::Statistics::default(),
         heap_cells: 0,
         raw_heap_cells: 0,

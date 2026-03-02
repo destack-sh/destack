@@ -210,7 +210,10 @@ pub(super) fn register_pipe_handle(
         .with_label(PIPE_RESOURCE_LABEL)
         .with_handle(as_raw_handle(handle))
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::PipeHandle(resource_id)
 }
@@ -224,7 +227,10 @@ pub(super) fn register_shared_memory_handle(
         .with_label(SHARED_MEMORY_RESOURCE_LABEL)
         .with_handle(as_raw_handle(handle))
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
@@ -238,7 +244,10 @@ pub(super) fn register_semaphore_handle(
         .with_label(SEMAPHORE_RESOURCE_LABEL)
         .with_handle(as_raw_handle(handle))
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }

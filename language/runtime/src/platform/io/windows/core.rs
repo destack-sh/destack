@@ -313,7 +313,10 @@ pub(crate) fn host_completion_register_accepted_handle(
         .with_finalizer(WindowsSocketFinalizer {
             socket: socket as SOCKET,
         });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     Ok(resource_id.0 as i64)
 }
 
@@ -340,7 +343,10 @@ pub(crate) fn host_event_open(
         .with_label(io_core::EVENT_RESOURCE_LABEL)
         .with_handle(handle as _)
         .with_finalizer(WindowsHandleFinalizer { handle });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     Ok(EventToken(resource_id.0))
 }
 
@@ -353,7 +359,7 @@ pub(crate) fn host_event_close(
     let removed = context
         .runtime()
         .resources
-        .remove_and_finalize(ResourceId(token.0));
+        .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
     if !removed {
         return Err(io_core::event_not_found("destack.io.event.close", token));
     }

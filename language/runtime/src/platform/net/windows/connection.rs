@@ -103,13 +103,19 @@ fn register_socket_pair(
     let first_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(first_socket as _)
         .with_finalizer(SocketFinalizer::new(first_socket));
-    let first_id = context.runtime().resources.insert(first_entry);
+    let first_id = context
+        .runtime()
+        .resources
+        .insert(first_entry, Some(context.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(second_socket as _)
         .with_finalizer(SocketFinalizer::new(second_socket));
-    let second_id = context.runtime().resources.insert(second_entry);
+    let second_id = context
+        .runtime()
+        .resources
+        .insert(second_entry, Some(context.engine()));
 
     // return both handles
     unsafe {
@@ -365,7 +371,10 @@ pub(crate) unsafe fn destack_net_accept(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(client as _)
         .with_finalizer(SocketFinalizer::new(client));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -598,7 +607,10 @@ pub(crate) unsafe fn destack_net_listen_raw(
     let entry = ResourceEntry::new(ResourceKind::Listener)
         .with_listener(listener as _)
         .with_finalizer(SocketFinalizer::new(listener));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -650,7 +662,10 @@ pub(crate) unsafe fn destack_net_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(SocketFinalizer::new(socket));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

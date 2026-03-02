@@ -1318,7 +1318,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes(buffer: NativeSlice<u8>) ->
         context.replay().run_random_bytes(
             context.random_stream_id(),
             || {
-                context.check_policy(RANDOM_SECURE_BYTES)?;
+                let _binding_hook_guard = context.on_before_binding(RANDOM_SECURE_BYTES)?;
                 unsafe { platform_runtime_native::destack_random_secure_bytes(context, buffer) }
             },
             || {
@@ -1346,7 +1346,7 @@ pub unsafe extern "C" fn destack_random_secure_bytes_try(buffer: NativeSlice<u8>
     native_call(|context| {
         let _ = &buffer;
 
-        context.check_policy(RANDOM_SECURE_BYTES_TRY)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_SECURE_BYTES_TRY)?;
         destack_random_secure_bytes_try_replay(context, buffer)
     })
 }
@@ -1361,7 +1361,7 @@ pub unsafe extern "C" fn destack_random_secure_metadata(
         }
         let _ = &out;
 
-        context.check_policy(RANDOM_SECURE_METADATA)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_SECURE_METADATA)?;
         destack_random_secure_metadata_replay(context, out)
     })
 }
@@ -1374,7 +1374,7 @@ pub unsafe extern "C" fn destack_random_stream_create(out: *mut RandomStream) ->
         }
         let _ = &out;
 
-        context.check_policy(RANDOM_STREAM_CREATE)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_CREATE)?;
         destack_random_stream_create_replay(context, out)
     })
 }
@@ -1390,7 +1390,7 @@ pub unsafe extern "C" fn destack_random_stream_export(
         }
         let _ = (&out, &stream);
 
-        context.check_policy(RANDOM_STREAM_EXPORT)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_EXPORT)?;
         destack_random_stream_export_replay(context, out, stream)
     })
 }
@@ -1405,7 +1405,7 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes(
         context.replay().run_random_bytes(
             context.random_stream_id(),
             || {
-                context.check_policy(RANDOM_STREAM_FILL_BYTES)?;
+                let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_FILL_BYTES)?;
                 unsafe { platform_runtime_native::destack_random_fill_bytes(context, buffer) }
             },
             || {
@@ -1439,7 +1439,8 @@ pub unsafe extern "C" fn destack_random_stream_fill_bytes_from(
         context.replay().run_random_bytes(
             RandomStreamId::new(stream.0),
             || {
-                context.check_policy(RANDOM_STREAM_FILL_BYTES_FROM)?;
+                let _binding_hook_guard =
+                    context.on_before_binding(RANDOM_STREAM_FILL_BYTES_FROM)?;
                 unsafe {
                     platform_runtime_native::destack_random_fill_bytes_from(context, stream, buffer)
                 }
@@ -1472,7 +1473,7 @@ pub unsafe extern "C" fn destack_random_stream_import(
     native_call(|context| {
         let _ = (&stream, &state);
 
-        context.check_policy(RANDOM_STREAM_IMPORT)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_IMPORT)?;
         destack_random_stream_import_replay(context, stream, state)
     })
 }
@@ -1488,7 +1489,7 @@ pub unsafe extern "C" fn destack_random_stream_in(
         }
         let _ = (&out, &domain);
 
-        context.check_policy(RANDOM_STREAM_IN)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_IN)?;
         destack_random_stream_in_replay(context, out, domain)
     })
 }
@@ -1501,7 +1502,7 @@ pub unsafe extern "C" fn destack_random_stream_jump(
     native_call(|context| {
         let _ = (&stream, &jump);
 
-        context.check_policy(RANDOM_STREAM_JUMP)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_JUMP)?;
         destack_random_stream_jump_replay(context, stream, jump)
     })
 }
@@ -1518,7 +1519,7 @@ pub unsafe extern "C" fn destack_random_stream_next_u64(out: *mut u64) -> Runtim
             .replay()
             .run_random_u64(context.random_stream_id(), || {
                 {
-                    context.check_policy(RANDOM_STREAM_NEXT_U64)?;
+                    let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_NEXT_U64)?;
                     unsafe { platform_runtime_native::destack_random_next_u64(context, out) }
                 }?;
                 unsafe { Ok(*out) }
@@ -1545,7 +1546,8 @@ pub unsafe extern "C" fn destack_random_stream_next_u64_from(
             .replay()
             .run_random_u64(RandomStreamId::new(stream.0), || {
                 {
-                    context.check_policy(RANDOM_STREAM_NEXT_U64_FROM)?;
+                    let _binding_hook_guard =
+                        context.on_before_binding(RANDOM_STREAM_NEXT_U64_FROM)?;
                     unsafe {
                         platform_runtime_native::destack_random_next_u64_from(context, out, stream)
                     }
@@ -1570,7 +1572,7 @@ pub unsafe extern "C" fn destack_random_stream_split(
         }
         let _ = (&out, &parent);
 
-        context.check_policy(RANDOM_STREAM_SPLIT)?;
+        let _binding_hook_guard = context.on_before_binding(RANDOM_STREAM_SPLIT)?;
         destack_random_stream_split_replay(context, out, parent)
     })
 }
@@ -2016,7 +2018,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         runtime.random_stream_id(),
                         || unsafe {
                             {
-                                runtime.check_policy(RANDOM_SECURE_BYTES)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(RANDOM_SECURE_BYTES)?;
                                 platform_runtime_vm::destack_random_secure_bytes(
                                     runtime,
                                     &mut *context_ptr,
@@ -2044,7 +2047,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (buffer,) = decode_destack_random_secure_bytes_try_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(RANDOM_SECURE_BYTES_TRY)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_SECURE_BYTES_TRY)?;
                     destack_random_secure_bytes_try_vm_replay(runtime, context, buffer)
                 })
                 .map_err(Into::into)
@@ -2059,7 +2062,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(RANDOM_SECURE_METADATA)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_SECURE_METADATA)?;
                     destack_random_secure_metadata_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
@@ -2074,7 +2077,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(RANDOM_STREAM_CREATE)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_CREATE)?;
                     destack_random_stream_create_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
@@ -2092,7 +2095,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (stream,) = decode_destack_random_stream_export_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(RANDOM_STREAM_EXPORT)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_EXPORT)?;
                     destack_random_stream_export_vm_replay(runtime, context, stream)
                 })
                 .map_err(Into::into)
@@ -2115,7 +2118,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         runtime.random_stream_id(),
                         || unsafe {
                             {
-                                runtime.check_policy(RANDOM_STREAM_FILL_BYTES)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(RANDOM_STREAM_FILL_BYTES)?;
                                 platform_runtime_vm::destack_random_fill_bytes(
                                     runtime,
                                     &mut *context_ptr,
@@ -2149,7 +2153,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         RandomStreamId::new(stream.0),
                         || unsafe {
                             {
-                                runtime.check_policy(RANDOM_STREAM_FILL_BYTES_FROM)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(RANDOM_STREAM_FILL_BYTES_FROM)?;
                                 platform_runtime_vm::destack_random_fill_bytes_from(
                                     runtime,
                                     &mut *context_ptr,
@@ -2178,7 +2183,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (stream, state) = decode_destack_random_stream_import_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(RANDOM_STREAM_IMPORT)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_IMPORT)?;
                     destack_random_stream_import_vm_replay(runtime, context, stream, state)
                 })
                 .map_err(Into::into)
@@ -2192,7 +2197,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (domain,) = decode_destack_random_stream_in_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(RANDOM_STREAM_IN)?;
+                let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_IN)?;
                 destack_random_stream_in_vm_replay(runtime, context, domain)
             })
             .map_err(Into::into)
@@ -2209,7 +2214,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (stream, jump) = decode_destack_random_stream_jump_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(RANDOM_STREAM_JUMP)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_JUMP)?;
                     destack_random_stream_jump_vm_replay(runtime, context, stream, jump)
                 })
                 .map_err(Into::into)
@@ -2228,7 +2233,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         runtime
                             .replay()
                             .run_random_u64(runtime.random_stream_id(), || {
-                                runtime.check_policy(RANDOM_STREAM_NEXT_U64)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(RANDOM_STREAM_NEXT_U64)?;
                                 platform_runtime_vm::destack_random_next_u64(runtime, context)
                             });
                     encode_destack_random_stream_next_u64_result(context, result)
@@ -2252,7 +2258,8 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         runtime
                             .replay()
                             .run_random_u64(RandomStreamId::new(stream.0), || {
-                                runtime.check_policy(RANDOM_STREAM_NEXT_U64_FROM)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(RANDOM_STREAM_NEXT_U64_FROM)?;
                                 platform_runtime_vm::destack_random_next_u64_from(
                                     runtime, context, stream,
                                 )
@@ -2274,7 +2281,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (parent,) = decode_destack_random_stream_split_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(RANDOM_STREAM_SPLIT)?;
+                    let _binding_hook_guard = runtime.on_before_binding(RANDOM_STREAM_SPLIT)?;
                     destack_random_stream_split_vm_replay(runtime, context, parent)
                 })
                 .map_err(Into::into)

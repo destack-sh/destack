@@ -8,7 +8,7 @@ use crate::host::{HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
+    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue, NativeContinuation,
 };
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer,
@@ -29,9 +29,9 @@ impl Engine for CompleteEngine {
     /// Entrypoint payload.
     type Entry = ();
     /// Runtime output payload.
-    type Output = RuntimeOutput;
+    type Output = AgentOutput;
     /// Runtime value payload.
-    type Value = RuntimeValue;
+    type Value = AgentValue;
 
     /// Run one entrypoint without yielding.
     fn run(
@@ -40,8 +40,8 @@ impl Engine for CompleteEngine {
         _args: &[Self::Value],
     ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Value>> {
         Ok(EngineOutcome::Completed {
-            output: RuntimeOutput {
-                value: RuntimeValue::VOID,
+            output: AgentOutput {
+                value: AgentValue::VOID,
                 statistics: vm::telemetry::Statistics::default(),
                 heap_cells: 0,
                 raw_heap_cells: 0,
@@ -62,8 +62,8 @@ impl Engine for CompleteEngine {
 
         self.resume_calls = self.resume_calls.saturating_add(1);
         Ok(EngineOutcome::Completed {
-            output: RuntimeOutput {
-                value: RuntimeValue::VOID,
+            output: AgentOutput {
+                value: AgentValue::VOID,
                 statistics: vm::telemetry::Statistics::default(),
                 heap_cells: 0,
                 raw_heap_cells: 0,
@@ -310,14 +310,14 @@ fn test_event_loop_next_runnable_prioritizes_microtasks() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(501),
         runnable: EngineContinuation::Native(NativeContinuation::new(601)),
-        resume_value: RuntimeValue::VOID,
+        resume_value: AgentValue::VOID,
         status: TaskStatus::Ready,
         priority: 0,
     });
     event_loop.enqueue_microtask(Microtask {
         id: MicrotaskId::new(502),
         continuation: EngineContinuation::Native(NativeContinuation::new(602)),
-        resume_value: RuntimeValue::VOID,
+        resume_value: AgentValue::VOID,
         status: TaskStatus::Ready,
     });
 
@@ -341,14 +341,14 @@ fn test_event_loop_next_runnable_prioritizes_higher_task_priority() {
     event_loop.enqueue_task(Task {
         id: TaskId::new(503),
         runnable: EngineContinuation::Native(NativeContinuation::new(603)),
-        resume_value: RuntimeValue::VOID,
+        resume_value: AgentValue::VOID,
         status: TaskStatus::Ready,
         priority: 1,
     });
     event_loop.enqueue_task(Task {
         id: TaskId::new(504),
         runnable: EngineContinuation::Native(NativeContinuation::new(604)),
-        resume_value: RuntimeValue::VOID,
+        resume_value: AgentValue::VOID,
         status: TaskStatus::Ready,
         priority: 200,
     });
@@ -494,7 +494,7 @@ fn test_run_loop_until_task_complete_waits_for_host_timer() {
     let output = runtime
         .run_loop_until_task_complete(&mut engine, 0)
         .expect("host mode should wait for the timer and complete the task");
-    assert_eq!(output.value, RuntimeValue::VOID);
+    assert_eq!(output.value, AgentValue::VOID);
     assert_eq!(
         engine.resume_calls, 1,
         "one watched timer task should resume once"

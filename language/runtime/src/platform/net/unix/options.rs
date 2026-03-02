@@ -2522,7 +2522,10 @@ pub(crate) unsafe fn destack_net_raw_socket(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(fd)
         .with_finalizer(DescriptorFinalizer { fd });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

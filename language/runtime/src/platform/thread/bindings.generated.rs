@@ -1622,7 +1622,8 @@ pub unsafe extern "C" fn destack_thread_local_create(
         let _ = &out;
 
         {
-            let world = context.check_and_resolve_world(THREAD_LOCAL_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_LOCAL_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_create(context, out)
@@ -1643,7 +1644,8 @@ pub unsafe extern "C" fn destack_thread_local_delete(
         let _ = &key;
 
         {
-            let world = context.check_and_resolve_world(THREAD_LOCAL_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_LOCAL_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_delete(context, key)
@@ -1668,7 +1670,8 @@ pub unsafe extern "C" fn destack_thread_local_get(
         let _ = (&out, &key);
 
         {
-            let world = context.check_and_resolve_world(THREAD_LOCAL_GET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_LOCAL_GET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_get(context, out, key)
@@ -1690,7 +1693,8 @@ pub unsafe extern "C" fn destack_thread_local_set(
         let _ = (&key, &argument_value);
 
         {
-            let world = context.check_and_resolve_world(THREAD_LOCAL_SET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_LOCAL_SET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_local_set(context, key, argument_value)
@@ -1719,7 +1723,8 @@ pub unsafe extern "C" fn destack_thread_priority_get_affinity(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_affinity(context, out, handle)
@@ -1744,7 +1749,8 @@ pub unsafe extern "C" fn destack_thread_priority_get_priority(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_get_priority(context, out, handle)
@@ -1766,7 +1772,8 @@ pub unsafe extern "C" fn destack_thread_priority_set_affinity(
         let _ = (&handle, &mask);
 
         {
-            let world = context.check_and_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_affinity(context, handle, mask)
@@ -1788,7 +1795,8 @@ pub unsafe extern "C" fn destack_thread_priority_set_priority(
         let _ = (&handle, &priority);
 
         {
-            let world = context.check_and_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_set_priority(context, handle, priority)
@@ -1811,7 +1819,8 @@ pub unsafe extern "C" fn destack_thread_spawn_detach(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SPAWN_DETACH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SPAWN_DETACH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_detach(context, handle)
@@ -1836,7 +1845,8 @@ pub unsafe extern "C" fn destack_thread_spawn_join(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SPAWN_JOIN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SPAWN_JOIN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_join(context, out, handle)
@@ -1863,7 +1873,8 @@ pub unsafe extern "C" fn destack_thread_spawn_start(
         let _ = (&out, &entry, &argument, &options);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SPAWN_START)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SPAWN_START)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_spawn(context, out, entry, argument, options)
@@ -1888,7 +1899,8 @@ pub unsafe extern "C" fn destack_thread_sync_address_wait(
         let _ = (&address, &expected, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wait(
@@ -1911,7 +1923,8 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_all(address: u64) -> R
         let _ = &address;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_all(context, address)
@@ -1930,7 +1943,8 @@ pub unsafe extern "C" fn destack_thread_sync_address_wake_one(address: u64) -> R
         let _ = &address;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_address_wake_one(context, address)
@@ -1956,7 +1970,8 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_create(
         let _ = (&out, &participants, &flags);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_barrier_create(
@@ -1992,7 +2007,8 @@ pub unsafe extern "C" fn destack_thread_sync_barrier_wait(
         let _ = (&out, &handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_barrier_wait(context, out, handle, timeoutns)
@@ -2019,7 +2035,8 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_create(
         let _ = (&out, &flags);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_create(context, out, flags)
@@ -2040,7 +2057,8 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_all(
         let _ = &condvar;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_notify_all(context, condvar)
@@ -2061,7 +2079,8 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_notify_one(
         let _ = &condvar;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_notify_one(context, condvar)
@@ -2084,7 +2103,8 @@ pub unsafe extern "C" fn destack_thread_sync_cond_var_wait(
         let _ = (&condvar, &mutex, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_cond_var_wait(
@@ -2113,7 +2133,8 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_create(
         let _ = (&out, &flags);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_create(context, out, flags)
@@ -2135,7 +2156,8 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_lock(
         let _ = (&handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_lock(context, handle, timeoutns)
@@ -2158,7 +2180,8 @@ pub unsafe extern "C" fn destack_thread_sync_mutex_unlock(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_mutex_unlock(context, handle)
@@ -2183,7 +2206,8 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_create(
         let _ = (&out, &flags);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_create(context, out, flags)
@@ -2205,7 +2229,8 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_read_lock(
         let _ = (&handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_read_lock(context, handle, timeoutns)
@@ -2228,7 +2253,8 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_unlock(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_unlock(context, handle)
@@ -2250,7 +2276,8 @@ pub unsafe extern "C" fn destack_thread_sync_rwlock_write_lock(
         let _ = (&handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_rwlock_write_lock(context, handle, timeoutns)
@@ -2279,7 +2306,8 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_create(
         let _ = (&out, &initial, &maximum, &flags);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_semaphore_create(
@@ -2305,7 +2333,8 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_post(
         let _ = (&handle, &count);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_semaphore_post(context, handle, count)
@@ -2329,7 +2358,8 @@ pub unsafe extern "C" fn destack_thread_sync_semaphore_wait(
         let _ = (&handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_thread_semaphore_wait(context, handle, timeoutns)
@@ -2355,7 +2385,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_LOCAL_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_LOCAL_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_local_create(runtime, context)
@@ -2385,7 +2416,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_LOCAL_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_LOCAL_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_local_delete(runtime, context, key)
@@ -2411,7 +2443,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(THREAD_LOCAL_GET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(THREAD_LOCAL_GET)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_thread_local_get(runtime, context, key)
@@ -2434,7 +2467,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(THREAD_LOCAL_SET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(THREAD_LOCAL_SET)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_thread_local_set(
                             runtime,
@@ -2470,8 +2504,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_PRIORITY_GET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_affinity(runtime, context, handle)
@@ -2502,8 +2536,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_PRIORITY_GET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_get_priority(runtime, context, handle)
@@ -2534,8 +2568,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_PRIORITY_SET_AFFINITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_affinity(
                                 runtime, context, handle, mask,
@@ -2566,8 +2600,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_PRIORITY_SET_PRIORITY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_set_priority(
                                 runtime, context, handle, priority,
@@ -2597,7 +2631,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SPAWN_DETACH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SPAWN_DETACH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_detach(runtime, context, handle)
@@ -2627,7 +2662,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SPAWN_JOIN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SPAWN_JOIN)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_join(runtime, context, handle)
@@ -2658,7 +2694,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SPAWN_START)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SPAWN_START)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_spawn(
                                 runtime, context, entry, argument, options,
@@ -2689,7 +2726,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wait(
                                 runtime, context, address, expected, timeoutns,
@@ -2720,8 +2758,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ALL)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_all(
                                 runtime, context, address,
@@ -2752,8 +2790,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_ADDRESS_WAKE_ONE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_address_wake_one(
                                 runtime, context, address,
@@ -2784,7 +2822,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_CREATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_barrier_create(
                                 runtime,
@@ -2821,7 +2860,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_BARRIER_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_barrier_wait(
                                 runtime, context, handle, timeoutns,
@@ -2851,7 +2891,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_cond_var_create(runtime, context, flags)
@@ -2882,8 +2923,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ALL)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_all(
                                 runtime, context, condvar,
@@ -2914,8 +2955,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_NOTIFY_ONE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_notify_one(
                                 runtime, context, condvar,
@@ -2946,7 +2987,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_COND_VAR_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_cond_var_wait(
                                 runtime, context, condvar, mutex, timeoutns,
@@ -2976,7 +3018,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_mutex_create(runtime, context, flags)
@@ -3007,7 +3050,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_LOCK)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_mutex_lock(
                                 runtime, context, handle, timeoutns,
@@ -3037,7 +3081,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_MUTEX_UNLOCK)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_mutex_unlock(runtime, context, handle)
@@ -3067,7 +3112,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_rwlock_create(runtime, context, flags)
@@ -3098,8 +3144,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_READ_LOCK)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_rwlock_read_lock(
                                 runtime, context, handle, timeoutns,
@@ -3129,7 +3175,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_UNLOCK)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_thread_rwlock_unlock(runtime, context, handle)
@@ -3160,8 +3207,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_RWLOCK_WRITE_LOCK)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_rwlock_write_lock(
                                 runtime, context, handle, timeoutns,
@@ -3192,8 +3239,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_CREATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_create(
                                 runtime, context, initial, maximum, flags,
@@ -3224,7 +3271,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_POST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_post(
                                 runtime, context, handle, count,
@@ -3255,7 +3303,8 @@ pub fn register_thread_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(THREAD_SYNC_SEMAPHORE_WAIT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_thread_semaphore_wait(
                                 runtime, context, handle, timeoutns,

@@ -109,7 +109,10 @@ pub(crate) fn destack_resource_close(
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = runtime.runtime().resources.remove_and_finalize(id);
+    let removed = runtime
+        .runtime()
+        .resources
+        .remove_and_finalize(id, Some(runtime.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -176,7 +179,10 @@ pub(crate) fn destack_resource_remove(
     id: ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = runtime.runtime().resources.remove_and_finalize(id);
+    let removed = runtime
+        .runtime()
+        .resources
+        .remove_and_finalize(id, Some(runtime.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }

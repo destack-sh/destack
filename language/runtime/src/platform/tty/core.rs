@@ -98,7 +98,11 @@ pub(crate) fn close_tty_resource(
         return Err(invalid_tty_handle(operation));
     }
 
-    if !context.runtime().resources.remove_and_finalize(handle.0) {
+    if !context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()))
+    {
         return Err(invalid_tty_handle(operation));
     }
 
@@ -120,7 +124,11 @@ pub(crate) fn close_pty_resource(
         return Err(invalid_pty_handle(operation));
     }
 
-    if !context.runtime().resources.remove_and_finalize(handle.0) {
+    if !context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()))
+    {
         return Err(invalid_pty_handle(operation));
     }
 

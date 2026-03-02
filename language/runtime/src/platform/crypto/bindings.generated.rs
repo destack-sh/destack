@@ -6490,7 +6490,8 @@ pub unsafe extern "C" fn destack_crypto_agreement_derive_key(
         let _ = (&out, &privatekey, &peerpublickey, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_agreement_derive_key(
@@ -6529,7 +6530,8 @@ pub unsafe extern "C" fn destack_crypto_agreement_derive_shared_secret(
         let _ = (&out, &privatekey, &peerpublickey, &algorithm);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_agreement_derive_shared_secret(
@@ -6562,7 +6564,8 @@ pub unsafe extern "C" fn destack_crypto_certificate_delete(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_certificate_delete(context, handle)
@@ -6587,7 +6590,8 @@ pub unsafe extern "C" fn destack_crypto_certificate_descriptor(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_certificate_descriptor(context, out, handle)
@@ -6615,7 +6619,8 @@ pub unsafe extern "C" fn destack_crypto_certificate_export(
         let _ = (&out, &handle, &format);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_certificate_export(context, out, handle, format)
@@ -6644,7 +6649,8 @@ pub unsafe extern "C" fn destack_crypto_certificate_import(
         let _ = (&out, &store, &format, &certificate);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_certificate_import(
@@ -6681,7 +6687,8 @@ pub unsafe extern "C" fn destack_crypto_certificate_verify(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_certificate_verify(context, out, request)
@@ -6704,7 +6711,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_close(context, handle)
@@ -6731,7 +6739,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_decrypt(
         let _ = (&out, &key, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_decrypt(
@@ -6770,7 +6779,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_encrypt(
         let _ = (&out, &key, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_encrypt(
@@ -6808,7 +6818,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_finish(
         let _ = (&out, &handle, &finalpayload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_FINISH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_FINISH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_finish(
@@ -6845,7 +6856,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_open(
         let _ = (&out, &key, &direction, &parameters);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_open(
@@ -6871,7 +6883,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_reset(
         let _ = (&handle, &parameters);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_RESET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_RESET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_reset(context, handle, parameters)
@@ -6899,7 +6912,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_update(
         let _ = (&out, &handle, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_UPDATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_UPDATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_update(
@@ -6931,7 +6945,8 @@ pub unsafe extern "C" fn destack_crypto_cipher_update_additional_data(
         let _ = (&handle, &additionaldata);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_cipher_update_additional_data(
@@ -6960,7 +6975,8 @@ pub unsafe extern "C" fn destack_crypto_digest_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_close(context, handle)
@@ -6986,7 +7002,8 @@ pub unsafe extern "C" fn destack_crypto_digest_compute(
         let _ = (&out, &algorithm, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_compute(
@@ -7021,7 +7038,8 @@ pub unsafe extern "C" fn destack_crypto_digest_finish(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_FINISH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_FINISH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_finish(context, out, handle)
@@ -7046,7 +7064,8 @@ pub unsafe extern "C" fn destack_crypto_digest_open(
         let _ = (&out, &algorithm);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_open(context, out, algorithm)
@@ -7067,7 +7086,8 @@ pub unsafe extern "C" fn destack_crypto_digest_reset(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_RESET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_RESET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_reset(context, handle)
@@ -7089,7 +7109,8 @@ pub unsafe extern "C" fn destack_crypto_digest_update(
         let _ = (&handle, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_DIGEST_UPDATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_DIGEST_UPDATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_digest_update(context, handle, argument_payload)
@@ -7118,7 +7139,8 @@ pub unsafe extern "C" fn destack_crypto_kdf_argon2id(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KDF_ARGON2ID)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KDF_ARGON2ID)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_kdf_argon2id(context, out, request)
@@ -7143,7 +7165,8 @@ pub unsafe extern "C" fn destack_crypto_kdf_hkdf(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KDF_HKDF)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KDF_HKDF)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_kdf_hkdf(context, out, request)
@@ -7168,7 +7191,8 @@ pub unsafe extern "C" fn destack_crypto_kdf_pbkdf2(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KDF_PBKDF2)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KDF_PBKDF2)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_kdf_pbkdf2(context, out, request)
@@ -7193,7 +7217,8 @@ pub unsafe extern "C" fn destack_crypto_kdf_scrypt(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KDF_SCRYPT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KDF_SCRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_kdf_scrypt(context, out, request)
@@ -7220,7 +7245,8 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
         let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_DECRYPT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_DECRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_decrypt(
@@ -7253,7 +7279,8 @@ pub unsafe extern "C" fn destack_crypto_key_delete(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_delete(context, handle)
@@ -7278,7 +7305,8 @@ pub unsafe extern "C" fn destack_crypto_key_descriptor(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_descriptor(context, out, handle)
@@ -7305,7 +7333,8 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
         let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_ENCRYPT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_ENCRYPT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_encrypt(
@@ -7343,7 +7372,8 @@ pub unsafe extern "C" fn destack_crypto_key_export_private(
         let _ = (&out, &handle, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_export_private(
@@ -7373,7 +7403,8 @@ pub unsafe extern "C" fn destack_crypto_key_export_public(
         let _ = (&out, &handle, &format);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_export_public(context, out, handle, format)
@@ -7401,7 +7432,8 @@ pub unsafe extern "C" fn destack_crypto_key_export_secret(
         let _ = (&out, &handle, &format);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_export_secret(context, out, handle, format)
@@ -7429,7 +7461,8 @@ pub unsafe extern "C" fn destack_crypto_key_generate_pair(
         let _ = (&out, &store, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_generate_pair(context, out, store, request)
@@ -7457,7 +7490,8 @@ pub unsafe extern "C" fn destack_crypto_key_generate_secret(
         let _ = (&out, &store, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_generate_secret(
@@ -7487,7 +7521,8 @@ pub unsafe extern "C" fn destack_crypto_key_import(
         let _ = (&out, &store, &request);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_IMPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_import(context, out, store, request)
@@ -7516,7 +7551,8 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
         let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_SIGN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_SIGN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_sign(
@@ -7564,7 +7600,8 @@ pub unsafe extern "C" fn destack_crypto_key_unwrap(
         );
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_UNWRAP)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_UNWRAP)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_unwrap(
@@ -7608,7 +7645,8 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
         let _ = (&out, &handle, &parameters, &argument_payload, &signature);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_VERIFY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_VERIFY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_verify(
@@ -7650,7 +7688,8 @@ pub unsafe extern "C" fn destack_crypto_key_wrap(
         let _ = (&out, &wrappingkey, &keytowrap, &format, &parameters);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_WRAP)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_KEY_WRAP)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_key_wrap(
@@ -7685,7 +7724,8 @@ pub unsafe extern "C" fn destack_crypto_mac_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_close(context, handle)
@@ -7712,7 +7752,8 @@ pub unsafe extern "C" fn destack_crypto_mac_compute(
         let _ = (&out, &key, &parameters, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_COMPUTE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_COMPUTE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_compute(
@@ -7749,7 +7790,8 @@ pub unsafe extern "C" fn destack_crypto_mac_finish(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_FINISH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_FINISH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_finish(context, out, handle)
@@ -7775,7 +7817,8 @@ pub unsafe extern "C" fn destack_crypto_mac_open(
         let _ = (&out, &key, &parameters);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_open(context, out, key, parameters)
@@ -7798,7 +7841,8 @@ pub unsafe extern "C" fn destack_crypto_mac_reset(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_RESET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_RESET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_reset(context, handle)
@@ -7820,7 +7864,8 @@ pub unsafe extern "C" fn destack_crypto_mac_update(
         let _ = (&handle, &argument_payload);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_UPDATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_UPDATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_update(context, handle, argument_payload)
@@ -7852,7 +7897,8 @@ pub unsafe extern "C" fn destack_crypto_mac_verify(
         let _ = (&out, &key, &parameters, &argument_payload, &tag);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_MAC_VERIFY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_MAC_VERIFY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_mac_verify(
@@ -7889,7 +7935,8 @@ pub unsafe extern "C" fn destack_crypto_probe_agreement_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
         destack_crypto_probe_agreement_algorithms_replay(context, world, out)
     })
 }
@@ -7904,7 +7951,8 @@ pub unsafe extern "C" fn destack_crypto_probe_cipher_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
         destack_crypto_probe_cipher_algorithms_replay(context, world, out)
     })
 }
@@ -7919,7 +7967,8 @@ pub unsafe extern "C" fn destack_crypto_probe_digest_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
         destack_crypto_probe_digest_algorithms_replay(context, world, out)
     })
 }
@@ -7934,7 +7983,8 @@ pub unsafe extern "C" fn destack_crypto_probe_kdf_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
         destack_crypto_probe_kdf_algorithms_replay(context, world, out)
     })
 }
@@ -7949,7 +7999,8 @@ pub unsafe extern "C" fn destack_crypto_probe_key_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
         destack_crypto_probe_key_algorithms_replay(context, world, out)
     })
 }
@@ -7964,7 +8015,8 @@ pub unsafe extern "C" fn destack_crypto_probe_key_formats(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
         destack_crypto_probe_key_formats_replay(context, world, out)
     })
 }
@@ -7979,7 +8031,8 @@ pub unsafe extern "C" fn destack_crypto_probe_key_residencies(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
         destack_crypto_probe_key_residencies_replay(context, world, out)
     })
 }
@@ -7994,7 +8047,8 @@ pub unsafe extern "C" fn destack_crypto_probe_key_wrap_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
         destack_crypto_probe_key_wrap_algorithms_replay(context, world, out)
     })
 }
@@ -8009,7 +8063,8 @@ pub unsafe extern "C" fn destack_crypto_probe_mac_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
         destack_crypto_probe_mac_algorithms_replay(context, world, out)
     })
 }
@@ -8024,7 +8079,8 @@ pub unsafe extern "C" fn destack_crypto_probe_named_curves(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
         destack_crypto_probe_named_curves_replay(context, world, out)
     })
 }
@@ -8039,7 +8095,8 @@ pub unsafe extern "C" fn destack_crypto_probe_signature_algorithms(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
         destack_crypto_probe_signature_algorithms_replay(context, world, out)
     })
 }
@@ -8056,7 +8113,8 @@ pub unsafe extern "C" fn destack_crypto_random_bytes(
         let _ = (&out, &length);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_RANDOM_BYTES)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_RANDOM_BYTES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_random_bytes(context, out, length)
@@ -8075,7 +8133,8 @@ pub unsafe extern "C" fn destack_crypto_random_fill(buffer: NativeSlice<u8>) -> 
         let _ = &buffer;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_RANDOM_FILL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_RANDOM_FILL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_random_fill(context, buffer)
@@ -8096,7 +8155,8 @@ pub unsafe extern "C" fn destack_crypto_store_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_STORE_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_STORE_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_store_close(context, handle)
@@ -8122,7 +8182,8 @@ pub unsafe extern "C" fn destack_crypto_store_list_certificates(
         let _ = (&out, &handle, &query);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_store_list_certificates(
@@ -8152,7 +8213,8 @@ pub unsafe extern "C" fn destack_crypto_store_list_keys(
         let _ = (&out, &handle, &query);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_store_list_keys(context, out, handle, query)
@@ -8179,7 +8241,8 @@ pub unsafe extern "C" fn destack_crypto_store_open(
         let _ = (&out, &options);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_STORE_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(CRYPTO_STORE_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_crypto_store_open(context, out, options)
@@ -8204,7 +8267,8 @@ pub unsafe extern "C" fn destack_crypto_store_probe_capability(
         }
         let _ = (&out, &kind, &provider);
 
-        let world = context.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
         destack_crypto_store_probe_capability_replay(context, world, out, kind, provider)
     })
 }
@@ -8219,7 +8283,8 @@ pub unsafe extern "C" fn destack_crypto_store_probe_kinds(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
         destack_crypto_store_probe_kinds_replay(context, world, out)
     })
 }
@@ -10000,7 +10065,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_agreement_derive_key(
                                 runtime,
@@ -10038,7 +10104,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
+                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_agreement_derive_shared_secret(runtime, context, privatekey, peerpublickey, algorithm),
                             RuntimeWorld::Simulation => platform_simulation_vm::destack_crypto_agreement_derive_shared_secret(runtime, context, privatekey, peerpublickey, algorithm),
@@ -10062,7 +10128,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_DELETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_delete(
                                 runtime, context, handle,
@@ -10093,8 +10160,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_certificate_descriptor(
@@ -10127,7 +10194,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_EXPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_export(
                                 runtime, context, handle, format,
@@ -10158,7 +10226,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_IMPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_import(
                                 runtime,
@@ -10196,7 +10265,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CERTIFICATE_VERIFY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_certificate_verify(
                                 runtime, context, request,
@@ -10226,7 +10296,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_cipher_close(runtime, context, handle)
@@ -10257,7 +10328,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_decrypt(
                                 runtime,
@@ -10296,7 +10368,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_encrypt(
                                 runtime,
@@ -10335,7 +10408,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_FINISH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_FINISH)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_finish(
                                 runtime,
@@ -10372,7 +10446,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_OPEN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_OPEN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_open(
                                 runtime, context, key, direction, parameters,
@@ -10403,7 +10478,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_RESET)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_RESET)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_reset(
                                 runtime, context, handle, parameters,
@@ -10434,7 +10510,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_UPDATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_update(
                                 runtime,
@@ -10470,7 +10547,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
+                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_cipher_update_additional_data(runtime, context, handle, additionaldata),
                             RuntimeWorld::Simulation => platform_simulation_vm::destack_crypto_cipher_update_additional_data(runtime, context, handle, additionaldata),
@@ -10494,7 +10571,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_digest_close(runtime, context, handle)
@@ -10525,7 +10603,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_digest_compute(
                                 runtime,
@@ -10561,7 +10640,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_FINISH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_FINISH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_digest_finish(runtime, context, handle)
@@ -10591,7 +10671,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_OPEN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_OPEN)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_digest_open(runtime, context, algorithm)
@@ -10621,7 +10702,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_RESET)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_RESET)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_digest_reset(runtime, context, handle)
@@ -10652,7 +10734,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_UPDATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_DIGEST_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_digest_update(
                                 runtime,
@@ -10688,7 +10771,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_ARGON2ID)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KDF_ARGON2ID)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_kdf_argon2id(runtime, context, request)
@@ -10714,7 +10798,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_KDF_HKDF)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_KDF_HKDF)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_crypto_kdf_hkdf(runtime, context, request)
@@ -10743,7 +10828,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_PBKDF2)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KDF_PBKDF2)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_kdf_pbkdf2(runtime, context, request)
@@ -10773,7 +10859,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_SCRYPT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KDF_SCRYPT)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_kdf_scrypt(runtime, context, request)
@@ -10804,7 +10891,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_DECRYPT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_DECRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_decrypt(
                                 runtime,
@@ -10842,7 +10930,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_key_delete(runtime, context, handle)
@@ -10872,7 +10961,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_key_descriptor(runtime, context, handle)
@@ -10903,7 +10993,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_ENCRYPT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_ENCRYPT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_encrypt(
                                 runtime,
@@ -10942,7 +11033,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_export_private(
                                 runtime, context, handle, request,
@@ -10973,7 +11065,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_PUBLIC)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_export_public(
                                 runtime, context, handle, format,
@@ -11004,7 +11097,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_export_secret(
                                 runtime, context, handle, format,
@@ -11035,7 +11129,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_generate_pair(
                                 runtime, context, store, request,
@@ -11066,7 +11161,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_generate_secret(
                                 runtime, context, store, request,
@@ -11096,7 +11192,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_IMPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_import(
                                 runtime, context, store, request,
@@ -11123,7 +11220,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_KEY_SIGN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_KEY_SIGN)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_crypto_key_sign(
                             runtime,
@@ -11161,7 +11259,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_UNWRAP)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_UNWRAP)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_unwrap(
                                 runtime,
@@ -11204,7 +11303,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_VERIFY)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_KEY_VERIFY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_verify(
                                 runtime,
@@ -11241,7 +11341,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_KEY_WRAP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_KEY_WRAP)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_crypto_key_wrap(
                             runtime,
@@ -11276,7 +11377,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_MAC_CLOSE)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_crypto_mac_close(runtime, context, handle)
@@ -11306,7 +11408,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_COMPUTE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_MAC_COMPUTE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_mac_compute(
                                 runtime,
@@ -11344,7 +11447,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_FINISH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_MAC_FINISH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_mac_finish(runtime, context, handle)
@@ -11370,7 +11474,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_MAC_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_crypto_mac_open(runtime, context, key, parameters)
@@ -11395,7 +11500,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_RESET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_MAC_RESET)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_crypto_mac_reset(runtime, context, handle)
@@ -11425,7 +11531,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_UPDATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_MAC_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_mac_update(
                                 runtime,
@@ -11462,7 +11569,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_VERIFY)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_MAC_VERIFY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_mac_verify(
                                 runtime,
@@ -11498,8 +11606,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
                     destack_crypto_probe_agreement_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11514,7 +11622,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
                     destack_crypto_probe_cipher_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11529,7 +11638,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
                     destack_crypto_probe_digest_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11544,7 +11654,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
                     destack_crypto_probe_kdf_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11559,7 +11670,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
                     destack_crypto_probe_key_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11574,7 +11686,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
                     destack_crypto_probe_key_formats_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11589,7 +11702,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
                     destack_crypto_probe_key_residencies_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11604,8 +11718,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
                     destack_crypto_probe_key_wrap_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11620,7 +11734,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
                     destack_crypto_probe_mac_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11635,7 +11750,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
                     destack_crypto_probe_named_curves_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11650,8 +11766,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
                     destack_crypto_probe_signature_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -11670,7 +11786,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_RANDOM_BYTES)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_RANDOM_BYTES)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_random_bytes(runtime, context, length)
@@ -11700,7 +11817,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_RANDOM_FILL)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_RANDOM_FILL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_random_fill(runtime, context, buffer)
@@ -11730,7 +11848,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_STORE_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_STORE_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_store_close(runtime, context, handle)
@@ -11761,8 +11880,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(CRYPTO_STORE_LIST_CERTIFICATES)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_store_list_certificates(
@@ -11795,7 +11914,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_STORE_LIST_KEYS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_store_list_keys(
                                 runtime, context, handle, query,
@@ -11825,7 +11945,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_STORE_OPEN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(CRYPTO_STORE_OPEN)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_crypto_store_open(runtime, context, options)
@@ -11855,7 +11976,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_crypto_store_probe_capability_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
                     destack_crypto_store_probe_capability_vm_replay(
                         runtime, context, world, kind, provider,
                     )
@@ -11872,7 +11994,8 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
                     destack_crypto_store_probe_kinds_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)

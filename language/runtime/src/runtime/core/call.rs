@@ -20,21 +20,92 @@ use crate::runtime::scheduler::{
     EventLoop, EventLoopScope, MicrotaskId, TaskId, current_event_loop_scope,
 };
 
-use super::RuntimeContext;
+use super::Agent;
 use crate::runtime::{HookState, Hooks};
+use destack_workspace::RuntimeAccess;
 
 thread_local! {
+    /// TLS slot for the current runtime execution context.
+    static CURRENT_AGENT_CONTEXT: Cell<CurrentAgentContext> = const { Cell::new(CurrentAgentContext::empty()) };
     /// TLS slot for the current binding call context.
     static BINDING_CALL_CONTEXT: Cell<*const BindingCallContext> = const { Cell::new(ptr::null()) };
     /// TLS storage for native ABI references returned by bindings.
     static BINDING_CALL_ARENA: BindingCallArena = const { BindingCallArena::new() };
 }
 
+/// Current runtime execution context for VM callback bridging.
+#[derive(Debug, Clone, Copy)]
+struct CurrentAgentContext {
+    /// Runtime pointer for callback dispatch.
+    runtime: *const Agent,
+    /// Event loop pointer for callback dispatch.
+    event_loop: *const EventLoop,
+}
+
+impl CurrentAgentContext {
+    /// Return one empty runtime execution context.
+    const fn empty() -> Self {
+        Self {
+            runtime: ptr::null(),
+            event_loop: ptr::null(),
+        }
+    }
+
+    /// Return whether this execution context is available.
+    const fn is_empty(self) -> bool {
+        self.runtime.is_null() || self.event_loop.is_null()
+    }
+}
+
+/// Guard that restores the previous current-agent execution context.
+#[derive(Debug)]
+pub(crate) struct CurrentAgentContextGuard {
+    /// Previous current-agent execution context.
+    previous: CurrentAgentContext,
+}
+
+impl Drop for CurrentAgentContextGuard {
+    /// Restore the previous current-agent execution context.
+    fn drop(&mut self) {
+        CURRENT_AGENT_CONTEXT.with(|slot| slot.set(self.previous));
+    }
+}
+
+/// Enter one current-agent execution context for VM callback dispatch.
+pub(crate) fn enter_current_agent_context(
+    runtime: *const Agent,
+    event_loop: *const EventLoop,
+) -> CurrentAgentContextGuard {
+    let next = CurrentAgentContext {
+        runtime,
+        event_loop,
+    };
+    let previous = CURRENT_AGENT_CONTEXT.with(|slot| {
+        let previous = slot.get();
+        slot.set(next);
+        previous
+    });
+
+    CurrentAgentContextGuard { previous }
+}
+
+/// Return the current-agent execution context when available.
+fn current_agent_context() -> Option<CurrentAgentContext> {
+    CURRENT_AGENT_CONTEXT.with(|slot| {
+        let context = slot.get();
+        if context.is_empty() {
+            return None;
+        }
+
+        Some(context)
+    })
+}
+
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
 pub struct BindingCallContext {
     /// Runtime state for platform bindings.
-    runtime: *const RuntimeContext,
+    runtime: *const Agent,
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Binding policy for external calls.
@@ -45,15 +116,27 @@ pub struct BindingCallContext {
     scope: EventLoopScope,
 }
 
+/// Scope guard that runs after-binding hooks when one binding call completes.
+#[derive(Debug)]
+pub struct BindingHookGuard<'call> {
+    /// Binding call context for hook dispatch.
+    context: &'call BindingCallContext,
+    /// Binding descriptor for hook dispatch.
+    spec: BindingDescriptor,
+}
+
+impl Drop for BindingHookGuard<'_> {
+    /// Run post-call hooks for this binding call scope.
+    fn drop(&mut self) {
+        self.context.on_after_binding(self.spec);
+    }
+}
+
 impl BindingCallContext {
     /// Create a binding call context for TLS.
-    pub fn new(
-        runtime: &Arc<RuntimeContext>,
-        event_loop: &EventLoop,
-        policy: BindingPolicy,
-    ) -> Self {
+    pub fn new(runtime: &Agent, event_loop: &EventLoop, policy: BindingPolicy) -> Self {
         Self {
-            runtime: Arc::as_ptr(runtime),
+            runtime,
             event_loop,
             policy: Arc::new(RwLock::new(policy)),
             engine: BindingEngine::Native,
@@ -63,7 +146,7 @@ impl BindingCallContext {
 
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
-        runtime: *const RuntimeContext,
+        runtime: *const Agent,
         event_loop: *const EventLoop,
         policy: Arc<RwLock<BindingPolicy>>,
         engine: BindingEngine,
@@ -77,10 +160,24 @@ impl BindingCallContext {
         }
     }
 
+    /// Create one VM binding call context from the current-agent execution scope.
+    pub(crate) fn from_current_agent_for_vm(
+        policy: Arc<RwLock<BindingPolicy>>,
+    ) -> RuntimeResult<Self> {
+        let context = current_agent_context()
+            .ok_or_else(|| RuntimeError::BindingCallContextMissing.boxed())?;
+        Ok(Self::from_raw(
+            context.runtime,
+            context.event_loop,
+            policy,
+            BindingEngine::Vm,
+        ))
+    }
+
     /// Borrow the runtime state.
     #[inline]
-    pub fn runtime(&self) -> &RuntimeContext {
-        // safety: pointer is owned by an Arc in the caller
+    pub fn runtime(&self) -> &Agent {
+        // safety: pointer is owned by the runtime caller
         unsafe { &*self.runtime }
     }
 
@@ -100,13 +197,13 @@ impl BindingCallContext {
     /// Borrow the replay state.
     #[inline]
     pub fn replay(&self) -> &ReplayController {
-        &self.runtime().replay
+        self.world().replay()
     }
 
     /// Borrow the runtime hook state.
     #[inline]
     pub fn hooks(&self) -> &Hooks {
-        &self.runtime().hooks
+        self.runtime().hooks.as_ref()
     }
 
     /// Borrow the runtime host state.
@@ -118,7 +215,7 @@ impl BindingCallContext {
     /// Borrow the shared runtime world.
     #[inline]
     pub fn world(&self) -> &crate::runtime::world::World {
-        &self.runtime().world
+        self.runtime().world.as_ref()
     }
 
     /// Borrow one read guard for the simulation state.
@@ -192,44 +289,104 @@ impl BindingCallContext {
         BINDING_CALL_ARENA.with(|arena| arena.store_string_slice(values))
     }
 
-    /// Validate the policy against a binding descriptor.
-    #[inline]
-    pub fn check_policy(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        // run rule hooks and policy checks first
-        self.hooks()
-            .on_before_binding(spec, HookState::from_engine(Some(self.engine)))?;
-        self.policy
-            .read()
-            .check_for_engine(spec, Some(self.engine))?;
+    /// Return one policy-violation error for one binding descriptor.
+    fn policy_violation_error(&self, spec: BindingDescriptor) -> RuntimeError {
+        RuntimeError::PolicyViolation {
+            name: spec.name.to_string(),
+        }
+    }
+
+    /// Ensure world access routing allows this binding call.
+    fn ensure_binding_access_allowed(
+        &self,
+        spec: BindingDescriptor,
+        policy: &BindingPolicy,
+    ) -> RuntimeResult<()> {
+        let access = self.world().resolve_binding_access(
+            self.hooks().execution_mode(),
+            self.hooks().policy_identity(),
+            spec,
+            Some(self.engine),
+            policy.default_access(),
+        );
+        if access == RuntimeAccess::Deny {
+            return Err(self.policy_violation_error(spec).boxed());
+        }
 
         Ok(())
     }
 
-    /// Validate policy and resolve the binding world for this call context.
+    /// Run pre-call binding policy and return one post-call hook guard.
     #[inline]
-    pub fn check_and_resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
+    pub fn on_before_binding(
+        &self,
+        spec: BindingDescriptor,
+    ) -> RuntimeResult<BindingHookGuard<'_>> {
         // run rule hooks and policy checks first
         self.hooks()
             .on_before_binding(spec, HookState::from_engine(Some(self.engine)))?;
-        let world = self
-            .policy
-            .read()
-            .check_and_resolve_world_for_engine(spec, Some(self.engine))?;
+        let policy = self.policy.read();
+        policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
+        self.ensure_binding_access_allowed(spec, &policy)?;
+
+        Ok(BindingHookGuard {
+            context: self,
+            spec,
+        })
+    }
+
+    /// Run pre-call policy, resolve world, and return one post-call hook guard.
+    #[inline]
+    pub fn on_before_binding_resolve_world(
+        &self,
+        spec: BindingDescriptor,
+    ) -> RuntimeResult<(RuntimeWorld, BindingHookGuard<'_>)> {
+        // run rule hooks and policy checks first
+        self.hooks()
+            .on_before_binding(spec, HookState::from_engine(Some(self.engine)))?;
+        let policy = self.policy.read();
+        policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
+        self.ensure_binding_access_allowed(spec, &policy)?;
+
+        // apply world-scoped world routing rules
+        let world = self.world().resolve_binding_world(
+            self.hooks().execution_mode(),
+            self.hooks().policy_identity(),
+            spec,
+            Some(self.engine),
+            policy.default_world(),
+        );
 
         // reject host dispatch when the binding is unavailable on this host
         if world == RuntimeWorld::Host && !spec.supports_current_host() {
             return Err(RuntimeError::from(PlatformError::not_supported(spec.name)).boxed());
         }
 
-        Ok(world)
+        let hook_guard = BindingHookGuard {
+            context: self,
+            spec,
+        };
+        Ok((world, hook_guard))
+    }
+
+    /// Run post-call hooks for one binding descriptor.
+    #[inline]
+    pub fn on_after_binding(&self, spec: BindingDescriptor) {
+        self.hooks()
+            .on_after_binding(spec, HookState::from_engine(Some(self.engine)));
     }
 
     /// Resolve the binding world for this call context.
     #[inline]
     pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeWorld {
-        self.policy
-            .read()
-            .resolve_world_for_engine(spec, Some(self.engine))
+        let policy = self.policy.read();
+        self.world().resolve_binding_world(
+            self.hooks().execution_mode(),
+            self.hooks().policy_identity(),
+            spec,
+            Some(self.engine),
+            policy.default_world(),
+        )
     }
 
     /// Resolve the replay payload policy for this call context.
@@ -238,10 +395,14 @@ impl BindingCallContext {
         &self,
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingReplayPayload> {
-        let requested = self
-            .policy
-            .read()
-            .resolve_replay_payload_for_engine(spec, Some(self.engine));
+        let policy = self.policy.read();
+        let requested = self.world().resolve_binding_replay_payload(
+            self.hooks().execution_mode(),
+            self.hooks().policy_identity(),
+            spec,
+            Some(self.engine),
+            policy.default_replay_payload(),
+        );
         self.replay().payload_policy_for_requested(spec, requested)
     }
 }
@@ -290,22 +451,6 @@ pub fn with_binding_call_context<T>(
     // clear call-local value storage
     context.clear_values();
     f(context)
-}
-
-/// Run a closure with the current TLS binding call context when present.
-#[inline]
-pub(crate) fn with_current_binding_call_context<T>(
-    f: impl FnOnce(&BindingCallContext) -> T,
-) -> Option<T> {
-    // read the TLS context pointer
-    let context = BINDING_CALL_CONTEXT.with(|slot| slot.get());
-    if context.is_null() {
-        return None;
-    }
-
-    // safety: pointer is set by enter_binding_call_context
-    let context = unsafe { &*context };
-    Some(f(context))
 }
 
 /// Per-call storage for native ABI references returned by bindings.

@@ -506,18 +506,18 @@ pub(crate) fn assert_platform_error_code<T>(
 fn insert_completion_target_with_host_handle(context: &BindingCallContext) -> ResourceId {
     #[cfg(unix)]
     {
-        context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown).with_fd(0))
+        context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown).with_fd(0),
+            Some(context.engine()),
+        )
     }
 
     #[cfg(windows)]
     {
-        context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown).with_handle(1usize as *mut c_void))
+        context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown).with_handle(1usize as *mut c_void),
+            Some(context.engine()),
+        )
     }
 }
 
@@ -555,11 +555,10 @@ fn test_io_completion_open_rejects_zero_entries() {
 #[test]
 fn test_io_completion_close_rejects_non_completion_handle() {
     with_harness_context(|mut context| {
-        let foreign = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let foreign = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         let forged = CompletionHandle(foreign);
         assert_platform_error_code(
             context.destack_io_completion_close(forged),
@@ -570,7 +569,7 @@ fn test_io_completion_close_rejects_non_completion_handle() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(foreign);
+            .remove_and_finalize(foreign, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -721,7 +720,7 @@ fn test_io_completion_submit_rejects_null_pointer_argument() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(target);
+            .remove_and_finalize(target, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -908,11 +907,10 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
             return Ok(());
         };
 
-        let target = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let target = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         let canceled = context.destack_io_completion_cancel(handle, target)?;
         assert_eq!(canceled, 0);
 
@@ -921,7 +919,7 @@ fn test_io_completion_cancel_returns_zero_without_pending_requests() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(target);
+            .remove_and_finalize(target, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -977,11 +975,10 @@ fn test_io_event_open_rejects_reserved_initial_value() {
 #[test]
 fn test_io_event_close_rejects_non_event_token() {
     with_harness_context(|mut context| {
-        let foreign = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let foreign = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         let forged = EventToken(foreign.0);
         assert_platform_error_code(
             context.destack_io_event_close(forged),
@@ -992,7 +989,7 @@ fn test_io_event_close_rejects_non_event_token() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(foreign);
+            .remove_and_finalize(foreign, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -1148,11 +1145,10 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
 fn test_io_event_attach_rejects_non_poll_target() {
     with_harness_context(|mut context| {
         let token = context.destack_io_event_open(0)?;
-        let target = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let target = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
 
         assert_platform_error_code(
             context.destack_io_event_attach(token, target, 7),
@@ -1163,7 +1159,7 @@ fn test_io_event_attach_rejects_non_poll_target() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(target);
+            .remove_and_finalize(target, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -1380,7 +1376,7 @@ fn test_io_control_fcntl_rejects_command_width_overflow() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(target);
+            .remove_and_finalize(target, Some(context.call_context.engine()));
 
         Ok(())
     });

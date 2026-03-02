@@ -8,18 +8,22 @@ fn run_runtime_smoke() -> Result<String, String> {
     let platform = PlatformContext::new(Vec::new());
     let options = RuntimeOptions::default();
     let runtime = Runtime::from_options(platform, &options).map_err(|error| format!("{error}"))?;
+    let primary_agent_id = runtime.primary_agent_id();
+    let primary_agent = runtime
+        .agent(primary_agent_id)
+        .ok_or_else(|| format!("runtime agent {} does not exist", primary_agent_id.0))?;
 
     // poll host events in nonblocking mode
-    let host_events = runtime
+    let host_events = primary_agent
         .host()
         .poll_events(Some(0))
         .map_err(|error| format!("{error}"))?;
     let host_event_count = host_events.events.len();
 
     // verify core counters are initialized
-    let dropped_dispatch_events = runtime.dropped_dispatch_events();
-    let dropped_host_queue_events = runtime.dropped_host_queue_events();
-    let dropped_unwatched_dispatch_events = runtime.dropped_unwatched_dispatch_events();
+    let dropped_dispatch_events = primary_agent.dropped_dispatch_events();
+    let dropped_host_queue_events = primary_agent.dropped_host_queue_events();
+    let dropped_unwatched_dispatch_events = primary_agent.dropped_unwatched_dispatch_events();
     if dropped_dispatch_events != 0
         || dropped_host_queue_events != 0
         || dropped_unwatched_dispatch_events != 0
@@ -32,7 +36,7 @@ fn run_runtime_smoke() -> Result<String, String> {
     // return smoke summary
     Ok(format!(
         "runtime-smoke-ok host_events={host_event_count} callback_agent_id={:?}",
-        runtime.host_callback_agent_id(),
+        primary_agent.host_callback_agent_id(),
     ))
 }
 

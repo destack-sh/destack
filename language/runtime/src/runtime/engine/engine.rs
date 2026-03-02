@@ -3,13 +3,12 @@ use destack_vm as vm;
 use super::EngineContinuation;
 use crate::diagnostic::RuntimeResult;
 
-/// Runtime value passed across engine yields.
-pub type RuntimeValue = vm::Value;
+/// Engine value passed across yields.
+pub type AgentValue = vm::Value;
+/// Engine output produced when execution completes.
+pub type AgentOutput = vm::ExecutionOutput;
 
-/// Runtime output produced when execution completes.
-pub type RuntimeOutput = vm::ExecutionOutput;
-
-/// Execution outcome produced by a runtime engine.
+/// Execution outcome produced by one engine.
 #[derive(Debug)]
 pub enum EngineOutcome<Output, Value> {
     /// Execution completed with a result.
@@ -21,7 +20,7 @@ pub enum EngineOutcome<Output, Value> {
     },
 }
 
-/// Execution engine used by the runtime event loop.
+/// Execution engine used by one agent event loop.
 pub trait Engine {
     /// Entry point handle for this engine.
     type Entry;

@@ -135,7 +135,7 @@ fn close_timerfd(
     let entry = context
         .runtime()
         .resources
-        .remove(handle.0)
+        .remove(handle.0, Some(context.engine()))
         .ok_or_else(invalid_timerfd_handle_error)?;
     if entry.kind != ResourceKind::TimerFd {
         return Err(invalid_timerfd_handle_error());
@@ -344,7 +344,10 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
         let entry = ResourceEntry::new(ResourceKind::TimerFd)
             .with_label("io.timerfd")
             .with_fd(fd);
-        let resource_id = context.runtime().resources.insert(entry);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
         let handle = resource::TimerFdHandle(resource_id);
 
         // write one output handle

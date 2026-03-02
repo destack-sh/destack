@@ -730,7 +730,10 @@ pub(crate) fn open_watch(
     };
     let entry =
         ResourceEntry::new(ResourceKind::Watch).with_payload(Arc::new(Mutex::new(resource)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     Ok(WatchHandle(resource_id))
 }
@@ -742,7 +745,10 @@ pub(crate) fn close_watch(context: &BindingCallContext, handle: WatchHandle) -> 
     let _resource = watch_resource(context, handle)?;
 
     // remove the watch resource and drop the backend watcher
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(invalid_watch_handle_error());
     }

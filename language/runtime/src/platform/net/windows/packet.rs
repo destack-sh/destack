@@ -843,7 +843,10 @@ pub(crate) unsafe fn destack_net_packet_open(
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
         .with_finalizer(WindowsPacketFinalizer::new(socket));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);
     let snap_length = snap_length.clamp(1, WINDOWS_PACKET_MAX_LENGTH);
     PACKET_SOCKET_STATES.lock().insert(

@@ -12329,7 +12329,8 @@ pub unsafe extern "C" fn destack_os_background_complete(
         let _ = (&executionid, &argument_result);
 
         {
-            let world = context.check_and_resolve_world(OS_BACKGROUND_COMPLETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_BACKGROUND_COMPLETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_background_complete(
@@ -12357,7 +12358,8 @@ pub unsafe extern "C" fn destack_os_background_event_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
         destack_os_background_event_close_replay(context, world, handle)
     })
 }
@@ -12373,7 +12375,8 @@ pub unsafe extern "C" fn destack_os_background_event_open(
         }
         let _ = (&out, &options);
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
         destack_os_background_event_open_replay(context, world, out, options)
     })
 }
@@ -12390,7 +12393,8 @@ pub unsafe extern "C" fn destack_os_background_event_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_READ)?;
         destack_os_background_event_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -12406,7 +12410,8 @@ pub unsafe extern "C" fn destack_os_background_event_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
         destack_os_background_event_try_read_replay(context, world, out, handle)
     })
 }
@@ -12421,7 +12426,8 @@ pub unsafe extern "C" fn destack_os_background_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_LIST)?;
         destack_os_background_list_replay(context, world, out)
     })
 }
@@ -12434,7 +12440,8 @@ pub unsafe extern "C" fn destack_os_background_register(
         let _ = &options;
 
         {
-            let world = context.check_and_resolve_world(OS_BACKGROUND_REGISTER)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_BACKGROUND_REGISTER)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_background_register(context, options)
@@ -12455,7 +12462,8 @@ pub unsafe extern "C" fn destack_os_background_status(out: *mut BackgroundStatus
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_BACKGROUND_STATUS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_BACKGROUND_STATUS)?;
         destack_os_background_status_replay(context, world, out)
     })
 }
@@ -12472,7 +12480,8 @@ pub unsafe extern "C" fn destack_os_background_trigger_test(
         let _ = (&out, &identifier);
 
         {
-            let world = context.check_and_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_background_trigger_test(context, out, identifier)
@@ -12495,7 +12504,8 @@ pub unsafe extern "C" fn destack_os_background_unregister(
         let _ = &identifier;
 
         {
-            let world = context.check_and_resolve_world(OS_BACKGROUND_UNREGISTER)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_BACKGROUND_UNREGISTER)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_background_unregister(context, identifier)
@@ -12522,7 +12532,8 @@ pub unsafe extern "C" fn destack_os_calendar_event_create(
         let _ = (&out, &event);
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_event_create(context, out, event)
@@ -12543,7 +12554,8 @@ pub unsafe extern "C" fn destack_os_calendar_event_delete(id: NativeStringRef) -
         let _ = &id;
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_event_delete(context, id)
@@ -12568,7 +12580,8 @@ pub unsafe extern "C" fn destack_os_calendar_event_list(
         let _ = (&out, &query);
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_LIST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_EVENT_LIST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_event_list(context, out, query)
@@ -12593,7 +12606,8 @@ pub unsafe extern "C" fn destack_os_calendar_event_read(
         let _ = (&out, &id);
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_EVENT_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_event_read(context, out, id)
@@ -12615,7 +12629,8 @@ pub unsafe extern "C" fn destack_os_calendar_event_update(
         let _ = (&id, &event);
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_event_update(context, id, event)
@@ -12639,7 +12654,8 @@ pub unsafe extern "C" fn destack_os_calendar_list(
         let _ = &out;
 
         {
-            let world = context.check_and_resolve_world(OS_CALENDAR_LIST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CALENDAR_LIST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_calendar_list(context, out)
@@ -12655,7 +12671,8 @@ pub unsafe extern "C" fn destack_os_calendar_list(
 #[unsafe(export_name = "destack.os.clipboard.clear")]
 pub unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
     native_call(|context| {
-        let world = context.check_and_resolve_world(OS_CLIPBOARD_CLEAR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
         match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_clipboard_clear(context) },
             RuntimeWorld::Simulation => unsafe {
@@ -12673,7 +12690,8 @@ pub unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> Runtim
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
         destack_os_clipboard_has_text_replay(context, world, out)
     })
 }
@@ -12689,7 +12707,8 @@ pub unsafe extern "C" fn destack_os_clipboard_read_bytes(
         }
         let _ = (&out, &format);
 
-        let world = context.check_and_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
         destack_os_clipboard_read_bytes_replay(context, world, out, format)
     })
 }
@@ -12704,7 +12723,8 @@ pub unsafe extern "C" fn destack_os_clipboard_read_text(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
         destack_os_clipboard_read_text_replay(context, world, out)
     })
 }
@@ -12717,7 +12737,8 @@ pub unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> Runtime
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
         destack_os_clipboard_sequence_replay(context, world, out)
     })
 }
@@ -12731,7 +12752,8 @@ pub unsafe extern "C" fn destack_os_clipboard_write_bytes(
         let _ = (&format, &argument_bytes);
 
         {
-            let world = context.check_and_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_clipboard_write_bytes(
@@ -12758,7 +12780,8 @@ pub unsafe extern "C" fn destack_os_clipboard_write_text(text: NativeStringRef) 
         let _ = &text;
 
         {
-            let world = context.check_and_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_clipboard_write_text(context, text)
@@ -12783,7 +12806,8 @@ pub unsafe extern "C" fn destack_os_contact_create(
         let _ = (&out, &contact);
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_CREATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_CREATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_create(context, out, contact)
@@ -12802,7 +12826,8 @@ pub unsafe extern "C" fn destack_os_contact_delete(id: NativeStringRef) -> Runti
         let _ = &id;
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_delete(context, id)
@@ -12827,7 +12852,8 @@ pub unsafe extern "C" fn destack_os_contact_list(
         let _ = (&out, &query);
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_LIST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_LIST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_list(context, out, query)
@@ -12852,7 +12878,8 @@ pub unsafe extern "C" fn destack_os_contact_read(
         let _ = (&out, &id);
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_read(context, out, id)
@@ -12878,7 +12905,8 @@ pub unsafe extern "C" fn destack_os_contact_search(
         let _ = (&out, &querytext, &query);
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_SEARCH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_SEARCH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_search(context, out, querytext, query)
@@ -12902,7 +12930,8 @@ pub unsafe extern "C" fn destack_os_contact_update(
         let _ = (&id, &contact);
 
         {
-            let world = context.check_and_resolve_world(OS_CONTACT_UPDATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CONTACT_UPDATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_contact_update(context, id, contact)
@@ -12927,7 +12956,8 @@ pub unsafe extern "C" fn destack_os_credentials_authenticate(
         let _ = (&out, &options);
 
         {
-            let world = context.check_and_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_credentials_authenticate(context, out, options)
@@ -12956,7 +12986,8 @@ pub unsafe extern "C" fn destack_os_credentials_contains(
         let _ = (&out, &service, &account, &accessgroup);
 
         {
-            let world = context.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CREDENTIALS_CONTAINS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_credentials_contains(
@@ -12991,7 +13022,8 @@ pub unsafe extern "C" fn destack_os_credentials_delete(
         let _ = (&service, &account, &accessgroup);
 
         {
-            let world = context.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CREDENTIALS_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_credentials_delete(
@@ -13026,7 +13058,8 @@ pub unsafe extern "C" fn destack_os_credentials_read(
         let _ = (&out, &query);
 
         {
-            let world = context.check_and_resolve_world(OS_CREDENTIALS_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CREDENTIALS_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_credentials_read(context, out, query)
@@ -13047,7 +13080,8 @@ pub unsafe extern "C" fn destack_os_credentials_write(
         let _ = &options;
 
         {
-            let world = context.check_and_resolve_world(OS_CREDENTIALS_WRITE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_CREDENTIALS_WRITE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_credentials_write(context, options)
@@ -13068,7 +13102,8 @@ pub unsafe extern "C" fn destack_os_document_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_close(context, handle)
@@ -13089,7 +13124,8 @@ pub unsafe extern "C" fn destack_os_document_flush(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_FLUSH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_FLUSH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_flush(context, handle)
@@ -13115,7 +13151,8 @@ pub unsafe extern "C" fn destack_os_document_open(
         let _ = (&out, &uri, &access);
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_open(context, out, uri, access)
@@ -13140,7 +13177,8 @@ pub unsafe extern "C" fn destack_os_document_pick(
         let _ = (&out, &options);
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_PICK)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_pick(context, out, options)
@@ -13167,7 +13205,8 @@ pub unsafe extern "C" fn destack_os_document_read(
         let _ = (&out, &handle, &maxbytes, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_read(
@@ -13197,7 +13236,8 @@ pub unsafe extern "C" fn destack_os_document_try_read(
         let _ = (&out, &handle, &maxbytes);
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_TRY_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_TRY_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_try_read(context, out, handle, maxbytes)
@@ -13226,7 +13266,8 @@ pub unsafe extern "C" fn destack_os_document_write(
         let _ = (&out, &handle, &argument_bytes, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(OS_DOCUMENT_WRITE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_DOCUMENT_WRITE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_document_write(
@@ -13259,7 +13300,8 @@ pub unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> Run
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_HOST_IDENTITY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_HOST_IDENTITY)?;
         destack_os_host_identity_replay(context, world, out)
     })
 }
@@ -13272,7 +13314,8 @@ pub unsafe extern "C" fn destack_os_info_boot_time_unix_ns(out: *mut u64) -> Run
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
         destack_os_info_boot_time_unix_ns_replay(context, world, out)
     })
 }
@@ -13285,7 +13328,8 @@ pub unsafe extern "C" fn destack_os_info_load_average(out: *mut LoadAverage) -> 
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_INFO_LOAD_AVERAGE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INFO_LOAD_AVERAGE)?;
         destack_os_info_load_average_replay(context, world, out)
     })
 }
@@ -13300,7 +13344,8 @@ pub unsafe extern "C" fn destack_os_info_system_snapshot(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
         destack_os_info_system_snapshot_replay(context, world, out)
     })
 }
@@ -13313,7 +13358,8 @@ pub unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStat
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_INFO_UPTIME_NS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INFO_UPTIME_NS)?;
         destack_os_info_uptime_ns_replay(context, world, out)
     })
 }
@@ -13329,7 +13375,8 @@ pub unsafe extern "C" fn destack_os_intent_can_open_url(
         }
         let _ = (&out, &url);
 
-        let world = context.check_and_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
         destack_os_intent_can_open_url_replay(context, world, out, url)
     })
 }
@@ -13339,7 +13386,8 @@ pub unsafe extern "C" fn destack_os_intent_close(handle: resource::IntentHandle)
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(OS_INTENT_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INTENT_CLOSE)?;
         destack_os_intent_close_replay(context, world, handle)
     })
 }
@@ -13355,7 +13403,8 @@ pub unsafe extern "C" fn destack_os_intent_open(
         }
         let _ = (&out, &options);
 
-        let world = context.check_and_resolve_world(OS_INTENT_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INTENT_OPEN)?;
         destack_os_intent_open_replay(context, world, out, options)
     })
 }
@@ -13366,7 +13415,8 @@ pub unsafe extern "C" fn destack_os_intent_open_path(path: fs::OsPath) -> Runtim
         let _ = &path;
 
         {
-            let world = context.check_and_resolve_world(OS_INTENT_OPEN_PATH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_INTENT_OPEN_PATH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_intent_open_path(context, path)
@@ -13385,7 +13435,8 @@ pub unsafe extern "C" fn destack_os_intent_open_url(url: NativeStringRef) -> Run
         let _ = &url;
 
         {
-            let world = context.check_and_resolve_world(OS_INTENT_OPEN_URL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_INTENT_OPEN_URL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_intent_open_url(context, url)
@@ -13410,7 +13461,8 @@ pub unsafe extern "C" fn destack_os_intent_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(OS_INTENT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INTENT_READ)?;
         destack_os_intent_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13424,7 +13476,8 @@ pub unsafe extern "C" fn destack_os_intent_share_paths(
         let _ = (&paths, &mimetype);
 
         {
-            let world = context.check_and_resolve_world(OS_INTENT_SHARE_PATHS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_intent_share_paths(context, paths, mimetype)
@@ -13448,7 +13501,8 @@ pub unsafe extern "C" fn destack_os_intent_share_text(
         let _ = (&text, &mimetype);
 
         {
-            let world = context.check_and_resolve_world(OS_INTENT_SHARE_TEXT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_intent_share_text(context, text, mimetype)
@@ -13474,7 +13528,8 @@ pub unsafe extern "C" fn destack_os_intent_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(OS_INTENT_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_INTENT_TRY_READ)?;
         destack_os_intent_try_read_replay(context, world, out, handle)
     })
 }
@@ -13486,7 +13541,8 @@ pub unsafe extern "C" fn destack_os_lifecycle_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(OS_LIFECYCLE_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LIFECYCLE_CLOSE)?;
         destack_os_lifecycle_close_replay(context, world, handle)
     })
 }
@@ -13501,7 +13557,8 @@ pub unsafe extern "C" fn destack_os_lifecycle_open(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_LIFECYCLE_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LIFECYCLE_OPEN)?;
         destack_os_lifecycle_open_replay(context, world, out)
     })
 }
@@ -13518,7 +13575,8 @@ pub unsafe extern "C" fn destack_os_lifecycle_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(OS_LIFECYCLE_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LIFECYCLE_READ)?;
         destack_os_lifecycle_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13531,7 +13589,8 @@ pub unsafe extern "C" fn destack_os_lifecycle_state(out: *mut LifecycleState) ->
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_LIFECYCLE_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LIFECYCLE_STATE)?;
         destack_os_lifecycle_state_replay(context, world, out)
     })
 }
@@ -13547,7 +13606,8 @@ pub unsafe extern "C" fn destack_os_lifecycle_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(OS_LIFECYCLE_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LIFECYCLE_TRY_READ)?;
         destack_os_lifecycle_try_read_replay(context, world, out, handle)
     })
 }
@@ -13560,7 +13620,8 @@ pub unsafe extern "C" fn destack_os_location_last_known(out: *mut LocationSample
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_LOCATION_LAST_KNOWN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_LAST_KNOWN)?;
         destack_os_location_last_known_replay(context, world, out)
     })
 }
@@ -13573,7 +13634,8 @@ pub unsafe extern "C" fn destack_os_location_services_enabled(out: *mut bool) ->
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
         destack_os_location_services_enabled_replay(context, world, out)
     })
 }
@@ -13585,7 +13647,8 @@ pub unsafe extern "C" fn destack_os_location_watch_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
         destack_os_location_watch_close_replay(context, world, handle)
     })
 }
@@ -13601,7 +13664,8 @@ pub unsafe extern "C" fn destack_os_location_watch_open(
         }
         let _ = (&out, &options);
 
-        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_WATCH_OPEN)?;
         destack_os_location_watch_open_replay(context, world, out, options)
     })
 }
@@ -13618,7 +13682,8 @@ pub unsafe extern "C" fn destack_os_location_watch_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_WATCH_READ)?;
         destack_os_location_watch_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13634,7 +13699,8 @@ pub unsafe extern "C" fn destack_os_location_watch_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
         destack_os_location_watch_try_read_replay(context, world, out, handle)
     })
 }
@@ -13651,7 +13717,8 @@ pub unsafe extern "C" fn destack_os_media_delete(
         let _ = (&out, &ids);
 
         {
-            let world = context.check_and_resolve_world(OS_MEDIA_DELETE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_MEDIA_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_media_delete(context, out, ids)
@@ -13677,7 +13744,8 @@ pub unsafe extern "C" fn destack_os_media_import_path(
         let _ = (&out, &path, &kind);
 
         {
-            let world = context.check_and_resolve_world(OS_MEDIA_IMPORT_PATH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_MEDIA_IMPORT_PATH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_media_import_path(context, out, path, kind)
@@ -13704,7 +13772,8 @@ pub unsafe extern "C" fn destack_os_media_list(
         let _ = (&out, &query);
 
         {
-            let world = context.check_and_resolve_world(OS_MEDIA_LIST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_MEDIA_LIST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_media_list(context, out, query)
@@ -13729,7 +13798,8 @@ pub unsafe extern "C" fn destack_os_media_read(
         let _ = (&out, &id);
 
         {
-            let world = context.check_and_resolve_world(OS_MEDIA_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_MEDIA_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_media_read(context, out, id)
@@ -13753,7 +13823,7 @@ pub unsafe extern "C" fn destack_os_mount_add(
     native_call(|context| {
         let _ = (&source, &target, &filesystem, &flags, &data);
 
-        let world = context.check_and_resolve_world(OS_MOUNT_ADD)?;
+        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
         destack_os_mount_add_replay(context, world, source, target, filesystem, flags, data)
     })
 }
@@ -13766,7 +13836,8 @@ pub unsafe extern "C" fn destack_os_mount_list(out: *mut NativeArray<MountEntry>
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_MOUNT_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
         destack_os_mount_list_replay(context, world, out)
     })
 }
@@ -13776,7 +13847,8 @@ pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u64)
     native_call(|context| {
         let _ = (&target, &flags);
 
-        let world = context.check_and_resolve_world(OS_MOUNT_REMOVE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
         destack_os_mount_remove_replay(context, world, target, flags)
     })
 }
@@ -13789,7 +13861,8 @@ pub unsafe extern "C" fn destack_os_network_state(out: *mut NetworkState) -> Run
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_NETWORK_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NETWORK_STATE)?;
         destack_os_network_state_replay(context, world, out)
     })
 }
@@ -13801,7 +13874,8 @@ pub unsafe extern "C" fn destack_os_network_watch_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
         destack_os_network_watch_close_replay(context, world, handle)
     })
 }
@@ -13816,7 +13890,8 @@ pub unsafe extern "C" fn destack_os_network_watch_open(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NETWORK_WATCH_OPEN)?;
         destack_os_network_watch_open_replay(context, world, out)
     })
 }
@@ -13833,7 +13908,8 @@ pub unsafe extern "C" fn destack_os_network_watch_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NETWORK_WATCH_READ)?;
         destack_os_network_watch_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13849,7 +13925,8 @@ pub unsafe extern "C" fn destack_os_network_watch_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
         destack_os_network_watch_try_read_replay(context, world, out, handle)
     })
 }
@@ -13860,7 +13937,8 @@ pub unsafe extern "C" fn destack_os_notification_cancel(id: NativeStringRef) -> 
         let _ = &id;
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_CANCEL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_cancel(context, id)
@@ -13876,7 +13954,8 @@ pub unsafe extern "C" fn destack_os_notification_cancel(id: NativeStringRef) -> 
 #[unsafe(export_name = "destack.os.notification.cancelAll")]
 pub unsafe extern "C" fn destack_os_notification_cancel_all() -> RuntimeStatus {
     native_call(|context| {
-        let world = context.check_and_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
         match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_notification_cancel_all(context)
@@ -13898,7 +13977,8 @@ pub unsafe extern "C" fn destack_os_notification_category_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
         destack_os_notification_category_list_replay(context, world, out)
     })
 }
@@ -13911,7 +13991,8 @@ pub unsafe extern "C" fn destack_os_notification_category_set(
         let _ = &categories;
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_category_set(context, categories)
@@ -13934,7 +14015,8 @@ pub unsafe extern "C" fn destack_os_notification_event_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_event_close(context, handle)
@@ -13959,7 +14041,8 @@ pub unsafe extern "C" fn destack_os_notification_event_open(
         let _ = (&out, &options);
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_event_open(context, out, options)
@@ -13987,7 +14070,8 @@ pub unsafe extern "C" fn destack_os_notification_event_read(
         let _ = (&out, &handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_event_read(
@@ -14016,7 +14100,8 @@ pub unsafe extern "C" fn destack_os_notification_event_try_read(
         let _ = (&out, &handle);
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_event_try_read(context, out, handle)
@@ -14039,7 +14124,8 @@ pub unsafe extern "C" fn destack_os_notification_pending_cancel(
         let _ = &id;
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_pending_cancel(context, id)
@@ -14055,7 +14141,8 @@ pub unsafe extern "C" fn destack_os_notification_pending_cancel(
 #[unsafe(export_name = "destack.os.notification.pendingCancelAll")]
 pub unsafe extern "C" fn destack_os_notification_pending_cancel_all() -> RuntimeStatus {
     native_call(|context| {
-        let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
         match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_notification_pending_cancel_all(context)
@@ -14077,7 +14164,8 @@ pub unsafe extern "C" fn destack_os_notification_pending_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
         destack_os_notification_pending_list_replay(context, world, out)
     })
 }
@@ -14092,7 +14180,8 @@ pub unsafe extern "C" fn destack_os_notification_permission_state(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
         destack_os_notification_permission_state_replay(context, world, out)
     })
 }
@@ -14109,7 +14198,8 @@ pub unsafe extern "C" fn destack_os_notification_post(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_POST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_POST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_post(context, out, request)
@@ -14133,7 +14223,8 @@ pub unsafe extern "C" fn destack_os_notification_request_permission(
         let _ = &out;
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_request_permission(context, out)
@@ -14160,7 +14251,8 @@ pub unsafe extern "C" fn destack_os_notification_schedule(
         let _ = (&out, &request);
 
         {
-            let world = context.check_and_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_notification_schedule(context, out, request)
@@ -14178,7 +14270,8 @@ pub unsafe extern "C" fn destack_os_notification_schedule(
 #[unsafe(export_name = "destack.os.permission.openSettings")]
 pub unsafe extern "C" fn destack_os_permission_open_settings() -> RuntimeStatus {
     native_call(|context| {
-        let world = context.check_and_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
         match world {
             RuntimeWorld::Host => unsafe {
                 platform_native::destack_os_permission_open_settings(context)
@@ -14202,7 +14295,8 @@ pub unsafe extern "C" fn destack_os_permission_request(
         let _ = (&out, &permission);
 
         {
-            let world = context.check_and_resolve_world(OS_PERMISSION_REQUEST)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_permission_request(context, out, permission)
@@ -14229,7 +14323,8 @@ pub unsafe extern "C" fn destack_os_permission_request_many(
         let _ = (&out, &permissions);
 
         {
-            let world = context.check_and_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_os_permission_request_many(context, out, permissions)
@@ -14257,7 +14352,8 @@ pub unsafe extern "C" fn destack_os_permission_state(
         }
         let _ = (&out, &permission);
 
-        let world = context.check_and_resolve_world(OS_PERMISSION_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_PERMISSION_STATE)?;
         destack_os_permission_state_replay(context, world, out, permission)
     })
 }
@@ -14273,7 +14369,8 @@ pub unsafe extern "C" fn destack_os_permission_state_many(
         }
         let _ = (&out, &permissions);
 
-        let world = context.check_and_resolve_world(OS_PERMISSION_STATE_MANY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_PERMISSION_STATE_MANY)?;
         destack_os_permission_state_many_replay(context, world, out, permissions)
     })
 }
@@ -14286,7 +14383,8 @@ pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> Runtime
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(OS_POWER_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_POWER_STATE)?;
         destack_os_power_state_replay(context, world, out)
     })
 }
@@ -14294,7 +14392,8 @@ pub unsafe extern "C" fn destack_os_power_state(out: *mut PowerState) -> Runtime
 #[unsafe(export_name = "destack.os.power.suspend")]
 pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
     native_call(|context| {
-        let world = context.check_and_resolve_world(OS_POWER_SUSPEND)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(OS_POWER_SUSPEND)?;
         match world {
             RuntimeWorld::Host => unsafe { platform_native::destack_os_suspend(context) },
             RuntimeWorld::Simulation => unsafe {
@@ -19843,7 +19942,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_COMPLETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_COMPLETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_complete(
                                 runtime,
@@ -19878,7 +19978,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_background_event_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
                     destack_os_background_event_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -19896,7 +19997,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (options,) = decode_destack_os_background_event_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
                     destack_os_background_event_open_vm_replay(runtime, context, world, options)
                 })
                 .map_err(Into::into)
@@ -19915,7 +20017,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_os_background_event_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_READ)?;
                     destack_os_background_event_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -19936,7 +20039,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_os_background_event_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
                     destack_os_background_event_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -19951,7 +20055,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_LIST)?;
                     destack_os_background_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -19970,7 +20075,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_REGISTER)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_REGISTER)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_register(
                                 runtime, context, options,
@@ -19996,7 +20102,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_STATUS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_BACKGROUND_STATUS)?;
                     destack_os_background_status_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20016,7 +20123,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_trigger_test(
                                 runtime, context, identifier,
@@ -20047,7 +20155,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_UNREGISTER)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_BACKGROUND_UNREGISTER)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_background_unregister(
                                 runtime, context, identifier,
@@ -20077,7 +20186,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_calendar_event_create(
                                 runtime, context, event,
@@ -20107,7 +20217,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_calendar_event_delete(runtime, context, id)
@@ -20137,7 +20248,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_LIST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_LIST)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_calendar_event_list(runtime, context, query)
@@ -20167,7 +20279,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_READ)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_READ)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_calendar_event_read(runtime, context, id)
@@ -20197,7 +20310,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_calendar_event_update(
                                 runtime, context, id, event,
@@ -20224,7 +20338,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CALENDAR_LIST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CALENDAR_LIST)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_calendar_list(runtime, context)
@@ -20249,7 +20364,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_CLEAR)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_CLEAR)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_clipboard_clear(runtime, context)
@@ -20273,7 +20389,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
                     destack_os_clipboard_has_text_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20291,7 +20408,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (format,) = decode_destack_os_clipboard_read_bytes_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
                     destack_os_clipboard_read_bytes_vm_replay(runtime, context, world, format)
                 })
                 .map_err(Into::into)
@@ -20306,7 +20424,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
                     destack_os_clipboard_read_text_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20321,7 +20440,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
                     destack_os_clipboard_sequence_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20341,7 +20461,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_clipboard_write_bytes(
                                 runtime,
@@ -20377,7 +20498,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_clipboard_write_text(runtime, context, text)
@@ -20407,7 +20529,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CONTACT_CREATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CONTACT_CREATE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_contact_create(runtime, context, contact)
@@ -20437,7 +20560,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CONTACT_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CONTACT_DELETE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_contact_delete(runtime, context, id)
@@ -20463,7 +20587,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_CONTACT_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CONTACT_LIST)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_contact_list(runtime, context, query)
@@ -20486,7 +20611,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_CONTACT_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_CONTACT_READ)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_contact_read(runtime, context, id)
@@ -20513,7 +20639,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CONTACT_SEARCH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CONTACT_SEARCH)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_contact_search(
                                 runtime, context, querytext, query,
@@ -20543,7 +20670,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CONTACT_UPDATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CONTACT_UPDATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_contact_update(
                                 runtime, context, id, contact,
@@ -20574,7 +20702,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_authenticate(
                                 runtime, context, options,
@@ -20605,7 +20734,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_CONTAINS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_contains(
                                 runtime,
@@ -20644,7 +20774,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_DELETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_delete(
                                 runtime,
@@ -20682,7 +20813,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_READ)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_READ)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_credentials_read(runtime, context, query)
@@ -20712,7 +20844,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_WRITE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_CREDENTIALS_WRITE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_credentials_write(runtime, context, options)
@@ -20742,7 +20875,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_document_close(runtime, context, handle)
@@ -20772,7 +20906,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_FLUSH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_FLUSH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_document_flush(runtime, context, handle)
@@ -20798,7 +20933,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_document_open(runtime, context, uri, access)
@@ -20823,7 +20959,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_PICK)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_PICK)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_document_pick(runtime, context, options)
@@ -20849,7 +20986,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_DOCUMENT_READ)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_os_document_read(
                             runtime, context, handle, maxbytes, timeoutns,
@@ -20879,7 +21017,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_TRY_READ)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_TRY_READ)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_document_try_read(
                                 runtime, context, handle, maxbytes,
@@ -20910,7 +21049,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_WRITE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_DOCUMENT_WRITE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_document_write(
                                 runtime,
@@ -20944,7 +21084,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_HOST_IDENTITY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_HOST_IDENTITY)?;
                     destack_os_host_identity_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20959,7 +21100,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INFO_BOOT_TIME_UNIX_NS)?;
                     destack_os_info_boot_time_unix_ns_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20974,7 +21116,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INFO_LOAD_AVERAGE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INFO_LOAD_AVERAGE)?;
                     destack_os_info_load_average_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -20989,7 +21132,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INFO_SYSTEM_SNAPSHOT)?;
                     destack_os_info_system_snapshot_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21004,7 +21148,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INFO_UPTIME_NS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INFO_UPTIME_NS)?;
                     destack_os_info_uptime_ns_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21022,7 +21167,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (url,) = decode_destack_os_intent_can_open_url_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
                     destack_os_intent_can_open_url_vm_replay(runtime, context, world, url)
                 })
                 .map_err(Into::into)
@@ -21036,7 +21182,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle,) = decode_destack_os_intent_close_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_INTENT_CLOSE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_INTENT_CLOSE)?;
                 destack_os_intent_close_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -21049,7 +21196,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (options,) = decode_destack_os_intent_open_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_INTENT_OPEN)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_INTENT_OPEN)?;
                 destack_os_intent_open_vm_replay(runtime, context, world, options)
             })
             .map_err(Into::into)
@@ -21067,7 +21215,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_INTENT_OPEN_PATH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_INTENT_OPEN_PATH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_intent_open_path(runtime, context, path)
@@ -21097,7 +21246,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_INTENT_OPEN_URL)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_INTENT_OPEN_URL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_intent_open_url(runtime, context, url)
@@ -21122,7 +21272,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (handle, timeoutns) = decode_destack_os_intent_read_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_INTENT_READ)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_INTENT_READ)?;
                 destack_os_intent_read_vm_replay(runtime, context, world, handle, timeoutns)
             })
             .map_err(Into::into)
@@ -21141,7 +21292,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_INTENT_SHARE_PATHS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_INTENT_SHARE_PATHS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_paths(
                                 runtime, context, paths, mimetype,
@@ -21171,7 +21323,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_INTENT_SHARE_TEXT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_INTENT_SHARE_TEXT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_intent_share_text(
                                 runtime, context, text, mimetype,
@@ -21200,7 +21353,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_intent_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_INTENT_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_INTENT_TRY_READ)?;
                     destack_os_intent_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21218,7 +21372,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_lifecycle_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_CLOSE)?;
                     destack_os_lifecycle_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21233,7 +21388,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_OPEN)?;
                     destack_os_lifecycle_open_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21251,7 +21407,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle, timeoutns) = decode_destack_os_lifecycle_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_READ)?;
                     destack_os_lifecycle_read_vm_replay(runtime, context, world, handle, timeoutns)
                 })
                 .map_err(Into::into)
@@ -21266,7 +21423,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_STATE)?;
                     destack_os_lifecycle_state_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21284,7 +21442,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_lifecycle_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LIFECYCLE_TRY_READ)?;
                     destack_os_lifecycle_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21299,7 +21458,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_LAST_KNOWN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_LAST_KNOWN)?;
                     destack_os_location_last_known_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21314,7 +21474,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
                     destack_os_location_services_enabled_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21332,7 +21493,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_location_watch_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
                     destack_os_location_watch_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21350,7 +21512,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (options,) = decode_destack_os_location_watch_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_OPEN)?;
                     destack_os_location_watch_open_vm_replay(runtime, context, world, options)
                 })
                 .map_err(Into::into)
@@ -21369,7 +21532,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_os_location_watch_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_READ)?;
                     destack_os_location_watch_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -21389,7 +21553,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_location_watch_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
                     destack_os_location_watch_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21404,7 +21569,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_MEDIA_DELETE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_MEDIA_DELETE)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_media_delete(runtime, context, ids)
@@ -21431,7 +21597,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_MEDIA_IMPORT_PATH)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_MEDIA_IMPORT_PATH)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_media_import_path(
                                 runtime, context, path, kind,
@@ -21457,7 +21624,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_MEDIA_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_MEDIA_LIST)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_media_list(runtime, context, query)
@@ -21480,7 +21648,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(OS_MEDIA_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_MEDIA_READ)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_os_media_read(runtime, context, id)
@@ -21503,7 +21672,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     decode_destack_os_mount_add_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_MOUNT_ADD)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_MOUNT_ADD)?;
                 destack_os_mount_add_vm_replay(
                     runtime, context, world, source, target, filesystem, flags, data,
                 )
@@ -21515,7 +21685,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(registry, isolate, OS_MOUNT_LIST, move |context, _args| {
             with_binding_call_context(|runtime| {
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_MOUNT_LIST)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_MOUNT_LIST)?;
                 destack_os_mount_list_vm_replay(runtime, context, world)
             })
             .map_err(Into::into)
@@ -21528,7 +21699,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 let (target, flags) = decode_destack_os_mount_remove_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_MOUNT_REMOVE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_MOUNT_REMOVE)?;
                 destack_os_mount_remove_vm_replay(runtime, context, world, target, flags)
             })
             .map_err(Into::into)
@@ -21542,7 +21714,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NETWORK_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NETWORK_STATE)?;
                     destack_os_network_state_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21560,7 +21733,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_network_watch_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
                     destack_os_network_watch_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21575,7 +21749,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_OPEN)?;
                     destack_os_network_watch_open_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21594,7 +21769,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_os_network_watch_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_READ)?;
                     destack_os_network_watch_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -21614,7 +21790,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (handle,) = decode_destack_os_network_watch_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
                     destack_os_network_watch_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21633,7 +21810,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CANCEL)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_cancel(runtime, context, id)
@@ -21660,7 +21838,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_cancel_all(runtime, context)
@@ -21686,7 +21865,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
                     destack_os_notification_category_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21706,8 +21886,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_category_set(
@@ -21739,7 +21919,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_close(
                                 runtime, context, handle,
@@ -21769,7 +21950,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_open(
                                 runtime, context, options,
@@ -21800,7 +21982,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_event_read(
                                 runtime, context, handle, timeoutns,
@@ -21831,8 +22014,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_event_try_read(
@@ -21864,8 +22047,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_pending_cancel(
@@ -21894,8 +22077,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_pending_cancel_all(
@@ -21923,7 +22106,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
                     destack_os_notification_pending_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21938,8 +22122,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
                     destack_os_notification_permission_state_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21958,7 +22142,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_POST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_POST)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_post(runtime, context, request)
@@ -21985,8 +22170,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_notification_request_permission(
@@ -22018,7 +22203,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_notification_schedule(
                                 runtime, context, request,
@@ -22045,7 +22231,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_os_permission_open_settings(runtime, context)
@@ -22075,7 +22262,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_PERMISSION_REQUEST)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_PERMISSION_REQUEST)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_permission_request(
                                 runtime, context, permission,
@@ -22106,7 +22294,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_permission_request_many(
                                 runtime,
@@ -22139,7 +22328,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     let (permission,) = decode_destack_os_permission_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_PERMISSION_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_PERMISSION_STATE)?;
                     destack_os_permission_state_vm_replay(runtime, context, world, permission)
                 })
                 .map_err(Into::into)
@@ -22158,7 +22348,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         decode_destack_os_permission_state_many_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(OS_PERMISSION_STATE_MANY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(OS_PERMISSION_STATE_MANY)?;
                     destack_os_permission_state_many_vm_replay(runtime, context, world, permissions)
                 })
                 .map_err(Into::into)
@@ -22169,7 +22360,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         binding!(registry, isolate, OS_POWER_STATE, move |context, _args| {
             with_binding_call_context(|runtime| {
                 // execute binding
-                let world = runtime.check_and_resolve_world(OS_POWER_STATE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(OS_POWER_STATE)?;
                 destack_os_power_state_vm_replay(runtime, context, world)
             })
             .map_err(Into::into)
@@ -22184,7 +22376,8 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(OS_POWER_SUSPEND)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(OS_POWER_SUSPEND)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_suspend(runtime, context),
                             RuntimeWorld::Simulation => {

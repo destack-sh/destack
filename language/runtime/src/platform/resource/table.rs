@@ -5,13 +5,15 @@ use std::fmt;
 use std::os::unix::io::RawFd;
 #[cfg(windows)]
 use std::os::windows::io::{RawHandle, RawSocket};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{ResourceId, ResourceSnapshotAdapter, ResourceSnapshotPolicy};
-use crate::runtime::{HookState, with_current_binding_call_context};
+use crate::runtime::bindings::BindingEngine;
+use crate::runtime::{HookState, Hooks};
 
 /// Resource classification for platform handles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -332,34 +334,34 @@ pub struct ResourceTable {
     next_id: AtomicU64,
     /// Stored resource entries.
     entries: RwLock<HashMap<ResourceId, ResourceEntry>>,
+    /// Runtime hooks sink for non-binding resource mutations.
+    hooks: RwLock<Option<Arc<Hooks>>>,
 }
 
 impl ResourceTable {
+    /// Configure one runtime hooks sink for resource lifecycle hooks.
+    pub fn set_hooks(&self, hooks: Arc<Hooks>) {
+        *self.hooks.write() = Some(hooks);
+    }
+
     /// Allocate and insert a resource entry.
-    pub fn insert(&self, entry: ResourceEntry) -> ResourceId {
+    pub fn insert(&self, entry: ResourceEntry, engine: Option<BindingEngine>) -> ResourceId {
         let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
         self.entries.write().insert(id, entry);
-        let _ = with_current_binding_call_context(|context| {
-            context.hooks().on_resource_attach(HookState {
-                engine: Some(context.engine()),
-                resource_id: Some(id),
-                ..HookState::empty()
-            })
-        });
+        self.emit_resource_attach(id, engine);
         id
     }
 
     /// Insert a resource entry with an explicit id.
-    pub fn insert_with_id(&self, resource_id: ResourceId, entry: ResourceEntry) {
+    pub fn insert_with_id(
+        &self,
+        resource_id: ResourceId,
+        entry: ResourceEntry,
+        engine: Option<BindingEngine>,
+    ) {
         self.entries.write().insert(resource_id, entry);
         self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
-        let _ = with_current_binding_call_context(|context| {
-            context.hooks().on_resource_attach(HookState {
-                engine: Some(context.engine()),
-                resource_id: Some(resource_id),
-                ..HookState::empty()
-            })
-        });
+        self.emit_resource_attach(resource_id, engine);
     }
 
     /// Return true if the table contains the resource id.
@@ -390,24 +392,48 @@ impl ResourceTable {
     }
 
     /// Remove a resource entry from the table.
-    pub fn remove(&self, resource_id: ResourceId) -> Option<ResourceEntry> {
+    pub fn remove(
+        &self,
+        resource_id: ResourceId,
+        engine: Option<BindingEngine>,
+    ) -> Option<ResourceEntry> {
         let removed = self.entries.write().remove(&resource_id);
         if removed.is_some() {
-            let _ = with_current_binding_call_context(|context| {
-                context.hooks().on_resource_detach(HookState {
-                    engine: Some(context.engine()),
-                    resource_id: Some(resource_id),
-                    ..HookState::empty()
-                })
-            });
+            self.emit_resource_detach(resource_id, engine);
         }
 
         removed
     }
 
+    /// Emit one resource-attach hook through the shared runtime hook sink.
+    fn emit_resource_attach(&self, resource_id: ResourceId, engine: Option<BindingEngine>) {
+        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
+            hooks.on_resource_attach(HookState {
+                engine,
+                resource_id: Some(resource_id),
+                ..HookState::empty()
+            });
+        }
+    }
+
+    /// Emit one resource-detach hook through the shared runtime hook sink.
+    fn emit_resource_detach(&self, resource_id: ResourceId, engine: Option<BindingEngine>) {
+        if let Some(hooks) = self.hooks.read().as_ref().cloned() {
+            hooks.on_resource_detach(HookState {
+                engine,
+                resource_id: Some(resource_id),
+                ..HookState::empty()
+            });
+        }
+    }
+
     /// Remove a resource entry and run its finalizer.
-    pub fn remove_and_finalize(&self, resource_id: ResourceId) -> bool {
-        let Some(entry) = self.remove(resource_id) else {
+    pub fn remove_and_finalize(
+        &self,
+        resource_id: ResourceId,
+        engine: Option<BindingEngine>,
+    ) -> bool {
+        let Some(entry) = self.remove(resource_id, engine) else {
             return false;
         };
         entry.finalize(resource_id);
@@ -420,6 +446,7 @@ impl Default for ResourceTable {
         Self {
             next_id: AtomicU64::new(1),
             entries: RwLock::new(HashMap::new()),
+            hooks: RwLock::new(None),
         }
     }
 }
@@ -443,17 +470,17 @@ mod tests {
 
         // insert an entry with a finalizer
         let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
-        let resource_id = table.insert(entry);
+        let resource_id = table.insert(entry, None);
         assert!(table.contains(resource_id));
 
         // remove and finalize the entry
-        let removed = table.remove_and_finalize(resource_id);
+        let removed = table.remove_and_finalize(resource_id, None);
         assert!(removed);
         assert_eq!(hits.load(Ordering::SeqCst), 1);
         assert!(!table.contains(resource_id));
 
         // removing again should return false
-        let removed_again = table.remove_and_finalize(resource_id);
+        let removed_again = table.remove_and_finalize(resource_id, None);
         assert!(!removed_again);
     }
 

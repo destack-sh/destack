@@ -147,7 +147,7 @@ struct HostStoreHandleCache {
 
 /// Return one stable cache key for the active runtime state.
 fn runtime_cache_key(context: &BindingCallContext) -> usize {
-    context.runtime().agent_id as usize
+    context.runtime() as *const _ as usize
 }
 
 /// Acquire one host-store cache guard and recover from poisoning.
@@ -1028,7 +1028,11 @@ pub(crate) fn store_close(
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
     // remove store resource entry
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.store.close",
             "crypto store",
@@ -1359,7 +1363,10 @@ fn insert_store_resource(
     let entry = ResourceEntry::new(CRYPTO_STORE_RESOURCE_KIND)
         .with_label(CRYPTO_STORE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::CryptoStoreHandle(resource_id)
 }

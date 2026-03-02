@@ -18,6 +18,7 @@ use crate::platform::process::{
     SignalFdFlags, SignalMaskHow, SyscallFilterFlags, UserId,
 };
 use crate::platform::{fs, resource};
+
 /// Send a signal to a target process.
 ///
 /// Deliver one signal value to the target process according to host signal semantics.
@@ -203,7 +204,10 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
         .with_payload(core_process::SignalSubscription {
             signals: vec![signal],
         });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::SignalHandle(resource_id);
@@ -303,7 +307,10 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 ) -> RuntimeResult<()> {
     let _ = core_process::resolve_signal_subscription(context, handle)?;
 
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

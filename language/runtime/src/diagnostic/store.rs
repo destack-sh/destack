@@ -36,7 +36,7 @@ impl RuntimeErrorId {
 
 /// Shared storage state for runtime error entries.
 #[derive(Debug, Default)]
-struct RuntimeErrorStoreState {
+struct AgentErrorStoreState {
     /// Recorded runtime errors for diagnostic lookup.
     entries: Vec<Option<Box<RuntimeError>>>,
     /// Generation counters for each slot.
@@ -47,12 +47,12 @@ struct RuntimeErrorStoreState {
 
 /// Storage for runtime errors captured across the platform boundary.
 #[derive(Debug, Default)]
-pub struct RuntimeErrorStore {
+pub struct AgentErrorStore {
     /// Recorded runtime errors for diagnostic lookup.
-    state: Mutex<RuntimeErrorStoreState>,
+    state: Mutex<AgentErrorStoreState>,
 }
 
-impl RuntimeErrorStore {
+impl AgentErrorStore {
     /// Record a runtime error and return its identifier.
     pub fn record(&self, error: Box<RuntimeError>) -> RuntimeErrorId {
         // lock the store for mutation

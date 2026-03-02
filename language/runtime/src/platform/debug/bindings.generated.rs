@@ -1304,7 +1304,7 @@ fn destack_debug_trace_stop_replay(
 #[unsafe(export_name = "destack.debug.core.breakNow")]
 pub unsafe extern "C" fn destack_debug_core_break_now() -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(DEBUG_CORE_BREAK_NOW)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_CORE_BREAK_NOW)?;
         destack_debug_core_break_now_replay(context)
     })
 }
@@ -1314,7 +1314,7 @@ pub unsafe extern "C" fn destack_debug_core_mark(label: NativeStringRef) -> Runt
     native_call(|context| {
         let _ = &label;
 
-        context.check_policy(DEBUG_CORE_MARK)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_CORE_MARK)?;
         destack_debug_core_mark_replay(context, label)
     })
 }
@@ -1330,7 +1330,7 @@ pub unsafe extern "C" fn destack_debug_inspector_endpoint(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(DEBUG_INSPECTOR_ENDPOINT)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_INSPECTOR_ENDPOINT)?;
         destack_debug_inspector_endpoint_replay(context, out, handle)
     })
 }
@@ -1347,7 +1347,7 @@ pub unsafe extern "C" fn destack_debug_inspector_start(
         }
         let _ = (&out, &host, &port);
 
-        context.check_policy(DEBUG_INSPECTOR_START)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_INSPECTOR_START)?;
         destack_debug_inspector_start_replay(context, out, host, port)
     })
 }
@@ -1359,7 +1359,7 @@ pub unsafe extern "C" fn destack_debug_inspector_stop(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(DEBUG_INSPECTOR_STOP)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_INSPECTOR_STOP)?;
         destack_debug_inspector_stop_replay(context, handle)
     })
 }
@@ -1375,7 +1375,7 @@ pub unsafe extern "C" fn destack_debug_profile_snapshot(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(DEBUG_PROFILE_SNAPSHOT)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_PROFILE_SNAPSHOT)?;
         destack_debug_profile_snapshot_replay(context, out, handle)
     })
 }
@@ -1391,7 +1391,7 @@ pub unsafe extern "C" fn destack_debug_profile_start(
         }
         let _ = (&out, &kind);
 
-        context.check_policy(DEBUG_PROFILE_START)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_PROFILE_START)?;
         destack_debug_profile_start_replay(context, out, kind)
     })
 }
@@ -1403,7 +1403,7 @@ pub unsafe extern "C" fn destack_debug_profile_stop(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(DEBUG_PROFILE_STOP)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_PROFILE_STOP)?;
         destack_debug_profile_stop_replay(context, handle)
     })
 }
@@ -1417,7 +1417,7 @@ pub unsafe extern "C" fn destack_debug_trace_emit(
     native_call(|context| {
         let _ = (&category, &name, &payloadjson);
 
-        context.check_policy(DEBUG_TRACE_EMIT)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_TRACE_EMIT)?;
         destack_debug_trace_emit_replay(context, category, name, payloadjson)
     })
 }
@@ -1434,7 +1434,7 @@ pub unsafe extern "C" fn destack_debug_trace_start(
         }
         let _ = (&out, &level, &destination);
 
-        context.check_policy(DEBUG_TRACE_START)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_TRACE_START)?;
         destack_debug_trace_start_replay(context, out, level, destination)
     })
 }
@@ -1444,7 +1444,7 @@ pub unsafe extern "C" fn destack_debug_trace_stop(handle: resource::TraceHandle)
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(DEBUG_TRACE_STOP)?;
+        let _binding_hook_guard = context.on_before_binding(DEBUG_TRACE_STOP)?;
         destack_debug_trace_stop_replay(context, handle)
     })
 }
@@ -1993,7 +1993,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(DEBUG_CORE_BREAK_NOW)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_CORE_BREAK_NOW)?;
                     destack_debug_core_break_now_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
@@ -2007,7 +2007,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (label,) = decode_destack_debug_core_mark_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(DEBUG_CORE_MARK)?;
+                let _binding_hook_guard = runtime.on_before_binding(DEBUG_CORE_MARK)?;
                 destack_debug_core_mark_vm_replay(runtime, context, label)
             })
             .map_err(Into::into)
@@ -2024,7 +2024,8 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_debug_inspector_endpoint_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_INSPECTOR_ENDPOINT)?;
+                    let _binding_hook_guard =
+                        runtime.on_before_binding(DEBUG_INSPECTOR_ENDPOINT)?;
                     destack_debug_inspector_endpoint_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -2042,7 +2043,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (host, port) = decode_destack_debug_inspector_start_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_INSPECTOR_START)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_INSPECTOR_START)?;
                     destack_debug_inspector_start_vm_replay(runtime, context, host, port)
                 })
                 .map_err(Into::into)
@@ -2060,7 +2061,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_debug_inspector_stop_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_INSPECTOR_STOP)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_INSPECTOR_STOP)?;
                     destack_debug_inspector_stop_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -2078,7 +2079,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_debug_profile_snapshot_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_PROFILE_SNAPSHOT)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_SNAPSHOT)?;
                     destack_debug_profile_snapshot_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -2096,7 +2097,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (kind,) = decode_destack_debug_profile_start_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_PROFILE_START)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_START)?;
                     destack_debug_profile_start_vm_replay(runtime, context, kind)
                 })
                 .map_err(Into::into)
@@ -2114,7 +2115,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_debug_profile_stop_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_PROFILE_STOP)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_PROFILE_STOP)?;
                     destack_debug_profile_stop_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -2129,7 +2130,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     decode_destack_debug_trace_emit_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(DEBUG_TRACE_EMIT)?;
+                let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_EMIT)?;
                 destack_debug_trace_emit_vm_replay(runtime, context, category, name, payloadjson)
             })
             .map_err(Into::into)
@@ -2147,7 +2148,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_debug_trace_start_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(DEBUG_TRACE_START)?;
+                    let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_START)?;
                     destack_debug_trace_start_vm_replay(runtime, context, level, destination)
                 })
                 .map_err(Into::into)
@@ -2161,7 +2162,7 @@ pub fn register_debug_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_debug_trace_stop_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(DEBUG_TRACE_STOP)?;
+                let _binding_hook_guard = runtime.on_before_binding(DEBUG_TRACE_STOP)?;
                 destack_debug_trace_stop_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)

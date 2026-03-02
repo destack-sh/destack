@@ -121,7 +121,10 @@ fn register_stdio_tty(
         .with_label(label)
         .with_handle(duplicated as _)
         .with_finalizer(WindowsHandleFinalizer { handle: duplicated });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));

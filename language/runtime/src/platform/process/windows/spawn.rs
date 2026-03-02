@@ -498,7 +498,10 @@ fn spawn_process(
         .with_payload(core_process::SpawnedProcess { pid: process_id })
         .with_handle(process_handle)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle as HANDLE));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);

@@ -150,7 +150,10 @@ pub(crate) fn cipher_open(
         let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
             .with_label(CRYPTO_CIPHER_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
-        let resource_id = context.runtime().resources.insert(entry);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
 
         return Ok(resource::CryptoCipherHandle(resource_id));
     }
@@ -169,7 +172,10 @@ pub(crate) fn cipher_open(
     let entry = ResourceEntry::new(CRYPTO_CIPHER_RESOURCE_KIND)
         .with_label(CRYPTO_CIPHER_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     Ok(resource::CryptoCipherHandle(resource_id))
 }
@@ -421,7 +427,11 @@ pub(crate) fn cipher_close(
     handle: resource::CryptoCipherHandle,
 ) -> RuntimeResult<()> {
     // remove cipher resource entry
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.cipher.close",
             "crypto cipher",

@@ -51,7 +51,11 @@ pub(crate) unsafe fn destack_fs_close(
     }
 
     // remove the resource and close the descriptor
-    if !context.runtime().resources.remove_and_finalize(handle.0) {
+    if !context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()))
+    {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown file handle",
@@ -98,7 +102,11 @@ pub(crate) unsafe fn destack_fs_closedir(
     }
 
     // remove the resource entry
-    if !context.runtime().resources.remove_and_finalize(handle.0) {
+    if !context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()))
+    {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown directory handle",
@@ -436,7 +444,10 @@ pub(crate) unsafe fn destack_fs_dup(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -480,13 +491,20 @@ pub(crate) unsafe fn destack_fs_dup2(
     }
 
     // replace the target resource entry
-    if let Some(entry) = context.runtime().resources.remove(target.0) {
+    if let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(target.0, Some(context.engine()))
+    {
         entry.finalize(target.0);
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    context.runtime().resources.insert_with_id(target.0, entry);
+    context
+        .runtime()
+        .resources
+        .insert_with_id(target.0, entry, Some(context.engine()));
     unsafe {
         *out = target;
     }
@@ -542,13 +560,20 @@ pub(crate) unsafe fn destack_fs_dup3(
     }
 
     // replace the target resource entry
-    if let Some(entry) = context.runtime().resources.remove(target.0) {
+    if let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(target.0, Some(context.engine()))
+    {
         entry.finalize(target.0);
     }
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(dup_fd)
         .with_finalizer(FdFinalizer { fd: dup_fd });
-    context.runtime().resources.insert_with_id(target.0, entry);
+    context
+        .runtime()
+        .resources
+        .insert_with_id(target.0, entry, Some(context.engine()));
     unsafe {
         *out = target;
     }
@@ -627,7 +652,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
         let resource = ResourceEntry::new(ResourceKind::File)
             .with_fd(file_fd)
             .with_finalizer(FdFinalizer { fd: file_fd });
-        let resource_id = context.runtime().resources.insert(resource);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(resource, Some(context.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }

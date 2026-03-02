@@ -167,7 +167,10 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
         .with_label(label)
         .with_payload(Arc::new(resource));
 
-    context.runtime().resources.insert(entry)
+    context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()))
 }
 
 /// Resolve one shared resource payload from the runtime table.
@@ -197,7 +200,11 @@ pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
     field: &str,
     kind: &str,
 ) -> RuntimeResult<Arc<T>> {
-    let Some(entry) = context.runtime().resources.remove(handle) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle, Some(context.engine()))
+    else {
         return Err(invalid_handle_error(field, kind));
     };
 

@@ -583,7 +583,6 @@ impl<'call> FsHarnessContext<'call> {
         let error = self
             .runtime
             .agent
-            .state
             .errors
             .take(RuntimeErrorId::from_raw(status.error_id))
             .unwrap_or_else(|| {

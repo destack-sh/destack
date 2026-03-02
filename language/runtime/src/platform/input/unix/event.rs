@@ -786,7 +786,10 @@ pub(crate) unsafe fn destack_input_monitor_close(
     validate_monitor_handle(context, handle, "destack.input.event.monitorClose")?;
 
     // remove and finalize monitor resource
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(monitor_not_found(
             "destack.input.event.monitorClose",
@@ -878,7 +881,12 @@ pub(crate) unsafe fn destack_input_monitor_open(
     } else {
         entry
     };
-    let handle = resource::InputMonitorHandle(context.runtime().resources.insert(entry));
+    let handle = resource::InputMonitorHandle(
+        context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine())),
+    );
 
     // write monitor handle to output
     unsafe {

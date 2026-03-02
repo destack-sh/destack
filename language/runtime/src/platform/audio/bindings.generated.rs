@@ -11984,7 +11984,8 @@ pub unsafe extern "C" fn destack_audio_backend_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(AUDIO_BACKEND_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_BACKEND_LIST)?;
         destack_audio_backend_list_replay(context, world, out)
     })
 }
@@ -12000,7 +12001,8 @@ pub unsafe extern "C" fn destack_audio_clock_now(
         }
         let _ = (&out, &domain);
 
-        let world = context.check_and_resolve_world(AUDIO_CLOCK_NOW)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_CLOCK_NOW)?;
         destack_audio_clock_now_replay(context, world, out, domain)
     })
 }
@@ -12017,7 +12019,8 @@ pub unsafe extern "C" fn destack_audio_clock_stream(
         }
         let _ = (&out, &handle, &domain);
 
-        let world = context.check_and_resolve_world(AUDIO_CLOCK_STREAM)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_CLOCK_STREAM)?;
         destack_audio_clock_stream_replay(context, world, out, handle, domain)
     })
 }
@@ -12029,7 +12032,8 @@ pub unsafe extern "C" fn destack_audio_device_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_CLOSE)?;
         destack_audio_device_close_replay(context, world, handle)
     })
 }
@@ -12047,7 +12051,8 @@ pub unsafe extern "C" fn destack_audio_device_default(
         }
         let _ = (&out, &direction, &backend, &backendpolicy);
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_DEFAULT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_DEFAULT)?;
         destack_audio_device_default_replay(context, world, out, direction, backend, backendpolicy)
     })
 }
@@ -12063,7 +12068,8 @@ pub unsafe extern "C" fn destack_audio_device_descriptor(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
         destack_audio_device_descriptor_replay(context, world, out, handle)
     })
 }
@@ -12079,7 +12085,8 @@ pub unsafe extern "C" fn destack_audio_device_list(
         }
         let _ = (&out, &request);
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_LIST)?;
         destack_audio_device_list_replay(context, world, out, request)
     })
 }
@@ -12096,7 +12103,8 @@ pub unsafe extern "C" fn destack_audio_device_open(
         }
         let _ = (&out, &id, &options);
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_OPEN)?;
         destack_audio_device_open_replay(context, world, out, id, options)
     })
 }
@@ -12109,7 +12117,8 @@ pub unsafe extern "C" fn destack_audio_device_rescan(
     native_call(|context| {
         let _ = (&backend, &backendpolicy);
 
-        let world = context.check_and_resolve_world(AUDIO_DEVICE_RESCAN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_DEVICE_RESCAN)?;
         destack_audio_device_rescan_replay(context, world, backend, backendpolicy)
     })
 }
@@ -12121,7 +12130,8 @@ pub unsafe extern "C" fn destack_audio_event_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_CLOSE)?;
         destack_audio_event_close_replay(context, world, handle)
     })
 }
@@ -12137,7 +12147,8 @@ pub unsafe extern "C" fn destack_audio_event_open(
         }
         let _ = (&out, &options);
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_OPEN)?;
         destack_audio_event_open_replay(context, world, out, options)
     })
 }
@@ -12154,7 +12165,8 @@ pub unsafe extern "C" fn destack_audio_event_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_READ)?;
         destack_audio_event_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -12172,7 +12184,8 @@ pub unsafe extern "C" fn destack_audio_event_read_batch(
         }
         let _ = (&out, &handle, &maxevents, &timeoutns);
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_READ_BATCH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_READ_BATCH)?;
         destack_audio_event_read_batch_replay(context, world, out, handle, maxevents, timeoutns)
     })
 }
@@ -12188,7 +12201,8 @@ pub unsafe extern "C" fn destack_audio_event_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ)?;
         destack_audio_event_try_read_replay(context, world, out, handle)
     })
 }
@@ -12205,7 +12219,8 @@ pub unsafe extern "C" fn destack_audio_event_try_read_batch(
         }
         let _ = (&out, &handle, &maxevents);
 
-        let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
         destack_audio_event_try_read_batch_replay(context, world, out, handle, maxevents)
     })
 }
@@ -12217,7 +12232,8 @@ pub unsafe extern "C" fn destack_audio_midi_flush(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_FLUSH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_FLUSH)?;
         destack_audio_midi_flush_replay(context, world, handle)
     })
 }
@@ -12229,7 +12245,8 @@ pub unsafe extern "C" fn destack_audio_midi_port_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
         destack_audio_midi_port_close_replay(context, world, handle)
     })
 }
@@ -12245,7 +12262,8 @@ pub unsafe extern "C" fn destack_audio_midi_port_list(
         }
         let _ = (&out, &direction);
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_PORT_LIST)?;
         destack_audio_midi_port_list_replay(context, world, out, direction)
     })
 }
@@ -12262,7 +12280,8 @@ pub unsafe extern "C" fn destack_audio_midi_port_open(
         }
         let _ = (&out, &id, &direction);
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
         destack_audio_midi_port_open_replay(context, world, out, id, direction)
     })
 }
@@ -12280,7 +12299,8 @@ pub unsafe extern "C" fn destack_audio_midi_read(
         }
         let _ = (&out, &handle, &maxmessages, &timeoutns);
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_READ)?;
         destack_audio_midi_read_replay(context, world, out, handle, maxmessages, timeoutns)
     })
 }
@@ -12297,7 +12317,8 @@ pub unsafe extern "C" fn destack_audio_midi_try_read(
         }
         let _ = (&out, &handle, &maxmessages);
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_TRY_READ)?;
         destack_audio_midi_try_read_replay(context, world, out, handle, maxmessages)
     })
 }
@@ -12314,7 +12335,8 @@ pub unsafe extern "C" fn destack_audio_midi_write(
         }
         let _ = (&out, &handle, &messages);
 
-        let world = context.check_and_resolve_world(AUDIO_MIDI_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_MIDI_WRITE)?;
         destack_audio_midi_write_replay(context, world, out, handle, messages)
     })
 }
@@ -12326,7 +12348,8 @@ pub unsafe extern "C" fn destack_audio_stream_abort(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_ABORT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_ABORT)?;
         destack_audio_stream_abort_replay(context, world, handle)
     })
 }
@@ -12342,7 +12365,8 @@ pub unsafe extern "C" fn destack_audio_stream_availability(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
         destack_audio_stream_availability_replay(context, world, out, handle)
     })
 }
@@ -12354,7 +12378,8 @@ pub unsafe extern "C" fn destack_audio_stream_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_CLOSE)?;
         destack_audio_stream_close_replay(context, world, handle)
     })
 }
@@ -12370,7 +12395,8 @@ pub unsafe extern "C" fn destack_audio_stream_descriptor(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
         destack_audio_stream_descriptor_replay(context, world, out, handle)
     })
 }
@@ -12383,7 +12409,8 @@ pub unsafe extern "C" fn destack_audio_stream_drain(
     native_call(|context| {
         let _ = (&handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_DRAIN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_DRAIN)?;
         destack_audio_stream_drain_replay(context, world, handle, timeoutns)
     })
 }
@@ -12395,7 +12422,8 @@ pub unsafe extern "C" fn destack_audio_stream_flush(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_FLUSH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_FLUSH)?;
         destack_audio_stream_flush_replay(context, world, handle)
     })
 }
@@ -12413,7 +12441,8 @@ pub unsafe extern "C" fn destack_audio_stream_open(
         }
         let _ = (&out, &device, &config, &options);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_OPEN)?;
         destack_audio_stream_open_replay(context, world, out, device, config, options)
     })
 }
@@ -12426,7 +12455,8 @@ pub unsafe extern "C" fn destack_audio_stream_pause(
     native_call(|context| {
         let _ = (&handle, &pause);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_PAUSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_PAUSE)?;
         destack_audio_stream_pause_replay(context, world, handle, pause)
     })
 }
@@ -12443,7 +12473,8 @@ pub unsafe extern "C" fn destack_audio_stream_read(
         }
         let _ = (&out, &handle, &maxbytes);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_READ)?;
         destack_audio_stream_read_replay(context, world, out, handle, maxbytes)
     })
 }
@@ -12460,7 +12491,8 @@ pub unsafe extern "C" fn destack_audio_stream_readv(
         }
         let _ = (&out, &handle, &buffers);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_READV)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_READV)?;
         destack_audio_stream_readv_replay(context, world, out, handle, buffers)
     })
 }
@@ -12473,7 +12505,8 @@ pub unsafe extern "C" fn destack_audio_stream_set_mute(
     native_call(|context| {
         let _ = (&handle, &muted);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_SET_MUTE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_SET_MUTE)?;
         destack_audio_stream_set_mute_replay(context, world, handle, muted)
     })
 }
@@ -12486,7 +12519,8 @@ pub unsafe extern "C" fn destack_audio_stream_set_name(
     native_call(|context| {
         let _ = (&handle, &name);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_SET_NAME)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_SET_NAME)?;
         destack_audio_stream_set_name_replay(context, world, handle, name)
     })
 }
@@ -12499,7 +12533,8 @@ pub unsafe extern "C" fn destack_audio_stream_set_volume(
     native_call(|context| {
         let _ = (&handle, &lineargain);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
         destack_audio_stream_set_volume_replay(context, world, handle, lineargain)
     })
 }
@@ -12511,7 +12546,8 @@ pub unsafe extern "C" fn destack_audio_stream_start(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_START)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_START)?;
         destack_audio_stream_start_replay(context, world, handle)
     })
 }
@@ -12527,7 +12563,8 @@ pub unsafe extern "C" fn destack_audio_stream_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_STATE)?;
         destack_audio_stream_state_replay(context, world, out, handle)
     })
 }
@@ -12539,7 +12576,8 @@ pub unsafe extern "C" fn destack_audio_stream_stop(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_STOP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_STOP)?;
         destack_audio_stream_stop_replay(context, world, handle)
     })
 }
@@ -12557,7 +12595,8 @@ pub unsafe extern "C" fn destack_audio_stream_support(
         }
         let _ = (&out, &device, &config, &options);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_SUPPORT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_SUPPORT)?;
         destack_audio_stream_support_replay(context, world, out, device, config, options)
     })
 }
@@ -12573,7 +12612,8 @@ pub unsafe extern "C" fn destack_audio_stream_timing(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_TIMING)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_TIMING)?;
         destack_audio_stream_timing_replay(context, world, out, handle)
     })
 }
@@ -12590,7 +12630,8 @@ pub unsafe extern "C" fn destack_audio_stream_try_read(
         }
         let _ = (&out, &handle, &maxbytes);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READ)?;
         destack_audio_stream_try_read_replay(context, world, out, handle, maxbytes)
     })
 }
@@ -12607,7 +12648,8 @@ pub unsafe extern "C" fn destack_audio_stream_try_readv(
         }
         let _ = (&out, &handle, &buffers);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_READV)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READV)?;
         destack_audio_stream_try_readv_replay(context, world, out, handle, buffers)
     })
 }
@@ -12624,7 +12666,8 @@ pub unsafe extern "C" fn destack_audio_stream_try_write(
         }
         let _ = (&out, &handle, &data);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
         destack_audio_stream_try_write_replay(context, world, out, handle, data)
     })
 }
@@ -12641,7 +12684,8 @@ pub unsafe extern "C" fn destack_audio_stream_try_writev(
         }
         let _ = (&out, &handle, &buffers);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
         destack_audio_stream_try_writev_replay(context, world, out, handle, buffers)
     })
 }
@@ -12658,7 +12702,8 @@ pub unsafe extern "C" fn destack_audio_stream_write(
         }
         let _ = (&out, &handle, &data);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_WRITE)?;
         destack_audio_stream_write_replay(context, world, out, handle, data)
     })
 }
@@ -12676,7 +12721,8 @@ pub unsafe extern "C" fn destack_audio_stream_write_at(
         }
         let _ = (&out, &handle, &data, &presentationtimens);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_WRITE_AT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_AT)?;
         destack_audio_stream_write_at_replay(context, world, out, handle, data, presentationtimens)
     })
 }
@@ -12694,7 +12740,8 @@ pub unsafe extern "C" fn destack_audio_stream_write_atv(
         }
         let _ = (&out, &handle, &buffers, &presentationtimens);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
         destack_audio_stream_write_atv_replay(
             context,
             world,
@@ -12718,7 +12765,8 @@ pub unsafe extern "C" fn destack_audio_stream_writev(
         }
         let _ = (&out, &handle, &buffers);
 
-        let world = context.check_and_resolve_world(AUDIO_STREAM_WRITEV)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(AUDIO_STREAM_WRITEV)?;
         destack_audio_stream_writev_replay(context, world, out, handle, buffers)
     })
 }
@@ -21400,7 +21448,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_BACKEND_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_BACKEND_LIST)?;
                     destack_audio_backend_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -21414,7 +21463,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (domain,) = decode_destack_audio_clock_now_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_CLOCK_NOW)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_CLOCK_NOW)?;
                 destack_audio_clock_now_vm_replay(runtime, context, world, domain)
             })
             .map_err(Into::into)
@@ -21431,7 +21481,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, domain) = decode_destack_audio_clock_stream_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_CLOCK_STREAM)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_CLOCK_STREAM)?;
                     destack_audio_clock_stream_vm_replay(runtime, context, world, handle, domain)
                 })
                 .map_err(Into::into)
@@ -21449,7 +21500,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_device_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_CLOSE)?;
                     destack_audio_device_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21468,7 +21520,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_device_default_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_DEFAULT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_DEFAULT)?;
                     destack_audio_device_default_vm_replay(
                         runtime,
                         context,
@@ -21493,7 +21546,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_device_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_DESCRIPTOR)?;
                     destack_audio_device_descriptor_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21511,7 +21565,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (request,) = decode_destack_audio_device_list_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_LIST)?;
                     destack_audio_device_list_vm_replay(runtime, context, world, request)
                 })
                 .map_err(Into::into)
@@ -21529,7 +21584,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (id, options) = decode_destack_audio_device_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_OPEN)?;
                     destack_audio_device_open_vm_replay(runtime, context, world, id, options)
                 })
                 .map_err(Into::into)
@@ -21548,7 +21604,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_device_rescan_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_DEVICE_RESCAN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_DEVICE_RESCAN)?;
                     destack_audio_device_rescan_vm_replay(
                         runtime,
                         context,
@@ -21572,7 +21629,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_event_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_CLOSE)?;
                     destack_audio_event_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21586,7 +21644,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (options,) = decode_destack_audio_event_open_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_EVENT_OPEN)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_EVENT_OPEN)?;
                 destack_audio_event_open_vm_replay(runtime, context, world, options)
             })
             .map_err(Into::into)
@@ -21599,7 +21658,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle, timeoutns) = decode_destack_audio_event_read_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_EVENT_READ)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_EVENT_READ)?;
                 destack_audio_event_read_vm_replay(runtime, context, world, handle, timeoutns)
             })
             .map_err(Into::into)
@@ -21617,7 +21677,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_event_read_batch_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_READ_BATCH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_READ_BATCH)?;
                     destack_audio_event_read_batch_vm_replay(
                         runtime, context, world, handle, maxevents, timeoutns,
                     )
@@ -21637,7 +21698,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_event_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ)?;
                     destack_audio_event_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21656,7 +21718,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_event_try_read_batch_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
                     destack_audio_event_try_read_batch_vm_replay(
                         runtime, context, world, handle, maxevents,
                     )
@@ -21672,7 +21735,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_audio_midi_flush_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_MIDI_FLUSH)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_FLUSH)?;
                 destack_audio_midi_flush_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -21689,7 +21753,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_midi_port_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
                     destack_audio_midi_port_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21707,7 +21772,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (direction,) = decode_destack_audio_midi_port_list_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_LIST)?;
                     destack_audio_midi_port_list_vm_replay(runtime, context, world, direction)
                 })
                 .map_err(Into::into)
@@ -21725,7 +21791,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (id, direction) = decode_destack_audio_midi_port_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
                     destack_audio_midi_port_open_vm_replay(runtime, context, world, id, direction)
                 })
                 .map_err(Into::into)
@@ -21740,7 +21807,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     decode_destack_audio_midi_read_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_MIDI_READ)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_READ)?;
                 destack_audio_midi_read_vm_replay(
                     runtime,
                     context,
@@ -21765,7 +21833,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_midi_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_MIDI_TRY_READ)?;
                     destack_audio_midi_try_read_vm_replay(
                         runtime,
                         context,
@@ -21785,7 +21854,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle, messages) = decode_destack_audio_midi_write_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(AUDIO_MIDI_WRITE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(AUDIO_MIDI_WRITE)?;
                 destack_audio_midi_write_vm_replay(runtime, context, world, handle, messages)
             })
             .map_err(Into::into)
@@ -21802,7 +21872,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_abort_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_ABORT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_ABORT)?;
                     destack_audio_stream_abort_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21820,7 +21891,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_availability_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_AVAILABILITY)?;
                     destack_audio_stream_availability_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21838,7 +21910,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_CLOSE)?;
                     destack_audio_stream_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21856,7 +21929,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
                     destack_audio_stream_descriptor_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21875,7 +21949,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_drain_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_DRAIN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_DRAIN)?;
                     destack_audio_stream_drain_vm_replay(runtime, context, world, handle, timeoutns)
                 })
                 .map_err(Into::into)
@@ -21893,7 +21968,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_flush_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_FLUSH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_FLUSH)?;
                     destack_audio_stream_flush_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -21912,7 +21988,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_OPEN)?;
                     destack_audio_stream_open_vm_replay(
                         runtime, context, world, device, config, options,
                     )
@@ -21932,7 +22009,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, pause) = decode_destack_audio_stream_pause_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_PAUSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_PAUSE)?;
                     destack_audio_stream_pause_vm_replay(runtime, context, world, handle, pause)
                 })
                 .map_err(Into::into)
@@ -21950,7 +22028,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, maxbytes) = decode_destack_audio_stream_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_READ)?;
                     destack_audio_stream_read_vm_replay(runtime, context, world, handle, maxbytes)
                 })
                 .map_err(Into::into)
@@ -21968,7 +22047,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, buffers) = decode_destack_audio_stream_readv_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_READV)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_READV)?;
                     destack_audio_stream_readv_vm_replay(runtime, context, world, handle, buffers)
                 })
                 .map_err(Into::into)
@@ -21986,7 +22066,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, muted) = decode_destack_audio_stream_set_mute_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SET_MUTE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_MUTE)?;
                     destack_audio_stream_set_mute_vm_replay(runtime, context, world, handle, muted)
                 })
                 .map_err(Into::into)
@@ -22004,7 +22085,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, name) = decode_destack_audio_stream_set_name_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SET_NAME)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_NAME)?;
                     destack_audio_stream_set_name_vm_replay(runtime, context, world, handle, name)
                 })
                 .map_err(Into::into)
@@ -22023,7 +22105,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_set_volume_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SET_VOLUME)?;
                     destack_audio_stream_set_volume_vm_replay(
                         runtime, context, world, handle, lineargain,
                     )
@@ -22043,7 +22126,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_start_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_START)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_START)?;
                     destack_audio_stream_start_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22061,7 +22145,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_STATE)?;
                     destack_audio_stream_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22079,7 +22164,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_stop_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_STOP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_STOP)?;
                     destack_audio_stream_stop_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22098,7 +22184,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_support_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SUPPORT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_SUPPORT)?;
                     destack_audio_stream_support_vm_replay(
                         runtime, context, world, device, config, options,
                     )
@@ -22118,7 +22205,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_audio_stream_timing_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TIMING)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TIMING)?;
                     destack_audio_stream_timing_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22137,7 +22225,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READ)?;
                     destack_audio_stream_try_read_vm_replay(
                         runtime, context, world, handle, maxbytes,
                     )
@@ -22158,7 +22247,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_try_readv_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_READV)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_READV)?;
                     destack_audio_stream_try_readv_vm_replay(
                         runtime, context, world, handle, buffers,
                     )
@@ -22178,7 +22268,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, data) = decode_destack_audio_stream_try_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITE)?;
                     destack_audio_stream_try_write_vm_replay(runtime, context, world, handle, data)
                 })
                 .map_err(Into::into)
@@ -22197,7 +22288,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_try_writev_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_TRY_WRITEV)?;
                     destack_audio_stream_try_writev_vm_replay(
                         runtime, context, world, handle, buffers,
                     )
@@ -22217,7 +22309,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, data) = decode_destack_audio_stream_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE)?;
                     destack_audio_stream_write_vm_replay(runtime, context, world, handle, data)
                 })
                 .map_err(Into::into)
@@ -22236,7 +22329,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_write_at_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITE_AT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_AT)?;
                     destack_audio_stream_write_at_vm_replay(
                         runtime,
                         context,
@@ -22262,7 +22356,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_audio_stream_write_atv_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITE_ATV)?;
                     destack_audio_stream_write_atv_vm_replay(
                         runtime,
                         context,
@@ -22287,7 +22382,8 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, buffers) = decode_destack_audio_stream_writev_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_WRITEV)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(AUDIO_STREAM_WRITEV)?;
                     destack_audio_stream_writev_vm_replay(runtime, context, world, handle, buffers)
                 })
                 .map_err(Into::into)

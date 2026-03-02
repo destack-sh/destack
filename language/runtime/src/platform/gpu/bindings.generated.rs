@@ -18848,7 +18848,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_CLOSE)?;
         destack_gpu_adapter_close_replay(context, world, handle)
     })
 }
@@ -18864,7 +18865,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_features(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_FEATURES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_FEATURES)?;
         destack_gpu_adapter_features_replay(context, world, out, handle)
     })
 }
@@ -18881,7 +18883,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_format_capabilities(
         }
         let _ = (&out, &handle, &format);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
         destack_gpu_adapter_format_capabilities_replay(context, world, out, handle, format)
     })
 }
@@ -18898,7 +18901,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_has_feature(
         }
         let _ = (&out, &handle, &feature);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
         destack_gpu_adapter_has_feature_replay(context, world, out, handle, feature)
     })
 }
@@ -18914,7 +18918,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_info(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_INFO)?;
         destack_gpu_adapter_info_replay(context, world, out, handle)
     })
 }
@@ -18930,7 +18935,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_limits(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_LIMITS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_LIMITS)?;
         destack_gpu_adapter_limits_replay(context, world, out, handle)
     })
 }
@@ -18946,7 +18952,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_list(
         }
         let _ = (&out, &request);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_LIST)?;
         destack_gpu_adapter_list_replay(context, world, out, request)
     })
 }
@@ -18962,7 +18969,8 @@ pub unsafe extern "C" fn destack_gpu_adapter_open(
         }
         let _ = (&out, &id);
 
-        let world = context.check_and_resolve_world(GPU_ADAPTER_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_ADAPTER_OPEN)?;
         destack_gpu_adapter_open_replay(context, world, out, id)
     })
 }
@@ -18981,7 +18989,8 @@ pub unsafe extern "C" fn destack_gpu_bind_group_create(
         }
         let _ = (&out, &device, &layout, &entries, &flags);
 
-        let world = context.check_and_resolve_world(GPU_BIND_GROUP_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_GROUP_CREATE)?;
         destack_gpu_bind_group_create_replay(context, world, out, device, layout, entries, flags)
     })
 }
@@ -18993,7 +19002,8 @@ pub unsafe extern "C" fn destack_gpu_bind_group_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_BIND_GROUP_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_GROUP_DESTROY)?;
         destack_gpu_bind_group_destroy_replay(context, world, handle)
     })
 }
@@ -19011,7 +19021,8 @@ pub unsafe extern "C" fn destack_gpu_bind_group_layout_create(
         }
         let _ = (&out, &device, &entries, &flags);
 
-        let world = context.check_and_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
         destack_gpu_bind_group_layout_create_replay(context, world, out, device, entries, flags)
     })
 }
@@ -19023,7 +19034,8 @@ pub unsafe extern "C" fn destack_gpu_bind_group_layout_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
         destack_gpu_bind_group_layout_destroy_replay(context, world, handle)
     })
 }
@@ -19040,7 +19052,8 @@ pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
         destack_gpu_bind_pipeline_layout_create_replay(context, world, out, device, options)
     })
 }
@@ -19052,7 +19065,8 @@ pub unsafe extern "C" fn destack_gpu_bind_pipeline_layout_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?;
         destack_gpu_bind_pipeline_layout_destroy_replay(context, world, handle)
     })
 }
@@ -19065,7 +19079,8 @@ pub unsafe extern "C" fn destack_gpu_command_bind_compute_pipeline(
     native_call(|context| {
         let _ = (&handle, &pipeline);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
         destack_gpu_command_bind_compute_pipeline_replay(context, world, handle, pipeline)
     })
 }
@@ -19078,7 +19093,8 @@ pub unsafe extern "C" fn destack_gpu_command_bind_render_pipeline(
     native_call(|context| {
         let _ = (&handle, &pipeline);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
         destack_gpu_command_bind_render_pipeline_replay(context, world, handle, pipeline)
     })
 }
@@ -19093,7 +19109,8 @@ pub unsafe extern "C" fn destack_gpu_command_clear_buffer(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
         destack_gpu_command_clear_buffer_replay(context, world, handle, buffer, offset, size)
     })
 }
@@ -19110,7 +19127,8 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_begin(
         }
         let _ = (&out, &handle, &options);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
         destack_gpu_command_compute_pass_begin_replay(context, world, out, handle, options)
     })
 }
@@ -19122,7 +19140,8 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_end(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
         destack_gpu_command_compute_pass_end_replay(context, world, handle)
     })
 }
@@ -19135,8 +19154,8 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_insert_debug_marker(
     native_call(|context| {
         let _ = (&handle, &marker);
 
-        let world =
-            context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+        let (world, _binding_hook_guard) = context
+            .on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
         destack_gpu_command_compute_pass_insert_debug_marker_replay(context, world, handle, marker)
     })
 }
@@ -19148,7 +19167,8 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_pop_debug_group(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
         destack_gpu_command_compute_pass_pop_debug_group_replay(context, world, handle)
     })
 }
@@ -19161,7 +19181,8 @@ pub unsafe extern "C" fn destack_gpu_command_compute_pass_push_debug_group(
     native_call(|context| {
         let _ = (&handle, &label);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
         destack_gpu_command_compute_pass_push_debug_group_replay(context, world, handle, label)
     })
 }
@@ -19178,7 +19199,8 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer(
     native_call(|context| {
         let _ = (&handle, &src, &srcoffset, &dst, &dstoffset, &argument_bytes);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
         destack_gpu_command_copy_buffer_replay(
             context,
             world,
@@ -19202,7 +19224,8 @@ pub unsafe extern "C" fn destack_gpu_command_copy_buffer_to_texture(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
         destack_gpu_command_copy_buffer_to_texture_replay(
             context,
             world,
@@ -19224,7 +19247,8 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_buffer(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
         destack_gpu_command_copy_texture_to_buffer_replay(
             context,
             world,
@@ -19246,7 +19270,8 @@ pub unsafe extern "C" fn destack_gpu_command_copy_texture_to_texture(
     native_call(|context| {
         let _ = (&handle, &source, &destination, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
         destack_gpu_command_copy_texture_to_texture_replay(
             context,
             world,
@@ -19268,7 +19293,8 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch(
     native_call(|context| {
         let _ = (&handle, &groupx, &groupy, &groupz);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DISPATCH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH)?;
         destack_gpu_command_dispatch_replay(context, world, handle, groupx, groupy, groupz)
     })
 }
@@ -19282,7 +19308,8 @@ pub unsafe extern "C" fn destack_gpu_command_dispatch_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
         destack_gpu_command_dispatch_indirect_replay(context, world, handle, buffer, offset)
     })
 }
@@ -19304,7 +19331,8 @@ pub unsafe extern "C" fn destack_gpu_command_draw(
             &firstinstance,
         );
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DRAW)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DRAW)?;
         destack_gpu_command_draw_replay(
             context,
             world,
@@ -19336,7 +19364,8 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed(
             &firstinstance,
         );
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
         destack_gpu_command_draw_indexed_replay(
             context,
             world,
@@ -19361,7 +19390,8 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indexed_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?;
         destack_gpu_command_draw_indexed_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19379,7 +19409,8 @@ pub unsafe extern "C" fn destack_gpu_command_draw_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
         destack_gpu_command_draw_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19393,7 +19424,8 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
         destack_gpu_command_encoder_close_replay(context, world, handle)
     })
 }
@@ -19405,7 +19437,8 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_finish(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
         destack_gpu_command_encoder_finish_replay(context, world, handle)
     })
 }
@@ -19422,7 +19455,8 @@ pub unsafe extern "C" fn destack_gpu_command_encoder_open(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
         destack_gpu_command_encoder_open_replay(context, world, out, device, options)
     })
 }
@@ -19435,7 +19469,8 @@ pub unsafe extern "C" fn destack_gpu_command_execute_bundles(
     native_call(|context| {
         let _ = (&handle, &bundles);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
         destack_gpu_command_execute_bundles_replay(context, world, handle, bundles)
     })
 }
@@ -19448,7 +19483,8 @@ pub unsafe extern "C" fn destack_gpu_command_insert_debug_marker(
     native_call(|context| {
         let _ = (&handle, &marker);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
         destack_gpu_command_insert_debug_marker_replay(context, world, handle, marker)
     })
 }
@@ -19464,7 +19500,8 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?;
         destack_gpu_command_multi_draw_indexed_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19492,8 +19529,8 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indexed_indirect_count(
             &stride,
         );
 
-        let world =
-            context.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?;
+        let (world, _binding_hook_guard) = context
+            .on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?;
         destack_gpu_command_multi_draw_indexed_indirect_count_replay(
             context,
             world,
@@ -19519,7 +19556,8 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
         destack_gpu_command_multi_draw_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19547,7 +19585,8 @@ pub unsafe extern "C" fn destack_gpu_command_multi_draw_indirect_count(
             &stride,
         );
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?;
         destack_gpu_command_multi_draw_indirect_count_replay(
             context,
             world,
@@ -19569,7 +19608,8 @@ pub unsafe extern "C" fn destack_gpu_command_pop_debug_group(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
         destack_gpu_command_pop_debug_group_replay(context, world, handle)
     })
 }
@@ -19582,7 +19622,8 @@ pub unsafe extern "C" fn destack_gpu_command_push_debug_group(
     native_call(|context| {
         let _ = (&handle, &label);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
         destack_gpu_command_push_debug_group_replay(context, world, handle, label)
     })
 }
@@ -19596,7 +19637,8 @@ pub unsafe extern "C" fn destack_gpu_command_queue_submit(
     native_call(|context| {
         let _ = (&queue, &commandlists, &options);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
         destack_gpu_command_queue_submit_replay(context, world, queue, commandlists, options)
     })
 }
@@ -19609,7 +19651,8 @@ pub unsafe extern "C" fn destack_gpu_command_queue_wait_idle(
     native_call(|context| {
         let _ = (&queue, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
         destack_gpu_command_queue_wait_idle_replay(context, world, queue, timeoutns)
     })
 }
@@ -19626,7 +19669,8 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_buffer(
     native_call(|context| {
         let _ = (&queue, &buffer, &bufferoffset, &data, &dataoffset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
         destack_gpu_command_queue_write_buffer_replay(
             context,
             world,
@@ -19651,7 +19695,8 @@ pub unsafe extern "C" fn destack_gpu_command_queue_write_texture(
     native_call(|context| {
         let _ = (&queue, &destination, &data, &layout, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
         destack_gpu_command_queue_write_texture_replay(
             context,
             world,
@@ -19671,7 +19716,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?;
         destack_gpu_command_render_bundle_destroy_replay(context, world, handle)
     })
 }
@@ -19693,7 +19739,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw(
             &firstinstance,
         );
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
         destack_gpu_command_render_bundle_draw_replay(
             context,
             world,
@@ -19725,7 +19772,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed(
             &firstinstance,
         );
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?;
         destack_gpu_command_render_bundle_draw_indexed_replay(
             context,
             world,
@@ -19750,8 +19798,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indexed_indirect
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world =
-            context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?;
+        let (world, _binding_hook_guard) = context
+            .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?;
         destack_gpu_command_render_bundle_draw_indexed_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19769,7 +19817,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_draw_indirect(
     native_call(|context| {
         let _ = (&handle, &buffer, &offset, &drawcount, &stride);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?;
         destack_gpu_command_render_bundle_draw_indirect_replay(
             context, world, handle, buffer, offset, drawcount, stride,
         )
@@ -19783,7 +19832,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?;
         destack_gpu_command_render_bundle_encoder_close_replay(context, world, handle)
     })
 }
@@ -19799,7 +19849,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_finish(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?;
         destack_gpu_command_render_bundle_encoder_finish_replay(context, world, out, handle)
     })
 }
@@ -19816,7 +19867,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_encoder_open(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?;
         destack_gpu_command_render_bundle_encoder_open_replay(context, world, out, device, options)
     })
 }
@@ -19829,8 +19881,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_insert_debug_marker(
     native_call(|context| {
         let _ = (&handle, &marker);
 
-        let world =
-            context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?;
+        let (world, _binding_hook_guard) = context
+            .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?;
         destack_gpu_command_render_bundle_insert_debug_marker_replay(context, world, handle, marker)
     })
 }
@@ -19842,7 +19894,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_pop_debug_group(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?;
         destack_gpu_command_render_bundle_pop_debug_group_replay(context, world, handle)
     })
 }
@@ -19855,7 +19908,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_push_debug_group(
     native_call(|context| {
         let _ = (&handle, &label);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?;
         destack_gpu_command_render_bundle_push_debug_group_replay(context, world, handle, label)
     })
 }
@@ -19870,7 +19924,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_bind_group(
     native_call(|context| {
         let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?;
         destack_gpu_command_render_bundle_set_bind_group_replay(
             context,
             world,
@@ -19893,7 +19948,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_index_buffer(
     native_call(|context| {
         let _ = (&handle, &buffer, &format, &offset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?;
         destack_gpu_command_render_bundle_set_index_buffer_replay(
             context, world, handle, buffer, format, offset, size,
         )
@@ -19908,7 +19964,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_pipeline(
     native_call(|context| {
         let _ = (&handle, &pipeline);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?;
         destack_gpu_command_render_bundle_set_pipeline_replay(context, world, handle, pipeline)
     })
 }
@@ -19924,7 +19981,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_bundle_set_vertex_buffer(
     native_call(|context| {
         let _ = (&handle, &slot, &buffer, &offset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?;
         destack_gpu_command_render_bundle_set_vertex_buffer_replay(
             context, world, handle, slot, buffer, offset, size,
         )
@@ -19943,7 +20001,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_begin(
         }
         let _ = (&out, &handle, &options);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
         destack_gpu_command_render_pass_begin_replay(context, world, out, handle, options)
     })
 }
@@ -19955,7 +20014,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_end(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
         destack_gpu_command_render_pass_end_replay(context, world, handle)
     })
 }
@@ -19968,7 +20028,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_insert_debug_marker(
     native_call(|context| {
         let _ = (&handle, &marker);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
         destack_gpu_command_render_pass_insert_debug_marker_replay(context, world, handle, marker)
     })
 }
@@ -19980,7 +20041,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_pop_debug_group(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
         destack_gpu_command_render_pass_pop_debug_group_replay(context, world, handle)
     })
 }
@@ -19993,7 +20055,8 @@ pub unsafe extern "C" fn destack_gpu_command_render_pass_push_debug_group(
     native_call(|context| {
         let _ = (&handle, &label);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
         destack_gpu_command_render_pass_push_debug_group_replay(context, world, handle, label)
     })
 }
@@ -20009,7 +20072,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_blend_constant(
     native_call(|context| {
         let _ = (&handle, &r, &g, &b, &a);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
         destack_gpu_command_set_blend_constant_replay(context, world, handle, r, g, b, a)
     })
 }
@@ -20024,7 +20088,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_compute_bind_group(
     native_call(|context| {
         let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
         destack_gpu_command_set_compute_bind_group_replay(
             context,
             world,
@@ -20047,7 +20112,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_index_buffer(
     native_call(|context| {
         let _ = (&handle, &buffer, &format, &offset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
         destack_gpu_command_set_index_buffer_replay(
             context, world, handle, buffer, format, offset, size,
         )
@@ -20064,7 +20130,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_render_bind_group(
     native_call(|context| {
         let _ = (&handle, &index, &bindgroup, &dynamicoffsets);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
         destack_gpu_command_set_render_bind_group_replay(
             context,
             world,
@@ -20087,7 +20154,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_scissor(
     native_call(|context| {
         let _ = (&handle, &x, &y, &width, &height);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
         destack_gpu_command_set_scissor_replay(context, world, handle, x, y, width, height)
     })
 }
@@ -20100,7 +20168,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_stencil_reference(
     native_call(|context| {
         let _ = (&handle, &reference);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_STENCIL_REFERENCE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_STENCIL_REFERENCE)?;
         destack_gpu_command_set_stencil_reference_replay(context, world, handle, reference)
     })
 }
@@ -20116,7 +20185,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_vertex_buffer(
     native_call(|context| {
         let _ = (&handle, &slot, &buffer, &offset, &size);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
         destack_gpu_command_set_vertex_buffer_replay(
             context, world, handle, slot, buffer, offset, size,
         )
@@ -20136,7 +20206,8 @@ pub unsafe extern "C" fn destack_gpu_command_set_viewport(
     native_call(|context| {
         let _ = (&handle, &x, &y, &width, &height, &mindepth, &maxdepth);
 
-        let world = context.check_and_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
         destack_gpu_command_set_viewport_replay(
             context, world, handle, x, y, width, height, mindepth, maxdepth,
         )
@@ -20151,7 +20222,8 @@ pub unsafe extern "C" fn destack_gpu_debug_set_label(
     native_call(|context| {
         let _ = (&handle, &label);
 
-        let world = context.check_and_resolve_world(GPU_DEBUG_SET_LABEL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEBUG_SET_LABEL)?;
         destack_gpu_debug_set_label_replay(context, world, handle, label)
     })
 }
@@ -20163,7 +20235,8 @@ pub unsafe extern "C" fn destack_gpu_device_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_CLOSE)?;
         destack_gpu_device_close_replay(context, world, handle)
     })
 }
@@ -20179,7 +20252,8 @@ pub unsafe extern "C" fn destack_gpu_device_features(
         }
         let _ = (&out, &device);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_FEATURES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_FEATURES)?;
         destack_gpu_device_features_replay(context, world, out, device)
     })
 }
@@ -20196,7 +20270,8 @@ pub unsafe extern "C" fn destack_gpu_device_has_feature(
         }
         let _ = (&out, &device, &feature);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
         destack_gpu_device_has_feature_replay(context, world, out, device, feature)
     })
 }
@@ -20212,7 +20287,8 @@ pub unsafe extern "C" fn destack_gpu_device_info(
         }
         let _ = (&out, &device);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_INFO)?;
         destack_gpu_device_info_replay(context, world, out, device)
     })
 }
@@ -20228,7 +20304,8 @@ pub unsafe extern "C" fn destack_gpu_device_limits(
         }
         let _ = (&out, &device);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_LIMITS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_LIMITS)?;
         destack_gpu_device_limits_replay(context, world, out, device)
     })
 }
@@ -20245,7 +20322,8 @@ pub unsafe extern "C" fn destack_gpu_device_open(
         }
         let _ = (&out, &adapter, &options);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_OPEN)?;
         destack_gpu_device_open_replay(context, world, out, adapter, options)
     })
 }
@@ -20263,7 +20341,8 @@ pub unsafe extern "C" fn destack_gpu_device_poll(
         }
         let _ = (&out, &device, &wait, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_POLL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_POLL)?;
         destack_gpu_device_poll_replay(context, world, out, device, wait, timeoutns)
     })
 }
@@ -20280,7 +20359,8 @@ pub unsafe extern "C" fn destack_gpu_device_pop_error_scope(
         }
         let _ = (&out, &device, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
         destack_gpu_device_pop_error_scope_replay(context, world, out, device, timeoutns)
     })
 }
@@ -20293,7 +20373,8 @@ pub unsafe extern "C" fn destack_gpu_device_push_error_scope(
     native_call(|context| {
         let _ = (&device, &filter);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
         destack_gpu_device_push_error_scope_replay(context, world, device, filter)
     })
 }
@@ -20309,7 +20390,8 @@ pub unsafe extern "C" fn destack_gpu_device_queue(
         }
         let _ = (&out, &device);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_QUEUE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_QUEUE)?;
         destack_gpu_device_queue_replay(context, world, out, device)
     })
 }
@@ -20325,7 +20407,8 @@ pub unsafe extern "C" fn destack_gpu_device_status(
         }
         let _ = (&out, &device);
 
-        let world = context.check_and_resolve_world(GPU_DEVICE_STATUS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_DEVICE_STATUS)?;
         destack_gpu_device_status_replay(context, world, out, device)
     })
 }
@@ -20342,7 +20425,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_bind_group_layout(
         }
         let _ = (&out, &pipeline, &groupindex);
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
         destack_gpu_pipeline_bind_group_layout_replay(context, world, out, pipeline, groupindex)
     })
 }
@@ -20359,7 +20443,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_compute_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
         destack_gpu_pipeline_compute_create_replay(context, world, out, device, options)
     })
 }
@@ -20371,7 +20456,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_DESTROY)?;
         destack_gpu_pipeline_destroy_replay(context, world, handle)
     })
 }
@@ -20388,7 +20474,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_render_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
         destack_gpu_pipeline_render_create_replay(context, world, out, device, options)
     })
 }
@@ -20405,7 +20492,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_compilation_info(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_COMPILATION_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_COMPILATION_INFO)?;
         destack_gpu_pipeline_shader_compilation_info_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -20423,7 +20511,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_create(
         }
         let _ = (&out, &device, &options, &argument_bytes);
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
         destack_gpu_pipeline_shader_create_replay(
             context,
             world,
@@ -20442,7 +20531,8 @@ pub unsafe extern "C" fn destack_gpu_pipeline_shader_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
         destack_gpu_pipeline_shader_destroy_replay(context, world, handle)
     })
 }
@@ -20460,7 +20550,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_acquire(
         let _ = (&out, &surface, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_acquire(context, out, surface, timeoutns)
@@ -20488,7 +20579,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_capabilities(
         let _ = (&out, &surface, &adapter);
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_CAPABILITIES)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CAPABILITIES)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_capabilities(
@@ -20513,7 +20605,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_close(
         let _ = &surface;
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_close(context, surface)
@@ -20536,7 +20629,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_configure(
         let _ = (&device, &surface, &options);
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_configure(
@@ -20565,7 +20659,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_open(
         let _ = (&out, &window);
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_open(context, out, window)
@@ -20587,7 +20682,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_present(
         let _ = (&surface, &options);
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_present(context, surface, options)
@@ -20610,7 +20706,8 @@ pub unsafe extern "C" fn destack_gpu_present_surface_unconfigure(
         let _ = &surface;
 
         {
-            let world = context.check_and_resolve_world(GPU_PRESENT_SURFACE_UNCONFIGURE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_UNCONFIGURE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_gpu_surface_unconfigure(context, surface)
@@ -20635,7 +20732,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
         destack_gpu_resource_buffer_create_replay(context, world, out, device, options)
     })
 }
@@ -20647,7 +20745,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
         destack_gpu_resource_buffer_destroy_replay(context, world, handle)
     })
 }
@@ -20663,7 +20762,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_info(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
         destack_gpu_resource_buffer_info_replay(context, world, out, handle)
     })
 }
@@ -20682,7 +20782,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_map(
         }
         let _ = (&out, &handle, &offset, &length, &mode);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
         destack_gpu_resource_buffer_map_replay(context, world, out, handle, offset, length, mode)
     })
 }
@@ -20700,7 +20801,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_read(
         }
         let _ = (&out, &handle, &offset, &length);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
         destack_gpu_resource_buffer_read_replay(context, world, out, handle, offset, length)
     })
 }
@@ -20712,7 +20814,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_unmap(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
         destack_gpu_resource_buffer_unmap_replay(context, world, handle)
     })
 }
@@ -20726,7 +20829,8 @@ pub unsafe extern "C" fn destack_gpu_resource_buffer_write(
     native_call(|context| {
         let _ = (&handle, &offset, &argument_bytes);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
         destack_gpu_resource_buffer_write_replay(context, world, handle, offset, argument_bytes)
     })
 }
@@ -20743,7 +20847,8 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
         destack_gpu_resource_sampler_create_replay(context, world, out, device, options)
     })
 }
@@ -20755,7 +20860,8 @@ pub unsafe extern "C" fn destack_gpu_resource_sampler_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
         destack_gpu_resource_sampler_destroy_replay(context, world, handle)
     })
 }
@@ -20772,7 +20878,8 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
         destack_gpu_resource_texture_create_replay(context, world, out, device, options)
     })
 }
@@ -20784,7 +20891,8 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
         destack_gpu_resource_texture_destroy_replay(context, world, handle)
     })
 }
@@ -20800,7 +20908,8 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_info(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
         destack_gpu_resource_texture_info_replay(context, world, out, handle)
     })
 }
@@ -20817,7 +20926,8 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_view_create(
         }
         let _ = (&out, &texture, &options);
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?;
         destack_gpu_resource_texture_view_create_replay(context, world, out, texture, options)
     })
 }
@@ -20829,7 +20939,8 @@ pub unsafe extern "C" fn destack_gpu_resource_texture_view_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?;
         destack_gpu_resource_texture_view_destroy_replay(context, world, handle)
     })
 }
@@ -20843,8 +20954,9 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_compute_pipeline_statist
     native_call(|context| {
         let _ = (&computepass, &queryset, &queryindex);
 
-        let world = context
-            .check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(
+            GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        )?;
         destack_gpu_sync_command_begin_compute_pipeline_statistics_query_replay(
             context,
             world,
@@ -20864,7 +20976,8 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_occlusion_query(
     native_call(|context| {
         let _ = (&renderpass, &queryset, &queryindex);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
         destack_gpu_sync_command_begin_occlusion_query_replay(
             context, world, renderpass, queryset, queryindex,
         )
@@ -20880,8 +20993,9 @@ pub unsafe extern "C" fn destack_gpu_sync_command_begin_render_pipeline_statisti
     native_call(|context| {
         let _ = (&renderpass, &queryset, &queryindex);
 
-        let world = context
-            .check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(
+            GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY,
+        )?;
         destack_gpu_sync_command_begin_render_pipeline_statistics_query_replay(
             context, world, renderpass, queryset, queryindex,
         )
@@ -20895,8 +21009,9 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_compute_pipeline_statistic
     native_call(|context| {
         let _ = &computepass;
 
-        let world = context
-            .check_and_resolve_world(GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(
+            GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
+        )?;
         destack_gpu_sync_command_end_compute_pipeline_statistics_query_replay(
             context,
             world,
@@ -20912,7 +21027,8 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_occlusion_query(
     native_call(|context| {
         let _ = &renderpass;
 
-        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
         destack_gpu_sync_command_end_occlusion_query_replay(context, world, renderpass)
     })
 }
@@ -20924,8 +21040,9 @@ pub unsafe extern "C" fn destack_gpu_sync_command_end_render_pipeline_statistics
     native_call(|context| {
         let _ = &renderpass;
 
-        let world = context
-            .check_and_resolve_world(GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY)?;
+        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world(
+            GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
+        )?;
         destack_gpu_sync_command_end_render_pipeline_statistics_query_replay(
             context, world, renderpass,
         )
@@ -20951,7 +21068,8 @@ pub unsafe extern "C" fn destack_gpu_sync_command_resolve_queries(
             &destinationoffset,
         );
 
-        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?;
         destack_gpu_sync_command_resolve_queries_replay(
             context,
             world,
@@ -20974,7 +21092,8 @@ pub unsafe extern "C" fn destack_gpu_sync_command_write_timestamp(
     native_call(|context| {
         let _ = (&commandlist, &queryset, &queryindex);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?;
         destack_gpu_sync_command_write_timestamp_replay(
             context,
             world,
@@ -20997,7 +21116,8 @@ pub unsafe extern "C" fn destack_gpu_sync_fence_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_FENCE_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_FENCE_CREATE)?;
         destack_gpu_sync_fence_create_replay(context, world, out, device, options)
     })
 }
@@ -21009,7 +21129,8 @@ pub unsafe extern "C" fn destack_gpu_sync_fence_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
         destack_gpu_sync_fence_destroy_replay(context, world, handle)
     })
 }
@@ -21026,7 +21147,8 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_create(
         }
         let _ = (&out, &device, &options);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
         destack_gpu_sync_query_set_create_replay(context, world, out, device, options)
     })
 }
@@ -21038,7 +21160,8 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_destroy(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
         destack_gpu_sync_query_set_destroy_replay(context, world, handle)
     })
 }
@@ -21054,7 +21177,8 @@ pub unsafe extern "C" fn destack_gpu_sync_query_set_info(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
         destack_gpu_sync_query_set_info_replay(context, world, out, handle)
     })
 }
@@ -21068,7 +21192,8 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_signal(
     native_call(|context| {
         let _ = (&queue, &fence, &argument_value);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
         destack_gpu_sync_queue_signal_replay(context, world, queue, fence, argument_value)
     })
 }
@@ -21084,7 +21209,8 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_timestamp_period(
         }
         let _ = (&out, &queue);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
         destack_gpu_sync_queue_timestamp_period_replay(context, world, out, queue)
     })
 }
@@ -21099,7 +21225,8 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_wait(
     native_call(|context| {
         let _ = (&queue, &fence, &argument_value, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
         destack_gpu_sync_queue_wait_replay(context, world, queue, fence, argument_value, timeoutns)
     })
 }
@@ -21112,7 +21239,8 @@ pub unsafe extern "C" fn destack_gpu_sync_queue_work_done(
     native_call(|context| {
         let _ = (&queue, &timeoutns);
 
-        let world = context.check_and_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
         destack_gpu_sync_queue_work_done_replay(context, world, queue, timeoutns)
     })
 }
@@ -29957,7 +30085,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_adapter_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_ADAPTER_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_CLOSE)?;
                     destack_gpu_adapter_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -29975,7 +30104,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_adapter_features_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_ADAPTER_FEATURES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_FEATURES)?;
                     destack_gpu_adapter_features_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -29994,7 +30124,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_adapter_format_capabilities_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_FORMAT_CAPABILITIES)?;
                     destack_gpu_adapter_format_capabilities_vm_replay(
                         runtime, context, world, handle, format,
                     )
@@ -30015,7 +30146,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_adapter_has_feature_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_HAS_FEATURE)?;
                     destack_gpu_adapter_has_feature_vm_replay(
                         runtime, context, world, handle, feature,
                     )
@@ -30031,7 +30163,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_gpu_adapter_info_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_ADAPTER_INFO)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_INFO)?;
                 destack_gpu_adapter_info_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -30048,7 +30181,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_adapter_limits_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_ADAPTER_LIMITS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_ADAPTER_LIMITS)?;
                     destack_gpu_adapter_limits_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30062,7 +30196,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (request,) = decode_destack_gpu_adapter_list_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_ADAPTER_LIST)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_LIST)?;
                 destack_gpu_adapter_list_vm_replay(runtime, context, world, request)
             })
             .map_err(Into::into)
@@ -30075,7 +30210,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (id,) = decode_destack_gpu_adapter_open_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_ADAPTER_OPEN)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_ADAPTER_OPEN)?;
                 destack_gpu_adapter_open_vm_replay(runtime, context, world, id)
             })
             .map_err(Into::into)
@@ -30093,7 +30229,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_bind_group_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_BIND_GROUP_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_CREATE)?;
                     destack_gpu_bind_group_create_vm_replay(
                         runtime, context, world, device, layout, entries, flags,
                     )
@@ -30113,7 +30250,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_bind_group_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_BIND_GROUP_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_DESTROY)?;
                     destack_gpu_bind_group_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30132,7 +30270,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_bind_group_layout_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_CREATE)?;
                     destack_gpu_bind_group_layout_create_vm_replay(
                         runtime, context, world, device, entries, flags,
                     )
@@ -30153,7 +30292,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_bind_group_layout_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_BIND_GROUP_LAYOUT_DESTROY)?;
                     destack_gpu_bind_group_layout_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30172,7 +30312,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_bind_pipeline_layout_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_CREATE)?;
                     destack_gpu_bind_pipeline_layout_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -30193,8 +30334,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_bind_pipeline_layout_destroy_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_BIND_PIPELINE_LAYOUT_DESTROY)?;
                     destack_gpu_bind_pipeline_layout_destroy_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -30215,8 +30356,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_bind_compute_pipeline_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_BIND_COMPUTE_PIPELINE)?;
                     destack_gpu_command_bind_compute_pipeline_vm_replay(
                         runtime, context, world, handle, pipeline,
                     )
@@ -30237,8 +30378,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_bind_render_pipeline_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_BIND_RENDER_PIPELINE)?;
                     destack_gpu_command_bind_render_pipeline_vm_replay(
                         runtime, context, world, handle, pipeline,
                     )
@@ -30259,7 +30400,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_clear_buffer_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_CLEAR_BUFFER)?;
                     destack_gpu_command_clear_buffer_vm_replay(
                         runtime, context, world, handle, buffer, offset, size,
                     )
@@ -30280,7 +30422,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_compute_pass_begin_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_BEGIN)?;
                     destack_gpu_command_compute_pass_begin_vm_replay(
                         runtime, context, world, handle, options,
                     )
@@ -30301,7 +30444,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_compute_pass_end_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COMPUTE_PASS_END)?;
                     destack_gpu_command_compute_pass_end_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30322,8 +30466,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER,
+                    )?;
                     destack_gpu_command_compute_pass_insert_debug_marker_vm_replay(
                         runtime, context, world, handle, marker,
                     )
@@ -30345,8 +30490,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP,
+                    )?;
                     destack_gpu_command_compute_pass_pop_debug_group_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -30369,8 +30515,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP,
+                    )?;
                     destack_gpu_command_compute_pass_push_debug_group_vm_replay(
                         runtime, context, world, handle, label,
                     )
@@ -30391,7 +30538,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_buffer_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER)?;
                     destack_gpu_command_copy_buffer_vm_replay(
                         runtime,
                         context,
@@ -30420,8 +30568,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_buffer_to_texture_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_COPY_BUFFER_TO_TEXTURE)?;
                     destack_gpu_command_copy_buffer_to_texture_vm_replay(
                         runtime,
                         context,
@@ -30448,8 +30596,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_texture_to_buffer_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_BUFFER)?;
                     destack_gpu_command_copy_texture_to_buffer_vm_replay(
                         runtime,
                         context,
@@ -30476,8 +30624,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_copy_texture_to_texture_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE)?;
                     destack_gpu_command_copy_texture_to_texture_vm_replay(
                         runtime,
                         context,
@@ -30504,7 +30652,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_dispatch_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_DISPATCH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH)?;
                     destack_gpu_command_dispatch_vm_replay(
                         runtime, context, world, handle, groupx, groupy, groupz,
                     )
@@ -30525,7 +30674,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_dispatch_indirect_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DISPATCH_INDIRECT)?;
                     destack_gpu_command_dispatch_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset,
                     )
@@ -30542,7 +30692,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     decode_destack_gpu_command_draw_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_COMMAND_DRAW)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW)?;
                 destack_gpu_command_draw_vm_replay(
                     runtime,
                     context,
@@ -30569,7 +30720,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_draw_indexed_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED)?;
                     destack_gpu_command_draw_indexed_vm_replay(
                         runtime,
                         context,
@@ -30598,8 +30750,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_draw_indexed_indirect_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDEXED_INDIRECT)?;
                     destack_gpu_command_draw_indexed_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -30620,7 +30772,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_draw_indirect_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_DRAW_INDIRECT)?;
                     destack_gpu_command_draw_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -30640,7 +30793,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_encoder_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_CLOSE)?;
                     destack_gpu_command_encoder_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30658,7 +30812,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_encoder_finish_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_FINISH)?;
                     destack_gpu_command_encoder_finish_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30677,7 +30832,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_encoder_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_ENCODER_OPEN)?;
                     destack_gpu_command_encoder_open_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -30698,7 +30854,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_execute_bundles_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_EXECUTE_BUNDLES)?;
                     destack_gpu_command_execute_bundles_vm_replay(
                         runtime, context, world, handle, bundles,
                     )
@@ -30719,7 +30876,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_insert_debug_marker_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_INSERT_DEBUG_MARKER)?;
                     destack_gpu_command_insert_debug_marker_vm_replay(
                         runtime, context, world, handle, marker,
                     )
@@ -30740,8 +30898,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_multi_draw_indexed_indirect_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT)?;
                     destack_gpu_command_multi_draw_indexed_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -30764,8 +30922,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT,
+                    )?;
                     destack_gpu_command_multi_draw_indexed_indirect_count_vm_replay(
                         runtime,
                         context,
@@ -30795,7 +30954,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_multi_draw_indirect_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT)?;
                     destack_gpu_command_multi_draw_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -30816,8 +30976,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_multi_draw_indirect_count_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT)?;
                     destack_gpu_command_multi_draw_indirect_count_vm_replay(
                         runtime,
                         context,
@@ -30846,7 +31006,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_pop_debug_group_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_POP_DEBUG_GROUP)?;
                     destack_gpu_command_pop_debug_group_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -30865,7 +31026,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_push_debug_group_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_PUSH_DEBUG_GROUP)?;
                     destack_gpu_command_push_debug_group_vm_replay(
                         runtime, context, world, handle, label,
                     )
@@ -30886,7 +31048,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_submit_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_SUBMIT)?;
                     destack_gpu_command_queue_submit_vm_replay(
                         runtime,
                         context,
@@ -30912,7 +31075,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_wait_idle_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WAIT_IDLE)?;
                     destack_gpu_command_queue_wait_idle_vm_replay(
                         runtime, context, world, queue, timeoutns,
                     )
@@ -30933,7 +31097,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_write_buffer_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_BUFFER)?;
                     destack_gpu_command_queue_write_buffer_vm_replay(
                         runtime,
                         context,
@@ -30962,7 +31127,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_queue_write_texture_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_QUEUE_WRITE_TEXTURE)?;
                     destack_gpu_command_queue_write_texture_vm_replay(
                         runtime,
                         context,
@@ -30990,8 +31156,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_destroy_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DESTROY)?;
                     destack_gpu_command_render_bundle_destroy_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -31012,7 +31178,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_draw_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW)?;
                     destack_gpu_command_render_bundle_draw_vm_replay(
                         runtime,
                         context,
@@ -31040,8 +31207,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_draw_indexed_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED)?;
                     destack_gpu_command_render_bundle_draw_indexed_vm_replay(
                         runtime,
                         context,
@@ -31072,8 +31239,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT,
+                    )?;
                     destack_gpu_command_render_bundle_draw_indexed_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -31094,8 +31262,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_draw_indirect_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT)?;
                     destack_gpu_command_render_bundle_draw_indirect_vm_replay(
                         runtime, context, world, handle, buffer, offset, drawcount, stride,
                     )
@@ -31116,8 +31284,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_encoder_close_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE)?;
                     destack_gpu_command_render_bundle_encoder_close_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -31139,8 +31307,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH,
+                    )?;
                     destack_gpu_command_render_bundle_encoder_finish_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -31161,8 +31330,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_encoder_open_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN)?;
                     destack_gpu_command_render_bundle_encoder_open_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -31185,8 +31354,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER,
+                    )?;
                     destack_gpu_command_render_bundle_insert_debug_marker_vm_replay(
                         runtime, context, world, handle, marker,
                     )
@@ -31208,8 +31378,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP,
+                    )?;
                     destack_gpu_command_render_bundle_pop_debug_group_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -31232,8 +31403,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP,
+                    )?;
                     destack_gpu_command_render_bundle_push_debug_group_vm_replay(
                         runtime, context, world, handle, label,
                     )
@@ -31256,8 +31428,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP,
+                    )?;
                     destack_gpu_command_render_bundle_set_bind_group_vm_replay(
                         runtime,
                         context,
@@ -31286,8 +31459,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER,
+                    )?;
                     destack_gpu_command_render_bundle_set_index_buffer_vm_replay(
                         runtime, context, world, handle, buffer, format, offset, size,
                     )
@@ -31308,8 +31482,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_bundle_set_pipeline_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE)?;
                     destack_gpu_command_render_bundle_set_pipeline_vm_replay(
                         runtime, context, world, handle, pipeline,
                     )
@@ -31332,8 +31506,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER,
+                    )?;
                     destack_gpu_command_render_bundle_set_vertex_buffer_vm_replay(
                         runtime, context, world, handle, slot, buffer, offset, size,
                     )
@@ -31354,7 +31529,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_pass_begin_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_BEGIN)?;
                     destack_gpu_command_render_pass_begin_vm_replay(
                         runtime, context, world, handle, options,
                     )
@@ -31374,7 +31550,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_command_render_pass_end_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_END)?;
                     destack_gpu_command_render_pass_end_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -31395,8 +31572,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER,
+                    )?;
                     destack_gpu_command_render_pass_insert_debug_marker_vm_replay(
                         runtime, context, world, handle, marker,
                     )
@@ -31417,8 +31595,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_render_pass_pop_debug_group_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP)?;
                     destack_gpu_command_render_pass_pop_debug_group_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -31441,8 +31619,9 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP,
+                    )?;
                     destack_gpu_command_render_pass_push_debug_group_vm_replay(
                         runtime, context, world, handle, label,
                     )
@@ -31463,7 +31642,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_blend_constant_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_BLEND_CONSTANT)?;
                     destack_gpu_command_set_blend_constant_vm_replay(
                         runtime, context, world, handle, r, g, b, a,
                     )
@@ -31484,8 +31664,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_compute_bind_group_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_SET_COMPUTE_BIND_GROUP)?;
                     destack_gpu_command_set_compute_bind_group_vm_replay(
                         runtime,
                         context,
@@ -31512,7 +31692,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_index_buffer_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_INDEX_BUFFER)?;
                     destack_gpu_command_set_index_buffer_vm_replay(
                         runtime, context, world, handle, buffer, format, offset, size,
                     )
@@ -31533,8 +31714,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_render_bind_group_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_SET_RENDER_BIND_GROUP)?;
                     destack_gpu_command_set_render_bind_group_vm_replay(
                         runtime,
                         context,
@@ -31561,7 +31742,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_scissor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_SCISSOR)?;
                     destack_gpu_command_set_scissor_vm_replay(
                         runtime, context, world, handle, x, y, width, height,
                     )
@@ -31582,8 +31764,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_stencil_reference_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_COMMAND_SET_STENCIL_REFERENCE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_COMMAND_SET_STENCIL_REFERENCE)?;
                     destack_gpu_command_set_stencil_reference_vm_replay(
                         runtime, context, world, handle, reference,
                     )
@@ -31604,7 +31786,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_vertex_buffer_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_VERTEX_BUFFER)?;
                     destack_gpu_command_set_vertex_buffer_vm_replay(
                         runtime, context, world, handle, slot, buffer, offset, size,
                     )
@@ -31625,7 +31808,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_command_set_viewport_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_COMMAND_SET_VIEWPORT)?;
                     destack_gpu_command_set_viewport_vm_replay(
                         runtime, context, world, handle, x, y, width, height, mindepth, maxdepth,
                     )
@@ -31645,7 +31829,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle, label) = decode_destack_gpu_debug_set_label_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEBUG_SET_LABEL)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEBUG_SET_LABEL)?;
                     destack_gpu_debug_set_label_vm_replay(runtime, context, world, handle, label)
                 })
                 .map_err(Into::into)
@@ -31659,7 +31844,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (handle,) = decode_destack_gpu_device_close_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_DEVICE_CLOSE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_DEVICE_CLOSE)?;
                 destack_gpu_device_close_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -31676,7 +31862,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (device,) = decode_destack_gpu_device_features_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_FEATURES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_FEATURES)?;
                     destack_gpu_device_features_vm_replay(runtime, context, world, device)
                 })
                 .map_err(Into::into)
@@ -31695,7 +31882,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_device_has_feature_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_HAS_FEATURE)?;
                     destack_gpu_device_has_feature_vm_replay(
                         runtime, context, world, device, feature,
                     )
@@ -31711,7 +31899,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device,) = decode_destack_gpu_device_info_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_DEVICE_INFO)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_DEVICE_INFO)?;
                 destack_gpu_device_info_vm_replay(runtime, context, world, device)
             })
             .map_err(Into::into)
@@ -31728,7 +31917,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (device,) = decode_destack_gpu_device_limits_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_LIMITS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_LIMITS)?;
                     destack_gpu_device_limits_vm_replay(runtime, context, world, device)
                 })
                 .map_err(Into::into)
@@ -31742,7 +31932,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (adapter, options) = decode_destack_gpu_device_open_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_DEVICE_OPEN)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_DEVICE_OPEN)?;
                 destack_gpu_device_open_vm_replay(runtime, context, world, adapter, options)
             })
             .map_err(Into::into)
@@ -31755,7 +31946,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device, wait, timeoutns) = decode_destack_gpu_device_poll_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_DEVICE_POLL)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_DEVICE_POLL)?;
                 destack_gpu_device_poll_vm_replay(runtime, context, world, device, wait, timeoutns)
             })
             .map_err(Into::into)
@@ -31773,7 +31965,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_device_pop_error_scope_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_POP_ERROR_SCOPE)?;
                     destack_gpu_device_pop_error_scope_vm_replay(
                         runtime, context, world, device, timeoutns,
                     )
@@ -31794,7 +31987,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_device_push_error_scope_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_PUSH_ERROR_SCOPE)?;
                     destack_gpu_device_push_error_scope_vm_replay(
                         runtime, context, world, device, filter,
                     )
@@ -31810,7 +32004,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (device,) = decode_destack_gpu_device_queue_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_DEVICE_QUEUE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(GPU_DEVICE_QUEUE)?;
                 destack_gpu_device_queue_vm_replay(runtime, context, world, device)
             })
             .map_err(Into::into)
@@ -31827,7 +32022,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (device,) = decode_destack_gpu_device_status_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_DEVICE_STATUS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_DEVICE_STATUS)?;
                     destack_gpu_device_status_vm_replay(runtime, context, world, device)
                 })
                 .map_err(Into::into)
@@ -31846,7 +32042,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_bind_group_layout_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_BIND_GROUP_LAYOUT)?;
                     destack_gpu_pipeline_bind_group_layout_vm_replay(
                         runtime, context, world, pipeline, groupindex,
                     )
@@ -31867,7 +32064,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_compute_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_COMPUTE_CREATE)?;
                     destack_gpu_pipeline_compute_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -31887,7 +32085,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_pipeline_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_DESTROY)?;
                     destack_gpu_pipeline_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -31906,7 +32105,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_render_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_RENDER_CREATE)?;
                     destack_gpu_pipeline_render_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -31927,8 +32127,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_shader_compilation_info_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_COMPILATION_INFO)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_PIPELINE_SHADER_COMPILATION_INFO)?;
                     destack_gpu_pipeline_shader_compilation_info_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -31949,7 +32149,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_pipeline_shader_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_CREATE)?;
                     destack_gpu_pipeline_shader_create_vm_replay(
                         runtime,
                         context,
@@ -31974,7 +32175,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_pipeline_shader_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_PIPELINE_SHADER_DESTROY)?;
                     destack_gpu_pipeline_shader_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -31994,7 +32196,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_ACQUIRE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_acquire(
                                 runtime, context, surface, timeoutns,
@@ -32025,8 +32228,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_CAPABILITIES)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CAPABILITIES)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_capabilities(
                                 runtime, context, surface, adapter,
@@ -32056,7 +32259,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_gpu_surface_close(runtime, context, surface)
@@ -32087,8 +32291,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_CONFIGURE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_configure(
                                 runtime, context, device, surface, options,
@@ -32118,7 +32322,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_OPEN)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_gpu_surface_open(runtime, context, window)
@@ -32149,7 +32354,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(GPU_PRESENT_SURFACE_PRESENT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_present(
                                 runtime, context, surface, options,
@@ -32180,8 +32386,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(GPU_PRESENT_SURFACE_UNCONFIGURE)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(GPU_PRESENT_SURFACE_UNCONFIGURE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_gpu_surface_unconfigure(
                                 runtime, context, surface,
@@ -32211,7 +32417,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_CREATE)?;
                     destack_gpu_resource_buffer_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -32231,7 +32438,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_buffer_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_DESTROY)?;
                     destack_gpu_resource_buffer_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32249,7 +32457,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_buffer_info_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_INFO)?;
                     destack_gpu_resource_buffer_info_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32268,7 +32477,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_map_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_MAP)?;
                     destack_gpu_resource_buffer_map_vm_replay(
                         runtime, context, world, handle, offset, length, mode,
                     )
@@ -32289,7 +32499,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_READ)?;
                     destack_gpu_resource_buffer_read_vm_replay(
                         runtime, context, world, handle, offset, length,
                     )
@@ -32309,7 +32520,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_buffer_unmap_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_UNMAP)?;
                     destack_gpu_resource_buffer_unmap_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32328,7 +32540,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_buffer_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_BUFFER_WRITE)?;
                     destack_gpu_resource_buffer_write_vm_replay(
                         runtime,
                         context,
@@ -32354,7 +32567,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_sampler_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_CREATE)?;
                     destack_gpu_resource_sampler_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -32375,7 +32589,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_sampler_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_SAMPLER_DESTROY)?;
                     destack_gpu_resource_sampler_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32394,7 +32609,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_CREATE)?;
                     destack_gpu_resource_texture_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -32415,7 +32631,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_DESTROY)?;
                     destack_gpu_resource_texture_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32433,7 +32650,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_resource_texture_info_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_INFO)?;
                     destack_gpu_resource_texture_info_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32452,8 +32670,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_view_create_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_CREATE)?;
                     destack_gpu_resource_texture_view_create_vm_replay(
                         runtime, context, world, texture, options,
                     )
@@ -32474,8 +32692,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_resource_texture_view_destroy_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_RESOURCE_TEXTURE_VIEW_DESTROY)?;
                     destack_gpu_resource_texture_view_destroy_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -32495,7 +32713,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (computepass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_compute_pipeline_statistics_query_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
+                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY)?;
                 destack_gpu_sync_command_begin_compute_pipeline_statistics_query_vm_replay(runtime, context, world, computepass, queryset, queryindex)
             })
             .map_err(Into::into)
@@ -32514,8 +32732,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_command_begin_occlusion_query_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_begin_occlusion_query_vm_replay(
                         runtime, context, world, renderpass, queryset, queryindex,
                     )
@@ -32535,7 +32753,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                 let (renderpass, queryset, queryindex) = decode_destack_gpu_sync_command_begin_render_pipeline_statistics_query_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
+                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY)?;
                 destack_gpu_sync_command_begin_render_pipeline_statistics_query_vm_replay(runtime, context, world, renderpass, queryset, queryindex)
             })
             .map_err(Into::into)
@@ -32556,7 +32774,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
                         GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY,
                     )?;
                     destack_gpu_sync_command_end_compute_pipeline_statistics_query_vm_replay(
@@ -32582,8 +32800,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_command_end_occlusion_query_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_SYNC_COMMAND_END_OCCLUSION_QUERY)?;
                     destack_gpu_sync_command_end_occlusion_query_vm_replay(
                         runtime, context, world, renderpass,
                     )
@@ -32606,7 +32824,7 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         )?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
                         GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY,
                     )?;
                     destack_gpu_sync_command_end_render_pipeline_statistics_query_vm_replay(
@@ -32635,8 +32853,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ) = decode_destack_gpu_sync_command_resolve_queries_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_SYNC_COMMAND_RESOLVE_QUERIES)?;
                     destack_gpu_sync_command_resolve_queries_vm_replay(
                         runtime,
                         context,
@@ -32665,8 +32883,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_command_write_timestamp_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(GPU_SYNC_COMMAND_WRITE_TIMESTAMP)?;
                     destack_gpu_sync_command_write_timestamp_vm_replay(
                         runtime,
                         context,
@@ -32692,7 +32910,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_fence_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_FENCE_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_FENCE_CREATE)?;
                     destack_gpu_sync_fence_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -32712,7 +32931,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_sync_fence_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_FENCE_DESTROY)?;
                     destack_gpu_sync_fence_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32731,7 +32951,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_query_set_create_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_CREATE)?;
                     destack_gpu_sync_query_set_create_vm_replay(
                         runtime, context, world, device, options,
                     )
@@ -32751,7 +32972,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_sync_query_set_destroy_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_DESTROY)?;
                     destack_gpu_sync_query_set_destroy_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32769,7 +32991,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     let (handle,) = decode_destack_gpu_sync_query_set_info_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUERY_SET_INFO)?;
                     destack_gpu_sync_query_set_info_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -32788,7 +33011,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_queue_signal_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_SIGNAL)?;
                     destack_gpu_sync_queue_signal_vm_replay(
                         runtime,
                         context,
@@ -32814,7 +33038,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_queue_timestamp_period_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_TIMESTAMP_PERIOD)?;
                     destack_gpu_sync_queue_timestamp_period_vm_replay(
                         runtime, context, world, queue,
                     )
@@ -32835,7 +33060,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_queue_wait_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WAIT)?;
                     destack_gpu_sync_queue_wait_vm_replay(
                         runtime,
                         context,
@@ -32862,7 +33088,8 @@ pub fn register_gpu_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                         decode_destack_gpu_sync_queue_work_done_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(GPU_SYNC_QUEUE_WORK_DONE)?;
                     destack_gpu_sync_queue_work_done_vm_replay(
                         runtime, context, world, queue, timeoutns,
                     )

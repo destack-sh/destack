@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -260,9 +261,52 @@ pub enum BindingEffect {
     ExternalNonRecordable,
 }
 
-/// Rule filters for runtime binding policies.
+/// Label selection operator for runtime identity selectors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeLabelOperator {
+    /// Match labels whose value is in the supplied value set.
+    In,
+    /// Match labels whose value is not in the supplied value set.
+    NotIn,
+    /// Match labels where the key exists regardless of value.
+    Exists,
+    /// Match labels where the key does not exist.
+    DoesNotExist,
+}
+
+/// One label requirement clause for runtime identity selectors.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct RuntimeLabelRequirement {
+    /// Label key to evaluate.
+    pub key: String,
+    /// Label requirement operator.
+    pub operator: RuntimeLabelOperator,
+    /// Label values for set-based operators.
+    pub values: Vec<String>,
+}
+
+/// Kubernetes-style label selector for runtime identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct RuntimeFilter {
+pub struct RuntimeLabelSelector {
+    /// Exact-match labels that must all be present.
+    pub match_labels: BTreeMap<String, String>,
+    /// Additional set-based label requirements.
+    pub match_expressions: Vec<RuntimeLabelRequirement>,
+}
+
+/// Runtime identity selector for agent and runtime scopes.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeIdentitySelector {
+    /// Name selector for one runtime or one agent.
+    pub name: Option<String>,
+    /// Label selector for one runtime or one agent.
+    pub labels: Option<RuntimeLabelSelector>,
+}
+
+/// Selector clauses for runtime binding policies.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeSelector {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
     /// Glob selector for capability names.
@@ -283,9 +327,13 @@ pub struct RuntimeFilter {
     pub blocking: Option<BindingBlocking>,
     /// Binding effect selector.
     pub effect: Option<BindingEffect>,
+    /// Runtime identity selector.
+    pub runtime: Option<RuntimeIdentitySelector>,
+    /// Agent identity selector.
+    pub agent: Option<RuntimeIdentitySelector>,
 }
 
-impl RuntimeFilter {
+impl RuntimeSelector {
     /// Return true when this selector has no clauses.
     pub fn is_empty(&self) -> bool {
         self.binding.is_none()
@@ -298,6 +346,8 @@ impl RuntimeFilter {
             && self.scope.is_none()
             && self.blocking.is_none()
             && self.effect.is_none()
+            && self.runtime.is_none()
+            && self.agent.is_none()
     }
 }
 
@@ -321,14 +371,29 @@ pub enum RuntimePolicyAction {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RuntimePolicyRule {
     /// Rule filter clause.
-    pub when: RuntimeFilter,
+    pub when: RuntimeSelector,
     /// Rule action payload.
     pub action: RuntimePolicyAction,
+}
+
+/// Default identity options for one runtime primary agent.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeAgentOptions {
+    /// Default primary agent name for policy selection.
+    pub name: Option<String>,
+    /// Default primary agent labels for policy selection.
+    pub labels: BTreeMap<String, String>,
 }
 
 /// Runtime execution options for scheduler, time, randomness, and GC.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
+    /// Stable runtime name for policy selection.
+    pub name: Option<String>,
+    /// Runtime labels for policy selection.
+    pub labels: BTreeMap<String, String>,
+    /// Default primary agent identity for policy selection.
+    pub primary_agent: RuntimeAgentOptions,
     /// Execution mode for runtime scheduling and replay.
     pub execution: ExecutionMode,
     /// Default world for bindings without a matching route.
@@ -737,6 +802,12 @@ pub(super) fn runtime_options_with_base(
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigRuntimeOptionsJson {
+    /// Stable runtime name for policy selection.
+    pub name: Option<String>,
+    /// Runtime labels for policy selection.
+    pub labels: Option<BTreeMap<String, String>>,
+    /// Default primary agent identity for policy selection.
+    pub primary_agent: Option<RuntimeAgentOptionsJson>,
     /// Execution mode for runtime scheduling and replay.
     pub execution: Option<ExecutionModeJson>,
     /// Default world for bindings without matching world rules.
@@ -801,9 +872,48 @@ pub struct DsConfigRuntimeOptionsJson {
     pub platform: Option<PlatformOptionsJson>,
 }
 
+/// Primary runtime agent options for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeAgentOptionsJson {
+    /// Primary agent name for policy selection.
+    pub name: Option<String>,
+    /// Primary agent labels for policy selection.
+    pub labels: Option<BTreeMap<String, String>>,
+}
+
+impl RuntimeAgentOptionsJson {
+    /// Apply primary agent overrides to one base set of runtime agent options.
+    pub fn apply_to(&self, options: &mut RuntimeAgentOptions) {
+        // apply primary agent name override
+        if let Some(name) = &self.name {
+            options.name = Some(name.clone());
+        }
+
+        // apply primary agent label override
+        if let Some(labels) = &self.labels {
+            options.labels = labels.clone();
+        }
+    }
+}
+
 impl DsConfigRuntimeOptionsJson {
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
+        // apply runtime identity overrides
+        if let Some(name) = &self.name {
+            options.name = Some(name.clone());
+        }
+        if let Some(labels) = &self.labels {
+            options.labels = labels.clone();
+        }
+
+        // apply default primary agent identity overrides
+        if let Some(primary_agent) = &self.primary_agent {
+            primary_agent.apply_to(&mut options.primary_agent);
+        }
+
         // apply execution mode overrides
         if let Some(execution_mode) = self.execution {
             options.execution = ExecutionMode::from(execution_mode);
@@ -1001,11 +1111,109 @@ impl From<RuntimeAccessJson> for RuntimeAccess {
     }
 }
 
-/// Runtime rule filter clause for JSON deserialization.
+/// Runtime label operator for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimeLabelOperatorJson {
+    /// Match labels whose value is in the supplied value set.
+    In,
+    /// Match labels whose value is not in the supplied value set.
+    NotIn,
+    /// Match labels where the key exists regardless of value.
+    Exists,
+    /// Match labels where the key does not exist.
+    DoesNotExist,
+}
+
+impl From<RuntimeLabelOperatorJson> for RuntimeLabelOperator {
+    fn from(value: RuntimeLabelOperatorJson) -> Self {
+        match value {
+            RuntimeLabelOperatorJson::In => RuntimeLabelOperator::In,
+            RuntimeLabelOperatorJson::NotIn => RuntimeLabelOperator::NotIn,
+            RuntimeLabelOperatorJson::Exists => RuntimeLabelOperator::Exists,
+            RuntimeLabelOperatorJson::DoesNotExist => RuntimeLabelOperator::DoesNotExist,
+        }
+    }
+}
+
+/// Runtime label requirement for JSON deserialization.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeLabelRequirementJson {
+    /// Label key to evaluate.
+    pub key: String,
+    /// Label requirement operator.
+    pub operator: RuntimeLabelOperatorJson,
+    /// Label values for set-based operators.
+    pub values: Vec<String>,
+}
+
+impl From<&RuntimeLabelRequirementJson> for RuntimeLabelRequirement {
+    fn from(value: &RuntimeLabelRequirementJson) -> Self {
+        Self {
+            key: value.key.clone(),
+            operator: RuntimeLabelOperator::from(value.operator),
+            values: value.values.clone(),
+        }
+    }
+}
+
+/// Kubernetes-style runtime label selector for JSON deserialization.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeFilterJson {
+pub struct RuntimeLabelSelectorJson {
+    /// Exact-match labels that must all be present.
+    pub match_labels: Option<BTreeMap<String, String>>,
+    /// Additional set-based label requirements.
+    pub match_expressions: Option<Vec<RuntimeLabelRequirementJson>>,
+}
+
+impl From<&RuntimeLabelSelectorJson> for RuntimeLabelSelector {
+    fn from(value: &RuntimeLabelSelectorJson) -> Self {
+        Self {
+            match_labels: value.match_labels.clone().unwrap_or_default(),
+            match_expressions: value
+                .match_expressions
+                .as_ref()
+                .map(|expressions| {
+                    expressions
+                        .iter()
+                        .map(RuntimeLabelRequirement::from)
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Runtime identity selector for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeIdentitySelectorJson {
+    /// Name selector for one runtime or one agent.
+    pub name: Option<String>,
+    /// Label selector for one runtime or one agent.
+    pub labels: Option<RuntimeLabelSelectorJson>,
+}
+
+impl From<&RuntimeIdentitySelectorJson> for RuntimeIdentitySelector {
+    fn from(value: &RuntimeIdentitySelectorJson) -> Self {
+        Self {
+            name: value.name.clone(),
+            labels: value.labels.as_ref().map(RuntimeLabelSelector::from),
+        }
+    }
+}
+
+/// Runtime rule selector clause for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeSelectorJson {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
     /// Glob selector for capability names.
@@ -1026,10 +1234,14 @@ pub struct RuntimeFilterJson {
     pub blocking: Option<BindingBlockingJson>,
     /// Binding effect selector.
     pub effect: Option<BindingEffectJson>,
+    /// Runtime identity selector.
+    pub runtime: Option<RuntimeIdentitySelectorJson>,
+    /// Agent identity selector.
+    pub agent: Option<RuntimeIdentitySelectorJson>,
 }
 
-impl From<&RuntimeFilterJson> for RuntimeFilter {
-    fn from(value: &RuntimeFilterJson) -> Self {
+impl From<&RuntimeSelectorJson> for RuntimeSelector {
+    fn from(value: &RuntimeSelectorJson) -> Self {
         Self {
             binding: value.binding.clone(),
             capability: value.capability.clone(),
@@ -1044,6 +1256,8 @@ impl From<&RuntimeFilterJson> for RuntimeFilter {
             scope: value.scope.map(BindingScope::from),
             blocking: value.blocking.map(BindingBlocking::from),
             effect: value.effect.map(BindingEffect::from),
+            runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
+            agent: value.agent.as_ref().map(RuntimeIdentitySelector::from),
         }
     }
 }
@@ -1173,7 +1387,7 @@ impl From<&RuntimePolicyActionJson> for RuntimePolicyAction {
 #[serde(rename_all = "camelCase")]
 pub struct RuntimePolicyRuleJson {
     /// Rule filter clause.
-    pub when: RuntimeFilterJson,
+    pub when: RuntimeSelectorJson,
     /// Rule action payload.
     pub action: RuntimePolicyActionJson,
 }
@@ -1181,7 +1395,7 @@ pub struct RuntimePolicyRuleJson {
 impl From<&RuntimePolicyRuleJson> for RuntimePolicyRule {
     fn from(value: &RuntimePolicyRuleJson) -> Self {
         Self {
-            when: RuntimeFilter::from(&value.when),
+            when: RuntimeSelector::from(&value.when),
             action: RuntimePolicyAction::from(&value.action),
         }
     }

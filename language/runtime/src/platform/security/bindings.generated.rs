@@ -737,7 +737,7 @@ pub unsafe extern "C" fn destack_security_capability_has(
         let _ = (&out, &capability);
 
         {
-            context.check_policy(SECURITY_CAPABILITY_HAS)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_CAPABILITY_HAS)?;
             unsafe {
                 platform_runtime_native::destack_security_capability_has(context, out, capability)
             }
@@ -756,7 +756,7 @@ pub unsafe extern "C" fn destack_security_capability_list(
         let _ = &out;
 
         {
-            context.check_policy(SECURITY_CAPABILITY_LIST)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_CAPABILITY_LIST)?;
             unsafe { platform_runtime_native::destack_security_capability_list(context, out) }
         }
     })
@@ -770,7 +770,7 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_seal(
         let _ = &handle;
 
         {
-            context.check_policy(SECURITY_ENFORCE_SANDBOX_SEAL)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_ENFORCE_SANDBOX_SEAL)?;
             unsafe { platform_runtime_native::destack_security_sandbox_seal(context, handle) }
         }
     })
@@ -785,7 +785,8 @@ pub unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
         let _ = (&handle, &capabilities);
 
         {
-            context.check_policy(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
+            let _binding_hook_guard =
+                context.on_before_binding(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
             unsafe {
                 platform_runtime_native::destack_security_sandbox_set_capabilities(
                     context,
@@ -805,7 +806,8 @@ pub unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
         let _ = &enabled;
 
         {
-            context.check_policy(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
+            let _binding_hook_guard =
+                context.on_before_binding(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
             unsafe {
                 platform_runtime_native::destack_security_set_write_xor_execute(context, enabled)
             }
@@ -825,7 +827,7 @@ pub unsafe extern "C" fn destack_security_policy_get(
         let _ = (&out, &scope);
 
         {
-            context.check_policy(SECURITY_POLICY_GET)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_GET)?;
             unsafe { platform_runtime_native::destack_security_policy_get(context, out, scope) }
         }
     })
@@ -843,7 +845,7 @@ pub unsafe extern "C" fn destack_security_policy_get_rules(
         let _ = (&out, &scope);
 
         {
-            context.check_policy(SECURITY_POLICY_GET_RULES)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_GET_RULES)?;
             unsafe {
                 platform_runtime_native::destack_security_policy_get_rules(context, out, scope)
             }
@@ -860,7 +862,7 @@ pub unsafe extern "C" fn destack_security_policy_set(
         let _ = (&scope, &capabilities);
 
         {
-            context.check_policy(SECURITY_POLICY_SET)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_SET)?;
             unsafe {
                 platform_runtime_native::destack_security_policy_set(context, scope, capabilities)
             }
@@ -877,7 +879,7 @@ pub unsafe extern "C" fn destack_security_policy_set_rules(
         let _ = (&scope, &rules);
 
         {
-            context.check_policy(SECURITY_POLICY_SET_RULES)?;
+            let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_SET_RULES)?;
             unsafe {
                 platform_runtime_native::destack_security_policy_set_rules(context, scope, rules)
             }
@@ -896,7 +898,7 @@ pub unsafe extern "C" fn destack_security_sandbox_enter(
         }
         let _ = (&out, &name);
 
-        context.check_policy(SECURITY_SANDBOX_ENTER)?;
+        let _binding_hook_guard = context.on_before_binding(SECURITY_SANDBOX_ENTER)?;
         destack_security_sandbox_enter_replay(context, out, name)
     })
 }
@@ -908,7 +910,7 @@ pub unsafe extern "C" fn destack_security_sandbox_exit(
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(SECURITY_SANDBOX_EXIT)?;
+        let _binding_hook_guard = context.on_before_binding(SECURITY_SANDBOX_EXIT)?;
         destack_security_sandbox_exit_replay(context, handle)
     })
 }
@@ -1020,7 +1022,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_CAPABILITY_HAS)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_CAPABILITY_HAS)?;
                         platform_runtime_vm::destack_security_capability_has(
                             runtime, context, capability,
                         )
@@ -1040,7 +1043,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
                 with_binding_call_context(|runtime| {
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_CAPABILITY_LIST)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_CAPABILITY_LIST)?;
                         platform_runtime_vm::destack_security_capability_list(runtime, context)
                     };
                     encode_destack_security_capability_list_result(context, result)
@@ -1062,7 +1066,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_ENFORCE_SANDBOX_SEAL)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_ENFORCE_SANDBOX_SEAL)?;
                         platform_runtime_vm::destack_security_sandbox_seal(runtime, context, handle)
                     };
                     encode_destack_security_enforce_sandbox_seal_result(context, result)
@@ -1086,7 +1091,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
                         platform_runtime_vm::destack_security_sandbox_set_capabilities(
                             runtime,
                             context,
@@ -1113,7 +1119,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE)?;
                         platform_runtime_vm::destack_security_set_write_xor_execute(
                             runtime, context, enabled,
                         )
@@ -1136,7 +1143,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_POLICY_GET)?;
+                        let _binding_hook_guard = runtime.on_before_binding(SECURITY_POLICY_GET)?;
                         platform_runtime_vm::destack_security_policy_get(runtime, context, scope)
                     };
                     encode_destack_security_policy_get_result(context, result)
@@ -1157,7 +1164,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_POLICY_GET_RULES)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_POLICY_GET_RULES)?;
                         platform_runtime_vm::destack_security_policy_get_rules(
                             runtime, context, scope,
                         )
@@ -1181,7 +1189,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_POLICY_SET)?;
+                        let _binding_hook_guard = runtime.on_before_binding(SECURITY_POLICY_SET)?;
                         platform_runtime_vm::destack_security_policy_set(
                             runtime,
                             context,
@@ -1208,7 +1216,8 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(SECURITY_POLICY_SET_RULES)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(SECURITY_POLICY_SET_RULES)?;
                         platform_runtime_vm::destack_security_policy_set_rules(
                             runtime, context, scope, rules,
                         )
@@ -1230,7 +1239,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
                     let (name,) = decode_destack_security_sandbox_enter_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(SECURITY_SANDBOX_ENTER)?;
+                    let _binding_hook_guard = runtime.on_before_binding(SECURITY_SANDBOX_ENTER)?;
                     destack_security_sandbox_enter_vm_replay(runtime, context, name)
                 })
                 .map_err(Into::into)
@@ -1248,7 +1257,7 @@ pub fn register_security_vm_bindings(registry: &mut BindingRegistry, isolate: &m
                     let (handle,) = decode_destack_security_sandbox_exit_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(SECURITY_SANDBOX_EXIT)?;
+                    let _binding_hook_guard = runtime.on_before_binding(SECURITY_SANDBOX_EXIT)?;
                     destack_security_sandbox_exit_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
