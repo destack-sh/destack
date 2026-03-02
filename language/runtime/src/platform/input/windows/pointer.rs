@@ -56,7 +56,7 @@ pub(super) fn pointer_state(
     let mut pointer_y = host_pointer_y;
     if resolved.backend == input_core::WindowsInputBackend::RawDevice
         && let Some(raw_device) = resolved.raw_device.as_ref()
-        && let Some(pen_state) = raw_input::read_pen_state(raw_device, operation)?
+        && let Some(pen_state) = raw_input::read_pen_state(context, raw_device, operation)?
     {
         has_pen_data = true;
         pen_pressure = pen_state.pressure;
@@ -122,7 +122,7 @@ pub(super) fn pointer_set_relative_mode(
     let (mut pointer_x, mut pointer_y) = input_core::current_pointer_position();
     if resolved.backend == input_core::WindowsInputBackend::RawDevice
         && let Some(raw_device) = resolved.raw_device.as_ref()
-        && let Some(pen_state) = raw_input::read_pen_state(raw_device, operation)?
+        && let Some(pen_state) = raw_input::read_pen_state(context, raw_device, operation)?
     {
         pointer_x = pen_state.x;
         pointer_y = pen_state.y;

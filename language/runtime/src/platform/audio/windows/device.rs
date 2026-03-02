@@ -367,9 +367,10 @@ pub(crate) unsafe fn destack_audio_device_open(
         options,
     });
     let handle_id = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioDevice, Some(context.engine()))
+        ResourceEntry::new(ResourceKind::AudioDevice)
             .with_label(audio_core::AUDIO_DEVICE_RESOURCE_LABEL)
             .with_payload(payload),
+        Some(context.engine()),
     );
 
     unsafe {

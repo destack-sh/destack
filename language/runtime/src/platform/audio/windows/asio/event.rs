@@ -4,11 +4,12 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::BindingCallContext;
 
 use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, SyncSender};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT};
@@ -28,6 +29,7 @@ struct AsioRegistryWatcher {
 }
 
 /// One shared ASIO monitor state.
+#[derive(Debug)]
 struct AsioDeviceMonitor {
     /// Stop signal for the monitor thread.
     stop: Arc<AtomicBool>,
@@ -37,12 +39,52 @@ struct AsioDeviceMonitor {
     reference_count: usize,
 }
 
-/// One shared ASIO monitor slot.
-static ASIO_DEVICE_MONITOR_SLOT: OnceLock<Mutex<Option<AsioDeviceMonitor>>> = OnceLock::new();
+/// Runtime-owned ASIO monitor state.
+#[derive(Debug, Default)]
+struct AsioMonitorRuntimeState {
+    /// Runtime-owned monitor slot.
+    monitor: Mutex<Option<AsioDeviceMonitor>>,
+    /// Whether teardown finalizer was registered.
+    shutdown_registered: AtomicBool,
+}
 
-/// Return one shared ASIO monitor slot.
-fn monitor_slot() -> &'static Mutex<Option<AsioDeviceMonitor>> {
-    ASIO_DEVICE_MONITOR_SLOT.get_or_init(|| Mutex::new(None))
+/// Return runtime-owned ASIO monitor state.
+fn asio_monitor_runtime_state(context: &BindingCallContext) -> Arc<AsioMonitorRuntimeState> {
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(AsioMonitorRuntimeState::default);
+    register_runtime_finalizer(context, &runtime_state);
+
+    runtime_state
+}
+
+/// Register one runtime finalizer for ASIO monitor teardown.
+fn register_runtime_finalizer(
+    context: &BindingCallContext,
+    runtime_state: &Arc<AsioMonitorRuntimeState>,
+) {
+    if runtime_state
+        .shutdown_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let runtime_state = Arc::clone(runtime_state);
+    context.runtime().finalizers.register(move || {
+        let monitor = runtime_state
+            .monitor
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        let Some(monitor) = monitor else {
+            return;
+        };
+
+        monitor.stop.store(true, Ordering::Relaxed);
+        let _ = monitor.handle.join();
+    });
 }
 
 /// Return one startup error payload for ASIO monitor initialization.
@@ -64,8 +106,10 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start ASIO native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
-    let mut monitor_slot = monitor_slot()
+pub(crate) fn start_native_device_event_monitor(context: &BindingCallContext) -> RuntimeResult<()> {
+    let runtime_state = asio_monitor_runtime_state(context);
+    let mut monitor_slot = runtime_state
+        .monitor
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     if let Some(monitor) = monitor_slot.as_mut() {
@@ -74,9 +118,13 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
     }
 
     let stop = Arc::new(AtomicBool::new(false));
+    let runtime_state = audio_core::audio_event_runtime_state(context);
     let stop_signal = Arc::clone(&stop);
+    let callback_runtime_state = Arc::clone(&runtime_state);
     let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-    let handle = thread::spawn(move || run_monitor_thread(stop_signal, ready_sender));
+    let handle = thread::spawn(move || {
+        run_monitor_thread(callback_runtime_state, stop_signal, ready_sender)
+    });
 
     let ready_result = ready_receiver
         .recv()
@@ -97,9 +145,11 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
 }
 
 /// Stop ASIO native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor() {
+pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
+    let runtime_state = asio_monitor_runtime_state(_context);
     let monitor = {
-        let mut monitor_slot = monitor_slot()
+        let mut monitor_slot = runtime_state
+            .monitor
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let Some(monitor) = monitor_slot.as_mut() else {
@@ -123,7 +173,11 @@ pub(crate) fn stop_native_device_event_monitor() {
 }
 
 /// Run one ASIO registry monitor thread.
-fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeResult<()>>) {
+fn run_monitor_thread(
+    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
+    stop: Arc<AtomicBool>,
+    ready_sender: SyncSender<RuntimeResult<()>>,
+) {
     // open registry watchers for both 64-bit and 32-bit views
     let mut watchers = Vec::new();
     append_registry_watcher(&mut watchers, KEY_READ | KEY_NOTIFY | KEY_WOW64_64KEY);
@@ -171,7 +225,10 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
         }
 
         let _ = std::panic::catch_unwind(|| {
-            audio_core::publish_device_snapshot_native(audio_core::AudioBackend::Asio);
+            audio_core::publish_device_snapshot_native(
+                &runtime_state,
+                audio_core::AudioBackend::Asio,
+            );
         });
 
         if arm_registry_watcher(&watchers[watcher_index]).is_err() {

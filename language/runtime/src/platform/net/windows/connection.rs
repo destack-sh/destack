@@ -406,7 +406,7 @@ pub(crate) unsafe fn destack_net_close(
     let entry = context
         .runtime()
         .resources
-        .remove(handle.0)
+        .remove(handle.0, Some(context.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",
@@ -446,7 +446,7 @@ pub(crate) unsafe fn destack_net_close_listener(
     let entry = context
         .runtime()
         .resources
-        .remove(handle.0)
+        .remove(handle.0, Some(context.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
+use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "macos")]
 const UNIX_BACKEND_PRIORITY: &[audio_core::AudioBackend] = &[audio_core::AudioBackend::CoreAudio];
@@ -72,12 +73,16 @@ pub(crate) fn backend_native_device_events_supported_impl(
 
 /// Start one unix backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events_impl(
+    context: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) -> RuntimeResult<()> {
-    super::backend::start_backend_native_device_events(backend)
+    super::backend::start_backend_native_device_events(context, backend)
 }
 
 /// Stop one unix backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events_impl(backend: audio_core::AudioBackend) {
-    super::backend::stop_backend_native_device_events(backend);
+pub(crate) fn stop_backend_native_device_events_impl(
+    context: &BindingCallContext,
+    backend: audio_core::AudioBackend,
+) {
+    super::backend::stop_backend_native_device_events(context, backend);
 }

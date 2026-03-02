@@ -5,6 +5,7 @@ use super::super::pactl;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::AudioBackend;
+use crate::runtime::BindingCallContext;
 
 /// Return whether PulseAudio native device-event monitoring is available.
 pub(crate) fn native_device_events_supported() -> bool {
@@ -20,10 +21,16 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start PulseAudio native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor(
+    _context: &BindingCallContext,
+) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        return pactl::start_native_device_event_monitor(AudioBackend::PulseAudio, "pulseaudio");
+        return pactl::start_native_device_event_monitor(
+            _context,
+            AudioBackend::PulseAudio,
+            "pulseaudio",
+        );
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -36,9 +43,9 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
 }
 
 /// Stop PulseAudio native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor() {
+pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
-        pactl::stop_native_device_event_monitor(AudioBackend::PulseAudio);
+        pactl::stop_native_device_event_monitor(_context, AudioBackend::PulseAudio);
     }
 }

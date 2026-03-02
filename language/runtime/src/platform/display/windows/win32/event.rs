@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
+use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::Duration;
 
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
@@ -25,9 +25,6 @@ use crate::runtime::BindingCallContext;
 
 use super::model::{DisplayDescriptorOwned, Win32WindowBinding};
 use super::{core, monitor, resource as display_resource, window};
-
-/// Maximum wait slice used while interleaving Win32 message pumping in event reads.
-const WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
 
 /// Stored monitor-event record payload.
 #[derive(Debug, Clone)]
@@ -220,19 +217,23 @@ struct WindowEventState {
     pending: VecDeque<WindowEventRecord>,
 }
 
-/// Shared event subscriber list for monitor-event streams.
-static MONITOR_EVENT_REGISTRY: OnceLock<Mutex<Vec<Weak<MonitorEventBinding>>>> = OnceLock::new();
-/// Shared event subscriber list for window-event streams.
-static WINDOW_EVENT_REGISTRY: OnceLock<Mutex<Vec<Weak<WindowEventBinding>>>> = OnceLock::new();
-
-/// Return one shared monitor-event registry lock.
-fn monitor_event_registry() -> &'static Mutex<Vec<Weak<MonitorEventBinding>>> {
-    MONITOR_EVENT_REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+/// Runtime-owned mutable state for display event streams.
+#[derive(Debug, Default)]
+pub(super) struct DisplayEventRuntimeState {
+    /// Event subscriber list for monitor-event streams.
+    monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
+    /// Event subscriber list for window-event streams.
+    window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
 }
 
-/// Return one shared window-event registry lock.
-fn window_event_registry() -> &'static Mutex<Vec<Weak<WindowEventBinding>>> {
-    WINDOW_EVENT_REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+/// Return runtime-owned display-event state.
+pub(super) fn display_event_runtime_state(
+    context: &BindingCallContext,
+) -> Arc<DisplayEventRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(DisplayEventRuntimeState::default)
 }
 
 /// Convert one remaining timeout payload into a condition wait duration.
@@ -311,8 +312,12 @@ fn push_window_event(state: &mut WindowEventState, mut event: WindowEventRecord)
 }
 
 /// Publish one monitor-event record to all active stream subscribers.
-fn publish_monitor_event(record: DisplayEventRecord) {
-    let mut registry = monitor_event_registry()
+fn publish_monitor_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    record: DisplayEventRecord,
+) {
+    let mut registry = runtime_state
+        .monitor_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -332,8 +337,9 @@ fn publish_monitor_event(record: DisplayEventRecord) {
 }
 
 /// Publish one window-event record to all active stream subscribers.
-fn publish_window_event(record: WindowEventRecord) {
-    let mut registry = window_event_registry()
+fn publish_window_event(runtime_state: &Arc<DisplayEventRuntimeState>, record: WindowEventRecord) {
+    let mut registry = runtime_state
+        .window_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -546,7 +552,11 @@ fn window_event_from_record(value: WindowEventRecord, context: &BindingCallConte
 }
 
 /// Publish one mode-changed monitor event.
-pub(super) fn publish_mode_changed_event(display_id: &str, mode: DisplayMode) {
+pub(super) fn publish_mode_changed_event(
+    context: &BindingCallContext,
+    display_id: &str,
+    mode: DisplayMode,
+) {
     let record = DisplayEventRecord {
         timestamp_ns: core::now_timestamp_ns(),
         sequence: 0,
@@ -556,11 +566,13 @@ pub(super) fn publish_mode_changed_event(display_id: &str, mode: DisplayMode) {
         },
     };
 
-    publish_monitor_event(record);
+    let runtime_state = display_event_runtime_state(context);
+    publish_monitor_event(&runtime_state, record);
 }
 
 /// Publish one descriptor-changed monitor event.
 pub(super) fn publish_descriptor_changed_event(
+    context: &BindingCallContext,
     descriptor: &DisplayDescriptorOwned,
     changed_mask: u32,
 ) {
@@ -573,7 +585,8 @@ pub(super) fn publish_descriptor_changed_event(
         },
     };
 
-    publish_monitor_event(record);
+    let runtime_state = display_event_runtime_state(context);
+    publish_monitor_event(&runtime_state, record);
 }
 
 /// Seed one monitor-event stream with current monitor snapshot events.
@@ -617,168 +630,250 @@ fn seed_monitor_event_stream(state: &mut MonitorEventState) -> RuntimeResult<()>
 }
 
 /// Publish one created window event.
-pub(super) fn publish_window_created_event(window: resource::WindowHandle) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::Created { window },
-    });
+pub(super) fn publish_window_created_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::Created { window },
+        },
+    );
 }
 
 /// Publish one destroyed window event.
-pub(super) fn publish_window_destroyed_event(window: resource::WindowHandle) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::Destroyed { window },
-    });
+pub(super) fn publish_window_destroyed_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::Destroyed { window },
+        },
+    );
 }
 
 /// Publish one close-requested window event.
-pub(super) fn publish_window_close_requested_event(window: resource::WindowHandle) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::CloseRequested { window },
-    });
+pub(super) fn publish_window_close_requested_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::CloseRequested { window },
+        },
+    );
 }
 
 /// Publish one refresh-requested window event.
-pub(super) fn publish_window_refresh_event(window: resource::WindowHandle) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::RefreshRequested { window },
-    });
+pub(super) fn publish_window_refresh_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::RefreshRequested { window },
+        },
+    );
 }
 
 /// Publish one visibility-changed window event.
-fn publish_window_visibility_event(window: resource::WindowHandle, visibility: WindowVisibility) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::VisibilityChanged { window, visibility },
-    });
+fn publish_window_visibility_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    visibility: WindowVisibility,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::VisibilityChanged { window, visibility },
+        },
+    );
 }
 
 /// Publish one position-changed window event.
-fn publish_window_position_event(window: resource::WindowHandle, position: WindowPosition) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::PositionChanged { window, position },
-    });
+fn publish_window_position_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    position: WindowPosition,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::PositionChanged { window, position },
+        },
+    );
 }
 
 /// Publish one size-changed window event.
 fn publish_window_size_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     size_logical: WindowLogicalSize,
     size_physical: WindowPhysicalSize,
 ) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::SizeChanged {
-            window,
-            size_logical,
-            size_physical,
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::SizeChanged {
+                window,
+                size_logical,
+                size_physical,
+            },
         },
-    });
+    );
 }
 
 /// Publish one scale-factor changed window event.
-fn publish_window_scale_event(window: resource::WindowHandle, scale_factor_milli: u32) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::ScaleFactorChanged {
-            window,
-            scale_factor_milli,
+fn publish_window_scale_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    scale_factor_milli: u32,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::ScaleFactorChanged {
+                window,
+                scale_factor_milli,
+            },
         },
-    });
+    );
 }
 
 /// Publish one mode-changed window event.
-pub(super) fn publish_window_mode_event(window: resource::WindowHandle, mode: WindowModeOptions) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::ModeChanged { window, mode },
-    });
+pub(super) fn publish_window_mode_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    mode: WindowModeOptions,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::ModeChanged { window, mode },
+        },
+    );
 }
 
 /// Publish one display-changed window event.
 pub(super) fn publish_window_display_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     display: Option<resource::DisplayHandle>,
 ) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::DisplayChanged { window, display },
-    });
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::DisplayChanged { window, display },
+        },
+    );
 }
 
 /// Publish one focus-changed window event.
-fn publish_window_focus_event(window: resource::WindowHandle, focused: bool) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::FocusChanged { window, focused },
-    });
+fn publish_window_focus_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    focused: bool,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::FocusChanged { window, focused },
+        },
+    );
 }
 
 /// Publish one occlusion-changed window event.
-fn publish_window_occlusion_event(window: resource::WindowHandle, occluded: bool) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::OcclusionChanged { window, occluded },
-    });
+fn publish_window_occlusion_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    occluded: bool,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::OcclusionChanged { window, occluded },
+        },
+    );
 }
 
 /// Publish one theme-changed window event.
-fn publish_window_theme_event(window: resource::WindowHandle, theme: WindowTheme) {
-    publish_window_event(WindowEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: WindowEventRecordKind::ThemeChanged { window, theme },
-    });
+fn publish_window_theme_event(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
+    window: resource::WindowHandle,
+    theme: WindowTheme,
+) {
+    publish_window_event(
+        runtime_state,
+        WindowEventRecord {
+            timestamp_ns: core::now_timestamp_ns(),
+            sequence: 0,
+            kind: WindowEventRecordKind::ThemeChanged { window, theme },
+        },
+    );
 }
 
 /// Publish all state transitions observed between two window snapshots.
 pub(super) fn publish_state_deltas(
+    runtime_state: &Arc<DisplayEventRuntimeState>,
     window: resource::WindowHandle,
     previous: &Win32WindowBinding,
     next: &Win32WindowBinding,
 ) {
     if previous.visibility != next.visibility {
-        publish_window_visibility_event(window, next.visibility);
+        publish_window_visibility_event(runtime_state, window, next.visibility);
     }
 
     if previous.position != next.position {
-        publish_window_position_event(window, next.position);
+        publish_window_position_event(runtime_state, window, next.position);
     }
 
     if previous.size_logical != next.size_logical || previous.size_physical != next.size_physical {
-        publish_window_size_event(window, next.size_logical, next.size_physical);
+        publish_window_size_event(runtime_state, window, next.size_logical, next.size_physical);
     }
 
     if previous.scale_factor_milli != next.scale_factor_milli {
-        publish_window_scale_event(window, next.scale_factor_milli);
+        publish_window_scale_event(runtime_state, window, next.scale_factor_milli);
     }
 
     if previous.focused != next.focused {
-        publish_window_focus_event(window, next.focused);
+        publish_window_focus_event(runtime_state, window, next.focused);
     }
 
     if previous.occluded != next.occluded {
-        publish_window_occlusion_event(window, next.occluded);
+        publish_window_occlusion_event(runtime_state, window, next.occluded);
     }
 
     if previous.theme != next.theme {
-        publish_window_theme_event(window, next.theme);
+        publish_window_theme_event(runtime_state, window, next.theme);
     }
 }
 
@@ -792,7 +887,7 @@ pub(crate) unsafe fn monitor_event_open(
 
     let binding = Arc::new(MonitorEventBinding {
         state: Mutex::new(MonitorEventState {
-            queue_capacity: core::queue_capacity(options.queue.queue_capacity),
+            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
             overflow_policy: options.queue.overflow_policy,
             overflow_error_pending: false,
             next_sequence: 1,
@@ -813,8 +908,11 @@ pub(crate) unsafe fn monitor_event_open(
         ResourceEntry::new(ResourceKind::Display)
             .with_label(display_resource::DISPLAY_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&binding)),
+        Some(context.engine()),
     );
-    monitor_event_registry()
+    let runtime_state = display_event_runtime_state(context);
+    runtime_state
+        .monitor_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .push(Arc::downgrade(&binding));
@@ -838,7 +936,9 @@ pub(crate) unsafe fn monitor_event_close(
     )?;
 
     let identity = Arc::as_ptr(&binding) as usize;
-    monitor_event_registry()
+    let runtime_state = display_event_runtime_state(context);
+    runtime_state
+        .monitor_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .retain(|value| {
@@ -848,7 +948,11 @@ pub(crate) unsafe fn monitor_event_close(
             Arc::as_ptr(&active) as usize != identity
         });
 
-    let removed = context.runtime().resources.remove(handle.0).is_some();
+    let removed = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+        .is_some();
     if !removed {
         return Err(core::not_found(
             "destack.display.monitor.eventClose",
@@ -1075,7 +1179,7 @@ pub(crate) unsafe fn window_event_open(
 
     let binding = Arc::new(WindowEventBinding {
         state: Mutex::new(WindowEventState {
-            queue_capacity: core::queue_capacity(options.queue.queue_capacity),
+            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
             overflow_policy: options.queue.overflow_policy,
             overflow_error_pending: false,
             next_sequence: 1,
@@ -1089,8 +1193,11 @@ pub(crate) unsafe fn window_event_open(
         ResourceEntry::new(ResourceKind::Window)
             .with_label(display_resource::WINDOW_EVENT_RESOURCE_LABEL)
             .with_payload(Arc::clone(&binding)),
+        Some(context.engine()),
     );
-    window_event_registry()
+    let runtime_state = display_event_runtime_state(context);
+    runtime_state
+        .window_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .push(Arc::downgrade(&binding));
@@ -1114,7 +1221,9 @@ pub(crate) unsafe fn window_event_close(
     )?;
 
     let identity = Arc::as_ptr(&binding) as usize;
-    window_event_registry()
+    let runtime_state = display_event_runtime_state(context);
+    runtime_state
+        .window_event_registry
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .retain(|value| {
@@ -1124,7 +1233,11 @@ pub(crate) unsafe fn window_event_close(
             Arc::as_ptr(&active) as usize != identity
         });
 
-    let removed = context.runtime().resources.remove(handle.0).is_some();
+    let removed = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+        .is_some();
     if !removed {
         return Err(core::not_found(
             "destack.display.window.eventClose",
@@ -1182,7 +1295,8 @@ pub(crate) unsafe fn window_event_read(
             ));
         }
 
-        let remaining_ns = deadline.saturating_sub(now).min(WINDOW_EVENT_WAIT_SLICE_NS);
+        let wait_slice_ns = core::window_event_wait_slice_ns(context);
+        let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
         let wait_duration = wait_duration(remaining_ns);
         let _ = binding
             .signal
@@ -1248,7 +1362,8 @@ pub(crate) unsafe fn window_event_read_batch(
             ));
         }
 
-        let remaining_ns = deadline.saturating_sub(now).min(WINDOW_EVENT_WAIT_SLICE_NS);
+        let wait_slice_ns = core::window_event_wait_slice_ns(context);
+        let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
         let wait_duration = wait_duration(remaining_ns);
         let _ = binding
             .signal

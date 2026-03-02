@@ -8,6 +8,7 @@ use super::wasapi;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one windows backend is enabled by compile-time feature selection.
 fn backend_feature_enabled(backend: audio_core::AudioBackend) -> bool {
@@ -170,16 +171,17 @@ pub(crate) fn backend_native_device_events_supported(backend: audio_core::AudioB
 
 /// Start one windows backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events(
+    context: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) -> RuntimeResult<()> {
     #[cfg(feature = "audio-wasapi")]
     if backend == audio_core::AudioBackend::Wasapi {
-        return wasapi::start_native_device_event_monitor();
+        return wasapi::start_native_device_event_monitor(context);
     }
 
     #[cfg(feature = "audio-asio")]
     if backend == audio_core::AudioBackend::Asio {
-        return asio::start_native_device_event_monitor();
+        return asio::start_native_device_event_monitor(context);
     }
 
     let _ = backend;
@@ -187,16 +189,19 @@ pub(crate) fn start_backend_native_device_events(
 }
 
 /// Stop one windows backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events(backend: audio_core::AudioBackend) {
+pub(crate) fn stop_backend_native_device_events(
+    context: &BindingCallContext,
+    backend: audio_core::AudioBackend,
+) {
     #[cfg(feature = "audio-wasapi")]
     if backend == audio_core::AudioBackend::Wasapi {
-        wasapi::stop_native_device_event_monitor();
+        wasapi::stop_native_device_event_monitor(context);
         return;
     }
 
     #[cfg(feature = "audio-asio")]
     if backend == audio_core::AudioBackend::Asio {
-        asio::stop_native_device_event_monitor();
+        asio::stop_native_device_event_monitor(context);
         return;
     }
 

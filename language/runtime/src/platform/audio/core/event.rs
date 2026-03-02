@@ -31,18 +31,8 @@ const DEVICE_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEVICE_HOTPLUG
     | EVENT_SUBSCRIBE_FORMAT_CHANGE.0
     | EVENT_SUBSCRIBE_REROUTE.0;
 
-/// Shared registry for active event subscriptions used by native event delivery.
-static EVENT_BINDING_REGISTRY: OnceLock<Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>>> =
-    OnceLock::new();
-
-/// Shared registry mapping stream bindings to stream handles for native event delivery.
-static STREAM_BINDING_REGISTRY: OnceLock<Mutex<HashMap<usize, resource::AudioStreamHandle>>> =
-    OnceLock::new();
-/// Shared registry for backend device-monitor worker threads.
-static DEVICE_MONITOR_REGISTRY: OnceLock<Mutex<HashMap<AudioBackend, DeviceMonitorWorker>>> =
-    OnceLock::new();
-
 /// One backend device-monitor worker payload.
+#[derive(Debug)]
 struct DeviceMonitorWorker {
     /// Stop signal shared with the worker thread.
     stop: Arc<AtomicBool>,
@@ -50,24 +40,75 @@ struct DeviceMonitorWorker {
     handle: JoinHandle<()>,
 }
 
-/// Return one shared event-binding registry.
-fn event_binding_registry() -> &'static Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>> {
-    EVENT_BINDING_REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+/// Runtime-owned mutable state for audio event routing and monitor workers.
+#[derive(Debug, Default)]
+pub(crate) struct AudioEventRuntimeState {
+    /// Active event subscriptions in this runtime instance.
+    event_bindings: Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>>,
+    /// Synthetic native-only monitor workers keyed by backend.
+    device_monitors: Mutex<HashMap<AudioBackend, DeviceMonitorWorker>>,
+    /// Whether runtime finalizers were registered for this state.
+    shutdown_registered: AtomicBool,
 }
 
-/// Return one shared stream-handle registry.
-fn stream_binding_registry() -> &'static Mutex<HashMap<usize, resource::AudioStreamHandle>> {
-    STREAM_BINDING_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+/// Return runtime-owned state for audio event routing.
+pub(crate) fn audio_event_runtime_state(
+    context: &BindingCallContext,
+) -> Arc<AudioEventRuntimeState> {
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(AudioEventRuntimeState::default);
+    register_runtime_finalizer(context, &runtime_state);
+
+    runtime_state
 }
 
-/// Return one shared backend device-monitor registry.
-fn device_monitor_registry() -> &'static Mutex<HashMap<AudioBackend, DeviceMonitorWorker>> {
-    DEVICE_MONITOR_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+/// Register one runtime teardown finalizer for audio event routing state.
+fn register_runtime_finalizer(
+    context: &BindingCallContext,
+    runtime_state: &Arc<AudioEventRuntimeState>,
+) {
+    if runtime_state
+        .shutdown_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let runtime_state = Arc::clone(runtime_state);
+    context.runtime().finalizers.register(move || {
+        shutdown_runtime_state(&runtime_state);
+    });
 }
 
-/// Return one stable identity for one stream binding pointer.
-fn stream_binding_identity(binding: &AudioStreamBinding) -> usize {
-    binding as *const AudioStreamBinding as usize
+/// Stop all monitor workers and backend-native monitors for one runtime state.
+fn shutdown_runtime_state(runtime_state: &AudioEventRuntimeState) {
+    let mut worker_registry = runtime_state
+        .device_monitors
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let workers = worker_registry.drain().collect::<Vec<_>>();
+    drop(worker_registry);
+
+    for (_backend, worker) in workers {
+        worker.stop.store(true, Ordering::Relaxed);
+        let _ = worker.handle.join();
+    }
+}
+
+/// Return one runtime-local event-binding registry.
+fn event_binding_registry(
+    runtime_state: &AudioEventRuntimeState,
+) -> &Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>> {
+    &runtime_state.event_bindings
+}
+
+/// Return one runtime-local backend device-monitor registry.
+fn device_monitor_registry(
+    runtime_state: &AudioEventRuntimeState,
+) -> &Mutex<HashMap<AudioBackend, DeviceMonitorWorker>> {
+    &runtime_state.device_monitors
 }
 
 /// Return one subscription flag selector for one stream event kind.
@@ -139,9 +180,10 @@ fn tracks_device_events(binding: &AudioEventBinding) -> bool {
 
 /// Return active bindings that accept native device events for one backend.
 fn active_native_device_publish_bindings(
+    runtime_state: &AudioEventRuntimeState,
     backend: AudioBackend,
 ) -> Vec<Arc<Mutex<AudioEventBinding>>> {
-    let mut registry = event_binding_registry()
+    let mut registry = event_binding_registry(runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     let mut bindings = Vec::new();
@@ -167,8 +209,11 @@ fn active_native_device_publish_bindings(
 }
 
 /// Return whether one active native-only device subscription exists for one backend.
-fn has_native_device_subscription(backend: AudioBackend) -> bool {
-    let mut registry = event_binding_registry()
+fn has_native_device_subscription(
+    runtime_state: &AudioEventRuntimeState,
+    backend: AudioBackend,
+) -> bool {
+    let mut registry = event_binding_registry(runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     registry.retain(|value| value.strong_count() > 0);
@@ -198,8 +243,11 @@ fn has_native_device_subscription(backend: AudioBackend) -> bool {
 }
 
 /// Return active native-only device subscription bindings for one backend.
-fn active_native_device_bindings(backend: AudioBackend) -> Vec<Arc<Mutex<AudioEventBinding>>> {
-    let mut registry = event_binding_registry()
+fn active_native_device_bindings(
+    runtime_state: &AudioEventRuntimeState,
+    backend: AudioBackend,
+) -> Vec<Arc<Mutex<AudioEventBinding>>> {
+    let mut registry = event_binding_registry(runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     let mut bindings = Vec::new();
@@ -231,16 +279,18 @@ fn refresh_due(binding: &AudioEventBinding, now: u64) -> bool {
 }
 
 /// Run one native-only device-monitor worker loop.
-fn run_native_only_device_monitor(backend: AudioBackend, stop: Arc<AtomicBool>) {
-    let sleep_interval =
-        Duration::from_nanos(EVENT_POLL_INTERVAL_NS.max(MIN_EVENT_POLL_INTERVAL_NS));
-
+fn run_native_only_device_monitor(
+    runtime_state: Arc<AudioEventRuntimeState>,
+    backend: AudioBackend,
+    stop: Arc<AtomicBool>,
+    sleep_interval: Duration,
+) {
     loop {
         if stop.load(Ordering::Relaxed) {
             return;
         }
 
-        let active_bindings = active_native_device_bindings(backend);
+        let active_bindings = active_native_device_bindings(&runtime_state, backend);
         if active_bindings.is_empty() {
             thread::sleep(sleep_interval);
             continue;
@@ -271,13 +321,19 @@ fn run_native_only_device_monitor(backend: AudioBackend, stop: Arc<AtomicBool>) 
 }
 
 /// Refresh one backend device-monitor worker based on active native-only subscriptions.
-pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeResult<()> {
+pub(crate) fn refresh_backend_device_monitor(
+    context: &BindingCallContext,
+    backend: AudioBackend,
+) -> RuntimeResult<()> {
+    let runtime_state = audio_event_runtime_state(context);
+
     if host::backend_native_device_events_supported(backend) {
-        let has_native_bindings = !active_native_device_publish_bindings(backend).is_empty();
+        let has_native_bindings =
+            !active_native_device_publish_bindings(&runtime_state, backend).is_empty();
         if has_native_bindings {
-            host::start_backend_native_device_events(backend)?;
+            host::start_backend_native_device_events(context, backend)?;
         } else {
-            host::stop_backend_native_device_events(backend);
+            host::stop_backend_native_device_events(context, backend);
         }
     }
 
@@ -286,8 +342,8 @@ pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeRe
         return Ok(());
     }
 
-    let requires_worker = has_native_device_subscription(backend);
-    let mut registry = device_monitor_registry()
+    let requires_worker = has_native_device_subscription(&runtime_state, backend);
+    let mut registry = device_monitor_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
@@ -295,7 +351,19 @@ pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeRe
     if requires_worker && !registry.contains_key(&backend) {
         let stop = Arc::new(AtomicBool::new(false));
         let stop_signal = Arc::clone(&stop);
-        let handle = thread::spawn(move || run_native_only_device_monitor(backend, stop_signal));
+        let worker_runtime_state = Arc::clone(&runtime_state);
+        let poll_interval_ns = resolved_event_monitor_poll_interval_ns(
+            resolved_default_event_poll_interval_ns(context),
+        );
+        let sleep_interval = Duration::from_nanos(poll_interval_ns);
+        let handle = thread::spawn(move || {
+            run_native_only_device_monitor(
+                worker_runtime_state,
+                backend,
+                stop_signal,
+                sleep_interval,
+            )
+        });
         registry.insert(backend, DeviceMonitorWorker { stop, handle });
         return Ok(());
     }
@@ -311,14 +379,17 @@ pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeRe
 
 /// Publish one backend-native device snapshot diff to active subscriptions.
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-pub(crate) fn publish_device_snapshot_native(backend: AudioBackend) {
+pub(crate) fn publish_device_snapshot_native(
+    runtime_state: &AudioEventRuntimeState,
+    backend: AudioBackend,
+) {
     let now = host_monotonic_nanos();
     let snapshot = match monitor_snapshot(backend) {
         Ok(snapshot) => snapshot,
         Err(_) => return,
     };
 
-    for binding in active_native_device_publish_bindings(backend) {
+    for binding in active_native_device_publish_bindings(runtime_state, backend) {
         let mut binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
         refresh_device_events_from_snapshot(
             &mut binding_guard,
@@ -330,17 +401,25 @@ pub(crate) fn publish_device_snapshot_native(backend: AudioBackend) {
 }
 
 /// Register one opened event binding for native event delivery.
-pub(crate) fn register_event_binding(binding: &Arc<Mutex<AudioEventBinding>>) {
-    let mut registry = event_binding_registry()
+pub(crate) fn register_event_binding(
+    context: &BindingCallContext,
+    binding: &Arc<Mutex<AudioEventBinding>>,
+) {
+    let runtime_state = audio_event_runtime_state(context);
+    let mut registry = event_binding_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     registry.push(Arc::downgrade(binding));
 }
 
 /// Unregister one closed event binding from native event delivery.
-pub(crate) fn unregister_event_binding(binding: &Arc<Mutex<AudioEventBinding>>) {
+pub(crate) fn unregister_event_binding(
+    context: &BindingCallContext,
+    binding: &Arc<Mutex<AudioEventBinding>>,
+) {
+    let runtime_state = audio_event_runtime_state(context);
     let binding_identity = Arc::as_ptr(binding) as usize;
-    let mut registry = event_binding_registry()
+    let mut registry = event_binding_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     registry.retain(|value| {
@@ -355,34 +434,34 @@ pub(crate) fn unregister_event_binding(binding: &Arc<Mutex<AudioEventBinding>>) 
 
 /// Register one opened stream binding for native event delivery.
 pub(crate) fn register_stream_binding_handle(
+    context: &BindingCallContext,
     binding: &Arc<AudioStreamBinding>,
     handle: resource::AudioStreamHandle,
 ) {
-    let binding_identity = Arc::as_ptr(binding) as usize;
-    let mut registry = stream_binding_registry()
+    let runtime_state = audio_event_runtime_state(context);
+    binding
+        .stream_handle_raw
+        .store(handle.0.0, Ordering::Release);
+    *binding
+        .event_runtime_state
         .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    registry.insert(binding_identity, handle);
+        .unwrap_or_else(|error| error.into_inner()) = Some(Arc::downgrade(&runtime_state));
 }
 
 /// Unregister one closed stream binding from native event delivery.
 pub(crate) fn unregister_stream_binding_handle(binding: &AudioStreamBinding) {
-    let binding_identity = stream_binding_identity(binding);
-    let mut registry = stream_binding_registry()
+    binding.stream_handle_raw.store(0, Ordering::Release);
+    *binding
+        .event_runtime_state
         .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    registry.remove(&binding_identity);
+        .unwrap_or_else(|error| error.into_inner()) = None;
 }
 
 /// Return one registered stream handle for one stream binding when present.
 pub(crate) fn stream_handle_for_binding(
     binding: &AudioStreamBinding,
 ) -> Option<resource::AudioStreamHandle> {
-    let binding_identity = stream_binding_identity(binding);
-    let registry = stream_binding_registry()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    registry.get(&binding_identity).copied()
+    binding.stream_handle()
 }
 
 /// Publish one native stream event to matching active subscriptions.
@@ -396,9 +475,18 @@ pub(crate) fn publish_stream_event_native(
     let Some(subscription_flag) = subscription_flag_for_stream_event(kind) else {
         return;
     };
+    let runtime_state = stream_binding
+        .event_runtime_state
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .as_ref()
+        .and_then(std::sync::Weak::upgrade);
+    let Some(runtime_state) = runtime_state else {
+        return;
+    };
 
     let timestamp_ns = host_monotonic_nanos();
-    let mut registry = event_binding_registry()
+    let mut registry = event_binding_registry(&runtime_state)
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     registry.retain(|value| {
@@ -623,10 +711,10 @@ pub(crate) fn normalize_event_subscription_options(
 
     // normalize queue and polling values
     if options.queue_capacity == 0 {
-        options.queue_capacity = DEFAULT_EVENT_QUEUE_CAPACITY;
+        options.queue_capacity = resolved_default_event_queue_capacity(context);
     }
     if options.poll_interval_ns == 0 {
-        options.poll_interval_ns = EVENT_POLL_INTERVAL_NS;
+        options.poll_interval_ns = resolved_default_event_poll_interval_ns(context);
     }
     options.poll_interval_ns = options
         .poll_interval_ns
@@ -1061,8 +1149,9 @@ pub(crate) fn refresh_device_subscriptions_for_rescan(
     context: &BindingCallContext,
     backend: AudioBackend,
 ) -> RuntimeResult<()> {
+    let runtime_state = audio_event_runtime_state(context);
     let active_bindings = {
-        let mut registry = event_binding_registry()
+        let mut registry = event_binding_registry(&runtime_state)
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         let mut active_bindings = Vec::new();

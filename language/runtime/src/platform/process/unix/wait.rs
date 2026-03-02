@@ -203,6 +203,7 @@ pub(super) fn process_wait_pid(pid: u32, flags: u32) -> RuntimeResult<ProcessWai
 
 /// Wait for one process state transition with a timeout.
 pub(super) fn process_wait_pid_timeout(
+    context: &BindingCallContext,
     pid: u32,
     timeout_ns: u64,
 ) -> RuntimeResult<ProcessWaitStatus> {
@@ -219,8 +220,24 @@ pub(super) fn process_wait_pid_timeout(
         .boxed()
     })?;
 
-    let mut sleep_duration = Duration::from_micros(100);
-    let max_sleep_duration = Duration::from_millis(10);
+    let configured_initial_backoff_ns = context
+        .runtime()
+        .module_options
+        .process
+        .wait_poll_initial_backoff_ns;
+    let configured_max_backoff_ns = context
+        .runtime()
+        .module_options
+        .process
+        .wait_poll_max_backoff_ns;
+
+    let mut sleep_duration =
+        Duration::from_nanos(configured_initial_backoff_ns.unwrap_or(100_000).max(1));
+    let max_sleep_duration = Duration::from_nanos(
+        configured_max_backoff_ns
+            .unwrap_or(10_000_000)
+            .max(sleep_duration.as_nanos() as u64),
+    );
     loop {
         match process_wait_pid(pid, PROCESS_WAIT_FLAG_NOHANG) {
             Ok(status) => return Ok(status),

@@ -3,12 +3,15 @@ use std::time::Instant;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::BindingCallContext;
 use windows_sys::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
 };
 
 /// Default queue capacity for monitor and window event streams.
 pub(super) const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
+/// Default wait slice for window event blocking reads.
+pub(super) const DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS: u64 = 10_000_000;
 /// Nominal vsync interval used by the fallback vsync wait lane.
 pub(super) const FALLBACK_VSYNC_INTERVAL_NS: u64 = 16_666_667;
 /// Display metric mask bit for bounds updates.
@@ -124,13 +127,48 @@ pub(super) fn ensure_out<T>(out: *mut T, field: &'static str) -> RuntimeResult<(
     Ok(())
 }
 
-/// Normalize one requested queue-capacity payload.
-pub(super) fn queue_capacity(value: u32) -> usize {
+/// Return the configured default display event queue capacity.
+pub(super) fn default_event_queue_capacity(context: &BindingCallContext) -> usize {
+    let configured = context
+        .runtime()
+        .module_options
+        .display
+        .default_event_queue_capacity;
+    let configured = configured.and_then(|value| usize::try_from(value).ok());
+    let configured = configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY);
+
+    configured.max(1)
+}
+
+/// Resolve queue capacity for one event stream open request.
+pub(super) fn resolved_queue_capacity(context: &BindingCallContext, value: u32) -> usize {
     if value == 0 {
-        return DEFAULT_EVENT_QUEUE_CAPACITY;
+        return default_event_queue_capacity(context);
     }
 
     value as usize
+}
+
+/// Return the configured window-event wait slice duration in nanoseconds.
+pub(super) fn window_event_wait_slice_ns(context: &BindingCallContext) -> u64 {
+    let configured = context
+        .runtime()
+        .module_options
+        .display
+        .window_event_wait_slice_ns;
+    configured
+        .unwrap_or(DEFAULT_WINDOW_EVENT_WAIT_SLICE_NS)
+        .max(1)
+}
+
+/// Return the configured fallback vsync interval in nanoseconds.
+pub(super) fn fallback_vsync_interval_ns(context: &BindingCallContext) -> u64 {
+    let configured = context
+        .runtime()
+        .module_options
+        .display
+        .fallback_vsync_interval_ns;
+    configured.unwrap_or(FALLBACK_VSYNC_INTERVAL_NS).max(1)
 }
 
 /// Validate one batch-size payload.

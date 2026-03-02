@@ -464,7 +464,7 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     let process_id = resolve_process_fd(context, handle)?;
-    let status = super::wait::process_wait_pid_timeout(process_id.0, timeoutns)?;
+    let status = super::wait::process_wait_pid_timeout(context, process_id.0, timeoutns)?;
     unsafe {
         *out = status;
     }

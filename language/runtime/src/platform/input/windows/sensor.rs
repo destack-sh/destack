@@ -214,8 +214,13 @@ pub(crate) unsafe fn destack_input_sensor_read(
     }
 
     // read one sample from the raw-hid sensor queue
-    let sample =
-        raw_input::read_sensor_sample(&device, sensor_kind, false, "destack.input.sensor.read")?;
+    let sample = raw_input::read_sensor_sample(
+        context,
+        &device,
+        sensor_kind,
+        false,
+        "destack.input.sensor.read",
+    )?;
     unsafe {
         *out = sample;
     }
@@ -274,8 +279,13 @@ pub(crate) unsafe fn destack_input_sensor_try_read(
     }
 
     // poll one sample from the raw-hid sensor queue without blocking
-    let sample =
-        raw_input::read_sensor_sample(&device, sensor_kind, true, "destack.input.sensor.tryRead")?;
+    let sample = raw_input::read_sensor_sample(
+        context,
+        &device,
+        sensor_kind,
+        true,
+        "destack.input.sensor.tryRead",
+    )?;
     unsafe {
         *out = sample;
     }

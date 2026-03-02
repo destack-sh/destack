@@ -9,6 +9,7 @@ use super::host::{close_jack_client, open_jack_client};
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::platform::audio::core as audio_core;
+use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
 use std::ffi::c_int;
@@ -17,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "linux")]
 use std::sync::mpsc::{self, SyncSender};
 #[cfg(target_os = "linux")]
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
 use std::thread::{self, JoinHandle};
 #[cfg(target_os = "linux")]
@@ -25,26 +26,67 @@ use std::time::Duration;
 
 /// One shared JACK monitor state.
 #[cfg(target_os = "linux")]
+#[derive(Debug)]
 struct JackDeviceMonitor {
     /// Signal used to stop the monitor thread.
     stop: Arc<AtomicBool>,
+    /// Pending callback signal shared with JACK callback threads.
+    pending: Arc<AtomicBool>,
     /// Running monitor thread.
     handle: JoinHandle<()>,
     /// Active reference count for subscriptions using this monitor.
     reference_count: usize,
 }
 
-/// One shared JACK monitor slot.
+/// Runtime-owned JACK monitor slot.
 #[cfg(target_os = "linux")]
-static JACK_DEVICE_MONITOR_SLOT: OnceLock<Mutex<Option<JackDeviceMonitor>>> = OnceLock::new();
-/// One shared pending-change flag set by JACK callbacks.
-#[cfg(target_os = "linux")]
-static JACK_DEVICE_EVENT_PENDING: AtomicBool = AtomicBool::new(false);
+#[derive(Debug, Default)]
+struct JackMonitorRuntimeState {
+    /// Runtime-owned monitor slot.
+    monitor: Mutex<Option<JackDeviceMonitor>>,
+    /// Whether teardown finalizer was registered.
+    shutdown_registered: AtomicBool,
+}
 
-/// Return one shared JACK monitor slot.
+/// Return runtime-owned JACK monitor state.
 #[cfg(target_os = "linux")]
-fn monitor_slot() -> &'static Mutex<Option<JackDeviceMonitor>> {
-    JACK_DEVICE_MONITOR_SLOT.get_or_init(|| Mutex::new(None))
+fn jack_monitor_runtime_state(context: &BindingCallContext) -> Arc<JackMonitorRuntimeState> {
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(JackMonitorRuntimeState::default);
+    register_runtime_finalizer(context, &runtime_state);
+
+    runtime_state
+}
+
+/// Register one runtime finalizer for JACK monitor teardown.
+#[cfg(target_os = "linux")]
+fn register_runtime_finalizer(
+    context: &BindingCallContext,
+    runtime_state: &Arc<JackMonitorRuntimeState>,
+) {
+    if runtime_state
+        .shutdown_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let runtime_state = Arc::clone(runtime_state);
+    context.runtime().finalizers.register(move || {
+        let monitor = runtime_state
+            .monitor
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        let Some(monitor) = monitor else {
+            return;
+        };
+
+        monitor.stop.store(true, Ordering::Relaxed);
+        let _ = monitor.handle.join();
+    });
 }
 
 /// Return whether JACK native device-event monitoring is available.
@@ -61,10 +103,14 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start one JACK native device-event monitor.
-pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor(
+    _context: &BindingCallContext,
+) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let mut monitor_slot = monitor_slot()
+        let monitor_runtime_state = jack_monitor_runtime_state(_context);
+        let mut monitor_slot = monitor_runtime_state
+            .monitor
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if let Some(monitor) = monitor_slot.as_mut() {
@@ -73,9 +119,23 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
         }
 
         let stop = Arc::new(AtomicBool::new(false));
+        let pending = Arc::new(AtomicBool::new(false));
+        let runtime_state = audio_core::audio_event_runtime_state(_context);
         let stop_signal = Arc::clone(&stop);
+        let pending_signal = Arc::clone(&pending);
+        let callback_runtime_state = Arc::clone(&runtime_state);
+        let poll_interval_ns = audio_core::resolved_event_monitor_poll_interval_ns(25_000_000);
+        let sleep_interval = Duration::from_nanos(poll_interval_ns);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-        let handle = thread::spawn(move || run_device_monitor_thread(stop_signal, ready_sender));
+        let handle = thread::spawn(move || {
+            run_device_monitor_thread(
+                callback_runtime_state,
+                stop_signal,
+                pending_signal,
+                ready_sender,
+                sleep_interval,
+            )
+        });
 
         let ready_result = ready_receiver.recv().map_err(|_| {
             jack_error(
@@ -91,6 +151,7 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
 
         *monitor_slot = Some(JackDeviceMonitor {
             stop,
+            pending,
             handle,
             reference_count: 1,
         });
@@ -105,11 +166,13 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
 }
 
 /// Stop one JACK native device-event monitor.
-pub(crate) fn stop_native_device_event_monitor() {
+pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
+        let runtime_state = jack_monitor_runtime_state(_context);
         let monitor = {
-            let mut monitor_slot = monitor_slot()
+            let mut monitor_slot = runtime_state
+                .monitor
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
             let Some(monitor) = monitor_slot.as_mut() else {
@@ -135,7 +198,13 @@ pub(crate) fn stop_native_device_event_monitor() {
 
 /// Run one JACK device-event monitor thread.
 #[cfg(target_os = "linux")]
-fn run_device_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeResult<()>>) {
+fn run_device_monitor_thread(
+    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
+    stop: Arc<AtomicBool>,
+    pending: Arc<AtomicBool>,
+    ready_sender: SyncSender<RuntimeResult<()>>,
+    sleep_interval: Duration,
+) {
     let library = match require_jack_library("destack.audio.event.open") {
         Ok(library) => library,
         Err(error) => {
@@ -153,7 +222,7 @@ fn run_device_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<Run
         }
     };
 
-    if let Err(error) = install_monitor_callbacks(library, client) {
+    if let Err(error) = install_monitor_callbacks(library, client, &pending) {
         close_jack_client(library, client);
         let _ = ready_sender.send(Err(error));
         return;
@@ -170,14 +239,17 @@ fn run_device_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<Run
     }
 
     let _ = ready_sender.send(Ok(()));
-    JACK_DEVICE_EVENT_PENDING.store(true, Ordering::Release);
+    pending.store(true, Ordering::Release);
 
     while !stop.load(Ordering::Relaxed) {
-        if JACK_DEVICE_EVENT_PENDING.swap(false, Ordering::AcqRel) {
-            audio_core::publish_device_snapshot_native(audio_core::AudioBackend::Jack);
+        if pending.swap(false, Ordering::AcqRel) {
+            audio_core::publish_device_snapshot_native(
+                &runtime_state,
+                audio_core::AudioBackend::Jack,
+            );
         }
 
-        thread::sleep(Duration::from_millis(25));
+        thread::sleep(sleep_interval);
     }
 
     unsafe {
@@ -191,12 +263,15 @@ fn run_device_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<Run
 fn install_monitor_callbacks(
     library: &super::core::JackLibrary,
     client: *mut JackClient,
+    pending: &Arc<AtomicBool>,
 ) -> RuntimeResult<()> {
+    let callback_argument = Arc::as_ptr(pending) as *const AtomicBool as *mut std::ffi::c_void;
+
     let registration_status = unsafe {
         (library.api.jack_set_port_registration_callback)(
             client,
             Some(port_registration_callback),
-            std::ptr::null_mut(),
+            callback_argument,
         )
     };
     if !jack_succeeded(registration_status) {
@@ -212,7 +287,7 @@ fn install_monitor_callbacks(
         (library.api.jack_set_port_connect_callback)(
             client,
             Some(port_connect_callback),
-            std::ptr::null_mut(),
+            callback_argument,
         )
     };
     if !jack_succeeded(connect_status) {
@@ -223,7 +298,7 @@ fn install_monitor_callbacks(
     }
 
     unsafe {
-        (library.api.jack_on_shutdown)(client, Some(shutdown_callback), std::ptr::null_mut());
+        (library.api.jack_on_shutdown)(client, Some(shutdown_callback), callback_argument);
     }
 
     Ok(())
@@ -234,9 +309,16 @@ fn install_monitor_callbacks(
 unsafe extern "C" fn port_registration_callback(
     _port_id: u32,
     _is_registered: c_int,
-    _argument: *mut std::ffi::c_void,
+    argument: *mut std::ffi::c_void,
 ) {
-    JACK_DEVICE_EVENT_PENDING.store(true, Ordering::Release);
+    let pending = argument.cast::<AtomicBool>();
+    if pending.is_null() {
+        return;
+    }
+
+    unsafe {
+        (*pending).store(true, Ordering::Release);
+    }
 }
 
 /// Handle one JACK port-connect callback.
@@ -245,13 +327,27 @@ unsafe extern "C" fn port_connect_callback(
     _source_port_id: u32,
     _destination_port_id: u32,
     _is_connected: c_int,
-    _argument: *mut std::ffi::c_void,
+    argument: *mut std::ffi::c_void,
 ) {
-    JACK_DEVICE_EVENT_PENDING.store(true, Ordering::Release);
+    let pending = argument.cast::<AtomicBool>();
+    if pending.is_null() {
+        return;
+    }
+
+    unsafe {
+        (*pending).store(true, Ordering::Release);
+    }
 }
 
 /// Handle one JACK shutdown callback.
 #[cfg(target_os = "linux")]
-unsafe extern "C" fn shutdown_callback(_argument: *mut std::ffi::c_void) {
-    JACK_DEVICE_EVENT_PENDING.store(true, Ordering::Release);
+unsafe extern "C" fn shutdown_callback(argument: *mut std::ffi::c_void) {
+    let pending = argument.cast::<AtomicBool>();
+    if pending.is_null() {
+        return;
+    }
+
+    unsafe {
+        (*pending).store(true, Ordering::Release);
+    }
 }

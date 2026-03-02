@@ -40,6 +40,8 @@ const INPUT_MONITOR_EVENT_PREFIX: &str = "event";
 /// Linux inotify read-buffer size for monitor polling.
 #[cfg(target_os = "linux")]
 const INPUT_MONITOR_INOTIFY_BUFFER_SIZE: usize = 4096;
+/// Default monitor poll interval for blocking monitor read loops.
+const INPUT_MONITOR_POLL_INTERVAL_NS: u64 = 8_000_000;
 
 /// Monitor event payload queued by unix monitor polling.
 #[derive(Debug, Clone)]
@@ -92,6 +94,18 @@ impl ResourceFinalizer for MonitorWatchFinalizer {
 /// Return whether one runtime error carries io-would-block.
 fn is_io_would_block(error: &RuntimeError) -> bool {
     error.platform_error().map(|platform| platform.code) == Some(PlatformErrorCode::IoWouldBlock)
+}
+
+/// Return the configured monitor poll interval for this runtime.
+fn monitor_poll_interval(context: &BindingCallContext) -> Duration {
+    let configured = context
+        .runtime()
+        .module_options
+        .input
+        .monitor_poll_interval_ns;
+    let interval_ns = configured.unwrap_or(INPUT_MONITOR_POLL_INTERVAL_NS).max(1);
+
+    Duration::from_nanos(interval_ns)
 }
 
 /// Build io-not-found for one missing monitor handle.
@@ -672,7 +686,7 @@ fn poll_monitor_event(
                         }
 
                         // avoid hot-spin when no topology delta is available
-                        thread::sleep(Duration::from_millis(8));
+                        thread::sleep(monitor_poll_interval(context));
                     }
                     Some(None) | None => return Err(monitor_not_found(operation, handle)),
                 }
@@ -696,13 +710,13 @@ fn poll_monitor_event(
                 if let Some(watch_descriptor) = watch_descriptor {
                     wait_for_monitor_watch_event(watch_descriptor)?;
                 } else {
-                    thread::sleep(Duration::from_millis(8));
+                    thread::sleep(monitor_poll_interval(context));
                 }
 
                 #[cfg(not(target_os = "linux"))]
                 {
                     let _ = watch_descriptor;
-                    thread::sleep(Duration::from_millis(8));
+                    thread::sleep(monitor_poll_interval(context));
                 }
             }
             // bubble watcher failures

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ptr::null_mut;
-use std::sync::OnceLock;
+use std::sync::Arc;
 
 use parking_lot::Mutex;
 
@@ -31,21 +31,35 @@ struct MappingEntry {
     is_anon: bool,
 }
 
-/// Return the global mapping table.
-fn mapping_table() -> &'static Mutex<HashMap<usize, MappingEntry>> {
-    static TABLE: OnceLock<Mutex<HashMap<usize, MappingEntry>>> = OnceLock::new();
-    TABLE.get_or_init(|| Mutex::new(HashMap::new()))
+/// Runtime-owned mutable state for windows mmap lanes.
+#[derive(Debug, Default)]
+struct WindowsMmapRuntimeState {
+    /// Mapping metadata table keyed by base address.
+    mapping_table: Mutex<HashMap<usize, MappingEntry>>,
+}
+
+/// Return runtime-owned windows mmap mutable state.
+fn windows_mmap_runtime_state(context: &BindingCallContext) -> Arc<WindowsMmapRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(WindowsMmapRuntimeState::default)
 }
 
 /// Insert a mapping entry for a pointer.
-fn insert_mapping(ptr: *mut u8, mapping: HANDLE, is_anon: bool) {
-    let mut table = mapping_table().lock();
+fn insert_mapping(
+    runtime_state: &WindowsMmapRuntimeState,
+    ptr: *mut u8,
+    mapping: HANDLE,
+    is_anon: bool,
+) {
+    let mut table = runtime_state.mapping_table.lock();
     table.insert(ptr as usize, MappingEntry { mapping, is_anon });
 }
 
 /// Remove a mapping entry for a pointer.
-fn remove_mapping(ptr: *mut u8) -> Option<MappingEntry> {
-    let mut table = mapping_table().lock();
+fn remove_mapping(runtime_state: &WindowsMmapRuntimeState, ptr: *mut u8) -> Option<MappingEntry> {
+    let mut table = runtime_state.mapping_table.lock();
     table.remove(&(ptr as usize))
 }
 
@@ -140,6 +154,8 @@ pub(crate) unsafe fn destack_fs_mmap_file(
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
+    let runtime_state = windows_mmap_runtime_state(context);
+
     // ensure the output pointer is valid
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -213,7 +229,7 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 
     // record the mapping
     let ptr = view.Value as *mut u8;
-    insert_mapping(ptr, mapping, false);
+    insert_mapping(&runtime_state, ptr, mapping, false);
 
     unsafe {
         *out = NativeSlice {
@@ -243,12 +259,14 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     length: FileSize,
     prot: MmapProt,
     flags: MmapFlags,
 ) -> RuntimeResult<()> {
+    let runtime_state = windows_mmap_runtime_state(context);
+
     // ensure the output pointer is valid
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -271,7 +289,7 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
     }
 
     // record the mapping
-    insert_mapping(mapping as *mut u8, 0, true);
+    insert_mapping(&runtime_state, mapping as *mut u8, 0, true);
 
     unsafe {
         *out = NativeSlice {
@@ -301,15 +319,17 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     mapping: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
+    let runtime_state = windows_mmap_runtime_state(context);
+
     let slice = unsafe { mapping.as_slice()? };
     if slice.is_empty() {
         return Ok(());
     }
 
-    let entry = remove_mapping(mapping.data);
+    let entry = remove_mapping(&runtime_state, mapping.data);
     if let Some(entry) = entry {
         if entry.is_anon {
             let rc = unsafe { VirtualFree(mapping.data as *mut _, 0, MEM_RELEASE) };

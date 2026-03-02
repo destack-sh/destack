@@ -27,9 +27,6 @@ use super::core::{
 };
 use super::ids::{parse_opensles_stable_id, validate_opensles_stable_id_direction};
 
-/// One minimum worker sleep period in nanoseconds.
-const MIN_WORKER_POLL_NS: u64 = 1_000_000;
-
 /// One playback queue operation tag.
 const PLAYBACK_QUEUE_OPERATION: &str = "destack.audio.stream.playbackQueue";
 /// One capture queue operation tag.
@@ -327,13 +324,7 @@ pub(super) fn open_stream(
         )
         .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
 
-    let poll_period = Duration::from_nanos(
-        (period_frames as u64)
-            .saturating_mul(1_000_000_000u64)
-            .checked_div(primary_sample_rate.max(1) as u64)
-            .unwrap_or(MIN_WORKER_POLL_NS)
-            .max(MIN_WORKER_POLL_NS),
-    );
+    let poll_period = audio_core::resolved_worker_poll_period(period_frames, primary_sample_rate);
 
     let runtime = Arc::new(OpenslesStreamRuntime {
         playback: playback_lane.map(|lane| lane.lane),
@@ -356,6 +347,7 @@ pub(super) fn open_stream(
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,
+        max_queued_frames: audio_core::resolved_max_queued_frames(),
         share_mode,
         runtime_capabilities: audio_core::AudioStreamRuntimeCapabilities {
             supports_write_at: false,
@@ -371,6 +363,8 @@ pub(super) fn open_stream(
             state: audio_core::Mutex::new(audio_core::initial_stream_state()),
             wake: audio_core::Condvar::new(),
         }),
+        stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
+        event_runtime_state: audio_core::Mutex::new(None),
         null_worker: audio_core::Mutex::new(None),
     });
 

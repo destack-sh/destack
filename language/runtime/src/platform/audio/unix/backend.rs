@@ -18,6 +18,7 @@ use super::pulseaudio;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use crate::runtime::BindingCallContext;
 
 /// Return whether one unix backend is enabled by compile-time feature selection.
 fn backend_feature_enabled(backend: audio_core::AudioBackend) -> bool {
@@ -253,31 +254,32 @@ pub(crate) fn backend_native_device_events_supported(backend: audio_core::AudioB
 
 /// Start one unix backend native device-event monitor.
 pub(crate) fn start_backend_native_device_events(
+    context: &BindingCallContext,
     backend: audio_core::AudioBackend,
 ) -> RuntimeResult<()> {
     #[cfg(feature = "audio-alsa")]
     if backend == audio_core::AudioBackend::Alsa {
-        return alsa::start_native_device_event_monitor();
+        return alsa::start_native_device_event_monitor(context);
     }
 
     #[cfg(feature = "audio-pulseaudio")]
     if backend == audio_core::AudioBackend::PulseAudio {
-        return pulseaudio::start_native_device_event_monitor();
+        return pulseaudio::start_native_device_event_monitor(context);
     }
 
     #[cfg(feature = "audio-pipewire")]
     if backend == audio_core::AudioBackend::PipeWire {
-        return pipewire::start_native_device_event_monitor();
+        return pipewire::start_native_device_event_monitor(context);
     }
 
     #[cfg(feature = "audio-coreaudio")]
     if backend == audio_core::AudioBackend::CoreAudio {
-        return coreaudio::start_native_device_event_monitor();
+        return coreaudio::start_native_device_event_monitor(context);
     }
 
     #[cfg(feature = "audio-jack")]
     if backend == audio_core::AudioBackend::Jack {
-        return jack::start_native_device_event_monitor();
+        return jack::start_native_device_event_monitor(context);
     }
 
     let _ = backend;
@@ -285,34 +287,37 @@ pub(crate) fn start_backend_native_device_events(
 }
 
 /// Stop one unix backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events(backend: audio_core::AudioBackend) {
+pub(crate) fn stop_backend_native_device_events(
+    context: &BindingCallContext,
+    backend: audio_core::AudioBackend,
+) {
     #[cfg(feature = "audio-alsa")]
     if backend == audio_core::AudioBackend::Alsa {
-        alsa::stop_native_device_event_monitor();
+        alsa::stop_native_device_event_monitor(context);
         return;
     }
 
     #[cfg(feature = "audio-pulseaudio")]
     if backend == audio_core::AudioBackend::PulseAudio {
-        pulseaudio::stop_native_device_event_monitor();
+        pulseaudio::stop_native_device_event_monitor(context);
         return;
     }
 
     #[cfg(feature = "audio-pipewire")]
     if backend == audio_core::AudioBackend::PipeWire {
-        pipewire::stop_native_device_event_monitor();
+        pipewire::stop_native_device_event_monitor(context);
         return;
     }
 
     #[cfg(feature = "audio-coreaudio")]
     if backend == audio_core::AudioBackend::CoreAudio {
-        coreaudio::stop_native_device_event_monitor();
+        coreaudio::stop_native_device_event_monitor(context);
         return;
     }
 
     #[cfg(feature = "audio-jack")]
     if backend == audio_core::AudioBackend::Jack {
-        jack::stop_native_device_event_monitor();
+        jack::stop_native_device_event_monitor(context);
         return;
     }
 

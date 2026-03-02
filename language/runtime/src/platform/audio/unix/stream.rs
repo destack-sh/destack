@@ -179,7 +179,8 @@ pub(crate) unsafe fn destack_audio_stream_drain(
         }
 
         let remaining = deadline.saturating_sub(audio_core::host_monotonic_nanos());
-        let duration = Duration::from_nanos(remaining.min(audio_core::EVENT_POLL_INTERVAL_NS));
+        let wait_slice_ns = audio_core::resolved_stream_wait_slice_ns(context);
+        let duration = Duration::from_nanos(remaining.min(wait_slice_ns));
         let wait = binding
             .sync
             .wake
@@ -334,7 +335,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
         Some(context.engine()),
     );
     let stream_handle = resource::AudioStreamHandle(resource_id);
-    audio_core::register_stream_binding_handle(&stream, stream_handle);
+    audio_core::register_stream_binding_handle(context, &stream, stream_handle);
 
     unsafe {
         *out = stream_handle;
@@ -456,7 +457,8 @@ pub(crate) unsafe fn destack_audio_stream_read(
         .boxed());
     }
 
-    if maxbytes > audio_core::MAX_STREAM_READ_BYTES {
+    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context);
+    if maxbytes > max_read_bytes {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "maxbytes",
             "maxbytes exceeds supported audio read limit",
@@ -557,9 +559,8 @@ pub(crate) unsafe fn destack_audio_stream_readv(
         .boxed());
     }
 
-    let maxbytes = capacity_bytes
-        .min(audio_core::MAX_STREAM_READ_BYTES as usize)
-        .min(u32::MAX as usize) as u32;
+    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context) as usize;
+    let maxbytes = capacity_bytes.min(max_read_bytes).min(u32::MAX as usize) as u32;
     let mut packet_out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
     unsafe {
         destack_audio_stream_read(context, packet_out.as_mut_ptr(), handle, maxbytes)?;
@@ -1204,9 +1205,8 @@ pub(crate) unsafe fn destack_audio_stream_try_readv(
         .boxed());
     }
 
-    let maxbytes = capacity_bytes
-        .min(audio_core::MAX_STREAM_READ_BYTES as usize)
-        .min(u32::MAX as usize) as u32;
+    let max_read_bytes = audio_core::resolved_max_stream_read_bytes(context) as usize;
+    let maxbytes = capacity_bytes.min(max_read_bytes).min(u32::MAX as usize) as u32;
     let mut packet_out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
     unsafe {
         destack_audio_stream_try_read(context, packet_out.as_mut_ptr(), handle, maxbytes)?;

@@ -50,6 +50,8 @@ const ACCEPT_EX_ADDRESS_BYTES: usize =
     size_of::<SOCKADDR_STORAGE>() + ACCEPT_EX_ADDRESS_PADDING_BYTES;
 /// Copy chunk size used by copy_file_range emulation.
 const COPY_FILE_RANGE_CHUNK_BYTES: u32 = 64 * 1024;
+/// Default wait slice used while pending readiness polls are active.
+const DEFAULT_PENDING_POLL_SLICE_NS: u64 = 10_000_000;
 
 /// Message payload posted into the IOCP queue.
 #[derive(Debug, Clone, Copy)]
@@ -150,11 +152,18 @@ pub struct IocpProactor {
     pending_polls: Vec<PendingPoll>,
     /// Native overlapped operations keyed by request token.
     inflight_operations: HashMap<u64, InflightOperation>,
+    /// Wait slice used while pending poll registrations are active.
+    pending_poll_slice_ns: u64,
 }
 
 impl IocpProactor {
     /// Create a new IOCP proactor.
     pub fn new() -> RuntimeResult<Self> {
+        Self::with_pending_poll_slice_ns(DEFAULT_PENDING_POLL_SLICE_NS)
+    }
+
+    /// Create a new IOCP proactor with one explicit pending-poll wait slice.
+    pub fn with_pending_poll_slice_ns(pending_poll_slice_ns: u64) -> RuntimeResult<Self> {
         // create one standalone completion port
         let port = unsafe { CreateIoCompletionPort(-1isize as HANDLE, 0, 0, 1) };
         if port == 0 {
@@ -169,6 +178,7 @@ impl IocpProactor {
             completions: VecDeque::new(),
             pending_polls: Vec::new(),
             inflight_operations: HashMap::new(),
+            pending_poll_slice_ns: pending_poll_slice_ns.max(1),
         })
     }
 
@@ -1141,10 +1151,11 @@ impl Proactor for IocpProactor {
                             break;
                         }
                         let remaining = deadline.duration_since(now);
-                        let slice = remaining.min(Duration::from_millis(10));
+                        let pending_poll_slice = Duration::from_nanos(self.pending_poll_slice_ns);
+                        let slice = remaining.min(pending_poll_slice);
                         timeout_millis_from_nanos(slice.as_nanos() as u64)
                     }
-                    None => 10,
+                    None => timeout_millis_from_nanos(self.pending_poll_slice_ns),
                 }
             };
 

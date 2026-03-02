@@ -14,6 +14,8 @@ use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::io::RawFd;
 #[cfg(target_os = "macos")]
+use std::sync::Arc;
+#[cfg(target_os = "macos")]
 use std::sync::atomic::{AtomicI32, Ordering};
 
 /// Linux procfs IPv4 route-table snapshot path.
@@ -35,9 +37,24 @@ const MACOS_ROUTE_FAMILY_IPV6: libc::c_int = libc::AF_INET6;
 #[cfg(target_os = "macos")]
 const MACOS_ROUTE_REPLY_BUFFER_SIZE: usize = 4096;
 
-/// One global route message sequence for macOS route sockets.
+/// Runtime-owned mutable state for macOS route sockets.
 #[cfg(target_os = "macos")]
-static MACOS_ROUTE_SEQUENCE: AtomicI32 = AtomicI32::new(1);
+#[derive(Debug, Default)]
+struct MacosRouteRuntimeState {
+    /// Monotonic route message sequence for route sockets.
+    sequence: AtomicI32,
+}
+
+/// Return runtime-owned macOS route state.
+#[cfg(target_os = "macos")]
+fn macos_route_runtime_state(context: &BindingCallContext) -> Arc<MacosRouteRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(|| MacosRouteRuntimeState {
+            sequence: AtomicI32::new(1),
+        })
+}
 
 /// Return one route binding not-supported error.
 fn route_not_supported(operation: &'static str) -> RuntimeResult<()> {
@@ -78,8 +95,9 @@ fn macos_prefix_length_from_mask(mask: &[u8]) -> u8 {
 
 /// Build one sequence value for one macOS route message exchange.
 #[cfg(target_os = "macos")]
-fn macos_route_sequence() -> i32 {
-    MACOS_ROUTE_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+fn macos_route_sequence_for_context(context: &BindingCallContext) -> i32 {
+    let runtime_state = macos_route_runtime_state(context);
+    runtime_state.sequence.fetch_add(1, Ordering::Relaxed)
 }
 
 /// Encode one sockaddr value into one route message vector with alignment.
@@ -979,6 +997,7 @@ fn list_ipv6_routes(context: &BindingCallContext) -> RuntimeResult<Vec<RouteEntr
 /// Apply one macOS route-table mutation through route sockets.
 #[cfg(target_os = "macos")]
 fn mutate_macos_route(
+    context: &BindingCallContext,
     route: RouteEntry,
     message_type: libc::c_int,
     operation: &'static str,
@@ -1063,7 +1082,7 @@ fn mutate_macos_route(
     }
 
     // populate one route header
-    let sequence = macos_route_sequence();
+    let sequence = macos_route_sequence_for_context(context);
     let message_length = u16::try_from(message.len()).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "route",
@@ -1349,7 +1368,7 @@ fn mutate_ipv6_route(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
@@ -1374,7 +1393,7 @@ pub(crate) unsafe fn destack_net_route_add(
 
     #[cfg(target_os = "macos")]
     {
-        mutate_macos_route(route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
+        mutate_macos_route(context, route, libc::RTM_ADD, "write(PF_ROUTE:RTM_ADD)")
     }
 }
 
@@ -1398,7 +1417,7 @@ pub(crate) unsafe fn destack_net_route_add(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     route: RouteEntry,
 ) -> RuntimeResult<()> {
     // reject unix targets without route-mutation support
@@ -1423,7 +1442,12 @@ pub(crate) unsafe fn destack_net_route_delete(
 
     #[cfg(target_os = "macos")]
     {
-        mutate_macos_route(route, libc::RTM_DELETE, "write(PF_ROUTE:RTM_DELETE)")
+        mutate_macos_route(
+            context,
+            route,
+            libc::RTM_DELETE,
+            "write(PF_ROUTE:RTM_DELETE)",
+        )
     }
 }
 

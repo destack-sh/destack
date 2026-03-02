@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::c_void;
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use super::{core as input_core, raw as raw_input, xinput as xinput_input};
@@ -92,7 +93,8 @@ pub(super) fn open_device(
     match spec {
         input_core::WindowsInputOpenSpec::Console => {
             // reserve the singleton console stream lane before opening
-            input_core::acquire_console_stream("destack.input.device.open")?;
+            let runtime_state =
+                input_core::acquire_console_stream(context, "destack.input.device.open")?;
 
             // ensure any open failure releases the reserved stream lane
             let open_result = (|| {
@@ -148,6 +150,7 @@ pub(super) fn open_device(
                         handle: duplicated,
                         restore_mode: Some(mode),
                         release_console_lane: true,
+                        runtime_state: Some(Arc::clone(&runtime_state)),
                     });
                 let resource_id = context
                     .runtime()
@@ -157,7 +160,7 @@ pub(super) fn open_device(
             })();
 
             if open_result.is_err() {
-                input_core::WINDOWS_CONSOLE_STREAMS.fetch_sub(1, Ordering::AcqRel);
+                runtime_state.console_streams.fetch_sub(1, Ordering::AcqRel);
             }
 
             open_result
@@ -166,7 +169,11 @@ pub(super) fn open_device(
             let (pointer_x, pointer_y) = input_core::current_pointer_position();
 
             // register this stream so the worker filters queueing per opened device
-            raw_input::register_input_stream(&raw_device.id, "destack.input.device.open")?;
+            let raw_runtime_state = raw_input::register_input_stream(
+                context,
+                &raw_device.id,
+                "destack.input.device.open",
+            )?;
 
             let entry = ResourceEntry::new(ResourceKind::Input)
                 .with_label(input_core::INPUT_RESOURCE_LABEL)
@@ -200,6 +207,7 @@ pub(super) fn open_device(
                 })
                 .with_finalizer(input_core::RawInputDeviceFinalizer {
                     device_id: raw_device.id.clone(),
+                    runtime_state: raw_runtime_state,
                 });
             let resource_id = context
                 .runtime()

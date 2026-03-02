@@ -36,8 +36,6 @@ pub(super) const WAVE_SUBTYPE_IEEE_FLOAT: GUID =
 /// Known successful HRESULT values for exact and closest-match format queries.
 pub(super) const HRESULT_OK: HRESULT = 0;
 
-/// Worker poll interval fallback when stream period would be too small.
-pub(super) const MIN_WORKER_POLL_NS: u64 = 1_000_000;
 /// Prefix for one encoded WASAPI duplex stable id.
 pub(super) const DUPLEX_STABLE_ID_PREFIX: &str = "wasapi:duplex:";
 /// Maximum probed channel count for descriptor capability scans.

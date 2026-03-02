@@ -526,6 +526,10 @@ pub struct PlatformCryptoOptions {
     pub macos_keychain_snapshot_service: Option<String>,
     /// Override account name for macOS keychain snapshot storage.
     pub macos_keychain_snapshot_account: Option<String>,
+    /// Optional default key list page size for zero-limit key listing requests.
+    pub default_key_list_limit: Option<u64>,
+    /// Optional default certificate list page size for zero-limit certificate listing requests.
+    pub default_certificate_list_limit: Option<u64>,
 }
 
 /// Host key-store path overrides for crypto store lanes.
@@ -568,6 +572,10 @@ pub struct PlatformProcessOptions {
     pub inherit_environment: Option<bool>,
     /// Optional allow-list for inherited environment variables.
     pub environment_allowlist: Vec<String>,
+    /// Optional initial backoff interval for timeout polling in process wait lanes.
+    pub wait_poll_initial_backoff_ns: Option<u64>,
+    /// Optional maximum backoff interval for timeout polling in process wait lanes.
+    pub wait_poll_max_backoff_ns: Option<u64>,
 }
 
 /// Audio runtime options.
@@ -583,6 +591,20 @@ pub struct PlatformAudioOptions {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional poll interval override for backend worker loops.
+    pub worker_poll_interval_ns: Option<u64>,
+    /// Optional poll interval override for monitor event watcher loops.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional wait-slice override used by blocking stream reads and writes.
+    pub stream_wait_slice_ns: Option<u64>,
+    /// Optional default queue capacity for audio event stream opens with zero queue capacity.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default poll interval for audio event stream opens with zero poll interval.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional maximum bytes accepted per audio stream read call.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frames budget.
+    pub max_queued_frames: Option<u64>,
 }
 
 /// Input runtime options.
@@ -592,6 +614,24 @@ pub struct PlatformInputOptions {
     pub backend: Option<String>,
     /// Optional input event queue capacity override.
     pub event_queue_capacity: Option<u64>,
+    /// Optional monitor wait poll interval override for blocking monitor reads.
+    pub monitor_poll_interval_ns: Option<u64>,
+    /// Optional xinput poll interval override for blocking xinput reads on Windows.
+    pub xinput_poll_interval_ns: Option<u64>,
+    /// Optional macOS event tap queue capacity override.
+    pub macos_event_queue_capacity: Option<u64>,
+    /// Optional Windows console record queue capacity override.
+    pub windows_console_record_queue_capacity: Option<u64>,
+    /// Optional Windows console composition queue capacity override.
+    pub windows_console_composition_queue_capacity: Option<u64>,
+    /// Optional Windows raw-input queue capacity override.
+    pub windows_raw_input_queue_capacity: Option<u64>,
+    /// Optional Windows raw-monitor queue capacity override.
+    pub windows_raw_monitor_queue_capacity: Option<u64>,
+    /// Optional Windows raw-hid queue capacity override.
+    pub windows_raw_hid_queue_capacity: Option<u64>,
+    /// Optional Windows raw-touch queue capacity override.
+    pub windows_raw_touch_queue_capacity: Option<u64>,
 }
 
 /// GPU runtime options.
@@ -651,7 +691,14 @@ pub struct PlatformDebugOptions {}
 
 /// Display runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformDisplayOptions {}
+pub struct PlatformDisplayOptions {
+    /// Optional default queue capacity for display event stream opens with zero queue capacity.
+    pub default_event_queue_capacity: Option<u64>,
+    /// Optional wait-slice interval for blocking window event reads.
+    pub window_event_wait_slice_ns: Option<u64>,
+    /// Optional fallback vsync interval for unsupported host-present wait lanes.
+    pub fallback_vsync_interval_ns: Option<u64>,
+}
 
 /// Error runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -663,11 +710,17 @@ pub struct PlatformFfiOptions {}
 
 /// I/O runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIoOptions {}
+pub struct PlatformIoOptions {
+    /// Optional wait-slice interval for pending-poll checks in Windows IOCP poll loops.
+    pub windows_iocp_pending_poll_slice_ns: Option<u64>,
+}
 
 /// IPC runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIpcOptions {}
+pub struct PlatformIpcOptions {
+    /// Optional poll interval for timed semaphore waits on Unix hosts.
+    pub unix_semaphore_poll_interval_ns: Option<u64>,
+}
 
 /// Memory runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -1642,6 +1695,10 @@ pub struct PlatformCryptoOptionsJson {
     pub macos_keychain_snapshot_service: Option<String>,
     /// Override account name for macOS keychain snapshot storage.
     pub macos_keychain_snapshot_account: Option<String>,
+    /// Optional default key list page size for zero-limit key listing requests.
+    pub default_key_list_limit: Option<u64>,
+    /// Optional default certificate list page size for zero-limit certificate listing requests.
+    pub default_certificate_list_limit: Option<u64>,
 }
 
 impl PlatformCryptoOptionsJson {
@@ -1674,6 +1731,14 @@ impl PlatformCryptoOptionsJson {
         // apply macOS keychain snapshot account overrides
         if let Some(macos_keychain_snapshot_account) = &self.macos_keychain_snapshot_account {
             options.macos_keychain_snapshot_account = Some(macos_keychain_snapshot_account.clone());
+        }
+
+        // apply default list-limit overrides
+        if let Some(default_key_list_limit) = self.default_key_list_limit {
+            options.default_key_list_limit = Some(default_key_list_limit);
+        }
+        if let Some(default_certificate_list_limit) = self.default_certificate_list_limit {
+            options.default_certificate_list_limit = Some(default_certificate_list_limit);
         }
     }
 }
@@ -1781,6 +1846,10 @@ pub struct PlatformProcessOptionsJson {
     pub inherit_environment: Option<bool>,
     /// Optional allow-list for inherited environment variables.
     pub environment_allowlist: Option<Vec<String>>,
+    /// Optional initial backoff interval for timeout polling in process wait lanes.
+    pub wait_poll_initial_backoff_ns: Option<u64>,
+    /// Optional maximum backoff interval for timeout polling in process wait lanes.
+    pub wait_poll_max_backoff_ns: Option<u64>,
 }
 
 impl PlatformProcessOptionsJson {
@@ -1800,6 +1869,14 @@ impl PlatformProcessOptionsJson {
         if let Some(environment_allowlist) = &self.environment_allowlist {
             options.environment_allowlist = environment_allowlist.clone();
         }
+
+        // apply process wait polling overrides
+        if let Some(wait_poll_initial_backoff_ns) = self.wait_poll_initial_backoff_ns {
+            options.wait_poll_initial_backoff_ns = Some(wait_poll_initial_backoff_ns);
+        }
+        if let Some(wait_poll_max_backoff_ns) = self.wait_poll_max_backoff_ns {
+            options.wait_poll_max_backoff_ns = Some(wait_poll_max_backoff_ns);
+        }
     }
 }
 
@@ -1818,6 +1895,20 @@ pub struct PlatformAudioOptionsJson {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional poll interval override for backend worker loops.
+    pub worker_poll_interval_ns: Option<u64>,
+    /// Optional poll interval override for monitor event watcher loops.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional wait-slice override used by blocking stream reads and writes.
+    pub stream_wait_slice_ns: Option<u64>,
+    /// Optional default queue capacity for audio event stream opens with zero queue capacity.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default poll interval for audio event stream opens with zero poll interval.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional maximum bytes accepted per audio stream read call.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frames budget.
+    pub max_queued_frames: Option<u64>,
 }
 
 impl PlatformAudioOptionsJson {
@@ -1847,6 +1938,33 @@ impl PlatformAudioOptionsJson {
         if let Some(target_period_frames) = self.target_period_frames {
             options.target_period_frames = Some(target_period_frames);
         }
+
+        // apply runtime polling overrides
+        if let Some(worker_poll_interval_ns) = self.worker_poll_interval_ns {
+            options.worker_poll_interval_ns = Some(worker_poll_interval_ns);
+        }
+        if let Some(event_monitor_poll_interval_ns) = self.event_monitor_poll_interval_ns {
+            options.event_monitor_poll_interval_ns = Some(event_monitor_poll_interval_ns);
+        }
+        if let Some(stream_wait_slice_ns) = self.stream_wait_slice_ns {
+            options.stream_wait_slice_ns = Some(stream_wait_slice_ns);
+        }
+
+        // apply event-stream default overrides
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
+        }
+        if let Some(default_event_poll_interval_ns) = self.default_event_poll_interval_ns {
+            options.default_event_poll_interval_ns = Some(default_event_poll_interval_ns);
+        }
+
+        // apply stream-read and queue budget overrides
+        if let Some(max_stream_read_bytes) = self.max_stream_read_bytes {
+            options.max_stream_read_bytes = Some(max_stream_read_bytes);
+        }
+        if let Some(max_queued_frames) = self.max_queued_frames {
+            options.max_queued_frames = Some(max_queued_frames);
+        }
     }
 }
 
@@ -1859,6 +1977,24 @@ pub struct PlatformInputOptionsJson {
     pub backend: Option<String>,
     /// Optional input event queue capacity override.
     pub event_queue_capacity: Option<u64>,
+    /// Optional monitor wait poll interval override for blocking monitor reads.
+    pub monitor_poll_interval_ns: Option<u64>,
+    /// Optional xinput poll interval override for blocking xinput reads on Windows.
+    pub xinput_poll_interval_ns: Option<u64>,
+    /// Optional macOS event tap queue capacity override.
+    pub macos_event_queue_capacity: Option<u64>,
+    /// Optional Windows console record queue capacity override.
+    pub windows_console_record_queue_capacity: Option<u64>,
+    /// Optional Windows console composition queue capacity override.
+    pub windows_console_composition_queue_capacity: Option<u64>,
+    /// Optional Windows raw-input queue capacity override.
+    pub windows_raw_input_queue_capacity: Option<u64>,
+    /// Optional Windows raw-monitor queue capacity override.
+    pub windows_raw_monitor_queue_capacity: Option<u64>,
+    /// Optional Windows raw-hid queue capacity override.
+    pub windows_raw_hid_queue_capacity: Option<u64>,
+    /// Optional Windows raw-touch queue capacity override.
+    pub windows_raw_touch_queue_capacity: Option<u64>,
 }
 
 impl PlatformInputOptionsJson {
@@ -1872,6 +2008,43 @@ impl PlatformInputOptionsJson {
         // apply event queue capacity overrides
         if let Some(event_queue_capacity) = self.event_queue_capacity {
             options.event_queue_capacity = Some(event_queue_capacity);
+        }
+
+        // apply input polling overrides
+        if let Some(monitor_poll_interval_ns) = self.monitor_poll_interval_ns {
+            options.monitor_poll_interval_ns = Some(monitor_poll_interval_ns);
+        }
+        if let Some(xinput_poll_interval_ns) = self.xinput_poll_interval_ns {
+            options.xinput_poll_interval_ns = Some(xinput_poll_interval_ns);
+        }
+
+        // apply input queue overrides
+        if let Some(macos_event_queue_capacity) = self.macos_event_queue_capacity {
+            options.macos_event_queue_capacity = Some(macos_event_queue_capacity);
+        }
+        if let Some(windows_console_record_queue_capacity) =
+            self.windows_console_record_queue_capacity
+        {
+            options.windows_console_record_queue_capacity =
+                Some(windows_console_record_queue_capacity);
+        }
+        if let Some(windows_console_composition_queue_capacity) =
+            self.windows_console_composition_queue_capacity
+        {
+            options.windows_console_composition_queue_capacity =
+                Some(windows_console_composition_queue_capacity);
+        }
+        if let Some(windows_raw_input_queue_capacity) = self.windows_raw_input_queue_capacity {
+            options.windows_raw_input_queue_capacity = Some(windows_raw_input_queue_capacity);
+        }
+        if let Some(windows_raw_monitor_queue_capacity) = self.windows_raw_monitor_queue_capacity {
+            options.windows_raw_monitor_queue_capacity = Some(windows_raw_monitor_queue_capacity);
+        }
+        if let Some(windows_raw_hid_queue_capacity) = self.windows_raw_hid_queue_capacity {
+            options.windows_raw_hid_queue_capacity = Some(windows_raw_hid_queue_capacity);
+        }
+        if let Some(windows_raw_touch_queue_capacity) = self.windows_raw_touch_queue_capacity {
+            options.windows_raw_touch_queue_capacity = Some(windows_raw_touch_queue_capacity);
         }
     }
 }
@@ -2042,11 +2215,28 @@ impl PlatformDebugOptionsJson {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformDisplayOptionsJson {}
+pub struct PlatformDisplayOptionsJson {
+    /// Optional default queue capacity for display event stream opens with zero queue capacity.
+    pub default_event_queue_capacity: Option<u64>,
+    /// Optional wait-slice interval for blocking window event reads.
+    pub window_event_wait_slice_ns: Option<u64>,
+    /// Optional fallback vsync interval for unsupported host-present wait lanes.
+    pub fallback_vsync_interval_ns: Option<u64>,
+}
 
 impl PlatformDisplayOptionsJson {
     /// Apply display overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformDisplayOptions) {}
+    pub fn apply_to(&self, options: &mut PlatformDisplayOptions) {
+        if let Some(default_event_queue_capacity) = self.default_event_queue_capacity {
+            options.default_event_queue_capacity = Some(default_event_queue_capacity);
+        }
+        if let Some(window_event_wait_slice_ns) = self.window_event_wait_slice_ns {
+            options.window_event_wait_slice_ns = Some(window_event_wait_slice_ns);
+        }
+        if let Some(fallback_vsync_interval_ns) = self.fallback_vsync_interval_ns {
+            options.fallback_vsync_interval_ns = Some(fallback_vsync_interval_ns);
+        }
+    }
 }
 
 /// Error runtime options.
@@ -2075,22 +2265,36 @@ impl PlatformFfiOptionsJson {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformIoOptionsJson {}
+pub struct PlatformIoOptionsJson {
+    /// Optional wait-slice interval for pending-poll checks in Windows IOCP poll loops.
+    pub windows_iocp_pending_poll_slice_ns: Option<u64>,
+}
 
 impl PlatformIoOptionsJson {
     /// Apply io overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformIoOptions) {}
+    pub fn apply_to(&self, options: &mut PlatformIoOptions) {
+        if let Some(windows_iocp_pending_poll_slice_ns) = self.windows_iocp_pending_poll_slice_ns {
+            options.windows_iocp_pending_poll_slice_ns = Some(windows_iocp_pending_poll_slice_ns);
+        }
+    }
 }
 
 /// IPC runtime options.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct PlatformIpcOptionsJson {}
+pub struct PlatformIpcOptionsJson {
+    /// Optional poll interval for timed semaphore waits on Unix hosts.
+    pub unix_semaphore_poll_interval_ns: Option<u64>,
+}
 
 impl PlatformIpcOptionsJson {
     /// Apply ipc overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformIpcOptions) {}
+    pub fn apply_to(&self, options: &mut PlatformIpcOptions) {
+        if let Some(unix_semaphore_poll_interval_ns) = self.unix_semaphore_poll_interval_ns {
+            options.unix_semaphore_poll_interval_ns = Some(unix_semaphore_poll_interval_ns);
+        }
+    }
 }
 
 /// Memory runtime options.

@@ -1,4 +1,5 @@
 use super::*;
+use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 /// Resource label for audio device handles.
 pub(crate) const AUDIO_DEVICE_RESOURCE_LABEL: &str = "audio.device";
@@ -7,20 +8,23 @@ pub(crate) const AUDIO_STREAM_RESOURCE_LABEL: &str = "audio.stream";
 /// Resource label for audio event handles.
 pub(crate) const AUDIO_EVENT_RESOURCE_LABEL: &str = "audio.event";
 
-/// Maximum read payload bytes accepted by one call.
+/// Hard maximum read payload bytes accepted by one call.
 pub(crate) const MAX_STREAM_READ_BYTES: u32 = 8 * 1024 * 1024;
-/// Maximum queued stream latency budget in frames.
+/// Hard maximum queued stream latency budget in frames.
 pub(crate) const MAX_QUEUED_FRAMES: usize = 96_000;
 /// Default queue capacity for one event subscription.
 pub(crate) const DEFAULT_EVENT_QUEUE_CAPACITY: u32 = 1024;
-/// Poll interval for event reads.
+/// Default poll interval for event reads.
 pub(crate) const EVENT_POLL_INTERVAL_NS: u64 = 5_000_000;
 /// Minimum event poll interval accepted from one subscription request.
 pub(crate) const MIN_EVENT_POLL_INTERVAL_NS: u64 = 100_000;
 /// Maximum event poll interval accepted from one subscription request.
 pub(crate) const MAX_EVENT_POLL_INTERVAL_NS: u64 = 1_000_000_000;
+/// Minimum worker poll interval for backend stream worker loops.
+pub(crate) const MIN_WORKER_POLL_INTERVAL_NS: u64 = 1_000_000;
 /// Minimum stream period in frames.
 pub(crate) const MIN_STREAM_PERIOD_FRAMES: u32 = 64;
+
 /// Shared-mode bit in one device share-mode mask.
 pub(crate) const SHARE_MODE_SHARED_BIT: u32 = 1u32 << 0;
 /// Exclusive-mode bit in one device share-mode mask.
@@ -348,4 +352,95 @@ pub(crate) static MONO_EPOCH: OnceLock<Instant> = OnceLock::new();
 pub(crate) fn host_monotonic_nanos() -> u64 {
     let elapsed = MONO_EPOCH.get_or_init(Instant::now).elapsed();
     elapsed.as_nanos().min(u64::MAX as u128) as u64
+}
+
+/// Return the configured monitor poll interval for audio event monitor workers.
+pub(crate) fn resolved_event_monitor_poll_interval_ns(default_ns: u64) -> u64 {
+    let configured = with_binding_call_context(|context| {
+        Ok(context
+            .runtime()
+            .module_options
+            .audio
+            .event_monitor_poll_interval_ns)
+    })
+    .ok()
+    .flatten();
+
+    configured
+        .unwrap_or(default_ns)
+        .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
+}
+
+/// Return the configured default queue capacity for audio event subscriptions.
+pub(crate) fn resolved_default_event_queue_capacity(context: &BindingCallContext) -> u32 {
+    let configured = context.runtime().module_options.audio.event_queue_capacity;
+    let configured = configured.and_then(|value| u32::try_from(value).ok());
+    configured.unwrap_or(DEFAULT_EVENT_QUEUE_CAPACITY).max(1)
+}
+
+/// Return the configured default poll interval for audio event subscriptions.
+pub(crate) fn resolved_default_event_poll_interval_ns(context: &BindingCallContext) -> u64 {
+    let configured = context
+        .runtime()
+        .module_options
+        .audio
+        .default_event_poll_interval_ns;
+    configured
+        .unwrap_or(EVENT_POLL_INTERVAL_NS)
+        .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
+}
+
+/// Return the configured wait-slice for blocking audio stream operations.
+pub(crate) fn resolved_stream_wait_slice_ns(context: &BindingCallContext) -> u64 {
+    let configured = context.runtime().module_options.audio.stream_wait_slice_ns;
+    configured
+        .unwrap_or(resolved_default_event_poll_interval_ns(context))
+        .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
+}
+
+/// Return the configured maximum bytes accepted per audio stream read call.
+pub(crate) fn resolved_max_stream_read_bytes(context: &BindingCallContext) -> u32 {
+    let configured = context.runtime().module_options.audio.max_stream_read_bytes;
+    let configured = configured.and_then(|value| u32::try_from(value).ok());
+    configured
+        .unwrap_or(MAX_STREAM_READ_BYTES)
+        .clamp(1, MAX_STREAM_READ_BYTES)
+}
+
+/// Return the configured maximum queued stream frame budget.
+pub(crate) fn resolved_max_queued_frames() -> usize {
+    let configured = with_binding_call_context(|context| {
+        Ok(context.runtime().module_options.audio.max_queued_frames)
+    })
+    .ok()
+    .flatten();
+    let configured = configured.and_then(|value| usize::try_from(value).ok());
+
+    configured
+        .unwrap_or(MAX_QUEUED_FRAMES)
+        .clamp(1, MAX_QUEUED_FRAMES)
+}
+
+/// Return one worker poll period derived from stream geometry and runtime overrides.
+pub(crate) fn resolved_worker_poll_period(period_frames: u32, sample_rate: u32) -> Duration {
+    let default_interval_ns = (period_frames as u64)
+        .saturating_mul(1_000_000_000u64)
+        .checked_div(sample_rate.max(1) as u64)
+        .unwrap_or(MIN_WORKER_POLL_INTERVAL_NS)
+        .max(MIN_WORKER_POLL_INTERVAL_NS);
+
+    let configured = with_binding_call_context(|context| {
+        Ok(context
+            .runtime()
+            .module_options
+            .audio
+            .worker_poll_interval_ns)
+    })
+    .ok()
+    .flatten();
+    let interval_ns = configured
+        .unwrap_or(default_interval_ns)
+        .max(MIN_WORKER_POLL_INTERVAL_NS);
+
+    Duration::from_nanos(interval_ns)
 }

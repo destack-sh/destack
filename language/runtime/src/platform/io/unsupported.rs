@@ -17,8 +17,11 @@ use crate::platform::resource;
 use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
 /// Return one unsupported error for completion backend creation.
-pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
-    let _ = entries;
+pub(crate) fn host_completion_create_proactor(
+    context: &BindingCallContext,
+    entries: u32,
+) -> RuntimeResult<Box<dyn Proactor>> {
+    let _ = (context, entries);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.io.completion.open")).boxed())
 }

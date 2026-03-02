@@ -11,6 +11,7 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
 use std::ffi::CString;
@@ -19,12 +20,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(target_os = "linux")]
 use std::sync::mpsc::{self, SyncSender};
 #[cfg(target_os = "linux")]
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
 use std::thread::{self, JoinHandle};
 
 /// One shared ALSA monitor state.
 #[cfg(target_os = "linux")]
+#[derive(Debug)]
 struct AlsaDeviceMonitor {
     /// Stop signal for the monitor thread.
     stop: Arc<AtomicBool>,
@@ -34,14 +36,55 @@ struct AlsaDeviceMonitor {
     reference_count: usize,
 }
 
-/// One shared ALSA monitor slot.
+/// Runtime-owned ALSA monitor slot.
 #[cfg(target_os = "linux")]
-static ALSA_DEVICE_MONITOR_SLOT: OnceLock<Mutex<Option<AlsaDeviceMonitor>>> = OnceLock::new();
+#[derive(Debug, Default)]
+struct AlsaMonitorRuntimeState {
+    /// Runtime-owned monitor slot.
+    monitor: Mutex<Option<AlsaDeviceMonitor>>,
+    /// Whether teardown finalizer was registered.
+    shutdown_registered: AtomicBool,
+}
 
-/// Return one shared ALSA monitor slot.
+/// Return runtime-owned ALSA monitor state.
 #[cfg(target_os = "linux")]
-fn monitor_slot() -> &'static Mutex<Option<AlsaDeviceMonitor>> {
-    ALSA_DEVICE_MONITOR_SLOT.get_or_init(|| Mutex::new(None))
+fn alsa_monitor_runtime_state(context: &BindingCallContext) -> Arc<AlsaMonitorRuntimeState> {
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(AlsaMonitorRuntimeState::default);
+    register_runtime_finalizer(context, &runtime_state);
+
+    runtime_state
+}
+
+/// Register one runtime finalizer for ALSA monitor teardown.
+#[cfg(target_os = "linux")]
+fn register_runtime_finalizer(
+    context: &BindingCallContext,
+    runtime_state: &Arc<AlsaMonitorRuntimeState>,
+) {
+    if runtime_state
+        .shutdown_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let runtime_state = Arc::clone(runtime_state);
+    context.runtime().finalizers.register(move || {
+        let monitor = runtime_state
+            .monitor
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
+        let Some(monitor) = monitor else {
+            return;
+        };
+
+        monitor.stop.store(true, Ordering::Relaxed);
+        let _ = monitor.handle.join();
+    });
 }
 
 /// Return one startup error payload for ALSA monitor initialization.
@@ -72,10 +115,14 @@ pub(crate) fn native_device_events_supported() -> bool {
 }
 
 /// Start ALSA native device-event monitoring.
-pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
+pub(crate) fn start_native_device_event_monitor(
+    _context: &BindingCallContext,
+) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
-        let mut monitor_slot = monitor_slot()
+        let runtime_state = alsa_monitor_runtime_state(_context);
+        let mut monitor_slot = runtime_state
+            .monitor
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if let Some(monitor) = monitor_slot.as_mut() {
@@ -84,9 +131,13 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
         }
 
         let stop = Arc::new(AtomicBool::new(false));
+        let runtime_state = audio_core::audio_event_runtime_state(_context);
         let stop_signal = Arc::clone(&stop);
+        let callback_runtime_state = Arc::clone(&runtime_state);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
-        let handle = thread::spawn(move || run_monitor_thread(stop_signal, ready_sender));
+        let handle = thread::spawn(move || {
+            run_monitor_thread(callback_runtime_state, stop_signal, ready_sender)
+        });
 
         let ready_result = ready_receiver.recv().map_err(|_| {
             startup_error("ALSA native event monitor exited before startup completed")
@@ -113,11 +164,13 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<()> {
 }
 
 /// Stop ALSA native device-event monitoring.
-pub(crate) fn stop_native_device_event_monitor() {
+pub(crate) fn stop_native_device_event_monitor(_context: &BindingCallContext) {
     #[cfg(target_os = "linux")]
     {
+        let runtime_state = alsa_monitor_runtime_state(_context);
         let monitor = {
-            let mut monitor_slot = monitor_slot()
+            let mut monitor_slot = runtime_state
+                .monitor
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
             let Some(monitor) = monitor_slot.as_mut() else {
@@ -143,7 +196,11 @@ pub(crate) fn stop_native_device_event_monitor() {
 
 /// Run one inotify monitor worker for ALSA-related device tree paths.
 #[cfg(target_os = "linux")]
-fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeResult<()>>) {
+fn run_monitor_thread(
+    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
+    stop: Arc<AtomicBool>,
+    ready_sender: SyncSender<RuntimeResult<()>>,
+) {
     // open one inotify descriptor for device tree monitoring
     let inotify_fd = unsafe { libc::inotify_init1(libc::IN_CLOEXEC) };
     if inotify_fd < 0 {
@@ -216,7 +273,10 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
         }
 
         let _ = std::panic::catch_unwind(|| {
-            audio_core::publish_device_snapshot_native(audio_core::AudioBackend::Alsa);
+            audio_core::publish_device_snapshot_native(
+                &runtime_state,
+                audio_core::AudioBackend::Alsa,
+            );
         });
     }
 
