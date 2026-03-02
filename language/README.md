@@ -24,7 +24,7 @@ The language toolchain is split into several crates, each handling a specific pa
 | `json` | JSON and JSONC AST, parser, and formatter | [json/README.md](json/README.md) |
 | `linter` | Linter rules and interface | [linter/README.md](linter/README.md) |
 | `mir` | Machine-level IR | [mir/README.md](mir/README.md) |
-| `parser` | Lexer and parser (`.(js|jsx|ts|tsx|ds)` → AST) | [parser/README.md](parser/README.md) |
+| `parser` | Lexer and parser (`.(js,jsx,ts,tsx,ds)` → AST) | [parser/README.md](parser/README.md) |
 | `resolver` | JS/TS-style module resolution | [resolver/README.md](resolver/README.md) |
 | `runtime` | Native and WASM runtime support | [runtime/README.md](runtime/README.md) |
 | `service` | Workspace-rooted language tooling orchestration | [service/README.md](service/README.md) |

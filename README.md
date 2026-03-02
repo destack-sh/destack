@@ -22,7 +22,7 @@ Open source TypeScript(++) toolchain, VM, AOT compiler, runtime, library, servic
 
 ## The Destack
 
-**Destack is a universal software engine with a language, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
+**Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
 Conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate cast-iron languages, tools, libraries, approaches, services, and apps, Destack unifies the processes of software development into _one_ malleable computing stack:
 
@@ -91,9 +91,8 @@ We tried to warn you:
 
 ## Some Questions You Should be Asking
 
-Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about programming overall. 
-If you have gotten this far through reading a README, you probably have some, all of, or - maybe, most curiously - none of the following questions.
-We answered the void anyway:
+Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the process of programming. 
+If you have gotten this far through reading the README, you probably have some, all of, or - maybe, most curiously - none of the following questions:
 
 1. **What even _is_ Destack, exactly? Is it a TypeScript dialect (like TSX), a whole new language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service, an app, a CLI, ..?** 
 All of it, and none of it. 
