@@ -131,9 +131,9 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Instructions for downloading the suite.
     fn download_instructions(&self) -> String;
 
-    /// Extract category from test name (default: first path segment).
+    /// Extract category from test name (default: first two path segments).
     fn category_for_test(&self, test_name: &str) -> String {
-        test_name.split('/').next().unwrap_or("unknown").to_string()
+        category_key_for_test_name(test_name)
     }
 
     /// Select the timeout for a conformance test.
@@ -150,6 +150,19 @@ pub trait ConformanceSuite: Send + Sync + Clone {
         };
         Duration::from_millis(base_ms.saturating_mul(scale).max(1))
     }
+}
+
+/// Build one category key from the first two path segments of one test name.
+fn category_key_for_test_name(test_name: &str) -> String {
+    let mut segments = test_name.split('/').filter(|segment| !segment.is_empty());
+    let Some(first) = segments.next() else {
+        return "unknown".to_string();
+    };
+    let Some(second) = segments.next() else {
+        return first.to_string();
+    };
+
+    format!("{first}/{second}")
 }
 
 /// Internal result including timeout state.
@@ -1692,5 +1705,28 @@ fn format_rate_delta(delta: f64) -> String {
         color::red(&format!("{delta:.2}%"))
     } else {
         color::dim("±0.00%")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::category_key_for_test_name;
+
+    #[test]
+    fn test_category_key_for_test_name_uses_first_two_segments() {
+        let category = category_key_for_test_name("typescript/range/issue.ts");
+        assert_eq!(category, "typescript/range");
+    }
+
+    #[test]
+    fn test_category_key_for_test_name_handles_single_segment_paths() {
+        let category = category_key_for_test_name("typescript");
+        assert_eq!(category, "typescript");
+    }
+
+    #[test]
+    fn test_category_key_for_test_name_handles_empty_input() {
+        let category = category_key_for_test_name("");
+        assert_eq!(category, "unknown");
     }
 }
