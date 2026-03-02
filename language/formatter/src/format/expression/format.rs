@@ -7,6 +7,7 @@ use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition,
     comment_node_is_ignore_directive, directive_for_node, write_ignored_node,
 };
+use crate::format::expression::primary::path_boundary_annotations_by_dot_seam;
 use crate::format::expression::{
     format_primary_expression, format_statement_expression, parenthesized_has_leading_inner_trivia,
     transparent_inner_expression,
@@ -72,6 +73,18 @@ fn expression_has_only_postfix_blank_annotations(
     }
 
     has_postfix_blank
+}
+
+/// Return whether one path expression renders boundary comments inline at dot seams.
+fn path_emits_boundary_annotations_inline(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Path { path, .. } = context.tree.get(expression_id) else {
+        return false;
+    };
+
+    path_boundary_annotations_by_dot_seam(context, expression_id, path.segments.len()).is_some()
 }
 
 /// Format an expression without prefix and postfix annotations.
@@ -193,10 +206,20 @@ pub(crate) fn format_expression_without_prefix_annotations<'ast>(
             position: FormatterDirectivePosition::Postfix { .. },
         })
     ) {
-        write!(
-            f,
-            [f.context().any_infix_or_postfix_annotations(expression_id)]
-        )?;
+        let skip_boundary_annotations =
+            path_emits_boundary_annotations_inline(f.context(), expression_id);
+        if skip_boundary_annotations {
+            write!(
+                f,
+                [f.context()
+                    .any_infix_or_postfix_except_line_postfix_boundary_annotations(expression_id)]
+            )?;
+        } else {
+            write!(
+                f,
+                [f.context().any_infix_or_postfix_annotations(expression_id)]
+            )?;
+        }
     }
 
     Ok(())
@@ -349,6 +372,12 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
             } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
+            } else if path_emits_boundary_annotations_inline(f.context(), node_id) {
+                write!(
+                    f,
+                    [f.context()
+                        .any_infix_or_postfix_except_line_postfix_boundary_annotations(node_id)]
+                )?;
             } else {
                 write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
             }
@@ -718,24 +747,27 @@ pub(crate) fn expression_has_prefix_ignore_directive_comment_annotation(
 ) -> bool {
     context
         .visit_annotations(expression_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let Annotation::Comment { position, node } = context.annotation(*annotation_id)
-                else {
-                    return false;
-                };
+            let nearest_prefix_comment = annotations
+                .iter()
+                .filter_map(|annotation_id| {
+                    let Annotation::Comment { position, node } = context.annotation(*annotation_id)
+                    else {
+                        return None;
+                    };
+                    if !matches!(
+                        position,
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    ) {
+                        return None;
+                    }
 
-                if !matches!(
-                    position,
-                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                ) {
-                    return false;
-                }
+                    let span = context.annotation_span(*annotation_id);
+                    Some((span.start, node))
+                })
+                .max_by_key(|(span_start, _)| *span_start);
 
-                if comment_node_is_ignore_directive(context, node) {
-                    return true;
-                }
-                false
-            })
+            nearest_prefix_comment
+                .is_some_and(|(_, node)| comment_node_is_ignore_directive(context, node))
         })
         .unwrap_or(false)
 }

@@ -586,6 +586,19 @@ fn separator_line_comment_preceding_comma(
     None
 }
 
+/// Return whether a boundary comment is on a member or index continuation seam.
+fn separator_comment_is_member_or_index_continuation(
+    following_token: Option<TokenSpan>,
+    position: AnnotationPosition,
+) -> bool {
+    if position != AnnotationPosition::LinePostfixBoundary {
+        return false;
+    }
+
+    following_token
+        .is_some_and(|token| matches!(token.token.ty, TokenType::Dot | TokenType::OpenBracket))
+}
+
 /// Return one separator slash comment annotation source payload.
 fn separator_line_comment_annotation_info(
     context: &DestackFormatContext<'_>,
@@ -613,6 +626,10 @@ fn separator_line_comment_annotation_info(
     let annotation_span = context.annotation_span(annotation_id);
     let preceding_comma = separator_line_comment_preceding_comma(context, annotation_span);
     let following_token = next_non_whitespace_token_after_annotation(context, annotation_id);
+    if separator_comment_is_member_or_index_continuation(following_token, position) {
+        return None;
+    }
+
     let following_separator =
         following_token.is_some_and(|token| token.token.ty == TokenType::Comma);
     let following_close_brace =
@@ -2418,6 +2435,31 @@ mod tests {
         assert!(
             separator_source.is_none(),
             "property trailing comment should not be classified as an argument separator comment",
+        );
+    }
+
+    #[test]
+    fn test_separator_comment_source_ignores_member_dot_boundary_comment_cluster() {
+        let source = "verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // Some other comment here
+    .c
+)";
+        let (formatter, call_id) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse call with member-dot boundary comments");
+        let context = context_from_formatter(&formatter);
+        let arguments = call_dynamic_arguments(&context, call_id);
+        let first_argument_id = arguments[0];
+
+        let separator_source =
+            single_argument_separator_line_comment_source(&context, call_id, first_argument_id);
+        assert!(
+            separator_source.is_none(),
+            "member-dot boundary comments should stay on the expression seam, not on separator rendering",
         );
     }
 
