@@ -478,7 +478,19 @@ fn try_attach_comment_expression_operator_cast_and_satisfies(
     let token_before_is_as = seam.token_before_is_keyword(CommentSeamKeyword::As);
     let token_before_is_satisfies = seam.token_before_is_keyword(CommentSeamKeyword::Satisfies);
     let token_before_is_less_than = seam.token_before_is(TokenType::LessThan);
-    let seam_candidate_owners = [enclosing_owner, preceding_owner, following_owner];
+    let token_before_owner = context
+        .token_before_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let token_after_owner = context
+        .token_after_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let seam_candidate_owners = [
+        enclosing_owner,
+        preceding_owner,
+        following_owner,
+        token_before_owner,
+        token_after_owner,
+    ];
     let cast_or_satisfies_expression_owner =
         find_owner_in_candidate_ancestry(parents, seam_candidate_owners, |owner_id| {
             promote_owner_to_cast_or_satisfies_expression_ancestor(tree, parents, owner_id)

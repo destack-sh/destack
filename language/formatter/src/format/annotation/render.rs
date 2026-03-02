@@ -96,7 +96,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         node_id: LocalNodeId<Doc>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let raw_comment = f.context().span_str(f.context().span(node_id));
+        let raw_comment = f.context().doc_raw_text(node_id);
         let is_block_comment = self.style == DocStyle::Star;
         format_comment_like_raw_text(f, raw_comment, is_block_comment)
     }
@@ -1474,15 +1474,9 @@ fn has_blank_line_before_next_annotation(
 
     let current_span = context.annotation_span(current_item.annotation_id);
     let next_span = context.annotation_span(next_item.annotation_id);
-    let Some(between_span) = current_span.gap_to(next_span) else {
-        return false;
-    };
-    let newline_count = context
-        .span_str(between_span)
-        .chars()
-        .filter(|ch| *ch == '\n')
-        .count();
-    newline_count >= 2
+    current_span
+        .gap_to(next_span)
+        .is_some_and(|between_span| context.has_blank_line(between_span))
 }
 
 /// Return next-annotation spacing signals in one capture pass.
@@ -1620,6 +1614,8 @@ where
         annotation_follows_opening_delimiter(context, item.annotation_id);
     let precedes_separator = annotation_precedes_separator(context, item.annotation_id);
     let next_token_type = context.annotation_next_non_whitespace_token_type(item.annotation_id);
+    let next_non_trivia_token_type =
+        context.annotation_next_non_trivia_token_type(item.annotation_id);
     let starts_on_own_line = annotation_starts_on_own_line(context, item.annotation_id);
     let (
         next_annotation_is_inline_star_comment,
@@ -1638,6 +1634,7 @@ where
         item.annotation_id,
         is_slash_comment,
         starts_on_own_line,
+        next_non_trivia_token_type,
     );
     let is_ignore_directive_line_prefix_comment =
         annotation_is_ignore_directive_line_prefix_comment(
@@ -1708,6 +1705,7 @@ fn annotation_is_ignore_directive_postfix_comment(
     annotation_id: LocalNodeId<Annotation>,
     is_slash_comment: bool,
     starts_on_own_line: bool,
+    next_non_trivia_token_type: Option<TokenType>,
 ) -> bool {
     if !is_slash_comment {
         return false;
@@ -1723,6 +1721,14 @@ fn annotation_is_ignore_directive_postfix_comment(
     }
 
     if !starts_on_own_line && !annotation_has_leading_newline(context, annotation_id) {
+        return false;
+    }
+
+    // member and index continuation seams keep directive comments at postfix boundaries
+    if matches!(
+        next_non_trivia_token_type,
+        Some(TokenType::Dot | TokenType::OpenBracket)
+    ) {
         return false;
     }
 
@@ -2148,6 +2154,10 @@ fn trailing_line_prefix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
 
 /// Return trailing-spacing decision for one line postfix annotation.
 fn trailing_line_postfix_spacing(flow: AnnotationFlow) -> AnnotationSpacing {
+    if flow.next_token_type.is_none() || flow.next_token_type == Some(TokenType::End) {
+        return AnnotationSpacing::None;
+    }
+
     let keep_space_before_adjacent_block_comment =
         should_keep_space_before_adjacent_block_comment(flow);
     let should_suppress_space = flow.is_star_comment

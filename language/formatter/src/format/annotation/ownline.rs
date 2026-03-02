@@ -298,8 +298,10 @@ fn attach_before_member_dot_comment(
     }
 
     let target_owner = token_before_span
-        .and_then(|span| find_preferred_owner_starting_at(tree, span))
+        .and_then(|span| find_smallest_owner_enclosing_token(tree, span))
+        .or_else(|| token_before_span.and_then(|span| find_preferred_owner_starting_at(tree, span)))
         .or(preceding_owner)?;
+    let target_owner = promote_owner_to_expression_ancestor_if_needed(tree, parents, target_owner);
     let target_owner =
         normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
