@@ -6555,6 +6555,35 @@ fn test_parse_call_with_instantiation_callee_and_inline_block_comment() {
 }
 
 #[test]
+fn test_parse_call_with_instantiation_callee_and_newline_block_comment_before_type_arguments() {
+    let mut test =
+        TestParser::new_with_options("foo/* marker */\n<string>(1)", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, static_arguments: Some(static_arguments), dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        assert_eq!(static_arguments.len(), 1);
+    });
+}
+
+#[test]
+fn test_parse_empty_call_with_instantiation_callee_and_newline_block_comment_before_type_arguments()
+{
+    let mut test =
+        TestParser::new_with_options("foo/* marker */\n<string>()", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, static_arguments: Some(static_arguments), dynamic_arguments, .. } => {
+        assert!(dynamic_arguments.is_empty());
+        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+        assert_eq!(static_arguments.len(), 1);
+    });
+}
+
+#[test]
 fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments() {
     let mut test =
         TestParser::new_with_options("foo<string>// marker\n(1)", LanguageType::TypeScript);

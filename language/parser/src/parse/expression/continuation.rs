@@ -159,6 +159,8 @@ impl Parser {
                 let cursor_index = cursor.index;
                 let has_pending_newline_tokens = cursor.index != self.pos_index();
                 let has_line_break_before = cursor.has_line_break_before;
+                let allows_newline_prefixed_postfix_static_arguments =
+                    !is_in_type && matches!(token_type, TokenType::LessThan | TokenType::ShiftLeft);
                 let next_token_type = if matches!(token_type, TokenType::Dot | TokenType::Maybe) {
                     self.token_type_at(cursor_index.saturating_add(1))
                 } else {
@@ -178,6 +180,7 @@ impl Parser {
                         token_type,
                         TokenType::OpenParenthesis | TokenType::Dot | TokenType::Maybe
                     )
+                    && !allows_newline_prefixed_postfix_static_arguments
                 {
                     break;
                 }
@@ -391,7 +394,20 @@ impl Parser {
                     left_expression_id = self.eat_call(left_expression_id, None, position)?;
                 }
                 // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
-                else if self.can_start_postfix_static_arguments(left_expression_id) {
+                else if self.can_start_postfix_static_arguments(left_expression_id)
+                    || has_pending_newline_tokens
+                        && allows_newline_prefixed_postfix_static_arguments
+                {
+                    // normalize pending newline trivia before static argument parsing
+                    if has_pending_newline_tokens {
+                        self.advance_to(cursor_index);
+                    }
+
+                    // static argument parsing is still gated by regular postfix eligibility
+                    if !self.can_start_postfix_static_arguments(left_expression_id) {
+                        break;
+                    }
+
                     // direct static arguments and optional chain static arguments are exclusive
                     let has_indirect_static = self.has_indirect_postfix_static_arguments();
                     let is_optional_chain =

@@ -250,6 +250,36 @@ interface Foo<G> {
         });
     }
 
+    /// Parse interface call signature overloads separated by a blank line.
+    #[test]
+    fn test_parse_interface_call_signature_overloads_with_blank_line_separator() {
+        let mut test = TestParser::new_with_options(
+            r#"
+interface Example {
+  (a: number): typeof a
+
+  <T>(): void
+};
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let roots = parser.parse();
+
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        assert_eq!(roots.len(), 1);
+
+        let root_id = match parser.tree.get(roots[0]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => roots[0],
+        };
+        assert_node!(parser.tree, root_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
+                assert_eq!(members.len(), 2);
+            });
+        });
+    }
+
     #[test]
     fn test_parse_interface_extends_with_newline() {
         let mut test = TestParser::new(
