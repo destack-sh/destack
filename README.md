@@ -94,60 +94,50 @@ We tried to warn you:
 Destack is pretty weird and quite unlike how software development has traditionally worked, with its own new _experimental_ way of thinking about the process of programming. 
 If you have gotten this far through reading the README, you probably have some, all of, or - maybe, most curiously - none of the following questions:
 
-1. **What even _is_ Destack, exactly? Is it a TypeScript dialect (like TSX), a whole new language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service, an app, a CLI, ..?** 
-All of it, and none of it. 
-Mechanically, Destack _is_ a TypeScript toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
+1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a new JS family languaeg (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service, an app, a CLI, ..?** 
+Mechanically, Destack _is_ a TypeScript-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
 Conceptually, Destack is somewhat novel; nobody has _really_ tried to integrate this deeply since the likes of Pharo, GT or SmallTalk.
-Maybe for good reason. We will see. 
 
-2. **Why is Destack built around TypeScript? Why not some other language, like Python or Rust?**
-Both Python and Rust are great languages that we like very much, and both fail the "universal language" test for surprisingly symmetrical reasons:
+2. **Why is Destack built around TypeScript and not some other language like Python or Rust?**
+Both Python and Rust are great languages, and both fail the "universal language" test for surprisingly symmetrical reasons:
 Python is pathological to optimize, but is great for scripting, while Rust is great to optimize, but awful for scripting.
 Both Python and Rust are bad at "UI stuff", and both are structurally difficult to run well in a browser, which is the universal application platform.
 
-3. **Which JavaScript/TypeScript features does Destack forbid to enable real AOT compilation and all the other fancy stuff? Do I need to rewrite everything?** 
-All modern TypeScript features are supported, but highly dynamic features like `prototype`, `eval`, `Function`, dynamic `class`, etc., are explicitly, and thus also everything that depends on them.
+3. **Which JavaScript/TypeScript features does Destack forbid to enable real AOT compilation and all the other fancy stuff?** 
+All modern TypeScript features are supported, but highly dynamic features like `prototype`, `eval`, `Function`, dynamic `class`, etc., are forbidden, and thus also everything that depends on them.
 If you're used to writing strict modern TypeScript, you're almost certainly already Destack-compliant language-wise. 
 If you're building Node-shaped backend services, you might not even need to change anything (depending on what your dependencies do).
 
 4. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode" (like Static Hermes)?**
-Language-wise, yes, that would help much more of the existing JS-first ecosystem to run directly on Destack.
-However, it would add significant complexity and a whole second execution path, diminishing the benefits of full-stack integration.
-Moreover, _just_ supporting untyped JS is only partly useful, we would also have to support significantly more of the "legacy" web surface, especially for the many web-oriented libraries.
-In general, most modern "backend" code already uses TypeScript and Node-ish APIs, while "frontend" stuff doesn't work well natively anyway without a rewrite, so this seems like a reasonable tradeoff pointw.
+Language-wise, yes, that would help more of the existing JS-first ecosystem to run on Destack.
+However, it would add significant complexity, and _just_ supporting untyped JS is not that useful; we would also need the full web surface, especially for the many frontend libraries.
+Most modern "backend" code already uses TypeScript and Node-ish APIs, while "frontend" stuff doesn't work well natively (without implementing a whole browser).
 
 5. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
-Destack runs TS directly, and TS++ (`.ds` files) can be transformed into `.js`/`.ts` for consumption by browsers and server runtimes. 
-On the backend, Destack also supports Node-shaped APIs, so - like with other Node-compatible runtimes - if you stay within the Node APIs, you remain fully compatible.
-Going the other way, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (incl. VM and runtime).
+Destack runs TS directly, and "TS++" (`.ds` files) transpiles into `.js`/`.ts` for browsers and regular JS runtimes. 
+On the backend, Destack supports Node APIs, like with other Node-style runtimes.
+Going the other way, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (incl. VM and runtime), for the reasons outlined above.
 
-6. **What about _Other Technology_? Other Technology already exists, and is proven, and everyone knows it.** 
-Yes, excellent point. 
-There is substantial prior art along most axis that Destack covers: web-shaped runtimes (every browser), JS/TS VMs (V8/JSC/Hermes), JS runtimes (Node/Bun/Deno), JS/TS libraries (all of NPM), formatters, linters, and on and on.
-One of the challenges in pushing technology forward is picking the right point to be novel enough to be interesting while being familiar enough to be useful.
+6. **Why can't we just keep using TypeScript for front-end and Rust/C++/Go for back-end?** 
+We could and that will continue to work pretty well.
+Unfortunately, on the frontend, the generality and baggage of classic web frontends are very slow, while the existing "systems languages" are very bad at the UIs we need for building software systems. 
+There is a reason full-stack TS is so popular: centralizing domain models and software abstractions is very useful. 
 
-7. **Why can't we just keep using TypeScript for front-end and Rust/C++/Go/whatever for back-end systems-y stuff?** 
-We can, and that has worked quite well for a long time, and will continue to work pretty well.
-Unfortunately, the generality and legacy baggage of classic web frontends impose a bad performance ceiling.
-However, there is a reason full-stack TS is so popular: centralizing domain models and programming concepts is very useful. 
-And, perhaps more importantly, having simple scripting _and_ rich UI _and_ systems features in one stack enables much nicer visualisations and tooling.
-
-8. **What's the point of building new languages and programming systems if AI is going to be writing and maintaining code?** 
+7. **What's the point of building new languages and programming systems if AI is going to be writing and maintaining code?** 
 Software is more than code, and while it's possible there is a future where _no_ code is reviewed or maintained by humans, even that will take a while. 
-More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system. 
-What those systems look like _exactly_ is up for debate, but we reckon it won't be _completely_ different from the same nouns and verbs we already know, primarily because we already know them.
+More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system, and we need _new_ symbolic systems to build, debug, deploy, and maintain them.
 
-9. **Why not abandon existing standards entirely and fix _all_ the problems, given that we're rewriting the stack anyway?** 
-Yeah, it is tempting to go ahead and design the "theoretically optimal" stack, in the hopes that AI will just make it trivial to migrate and all the "optimal" concepts will reasonate immediately.
-However, one of the core tensions in designing Destack is deciding which standards and approaches are good for a universal stack, and "good" means all of: 
+8. **Why not abandon existing standards entirely and fix _all_ the problems, given that we're rewriting the stack anyway?** 
+It's tempting to design the "optimal" stack, hoping that AI will just migrate for us and all the "optimal" concepts will resonate immediately.
+The core tensions in Destack is deciding which technologies are: 
 a) expressive enough to support everything we might want, 
 b) performant enough to run everything as fast as possible, and 
 c) familiar enough to be immediately usable and reviewable.
 The intersection of a, b, and c turns out to be surprisingly web-shaped. 
 
-10. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 
+9. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 
 Destack is _currently_ primarily implemented in Rust, especially the language toolchain, but that is just the pragmatic bootstrapping path to eventual self-hosting.
-Library, services, and apps are already (mostly) written in Destack.
+Library, services, and apps are already written in Destack as much as possible, and we have a plan for gradually migrating the full stack to be fully self-hosted.
 
 ---
 
