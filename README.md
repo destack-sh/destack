@@ -102,9 +102,9 @@ Both Python and Rust are great languages, and both fail the "universal language"
 Python is pathological to optimize, but great for scripting, while Rust is great to optimize, but awful for scripting.
 Both Python and Rust are bad at "UI stuff", and both are structurally difficult to deploy well in a browser, which is the universal application platform.
 
-3. **Which JavaScript/TypeScript features does Destack sacrifice to enable native AOT compilation and all the other fancy stuff?** 
-All modern TypeScript features are supported, but highly dynamic features like `prototype`, `eval`, `Function`, dynamic `class`, etc., are forbidden, and thus also everything that depends on them.
-If you're used to writing strict modern TypeScript, you're almost certainly already Destack-compliant language-wise. 
+3. **Which JavaScript/TypeScript features are supported for AOT compilation and the rest of Destack?** 
+Modern strict TypeScript is fully supported, but some dynamic features like `prototype`, `eval`, `Function`, dynamic `class`, etc., are forbidden.
+If you're already used to writing strict modern TypeScript, you're almost certainly already Destack-compliant on the language side. 
 If you're building Node-shaped backend services, you might not even need to change anything (depending on what your dependencies do).
 
 4. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
@@ -120,19 +120,19 @@ Going the other way, Destack does _not_ fully support arbitrary JS/TS code *on t
 6. **Why can't we just use TypeScript/web for front-end and Rust/C++/Go for back-end?** 
 We can and that will continue to work pretty well, though with some friction.
 The baggage of classic web UI makes it very slow, and the existing "systems languages" are bad at the UIs we need for better software systems. 
-Full-stack TS is so popular for a reason: centralizing domain models and software abstractions is useful. 
+Full-stack TS is popular for a reason: centralizing domain models and software abstractions is useful. 
 
 7. **Why build new languages and programming systems if AI is going to be writing and maintaining code?** 
 Software is more than code, and while it's possible there is a future where _no_ code is reviewed or maintained by humans, even that will take a while. 
-More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system, and we need _new_ symbolic systems to build, debug, deploy, and maintain them well.
+More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system, and we clearly need _new_ symbolic systems to do this well.
 
 8. **Why not abandon standards entirely and fix _all_ the problems in a whole new stack?** 
 It's tempting to design the "optimal" stack, but even if AI could magically migrate everything, historically, new "big bang" systems usually fail.
 The core tensions in Destack is deciding which technologies are: 
-a) expressive enough to support everything we might want, 
-b) performant enough to run everything as fast as possible, and 
-c) familiar enough to be immediately usable and reviewable.
-The intersection of a, b, and c turns out to be surprisingly web-shaped. 
+a) expressive enough to support all software,
+b) performant enough to run at machine speed, and 
+c) familiar enough to be drop-in usable / reviewable.
+The intersection of a, b, and c turns out web-shaped. 
 
 9. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 
 Destack is _currently_ primarily implemented in Rust, especially the language toolchain, but that is just the pragmatic bootstrapping path to eventual self-hosting.
