@@ -68,7 +68,10 @@ pub(crate) unsafe fn destack_fs_open_bytes(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -155,7 +158,10 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
     let entry = ResourceEntry::new(ResourceKind::Directory)
         .with_payload(resource)
         .with_finalizer(FdFinalizer { fd });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -243,7 +249,10 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
     let entry = ResourceEntry::new(ResourceKind::File)
         .with_fd(fd)
         .with_finalizer(FdFinalizer { fd });
-    let handle = context.runtime().resources.insert(entry);
+    let handle = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(handle);
     }
@@ -339,7 +348,10 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
         let entry = ResourceEntry::new(ResourceKind::File)
             .with_fd(fd)
             .with_finalizer(FdFinalizer { fd });
-        let handle = context.runtime().resources.insert(entry);
+        let handle = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
         unsafe {
             *out = FileHandle(handle);
         }

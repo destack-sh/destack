@@ -45,7 +45,10 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // remove one queue resource and close it through the registered finalizer
-        let removed = context.runtime().resources.remove_and_finalize(handle.0);
+        let removed = context
+            .runtime()
+            .resources
+            .remove_and_finalize(handle.0, Some(context.engine()));
         if !removed {
             return Err(invalid_argument(
                 "handle",

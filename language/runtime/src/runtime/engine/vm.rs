@@ -3,21 +3,21 @@ use destack_vm::Isolate;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::engine::{
-    Engine, EngineContinuation, EngineOutcome, RuntimeOutput, RuntimeValue, VmEntry,
+    Engine, EngineContinuation, EngineOutcome, AgentOutput, AgentValue, VmEntry,
 };
 
-/// VM engine implementation for the runtime.
+/// VM engine implementation for one agent.
 impl Engine for Isolate {
     type Entry = VmEntry;
-    type Output = RuntimeOutput;
-    type Value = RuntimeValue;
+    type Output = AgentOutput;
+    type Value = AgentValue;
 
     /// Run a VM entrypoint by name.
     fn run(
         &mut self,
         entry: &VmEntry,
-        args: &[RuntimeValue],
-    ) -> RuntimeResult<EngineOutcome<RuntimeOutput, RuntimeValue>> {
+        args: &[AgentValue],
+    ) -> RuntimeResult<EngineOutcome<AgentOutput, AgentValue>> {
         let outcome = self
             .run_function_by_name_yielding(&entry.name, args)
             .map_err(Box::<RuntimeError>::from)?;
@@ -28,8 +28,8 @@ impl Engine for Isolate {
     fn resume(
         &mut self,
         continuation: EngineContinuation,
-        value: RuntimeValue,
-    ) -> RuntimeResult<EngineOutcome<RuntimeOutput, RuntimeValue>> {
+        value: AgentValue,
+    ) -> RuntimeResult<EngineOutcome<AgentOutput, AgentValue>> {
         let EngineContinuation::Vm(continuation) = continuation else {
             return Err(RuntimeError::Internal {
                 message: "vm engine cannot resume native continuation".to_string(),
@@ -43,8 +43,8 @@ impl Engine for Isolate {
     }
 }
 
-/// Convert a VM execution outcome into a runtime engine outcome.
-fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome<RuntimeOutput, RuntimeValue> {
+/// Convert one VM execution outcome into one engine outcome.
+fn map_vm_outcome(outcome: vm::ExecutionOutcome) -> EngineOutcome<AgentOutput, AgentValue> {
     match outcome {
         vm::ExecutionOutcome::Completed { output } => EngineOutcome::Completed { output },
         vm::ExecutionOutcome::Yielded { yielded } => EngineOutcome::Yielded {

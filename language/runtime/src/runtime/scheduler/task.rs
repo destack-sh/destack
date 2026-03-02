@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::runtime::engine::{EngineContinuation, AgentValue};
 
 /// Opaque task identifier used by the event loop.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ pub struct Task {
     /// Runnable continuation for this task.
     pub runnable: EngineContinuation,
     /// Resume payload passed back into the executor.
-    pub resume_value: RuntimeValue,
+    pub resume_value: AgentValue,
     /// Current scheduling status.
     pub status: TaskStatus,
     /// Priority value for event loop ordering, higher values run first.

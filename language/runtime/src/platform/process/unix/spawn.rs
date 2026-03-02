@@ -679,7 +679,10 @@ fn spawn_process(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::Process)
         .with_label("process.spawn")
         .with_payload(core_process::SpawnedProcess { pid: process_id });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);

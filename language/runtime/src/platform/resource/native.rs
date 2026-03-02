@@ -47,7 +47,10 @@ pub(crate) unsafe fn destack_resource_close(
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = context.runtime().resources.remove_and_finalize(id);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(id, Some(context.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -117,7 +120,10 @@ pub(crate) unsafe fn destack_resource_remove(
     id: resource::ResourceId,
 ) -> RuntimeResult<()> {
     // remove the entry and run finalization
-    let removed = context.runtime().resources.remove_and_finalize(id);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(id, Some(context.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }

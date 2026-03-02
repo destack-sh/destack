@@ -190,7 +190,10 @@ pub(crate) fn insert_context_resource(
     let entry = ResourceEntry::new(TLS_CONTEXT_RESOURCE_KIND)
         .with_label("tls.context")
         .with_payload(Arc::new(Mutex::new(value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::TlsContextHandle(resource_id)
 }
@@ -228,7 +231,11 @@ pub(crate) fn remove_context_resource(
     handle: resource::TlsContextHandle,
 ) -> RuntimeResult<()> {
     // remove one context payload
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown tls context handle",
@@ -268,7 +275,10 @@ pub(crate) fn insert_session_resource(
     let entry = ResourceEntry::new(TLS_SESSION_RESOURCE_KIND)
         .with_label("tls.session")
         .with_payload(Arc::new(resource));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::TlsSessionHandle(resource_id)
 }
@@ -306,7 +316,11 @@ pub(crate) fn remove_session_resource(
     handle: resource::TlsSessionHandle,
 ) -> RuntimeResult<()> {
     // remove one session payload
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
             "unknown tls session handle",

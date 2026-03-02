@@ -8,7 +8,7 @@ use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
-use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::runtime::engine::{EngineContinuation, AgentValue};
 use crate::runtime::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
     PollerToken,
@@ -23,7 +23,7 @@ pub struct EventLoopWatch {
     /// Runnable continuation to execute when dispatched.
     pub runnable: EngineContinuation,
     /// Resume value passed into the continuation.
-    pub resume_value: RuntimeValue,
+    pub resume_value: AgentValue,
     /// Task priority used when queueing watched tasks.
     pub priority: u8,
 }

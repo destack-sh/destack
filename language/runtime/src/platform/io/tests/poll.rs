@@ -104,8 +104,16 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
                 descriptor: descriptors[1],
             });
 
-        let read_target = context.call_context.runtime().resources.insert(read_entry);
-        let write_target = context.call_context.runtime().resources.insert(write_entry);
+        let read_target = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(read_entry, Some(context.call_context.engine()));
+        let write_target = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(write_entry, Some(context.call_context.engine()));
 
         Ok(PollTargets {
             read_target,
@@ -187,8 +195,16 @@ fn create_poll_targets(context: &IoHarnessContext<'_>) -> RuntimeResult<PollTarg
             .with_socket(sender as _)
             .with_finalizer(WindowsSocketFinalizer { socket: sender });
 
-        let read_target = context.call_context.runtime().resources.insert(read_entry);
-        let write_target = context.call_context.runtime().resources.insert(write_entry);
+        let read_target = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(read_entry, Some(context.call_context.engine()));
+        let write_target = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(write_entry, Some(context.call_context.engine()));
 
         return Ok(PollTargets {
             read_target,
@@ -210,12 +226,12 @@ fn remove_poll_targets(context: &IoHarnessContext<'_>, targets: PollTargets) {
         .call_context
         .runtime()
         .resources
-        .remove_and_finalize(targets.read_target);
+        .remove_and_finalize(targets.read_target, Some(context.call_context.engine()));
     context
         .call_context
         .runtime()
         .resources
-        .remove_and_finalize(targets.write_target);
+        .remove_and_finalize(targets.write_target, Some(context.call_context.engine()));
 }
 
 /// Write one wake byte to one poll write endpoint.
@@ -293,11 +309,10 @@ fn test_io_poll_open_close_roundtrip() {
 #[test]
 fn test_io_poll_close_rejects_non_poll_handle() {
     with_harness_context(|mut context| {
-        let foreign = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let foreign = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         let forged = PollHandle(foreign);
         assert_platform_error_code(
             context.destack_io_poll_close(forged),
@@ -308,7 +323,7 @@ fn test_io_poll_close_rejects_non_poll_handle() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(foreign);
+            .remove_and_finalize(foreign, Some(context.call_context.engine()));
 
         Ok(())
     });
@@ -428,11 +443,10 @@ fn test_io_poll_rejects_non_pollable_target() {
     with_harness_context(|mut context| {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
-        let target = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let target = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         assert_platform_error_code(
             context.destack_io_poll_register(handle, target, 1, PollInterest(1)),
             PlatformErrorCode::InvalidArgumentValue,
@@ -443,7 +457,7 @@ fn test_io_poll_rejects_non_pollable_target() {
             .call_context
             .runtime()
             .resources
-            .remove_and_finalize(target);
+            .remove_and_finalize(target, Some(context.call_context.engine()));
 
         Ok(())
     });

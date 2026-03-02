@@ -469,7 +469,7 @@ pub unsafe extern "C" fn destack_error_error_take_platform_error(
         let _ = (&out, &errorid);
 
         {
-            context.check_policy(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
+            let _binding_hook_guard = context.on_before_binding(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
             unsafe {
                 platform_runtime_native::destack_error_take_platform_error(context, out, errorid)
             }
@@ -492,7 +492,8 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
 
                     // execute binding
                     let result = {
-                        runtime.check_policy(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
+                        let _binding_hook_guard =
+                            runtime.on_before_binding(ERROR_ERROR_TAKE_PLATFORM_ERROR)?;
                         platform_runtime_vm::destack_error_take_platform_error(
                             runtime, context, errorid,
                         )

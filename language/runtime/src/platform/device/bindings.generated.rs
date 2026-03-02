@@ -12681,7 +12681,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_adapter_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
         destack_device_bluetooth_adapter_list_replay(context, world, out)
     })
 }
@@ -12698,7 +12699,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_characteristic_list(
         }
         let _ = (&out, &handle, &serviceuuid);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?;
         destack_device_bluetooth_gatt_characteristic_list_replay(
             context,
             world,
@@ -12722,7 +12724,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_descriptor_list(
         }
         let _ = (&out, &handle, &serviceuuid, &characteristicuuid);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
         destack_device_bluetooth_gatt_descriptor_list_replay(
             context,
             world,
@@ -12745,7 +12748,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_mtu(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
         destack_device_bluetooth_gatt_mtu_replay(context, world, out, handle)
     })
 }
@@ -12764,7 +12768,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read(
         }
         let _ = (&out, &handle, &serviceuuid, &characteristicuuid, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
         destack_device_bluetooth_gatt_read_replay(
             context,
             world,
@@ -12799,7 +12804,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_descriptor(
             &timeoutns,
         );
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
         destack_device_bluetooth_gatt_read_descriptor_replay(
             context,
             world,
@@ -12825,7 +12831,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_read_event(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
         destack_device_bluetooth_gatt_read_event_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -12843,7 +12850,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_request_mtu(
         }
         let _ = (&out, &handle, &mtu, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
         destack_device_bluetooth_gatt_request_mtu_replay(
             context, world, out, handle, mtu, timeoutns,
         )
@@ -12861,7 +12869,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_service_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?;
         destack_device_bluetooth_gatt_service_list_replay(context, world, out, handle)
     })
 }
@@ -12879,7 +12888,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_subscribe(
         }
         let _ = (&out, &handle, &serviceuuid, &characteristicuuid);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
         destack_device_bluetooth_gatt_subscribe_replay(
             context,
             world,
@@ -12902,7 +12912,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_try_read_event(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?;
         destack_device_bluetooth_gatt_try_read_event_replay(context, world, out, handle)
     })
 }
@@ -12914,7 +12925,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_unsubscribe(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?;
         destack_device_bluetooth_gatt_unsubscribe_replay(context, world, handle)
     })
 }
@@ -12938,7 +12950,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_write(
             &timeoutns,
         );
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
         destack_device_bluetooth_gatt_write_replay(
             context,
             world,
@@ -12971,7 +12984,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_gatt_write_descriptor(
             &timeoutns,
         );
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
         destack_device_bluetooth_gatt_write_descriptor_replay(
             context,
             world,
@@ -12992,7 +13006,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
         destack_device_bluetooth_scan_close_replay(context, world, handle)
     })
 }
@@ -13009,7 +13024,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_open(
         }
         let _ = (&out, &adapterid, &filter);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
         destack_device_bluetooth_scan_open_replay(context, world, out, adapterid, filter)
     })
 }
@@ -13026,7 +13042,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
         destack_device_bluetooth_scan_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13042,7 +13059,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_scan_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
         destack_device_bluetooth_scan_try_read_replay(context, world, out, handle)
     })
 }
@@ -13054,7 +13072,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
         destack_device_bluetooth_session_close_replay(context, world, handle)
     })
 }
@@ -13071,7 +13090,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_open(
         }
         let _ = (&out, &adapterid, &deviceid);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
         destack_device_bluetooth_session_open_replay(context, world, out, adapterid, deviceid)
     })
 }
@@ -13085,7 +13105,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_pair(
         let _ = (&handle, &timeoutns);
 
         {
-            let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_PAIR)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_PAIR)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_bluetooth_pair(context, handle, timeoutns)
@@ -13112,7 +13133,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_rssi(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
         destack_device_bluetooth_session_rssi_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13126,7 +13148,8 @@ pub unsafe extern "C" fn destack_device_bluetooth_session_unpair(
         let _ = (&adapterid, &deviceid);
 
         {
-            let world = context.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_UNPAIR)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_UNPAIR)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_bluetooth_unpair(context, adapterid, deviceid)
@@ -13148,7 +13171,8 @@ pub unsafe extern "C" fn destack_device_camera_device_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
         destack_device_camera_device_close_replay(context, world, handle)
     })
 }
@@ -13163,7 +13187,8 @@ pub unsafe extern "C" fn destack_device_camera_device_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
         destack_device_camera_device_list_replay(context, world, out)
     })
 }
@@ -13179,7 +13204,8 @@ pub unsafe extern "C" fn destack_device_camera_device_open(
         }
         let _ = (&out, &id);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
         destack_device_camera_device_open_replay(context, world, out, id)
     })
 }
@@ -13195,7 +13221,8 @@ pub unsafe extern "C" fn destack_device_camera_device_stream_capability_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?;
         destack_device_camera_device_stream_capability_list_replay(context, world, out, handle)
     })
 }
@@ -13211,7 +13238,8 @@ pub unsafe extern "C" fn destack_device_camera_device_stream_config_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?;
         destack_device_camera_device_stream_config_list_replay(context, world, out, handle)
     })
 }
@@ -13223,7 +13251,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
         destack_device_camera_stream_close_replay(context, world, handle)
     })
 }
@@ -13240,7 +13269,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_control_range(
         }
         let _ = (&out, &handle, &control);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?;
         destack_device_camera_stream_control_range_replay(context, world, out, handle, control)
     })
 }
@@ -13256,7 +13286,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_exposure_mode(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?;
         destack_device_camera_stream_exposure_mode_replay(context, world, out, handle)
     })
 }
@@ -13273,7 +13304,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_get_control(
         }
         let _ = (&out, &handle, &control);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_GET_CONTROL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_GET_CONTROL)?;
         destack_device_camera_stream_get_control_replay(context, world, out, handle, control)
     })
 }
@@ -13290,7 +13322,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_open(
         }
         let _ = (&out, &device, &config);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
         destack_device_camera_stream_open_replay(context, world, out, device, config)
     })
 }
@@ -13307,7 +13340,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
         destack_device_camera_stream_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13321,7 +13355,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_control(
     native_call(|context| {
         let _ = (&handle, &control, &argument_value);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTROL)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTROL)?;
         destack_device_camera_stream_set_control_replay(
             context,
             world,
@@ -13340,7 +13375,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_exposure_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?;
         destack_device_camera_stream_set_exposure_mode_replay(context, world, handle, mode)
     })
 }
@@ -13353,7 +13389,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_stabilization_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?;
         destack_device_camera_stream_set_stabilization_mode_replay(context, world, handle, mode)
     })
 }
@@ -13366,7 +13403,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_set_torch_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?;
         destack_device_camera_stream_set_torch_mode_replay(context, world, handle, mode)
     })
 }
@@ -13382,7 +13420,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_stabilization_mode(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?;
         destack_device_camera_stream_stabilization_mode_replay(context, world, out, handle)
     })
 }
@@ -13394,7 +13433,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_start(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_START)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_START)?;
         destack_device_camera_stream_start_replay(context, world, handle)
     })
 }
@@ -13406,7 +13446,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_stop(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
         destack_device_camera_stream_stop_replay(context, world, handle)
     })
 }
@@ -13422,7 +13463,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_torch_mode(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
         destack_device_camera_stream_torch_mode_replay(context, world, out, handle)
     })
 }
@@ -13438,7 +13480,8 @@ pub unsafe extern "C" fn destack_device_camera_stream_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
         destack_device_camera_stream_try_read_replay(context, world, out, handle)
     })
 }
@@ -13450,7 +13493,8 @@ pub unsafe extern "C" fn destack_device_serial_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_CLOSE)?;
         destack_device_serial_close_replay(context, world, handle)
     })
 }
@@ -13463,7 +13507,8 @@ pub unsafe extern "C" fn destack_device_serial_configure(
     native_call(|context| {
         let _ = (&handle, &config);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
         destack_device_serial_configure_replay(context, world, handle, config)
     })
 }
@@ -13475,7 +13520,8 @@ pub unsafe extern "C" fn destack_device_serial_discard_input(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
         destack_device_serial_discard_input_replay(context, world, handle)
     })
 }
@@ -13487,7 +13533,8 @@ pub unsafe extern "C" fn destack_device_serial_discard_output(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
         destack_device_serial_discard_output_replay(context, world, handle)
     })
 }
@@ -13499,7 +13546,8 @@ pub unsafe extern "C" fn destack_device_serial_flush(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_FLUSH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_FLUSH)?;
         destack_device_serial_flush_replay(context, world, handle)
     })
 }
@@ -13514,7 +13562,8 @@ pub unsafe extern "C" fn destack_device_serial_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_LIST)?;
         destack_device_serial_list_replay(context, world, out)
     })
 }
@@ -13531,7 +13580,8 @@ pub unsafe extern "C" fn destack_device_serial_open(
         }
         let _ = (&out, &id, &config);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_OPEN)?;
         destack_device_serial_open_replay(context, world, out, id, config)
     })
 }
@@ -13549,7 +13599,8 @@ pub unsafe extern "C" fn destack_device_serial_read(
         }
         let _ = (&out, &handle, &maxbytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_READ)?;
         destack_device_serial_read_replay(context, world, out, handle, maxbytes, timeoutns)
     })
 }
@@ -13566,7 +13617,8 @@ pub unsafe extern "C" fn destack_device_serial_read_event(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
         destack_device_serial_read_event_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -13579,7 +13631,8 @@ pub unsafe extern "C" fn destack_device_serial_set_break(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
         destack_device_serial_set_break_replay(context, world, handle, enabled)
     })
 }
@@ -13593,7 +13646,8 @@ pub unsafe extern "C" fn destack_device_serial_set_control_lines(
     native_call(|context| {
         let _ = (&handle, &dtr, &rts);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
         destack_device_serial_set_control_lines_replay(context, world, handle, dtr, rts)
     })
 }
@@ -13609,7 +13663,8 @@ pub unsafe extern "C" fn destack_device_serial_signal_bits(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
         destack_device_serial_signal_bits_replay(context, world, out, handle)
     })
 }
@@ -13625,7 +13680,8 @@ pub unsafe extern "C" fn destack_device_serial_try_event(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
         destack_device_serial_try_event_replay(context, world, out, handle)
     })
 }
@@ -13642,7 +13698,8 @@ pub unsafe extern "C" fn destack_device_serial_try_read(
         }
         let _ = (&out, &handle, &maxbytes);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_READ)?;
         destack_device_serial_try_read_replay(context, world, out, handle, maxbytes)
     })
 }
@@ -13660,7 +13717,8 @@ pub unsafe extern "C" fn destack_device_serial_write(
         }
         let _ = (&out, &handle, &data, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_SERIAL_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_SERIAL_WRITE)?;
         destack_device_serial_write_replay(context, world, out, handle, data, timeoutns)
     })
 }
@@ -13679,7 +13737,8 @@ pub unsafe extern "C" fn destack_device_usb_bulk_read(
         }
         let _ = (&out, &handle, &endpointaddress, &maxbytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_BULK_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_BULK_READ)?;
         destack_device_usb_bulk_read_replay(
             context,
             world,
@@ -13706,7 +13765,8 @@ pub unsafe extern "C" fn destack_device_usb_bulk_write(
         }
         let _ = (&out, &handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_BULK_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_BULK_WRITE)?;
         destack_device_usb_bulk_write_replay(
             context,
             world,
@@ -13727,7 +13787,8 @@ pub unsafe extern "C" fn destack_device_usb_claim_interface(
     native_call(|context| {
         let _ = (&handle, &interfacenumber);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
         destack_device_usb_claim_interface_replay(context, world, handle, interfacenumber)
     })
 }
@@ -13740,7 +13801,8 @@ pub unsafe extern "C" fn destack_device_usb_clear_halt(
     native_call(|context| {
         let _ = (&handle, &endpointaddress);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CLEAR_HALT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CLEAR_HALT)?;
         destack_device_usb_clear_halt_replay(context, world, handle, endpointaddress)
     })
 }
@@ -13752,7 +13814,8 @@ pub unsafe extern "C" fn destack_device_usb_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CLOSE)?;
         destack_device_usb_close_replay(context, world, handle)
     })
 }
@@ -13768,7 +13831,8 @@ pub unsafe extern "C" fn destack_device_usb_configuration_get(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
         destack_device_usb_configuration_get_replay(context, world, out, handle)
     })
 }
@@ -13784,7 +13848,8 @@ pub unsafe extern "C" fn destack_device_usb_configuration_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
         destack_device_usb_configuration_list_replay(context, world, out, handle)
     })
 }
@@ -13797,7 +13862,8 @@ pub unsafe extern "C" fn destack_device_usb_configuration_set(
     native_call(|context| {
         let _ = (&handle, &configurationvalue);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
         destack_device_usb_configuration_set_replay(context, world, handle, configurationvalue)
     })
 }
@@ -13815,7 +13881,8 @@ pub unsafe extern "C" fn destack_device_usb_control_read(
         }
         let _ = (&out, &handle, &setup, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CONTROL_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CONTROL_READ)?;
         destack_device_usb_control_read_replay(context, world, out, handle, setup, timeoutns)
     })
 }
@@ -13834,7 +13901,8 @@ pub unsafe extern "C" fn destack_device_usb_control_write(
         }
         let _ = (&out, &handle, &setup, &argument_bytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
         destack_device_usb_control_write_replay(
             context,
             world,
@@ -13858,7 +13926,8 @@ pub unsafe extern "C" fn destack_device_usb_descriptor(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_DESCRIPTOR)?;
         destack_device_usb_descriptor_replay(context, world, out, handle)
     })
 }
@@ -13877,7 +13946,8 @@ pub unsafe extern "C" fn destack_device_usb_interrupt_read(
         }
         let _ = (&out, &handle, &endpointaddress, &maxbytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
         destack_device_usb_interrupt_read_replay(
             context,
             world,
@@ -13904,7 +13974,8 @@ pub unsafe extern "C" fn destack_device_usb_interrupt_write(
         }
         let _ = (&out, &handle, &endpointaddress, &argument_bytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
         destack_device_usb_interrupt_write_replay(
             context,
             world,
@@ -13931,7 +14002,8 @@ pub unsafe extern "C" fn destack_device_usb_isochronous_read(
         }
         let _ = (&out, &handle, &endpointaddress, &packetsizes, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
         destack_device_usb_isochronous_read_replay(
             context,
             world,
@@ -13966,7 +14038,8 @@ pub unsafe extern "C" fn destack_device_usb_isochronous_write(
             &timeoutns,
         );
 
-        let world = context.check_and_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
         destack_device_usb_isochronous_write_replay(
             context,
             world,
@@ -13992,7 +14065,8 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_active(
         }
         let _ = (&out, &handle, &interfacenumber);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
         destack_device_usb_kernel_driver_active_replay(context, world, out, handle, interfacenumber)
     })
 }
@@ -14006,7 +14080,8 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_attach(
         let _ = (&handle, &interfacenumber);
 
         {
-            let world = context.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_ATTACH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ATTACH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_usb_kernel_driver_attach(
@@ -14036,7 +14111,8 @@ pub unsafe extern "C" fn destack_device_usb_kernel_driver_detach(
         let _ = (&handle, &interfacenumber);
 
         {
-            let world = context.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_DETACH)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_DETACH)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_usb_kernel_driver_detach(
@@ -14067,7 +14143,8 @@ pub unsafe extern "C" fn destack_device_usb_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(DEVICE_USB_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_LIST)?;
         destack_device_usb_list_replay(context, world, out)
     })
 }
@@ -14083,7 +14160,8 @@ pub unsafe extern "C" fn destack_device_usb_open(
         }
         let _ = (&out, &id);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_OPEN)?;
         destack_device_usb_open_replay(context, world, out, id)
     })
 }
@@ -14096,7 +14174,8 @@ pub unsafe extern "C" fn destack_device_usb_release_interface(
     native_call(|context| {
         let _ = (&handle, &interfacenumber);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
         destack_device_usb_release_interface_replay(context, world, handle, interfacenumber)
     })
 }
@@ -14109,7 +14188,8 @@ pub unsafe extern "C" fn destack_device_usb_reset(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(DEVICE_USB_RESET)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_USB_RESET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_usb_reset(context, handle)
@@ -14131,7 +14211,8 @@ pub unsafe extern "C" fn destack_device_usb_set_interface_alternate_setting(
     native_call(|context| {
         let _ = (&handle, &interfacenumber, &alternatesetting);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?;
         destack_device_usb_set_interface_alternate_setting_replay(
             context,
             world,
@@ -14154,7 +14235,8 @@ pub unsafe extern "C" fn destack_device_usb_string_descriptor(
         }
         let _ = (&out, &handle, &languageid);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
         destack_device_usb_string_descriptor_replay(context, world, out, handle, languageid)
     })
 }
@@ -14170,7 +14252,8 @@ pub unsafe extern "C" fn destack_device_usb_string_language_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
         destack_device_usb_string_language_list_replay(context, world, out, handle)
     })
 }
@@ -14184,7 +14267,8 @@ pub unsafe extern "C" fn destack_device_usb_transfer_cancel(
         let _ = (&handle, &endpointaddress);
 
         {
-            let world = context.check_and_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_usb_transfer_cancel(
@@ -14213,7 +14297,8 @@ pub unsafe extern "C" fn destack_device_usb_transfer_cancel_all(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(DEVICE_USB_TRANSFER_CANCEL_ALL)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL_ALL)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_device_usb_transfer_cancel_all(context, handle)
@@ -14235,7 +14320,8 @@ pub unsafe extern "C" fn destack_device_usb_watch_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
         destack_device_usb_watch_close_replay(context, world, handle)
     })
 }
@@ -14250,7 +14336,8 @@ pub unsafe extern "C" fn destack_device_usb_watch_open(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(DEVICE_USB_WATCH_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_WATCH_OPEN)?;
         destack_device_usb_watch_open_replay(context, world, out)
     })
 }
@@ -14267,7 +14354,8 @@ pub unsafe extern "C" fn destack_device_usb_watch_read(
         }
         let _ = (&out, &handle, &timeoutns);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_WATCH_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_WATCH_READ)?;
         destack_device_usb_watch_read_replay(context, world, out, handle, timeoutns)
     })
 }
@@ -14283,7 +14371,8 @@ pub unsafe extern "C" fn destack_device_usb_watch_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
         destack_device_usb_watch_try_read_replay(context, world, out, handle)
     })
 }
@@ -22088,7 +22177,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_ADAPTER_LIST)?;
                     destack_device_bluetooth_adapter_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -22109,8 +22199,9 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST,
+                    )?;
                     destack_device_bluetooth_gatt_characteristic_list_vm_replay(
                         runtime,
                         context,
@@ -22135,8 +22226,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_descriptor_list_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST)?;
                     destack_device_bluetooth_gatt_descriptor_list_vm_replay(
                         runtime,
                         context,
@@ -22161,7 +22252,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_bluetooth_gatt_mtu_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_MTU)?;
                     destack_device_bluetooth_gatt_mtu_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22180,7 +22272,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ)?;
                     destack_device_bluetooth_gatt_read_vm_replay(
                         runtime,
                         context,
@@ -22207,8 +22300,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_read_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR)?;
                     destack_device_bluetooth_gatt_read_descriptor_vm_replay(
                         runtime,
                         context,
@@ -22236,8 +22329,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_read_event_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_READ_EVENT)?;
                     destack_device_bluetooth_gatt_read_event_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -22258,8 +22351,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_request_mtu_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_REQUEST_MTU)?;
                     destack_device_bluetooth_gatt_request_mtu_vm_replay(
                         runtime, context, world, handle, mtu, timeoutns,
                     )
@@ -22280,8 +22373,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_service_list_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SERVICE_LIST)?;
                     destack_device_bluetooth_gatt_service_list_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22302,7 +22395,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_subscribe_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_SUBSCRIBE)?;
                     destack_device_bluetooth_gatt_subscribe_vm_replay(
                         runtime,
                         context,
@@ -22328,8 +22422,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_try_read_event_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT)?;
                     destack_device_bluetooth_gatt_try_read_event_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22350,8 +22444,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_gatt_unsubscribe_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE)?;
                     destack_device_bluetooth_gatt_unsubscribe_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22378,7 +22472,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     ) = decode_destack_device_bluetooth_gatt_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE)?;
                     destack_device_bluetooth_gatt_write_vm_replay(
                         runtime,
                         context,
@@ -22413,8 +22508,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     ) = decode_destack_device_bluetooth_gatt_write_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR)?;
                     destack_device_bluetooth_gatt_write_descriptor_vm_replay(
                         runtime,
                         context,
@@ -22442,7 +22537,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_bluetooth_scan_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_CLOSE)?;
                     destack_device_bluetooth_scan_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22461,7 +22557,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_scan_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_OPEN)?;
                     destack_device_bluetooth_scan_open_vm_replay(
                         runtime, context, world, adapterid, filter,
                     )
@@ -22482,7 +22579,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_scan_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_READ)?;
                     destack_device_bluetooth_scan_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -22503,7 +22601,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_scan_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SCAN_TRY_READ)?;
                     destack_device_bluetooth_scan_try_read_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22524,7 +22623,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_session_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_CLOSE)?;
                     destack_device_bluetooth_session_close_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22545,7 +22645,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_session_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_OPEN)?;
                     destack_device_bluetooth_session_open_vm_replay(
                         runtime, context, world, adapterid, deviceid,
                     )
@@ -22567,8 +22668,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_PAIR)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_PAIR)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_pair(
                                 runtime, context, handle, timeoutns,
@@ -22598,7 +22699,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_bluetooth_session_rssi_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_RSSI)?;
                     destack_device_bluetooth_session_rssi_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -22620,8 +22722,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(DEVICE_BLUETOOTH_SESSION_UNPAIR)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(DEVICE_BLUETOOTH_SESSION_UNPAIR)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_bluetooth_unpair(
                                 runtime, context, adapterid, deviceid,
@@ -22650,7 +22752,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_camera_device_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_CLOSE)?;
                     destack_device_camera_device_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22665,7 +22768,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_LIST)?;
                     destack_device_camera_device_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -22683,7 +22787,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (id,) = decode_destack_device_camera_device_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_OPEN)?;
                     destack_device_camera_device_open_vm_replay(runtime, context, world, id)
                 })
                 .map_err(Into::into)
@@ -22704,8 +22809,9 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST,
+                    )?;
                     destack_device_camera_device_stream_capability_list_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22726,8 +22832,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_device_stream_config_list_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_DEVICE_STREAM_CONFIG_LIST)?;
                     destack_device_camera_device_stream_config_list_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22747,7 +22853,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_camera_stream_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CLOSE)?;
                     destack_device_camera_stream_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -22766,8 +22873,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_control_range_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_CONTROL_RANGE)?;
                     destack_device_camera_stream_control_range_vm_replay(
                         runtime, context, world, handle, control,
                     )
@@ -22788,8 +22895,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_exposure_mode_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_EXPOSURE_MODE)?;
                     destack_device_camera_stream_exposure_mode_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22810,8 +22917,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_get_control_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_GET_CONTROL)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_GET_CONTROL)?;
                     destack_device_camera_stream_get_control_vm_replay(
                         runtime, context, world, handle, control,
                     )
@@ -22832,7 +22939,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_OPEN)?;
                     destack_device_camera_stream_open_vm_replay(
                         runtime, context, world, device, config,
                     )
@@ -22853,7 +22961,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_READ)?;
                     destack_device_camera_stream_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -22874,8 +22983,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_set_control_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTROL)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_CONTROL)?;
                     destack_device_camera_stream_set_control_vm_replay(
                         runtime,
                         context,
@@ -22901,8 +23010,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_set_exposure_mode_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_EXPOSURE_MODE)?;
                     destack_device_camera_stream_set_exposure_mode_vm_replay(
                         runtime, context, world, handle, mode,
                     )
@@ -22925,8 +23034,9 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        DEVICE_CAMERA_STREAM_SET_STABILIZATION_MODE,
+                    )?;
                     destack_device_camera_stream_set_stabilization_mode_vm_replay(
                         runtime, context, world, handle, mode,
                     )
@@ -22947,8 +23057,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_set_torch_mode_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_SET_TORCH_MODE)?;
                     destack_device_camera_stream_set_torch_mode_vm_replay(
                         runtime, context, world, handle, mode,
                     )
@@ -22969,8 +23079,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_stabilization_mode_args(context, args)?;
 
                     // execute binding
-                    let world =
-                        runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?;
+                    let (world, _binding_hook_guard) = runtime
+                        .on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STABILIZATION_MODE)?;
                     destack_device_camera_stream_stabilization_mode_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -22990,7 +23100,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_camera_stream_start_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_START)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_START)?;
                     destack_device_camera_stream_start_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23008,7 +23119,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_camera_stream_stop_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_STOP)?;
                     destack_device_camera_stream_stop_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23027,7 +23139,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_torch_mode_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TORCH_MODE)?;
                     destack_device_camera_stream_torch_mode_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -23048,7 +23161,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_camera_stream_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_CAMERA_STREAM_TRY_READ)?;
                     destack_device_camera_stream_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23066,7 +23180,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_serial_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_CLOSE)?;
                     destack_device_serial_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23085,7 +23200,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_configure_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_CONFIGURE)?;
                     destack_device_serial_configure_vm_replay(
                         runtime, context, world, handle, config,
                     )
@@ -23105,7 +23221,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_serial_discard_input_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_INPUT)?;
                     destack_device_serial_discard_input_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23124,7 +23241,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_discard_output_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_DISCARD_OUTPUT)?;
                     destack_device_serial_discard_output_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23142,7 +23260,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_serial_flush_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_FLUSH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_FLUSH)?;
                     destack_device_serial_flush_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23157,7 +23276,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_LIST)?;
                     destack_device_serial_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -23175,7 +23295,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (id, config) = decode_destack_device_serial_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_OPEN)?;
                     destack_device_serial_open_vm_replay(runtime, context, world, id, config)
                 })
                 .map_err(Into::into)
@@ -23194,7 +23315,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_READ)?;
                     destack_device_serial_read_vm_replay(
                         runtime, context, world, handle, maxbytes, timeoutns,
                     )
@@ -23215,7 +23337,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_read_event_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_READ_EVENT)?;
                     destack_device_serial_read_event_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -23236,7 +23359,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_set_break_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SET_BREAK)?;
                     destack_device_serial_set_break_vm_replay(
                         runtime, context, world, handle, enabled,
                     )
@@ -23257,7 +23381,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_set_control_lines_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SET_CONTROL_LINES)?;
                     destack_device_serial_set_control_lines_vm_replay(
                         runtime, context, world, handle, dtr, rts,
                     )
@@ -23277,7 +23402,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_serial_signal_bits_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_SIGNAL_BITS)?;
                     destack_device_serial_signal_bits_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23295,7 +23421,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_serial_try_event_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_EVENT)?;
                     destack_device_serial_try_event_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23314,7 +23441,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_TRY_READ)?;
                     destack_device_serial_try_read_vm_replay(
                         runtime, context, world, handle, maxbytes,
                     )
@@ -23335,7 +23463,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_serial_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_SERIAL_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_SERIAL_WRITE)?;
                     destack_device_serial_write_vm_replay(
                         runtime, context, world, handle, data, timeoutns,
                     )
@@ -23356,7 +23485,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_bulk_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_BULK_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_BULK_READ)?;
                     destack_device_usb_bulk_read_vm_replay(
                         runtime,
                         context,
@@ -23383,7 +23513,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_bulk_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_BULK_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_BULK_WRITE)?;
                     destack_device_usb_bulk_write_vm_replay(
                         runtime,
                         context,
@@ -23410,7 +23541,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_claim_interface_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CLAIM_INTERFACE)?;
                     destack_device_usb_claim_interface_vm_replay(
                         runtime,
                         context,
@@ -23435,7 +23567,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_clear_halt_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CLEAR_HALT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CLEAR_HALT)?;
                     destack_device_usb_clear_halt_vm_replay(
                         runtime,
                         context,
@@ -23455,7 +23588,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (handle,) = decode_destack_device_usb_close_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(DEVICE_USB_CLOSE)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(DEVICE_USB_CLOSE)?;
                 destack_device_usb_close_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -23473,7 +23607,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_configuration_get_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_GET)?;
                     destack_device_usb_configuration_get_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23492,7 +23627,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_configuration_list_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_LIST)?;
                     destack_device_usb_configuration_list_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23511,7 +23647,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_configuration_set_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONFIGURATION_SET)?;
                     destack_device_usb_configuration_set_vm_replay(
                         runtime,
                         context,
@@ -23536,7 +23673,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_control_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CONTROL_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONTROL_READ)?;
                     destack_device_usb_control_read_vm_replay(
                         runtime, context, world, handle, setup, timeoutns,
                     )
@@ -23557,7 +23695,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_control_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_CONTROL_WRITE)?;
                     destack_device_usb_control_write_vm_replay(
                         runtime,
                         context,
@@ -23583,7 +23722,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_usb_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_DESCRIPTOR)?;
                     destack_device_usb_descriptor_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -23602,7 +23742,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_interrupt_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_READ)?;
                     destack_device_usb_interrupt_read_vm_replay(
                         runtime,
                         context,
@@ -23629,7 +23770,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_interrupt_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_INTERRUPT_WRITE)?;
                     destack_device_usb_interrupt_write_vm_replay(
                         runtime,
                         context,
@@ -23656,7 +23798,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_isochronous_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_READ)?;
                     destack_device_usb_isochronous_read_vm_replay(
                         runtime,
                         context,
@@ -23683,7 +23826,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_isochronous_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_ISOCHRONOUS_WRITE)?;
                     destack_device_usb_isochronous_write_vm_replay(
                         runtime,
                         context,
@@ -23711,7 +23855,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_kernel_driver_active_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ACTIVE)?;
                     destack_device_usb_kernel_driver_active_vm_replay(
                         runtime,
                         context,
@@ -23737,8 +23882,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_ATTACH)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_ATTACH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_kernel_driver_attach(
@@ -23777,8 +23922,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(DEVICE_USB_KERNEL_DRIVER_DETACH)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(DEVICE_USB_KERNEL_DRIVER_DETACH)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_kernel_driver_detach(
@@ -23808,7 +23953,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(registry, isolate, DEVICE_USB_LIST, move |context, _args| {
             with_binding_call_context(|runtime| {
                 // execute binding
-                let world = runtime.check_and_resolve_world(DEVICE_USB_LIST)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(DEVICE_USB_LIST)?;
                 destack_device_usb_list_vm_replay(runtime, context, world)
             })
             .map_err(Into::into)
@@ -23821,7 +23967,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                 let (id,) = decode_destack_device_usb_open_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(DEVICE_USB_OPEN)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(DEVICE_USB_OPEN)?;
                 destack_device_usb_open_vm_replay(runtime, context, world, id)
             })
             .map_err(Into::into)
@@ -23839,7 +23986,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_release_interface_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_RELEASE_INTERFACE)?;
                     destack_device_usb_release_interface_vm_replay(
                         runtime,
                         context,
@@ -23860,7 +24008,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_RESET)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_RESET)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_device_usb_reset(runtime, context, handle)
@@ -23891,8 +24040,9 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         )?;
 
                     // execute binding
-                    let world = runtime
-                        .check_and_resolve_world(DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING)?;
+                    let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world(
+                        DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING,
+                    )?;
                     destack_device_usb_set_interface_alternate_setting_vm_replay(
                         runtime,
                         context,
@@ -23918,7 +24068,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_string_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_STRING_DESCRIPTOR)?;
                     destack_device_usb_string_descriptor_vm_replay(
                         runtime, context, world, handle, languageid,
                     )
@@ -23939,7 +24090,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_string_language_list_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_STRING_LANGUAGE_LIST)?;
                     destack_device_usb_string_language_list_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -23961,7 +24113,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_device_usb_transfer_cancel(
                                 runtime,
@@ -23998,8 +24151,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
 
                     // execute binding
                     let result = {
-                        let world =
-                            runtime.check_and_resolve_world(DEVICE_USB_TRANSFER_CANCEL_ALL)?;
+                        let (world, _binding_hook_guard) = runtime
+                            .on_before_binding_resolve_world(DEVICE_USB_TRANSFER_CANCEL_ALL)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_device_usb_transfer_cancel_all(
@@ -24030,7 +24183,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_usb_watch_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_CLOSE)?;
                     destack_device_usb_watch_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -24045,7 +24199,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_WATCH_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_OPEN)?;
                     destack_device_usb_watch_open_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -24064,7 +24219,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         decode_destack_device_usb_watch_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_WATCH_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_READ)?;
                     destack_device_usb_watch_read_vm_replay(
                         runtime, context, world, handle, timeoutns,
                     )
@@ -24084,7 +24240,8 @@ pub fn register_device_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     let (handle,) = decode_destack_device_usb_watch_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(DEVICE_USB_WATCH_TRY_READ)?;
                     destack_device_usb_watch_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)

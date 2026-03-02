@@ -186,7 +186,10 @@ pub(crate) fn close_tty_worker_resource(
     context: &BindingCallContext,
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",

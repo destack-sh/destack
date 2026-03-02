@@ -4,7 +4,6 @@ use crate::runtime::replay::{
     BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
     TimeEventKind,
 };
-use crate::runtime::{HookState, with_current_binding_call_context};
 use destack_workspace::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
@@ -93,15 +92,6 @@ pub struct ReplayController {
 }
 
 impl ReplayController {
-    /// Run post-call binding hooks for the current TLS call context.
-    fn run_after_binding_hook(spec: BindingDescriptor) {
-        let _ = with_current_binding_call_context(|context| {
-            context
-                .hooks()
-                .on_after_binding(spec, HookState::from_engine(Some(context.engine())))
-        });
-    }
-
     /// Create a replay controller with an explicit execution mode.
     pub fn new(
         mode: ExecutionMode,
@@ -396,42 +386,15 @@ impl ReplayController {
         Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(Payload) -> RuntimeResult<Value>,
     {
-        if spec.replay_kind != BindingReplayKind::Regular {
-            return Err(RuntimeError::ReplayMismatch {
-                name: spec.name.to_string(),
-            }
-            .boxed());
-        }
-
-        let mode = self.mode();
-
-        // fast path
-        if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
-            let result = call();
-            Self::run_after_binding_hook(spec);
-            return result;
-        }
-
-        // replay path
-        if mode == ExecutionMode::Replay {
-            let payload = self.read_binding_payload(spec)?;
-            let result = decode(payload);
-            Self::run_after_binding_hook(spec);
-            return result;
-        }
-
-        // record path
-        let _ = self.payload_policy_for_requested(spec, requested_payload)?;
-        let result = call();
-        if mode == ExecutionMode::Record {
-            let payload = encode(&result)?;
-            if let Some(payload) = payload {
-                self.record_binding_payload(spec, &payload)?;
-            }
-        }
-
-        Self::run_after_binding_hook(spec);
-        result
+        let mut unit = ();
+        self.run_binding_internal(
+            spec,
+            requested_payload,
+            &mut unit,
+            move |_| call(),
+            move |_, result| encode(result),
+            move |_, payload| decode(payload),
+        )
     }
 
     /// Run a binding with replay handling and an explicit mutable context.
@@ -477,6 +440,25 @@ impl ReplayController {
         Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
         Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
     {
+        self.run_binding_internal(spec, requested_payload, context, call, encode, decode)
+    }
+
+    /// Run one binding with replay handling against one mutable context.
+    fn run_binding_internal<Payload, Value, Context, Call, Encode, Decode>(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: BindingReplayPayload,
+        context: &mut Context,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce(&mut Context) -> RuntimeResult<Value>,
+        Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
+    {
         if spec.replay_kind != BindingReplayKind::Regular {
             return Err(RuntimeError::ReplayMismatch {
                 name: spec.name.to_string(),
@@ -488,17 +470,13 @@ impl ReplayController {
 
         // fast path
         if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
-            let result = call(context);
-            Self::run_after_binding_hook(spec);
-            return result;
+            return call(context);
         }
 
         // replay path
         if mode == ExecutionMode::Replay {
             let payload = self.read_binding_payload(spec)?;
-            let result = decode(context, payload);
-            Self::run_after_binding_hook(spec);
-            return result;
+            return decode(context, payload);
         }
 
         // record path
@@ -511,7 +489,6 @@ impl ReplayController {
             }
         }
 
-        Self::run_after_binding_hook(spec);
         result
     }
 }

@@ -133,7 +133,10 @@ pub(crate) unsafe fn destack_fs_dup(
             status_flags: source_status_flags,
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -171,7 +174,10 @@ pub(crate) unsafe fn destack_fs_dup2(
 
     // close the target handle if it exists
     if handle.0 != target.0
-        && let Some(entry) = context.runtime().resources.remove(target.0)
+        && let Some(entry) = context
+            .runtime()
+            .resources
+            .remove(target.0, Some(context.engine()))
     {
         entry.finalize(target.0);
     }
@@ -637,7 +643,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
         let resource = ResourceEntry::new(ResourceKind::File)
             .with_fd(file_fd)
             .with_finalizer(DescriptorFinalizer { fd: file_fd });
-        let resource_id = context.runtime().resources.insert(resource);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(resource, Some(context.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }
@@ -685,7 +694,10 @@ pub(crate) unsafe fn destack_fs_dirfd(
                 status_flags: Arc::new(Mutex::new(0)),
             })
             .with_finalizer(HandleFinalizer::new(duplicated));
-        let resource_id = context.runtime().resources.insert(resource);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(resource, Some(context.engine()));
         unsafe {
             *out = FileHandle(resource_id);
         }

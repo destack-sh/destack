@@ -26,7 +26,11 @@ fn test_resource_kind_returns_kind_label() {
     with_harness_context(|mut context| {
         // insert one timer resource entry
         let entry = ResourceEntry::new(ResourceKind::Timer);
-        let id = context.call_context.runtime().resources.insert(entry);
+        let id = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.call_context.engine()));
 
         // resolve the kind label through the binding
         let value = context.destack_resource_kind(id)?;
@@ -45,7 +49,11 @@ fn test_resource_close_removes_entry_and_runs_finalizer() {
         let hits = Arc::new(AtomicUsize::new(0));
         let finalizer = CountingFinalizer { hits: hits.clone() };
         let entry = ResourceEntry::new(ResourceKind::Pipe).with_finalizer(finalizer);
-        let id = context.call_context.runtime().resources.insert(entry);
+        let id = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.call_context.engine()));
 
         // close the resource entry through the binding
         context.destack_resource_close(id)?;
@@ -66,7 +74,11 @@ fn test_resource_remove_removes_entry_and_runs_finalizer() {
         let hits = Arc::new(AtomicUsize::new(0));
         let finalizer = CountingFinalizer { hits: hits.clone() };
         let entry = ResourceEntry::new(ResourceKind::Socket).with_finalizer(finalizer);
-        let id = context.call_context.runtime().resources.insert(entry);
+        let id = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.call_context.engine()));
 
         // remove the resource entry through the binding
         context.destack_resource_remove(id)?;
@@ -85,7 +97,11 @@ fn test_resource_transfer_keeps_existing_entry() {
     with_harness_context(|mut context| {
         // insert one resource entry that can be transferred
         let entry = ResourceEntry::new(ResourceKind::File);
-        let id = context.call_context.runtime().resources.insert(entry);
+        let id = context
+            .call_context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.call_context.engine()));
 
         // transfer ownership for the existing entry
         context.destack_resource_transfer(id, ResourceOwnership::Owned)?;

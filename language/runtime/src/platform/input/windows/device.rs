@@ -149,7 +149,10 @@ pub(super) fn open_device(
                         restore_mode: Some(mode),
                         release_console_lane: true,
                     });
-                let resource_id = context.runtime().resources.insert(entry);
+                let resource_id = context
+                    .runtime()
+                    .resources
+                    .insert(entry, Some(context.engine()));
                 Ok(resource::InputDeviceHandle(resource_id))
             })();
 
@@ -198,7 +201,10 @@ pub(super) fn open_device(
                 .with_finalizer(input_core::RawInputDeviceFinalizer {
                     device_id: raw_device.id.clone(),
                 });
-            let resource_id = context.runtime().resources.insert(entry);
+            let resource_id = context
+                .runtime()
+                .resources
+                .insert(entry, Some(context.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
         input_core::WindowsInputOpenSpec::XInput(user_index) => {
@@ -237,7 +243,10 @@ pub(super) fn open_device(
                     sensor_enabled_kinds: HashSet::new(),
                     sensor_effective_configs: HashMap::new(),
                 });
-            let resource_id = context.runtime().resources.insert(entry);
+            let resource_id = context
+                .runtime()
+                .resources
+                .insert(entry, Some(context.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
     }
@@ -253,7 +262,10 @@ pub(super) fn close_device(
     input_core::resolve_input(context, handle, operation)?;
 
     // remove from resource table and run finalizer
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(input_core::input_not_found(operation, handle));
     }

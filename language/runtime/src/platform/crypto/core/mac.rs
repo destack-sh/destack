@@ -142,7 +142,10 @@ pub(crate) fn mac_open(
         let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
             .with_label(CRYPTO_MAC_LABEL)
             .with_payload(Arc::new(Mutex::new(resource_value)));
-        let resource_id = context.runtime().resources.insert(entry);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
 
         return Ok(resource::CryptoMacHandle(resource_id));
     }
@@ -167,7 +170,10 @@ pub(crate) fn mac_open(
     let entry = ResourceEntry::new(CRYPTO_MAC_RESOURCE_KIND)
         .with_label(CRYPTO_MAC_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     Ok(resource::CryptoMacHandle(resource_id))
 }
@@ -300,7 +306,11 @@ pub(crate) fn mac_close(
     handle: resource::CryptoMacHandle,
 ) -> RuntimeResult<()> {
     // remove mac resource entry
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.mac.close",
             "crypto mac",

@@ -44,7 +44,10 @@ pub(crate) fn digest_open(
     let entry = ResourceEntry::new(CRYPTO_DIGEST_RESOURCE_KIND)
         .with_label(CRYPTO_DIGEST_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     Ok(resource::CryptoDigestHandle(resource_id))
 }
@@ -111,7 +114,11 @@ pub(crate) fn digest_close(
     handle: resource::CryptoDigestHandle,
 ) -> RuntimeResult<()> {
     // remove resource and validate handle kind
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.digest.close",
             "crypto digest",

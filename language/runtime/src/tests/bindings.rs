@@ -54,7 +54,7 @@ fn run_vm_random_call(
 
     // runtime and isolate setup
     let mut isolate = Isolate::new(tree, strings).expect("isolate init");
-    runtime.agent.bindings.install_vm_defaults(&mut isolate);
+    runtime.install_vm_defaults(&mut isolate);
 
     // execute entry function
     let output = runtime

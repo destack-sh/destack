@@ -460,7 +460,10 @@ pub(crate) fn host_completion_register_accepted_handle(
             descriptor,
             paired_descriptor: None,
         });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     Ok(resource_id.0 as i64)
 }
 
@@ -496,7 +499,10 @@ pub(crate) fn host_event_open(
                 descriptor,
                 paired_descriptor: None,
             });
-        let resource_id = context.runtime().resources.insert(entry);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
         return Ok(EventToken(resource_id.0));
     }
 
@@ -527,7 +533,10 @@ pub(crate) fn host_event_open(
                 read_descriptor,
                 write_descriptor,
             });
-        let resource_id = context.runtime().resources.insert(entry);
+        let resource_id = context
+            .runtime()
+            .resources
+            .insert(entry, Some(context.engine()));
         let descriptor_key = event_signal_descriptor_key(context, EventToken(resource_id.0));
         event_signal_descriptor_map()
             .lock()
@@ -552,7 +561,7 @@ pub(crate) fn host_event_close(
     let removed = context
         .runtime()
         .resources
-        .remove_and_finalize(ResourceId(token.0));
+        .remove_and_finalize(ResourceId(token.0), Some(context.engine()));
     if !removed {
         return Err(io_core::event_not_found("destack.io.event.close", token));
     }

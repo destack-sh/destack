@@ -564,7 +564,11 @@ pub(crate) fn certificate_delete(
     }
 
     // remove certificate resource entry
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.certificate.delete",
             "crypto certificate",

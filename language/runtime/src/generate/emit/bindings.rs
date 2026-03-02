@@ -1237,12 +1237,12 @@ impl<'a> DomainWriter<'a> {
                     if uses_binding_replay {
                         if entry.scope == CatalogBindingScope::Runtime {
                             output.push_str(&format!(
-                                "        context.check_policy({})?;\n",
+                                "        let _binding_hook_guard = context.on_before_binding({})?;\n",
                                 binding.const_name
                             ));
                         } else {
                             output.push_str(&format!(
-                                "        let world = context.check_and_resolve_world({})?;\n",
+                                "        let (world, _binding_hook_guard) = context.on_before_binding_resolve_world({})?;\n",
                                 binding.const_name
                             ));
                         }
@@ -1432,7 +1432,7 @@ impl<'a> DomainWriter<'a> {
                         let replay_fn = vm_replay_fn_name(domain, binding.extern_name);
                         if binding.entry.scope == CatalogBindingScope::Runtime {
                             output.push_str(&format!(
-                                "                runtime.check_policy({})?;\n",
+                                "                let _binding_hook_guard = runtime.on_before_binding({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
@@ -1440,7 +1440,7 @@ impl<'a> DomainWriter<'a> {
                             ));
                         } else {
                             output.push_str(&format!(
-                                "                let world = runtime.check_and_resolve_world({})?;\n",
+                                "                let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world({})?;\n",
                                 binding.const_name
                             ));
                             output.push_str(&format!(
@@ -1625,7 +1625,9 @@ fn render_native_checked_world_dispatch_expr(
     };
 
     if scope == CatalogBindingScope::Runtime {
-        return format!("{{ context.check_policy({binding_const})?; {runtime_call} }}");
+        return format!(
+            "{{\n            let _binding_hook_guard = context.on_before_binding({binding_const})?;\n            {runtime_call}\n        }}"
+        );
     }
 
     let simulation = if args.is_empty() {
@@ -1638,7 +1640,7 @@ fn render_native_checked_world_dispatch_expr(
     };
 
     format!(
-        "{{\n            let world = context.check_and_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation},\n            }}\n        }}"
+        "{{\n            let (world, _binding_hook_guard) = context.on_before_binding_resolve_world({binding_const})?;\n            match world {{\n                RuntimeWorld::Host => {call},\n                RuntimeWorld::Simulation => {simulation},\n            }}\n        }}"
     )
 }
 
@@ -1654,14 +1656,16 @@ fn render_vm_checked_world_dispatch_expr(
     let call = format!("platform_vm::{implementation_fn_name}(runtime, context{invoke_args})");
 
     if scope == CatalogBindingScope::Runtime {
-        return format!("{{ runtime.check_policy({binding_const})?; {runtime_call} }}");
+        return format!(
+            "{{\n                        let _binding_hook_guard = runtime.on_before_binding({binding_const})?;\n                        {runtime_call}\n                    }}"
+        );
     }
 
     let simulation =
         format!("platform_simulation_vm::{implementation_fn_name}(runtime, context{invoke_args})");
 
     format!(
-        "{{\n                        let world = runtime.check_and_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
+        "{{\n                        let (world, _binding_hook_guard) = runtime.on_before_binding_resolve_world({binding_const})?;\n                        match world {{\n                            RuntimeWorld::Host => {call},\n                            RuntimeWorld::Simulation => {simulation},\n                        }}\n                    }}"
     )
 }
 

@@ -173,7 +173,10 @@ fn insert_timer_state(context: &BindingCallContext, state: TimerState) -> resour
     let entry = ResourceEntry::new(ResourceKind::Timer)
         .with_label("timer.schedule")
         .with_payload(Arc::new(Mutex::new(state)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     resource::TimerHandle(resource_id)
 }
 
@@ -267,7 +270,10 @@ fn create_timer(
     let state = timer_state_for_handle(context, handle)?;
     let state = state.lock();
     if let Err(error) = schedule_timer_state(context, handle, &state) {
-        let _ = context.runtime().resources.remove(handle.0);
+        let _ = context
+            .runtime()
+            .resources
+            .remove(handle.0, Some(context.engine()));
         return Err(error);
     }
 
@@ -286,7 +292,7 @@ pub(crate) unsafe fn destack_timer_cancel(
     let entry = context
         .runtime()
         .resources
-        .remove(handle.0)
+        .remove(handle.0, Some(context.engine()))
         .ok_or_else(invalid_timer_handle_error)?;
     if entry.kind != ResourceKind::Timer {
         return Err(invalid_timer_handle_error());

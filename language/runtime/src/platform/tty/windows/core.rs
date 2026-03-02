@@ -292,7 +292,10 @@ pub(super) fn register_pty_pair(
     let controller_entry = ResourceEntry::new(ResourceKind::Pty)
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
-    let controller_id = context.runtime().resources.insert(controller_entry);
+    let controller_id = context
+        .runtime()
+        .resources
+        .insert(controller_entry, Some(context.engine()));
 
     let worker_entry = ResourceEntry::new(ResourceKind::Tty)
         .with_label(TTY_RESOURCE_LABEL)
@@ -301,7 +304,10 @@ pub(super) fn register_pty_pair(
             read_handle,
             write_handle,
         });
-    let worker_id = context.runtime().resources.insert(worker_entry);
+    let worker_id = context
+        .runtime()
+        .resources
+        .insert(worker_entry, Some(context.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

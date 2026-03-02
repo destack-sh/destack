@@ -56,7 +56,10 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
     context: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
 ) -> RuntimeResult<()> {
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(invalid_argument(
             "handle",

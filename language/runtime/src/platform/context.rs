@@ -2,41 +2,35 @@ use std::sync::Arc;
 
 use super::abi::NativeStringRef;
 
-/// Shared platform state for binding handlers.
-#[derive(Debug)]
-struct PlatformState {
-    /// Process arguments available to bindings.
-    args: Vec<String>,
-    /// Precomputed string references for native bindings.
-    args_refs: Vec<NativeStringRef>,
-}
-
 /// Platform context available to binding installers.
 #[derive(Debug, Clone)]
 pub struct PlatformContext {
-    /// Shared platform state for this runtime.
-    state: Arc<PlatformState>,
+    /// Process arguments available to bindings.
+    args: Arc<[String]>,
+    /// Precomputed string references for native bindings.
+    args_refs: Arc<[NativeStringRef]>,
 }
 
 impl PlatformContext {
     /// Create platform context with explicit process arguments.
     pub fn new(args: Vec<String>) -> Self {
         // build string references for native bindings
-        let args_refs = args.iter().map(NativeStringRef::from).collect();
+        let args_refs: Vec<NativeStringRef> = args.iter().map(NativeStringRef::from).collect();
 
-        // store shared platform state
+        // store shared platform data
         Self {
-            state: Arc::new(PlatformState { args, args_refs }),
+            args: Arc::from(args),
+            args_refs: Arc::from(args_refs),
         }
     }
 
     /// Return the process arguments.
     pub fn args(&self) -> &[String] {
-        self.state.args.as_slice()
+        self.args.as_ref()
     }
 
     /// Return process arguments as native string references.
     pub fn args_refs(&self) -> &[NativeStringRef] {
-        self.state.args_refs.as_slice()
+        self.args_refs.as_ref()
     }
 }

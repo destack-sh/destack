@@ -407,7 +407,10 @@ pub(super) fn register_pipe_descriptor(
         .with_label(PIPE_RESOURCE_LABEL)
         .with_fd(descriptor)
         .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::PipeHandle(resource_id)
 }
@@ -421,7 +424,10 @@ pub(super) fn register_shared_memory_descriptor(
         .with_label(SHARED_MEMORY_RESOURCE_LABEL)
         .with_fd(descriptor)
         .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
@@ -439,7 +445,10 @@ pub(super) fn register_semaphore(
         .with_finalizer(UnixSemaphoreFinalizer {
             semaphore: semaphore as usize,
         });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }
@@ -453,7 +462,10 @@ pub(super) fn register_transferred_descriptor(
         .with_label(TRANSFERRED_RESOURCE_LABEL)
         .with_fd(descriptor)
         .with_finalizer(UnixFileDescriptorFinalizer { descriptor });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::TransferredHandle(resource_id)
 }
@@ -468,7 +480,10 @@ pub(super) fn register_message_queue(
         .with_label(MESSAGE_QUEUE_RESOURCE_LABEL)
         .with_payload(UnixMessageQueueState { queue })
         .with_finalizer(UnixMessageQueueFinalizer { queue });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::MessageQueueHandle(resource_id)
 }

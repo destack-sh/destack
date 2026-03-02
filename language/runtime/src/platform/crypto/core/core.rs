@@ -835,7 +835,10 @@ pub(super) fn insert_key_resource(
     let entry = ResourceEntry::new(CRYPTO_KEY_RESOURCE_KIND)
         .with_label(CRYPTO_KEY_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::CryptoKeyHandle(resource_id)
 }
@@ -848,7 +851,10 @@ pub(super) fn insert_certificate_resource(
     let entry = ResourceEntry::new(CRYPTO_CERTIFICATE_RESOURCE_KIND)
         .with_label(CRYPTO_CERTIFICATE_LABEL)
         .with_payload(Arc::new(Mutex::new(resource_value)));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     resource::CryptoCertificateHandle(resource_id)
 }

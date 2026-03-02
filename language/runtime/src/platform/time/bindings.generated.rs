@@ -2216,7 +2216,7 @@ pub unsafe extern "C" fn destack_time_clock_metadata(
         }
         let _ = (&out, &clock);
 
-        context.check_policy(TIME_CLOCK_METADATA)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_METADATA)?;
         destack_time_clock_metadata_replay(context, out, clock)
     })
 }
@@ -2233,7 +2233,7 @@ pub unsafe extern "C" fn destack_time_clock_mono_ns(out: *mut u64) -> RuntimeSta
             .replay()
             .run_time_read(TimeEventKind::MonotonicSample, || {
                 {
-                    context.check_policy(TIME_CLOCK_MONO_NS)?;
+                    let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_MONO_NS)?;
                     unsafe { platform_runtime_native::destack_time_mono_ns(context, out) }
                 }?;
                 unsafe { Ok(*out) }
@@ -2253,7 +2253,7 @@ pub unsafe extern "C" fn destack_time_clock_now_ns(out: *mut u64, clock: ClockId
         }
         let _ = (&out, &clock);
 
-        context.check_policy(TIME_CLOCK_NOW_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_NOW_NS)?;
         destack_time_clock_now_ns_replay(context, out, clock)
     })
 }
@@ -2266,7 +2266,7 @@ pub unsafe extern "C" fn destack_time_clock_process_cpu_ns(out: *mut u64) -> Run
         }
         let _ = &out;
 
-        context.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_PROCESS_CPU_NS)?;
         destack_time_clock_process_cpu_ns_replay(context, out)
     })
 }
@@ -2279,7 +2279,7 @@ pub unsafe extern "C" fn destack_time_clock_thread_cpu_ns(out: *mut u64) -> Runt
         }
         let _ = &out;
 
-        context.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_THREAD_CPU_NS)?;
         destack_time_clock_thread_cpu_ns_replay(context, out)
     })
 }
@@ -2296,7 +2296,7 @@ pub unsafe extern "C" fn destack_time_clock_wall_ns(out: *mut u64) -> RuntimeSta
             .replay()
             .run_time_read(TimeEventKind::WallClockRead, || {
                 {
-                    context.check_policy(TIME_CLOCK_WALL_NS)?;
+                    let _binding_hook_guard = context.on_before_binding(TIME_CLOCK_WALL_NS)?;
                     unsafe { platform_runtime_native::destack_time_wall_ns(context, out) }
                 }?;
                 unsafe { Ok(*out) }
@@ -2313,7 +2313,7 @@ pub unsafe extern "C" fn destack_time_sleep_ns(duration: u64) -> RuntimeStatus {
     native_call(|context| {
         let _ = &duration;
 
-        context.check_policy(TIME_SLEEP_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_SLEEP_NS)?;
         destack_time_sleep_ns_replay(context, duration)
     })
 }
@@ -2326,7 +2326,7 @@ pub unsafe extern "C" fn destack_time_sleep_on_ns(
     native_call(|context| {
         let _ = (&duration, &clock);
 
-        context.check_policy(TIME_SLEEP_ON_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_SLEEP_ON_NS)?;
         destack_time_sleep_on_ns_replay(context, duration, clock)
     })
 }
@@ -2336,7 +2336,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_ns(deadline: u64) -> RuntimeSt
     native_call(|context| {
         let _ = &deadline;
 
-        context.check_policy(TIME_SLEEP_UNTIL_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_SLEEP_UNTIL_NS)?;
         destack_time_sleep_until_ns_replay(context, deadline)
     })
 }
@@ -2349,7 +2349,7 @@ pub unsafe extern "C" fn destack_time_sleep_until_on_ns(
     native_call(|context| {
         let _ = (&deadline, &clock);
 
-        context.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_SLEEP_UNTIL_ON_NS)?;
         destack_time_sleep_until_on_ns_replay(context, deadline, clock)
     })
 }
@@ -2366,7 +2366,7 @@ pub unsafe extern "C" fn destack_time_timer_at(
         }
         let _ = (&out, &deadlinens, &options);
 
-        context.check_policy(TIME_TIMER_AT)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_AT)?;
         destack_time_timer_at_replay(context, out, deadlinens, options)
     })
 }
@@ -2376,7 +2376,7 @@ pub unsafe extern "C" fn destack_time_timer_cancel(handle: resource::TimerHandle
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TIME_TIMER_CANCEL)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_CANCEL)?;
         destack_time_timer_cancel_replay(context, handle)
     })
 }
@@ -2393,7 +2393,7 @@ pub unsafe extern "C" fn destack_time_timer_interval(
         }
         let _ = (&out, &periodns, &options);
 
-        context.check_policy(TIME_TIMER_INTERVAL)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_INTERVAL)?;
         destack_time_timer_interval_replay(context, out, periodns, options)
     })
 }
@@ -2409,7 +2409,7 @@ pub unsafe extern "C" fn destack_time_timer_is_active(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TIME_TIMER_IS_ACTIVE)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_IS_ACTIVE)?;
         destack_time_timer_is_active_replay(context, out, handle)
     })
 }
@@ -2426,7 +2426,7 @@ pub unsafe extern "C" fn destack_time_timer_once(
         }
         let _ = (&out, &delayns, &options);
 
-        context.check_policy(TIME_TIMER_ONCE)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_ONCE)?;
         destack_time_timer_once_replay(context, out, delayns, options)
     })
 }
@@ -2436,7 +2436,7 @@ pub unsafe extern "C" fn destack_time_timer_pause(handle: resource::TimerHandle)
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TIME_TIMER_PAUSE)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_PAUSE)?;
         destack_time_timer_pause_replay(context, handle)
     })
 }
@@ -2452,7 +2452,7 @@ pub unsafe extern "C" fn destack_time_timer_remaining_ns(
         }
         let _ = (&out, &handle);
 
-        context.check_policy(TIME_TIMER_REMAINING_NS)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_REMAINING_NS)?;
         destack_time_timer_remaining_ns_replay(context, out, handle)
     })
 }
@@ -2465,7 +2465,7 @@ pub unsafe extern "C" fn destack_time_timer_reset(
     native_call(|context| {
         let _ = (&handle, &delayns);
 
-        context.check_policy(TIME_TIMER_RESET)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_RESET)?;
         destack_time_timer_reset_replay(context, handle, delayns)
     })
 }
@@ -2475,7 +2475,7 @@ pub unsafe extern "C" fn destack_time_timer_resume(handle: resource::TimerHandle
     native_call(|context| {
         let _ = &handle;
 
-        context.check_policy(TIME_TIMER_RESUME)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_RESUME)?;
         destack_time_timer_resume_replay(context, handle)
     })
 }
@@ -2488,7 +2488,7 @@ pub unsafe extern "C" fn destack_time_timer_update_interval(
     native_call(|context| {
         let _ = (&handle, &periodns);
 
-        context.check_policy(TIME_TIMER_UPDATE_INTERVAL)?;
+        let _binding_hook_guard = context.on_before_binding(TIME_TIMER_UPDATE_INTERVAL)?;
         destack_time_timer_update_interval_replay(context, handle, periodns)
     })
 }
@@ -3366,7 +3366,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (clock,) = decode_destack_time_clock_metadata_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_CLOCK_METADATA)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_CLOCK_METADATA)?;
                     destack_time_clock_metadata_vm_replay(runtime, context, clock)
                 })
                 .map_err(Into::into)
@@ -3385,7 +3385,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         runtime
                             .replay()
                             .run_time_read(TimeEventKind::MonotonicSample, || {
-                                runtime.check_policy(TIME_CLOCK_MONO_NS)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(TIME_CLOCK_MONO_NS)?;
                                 platform_runtime_vm::destack_time_mono_ns(runtime, context)
                             });
                     encode_destack_time_clock_mono_ns_result(context, result)
@@ -3405,7 +3406,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (clock,) = decode_destack_time_clock_now_ns_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_CLOCK_NOW_NS)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_CLOCK_NOW_NS)?;
                     destack_time_clock_now_ns_vm_replay(runtime, context, clock)
                 })
                 .map_err(Into::into)
@@ -3420,7 +3421,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(TIME_CLOCK_PROCESS_CPU_NS)?;
+                    let _binding_hook_guard =
+                        runtime.on_before_binding(TIME_CLOCK_PROCESS_CPU_NS)?;
                     destack_time_clock_process_cpu_ns_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
@@ -3435,7 +3437,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    runtime.check_policy(TIME_CLOCK_THREAD_CPU_NS)?;
+                    let _binding_hook_guard =
+                        runtime.on_before_binding(TIME_CLOCK_THREAD_CPU_NS)?;
                     destack_time_clock_thread_cpu_ns_vm_replay(runtime, context)
                 })
                 .map_err(Into::into)
@@ -3454,7 +3457,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         runtime
                             .replay()
                             .run_time_read(TimeEventKind::WallClockRead, || {
-                                runtime.check_policy(TIME_CLOCK_WALL_NS)?;
+                                let _binding_hook_guard =
+                                    runtime.on_before_binding(TIME_CLOCK_WALL_NS)?;
                                 platform_runtime_vm::destack_time_wall_ns(runtime, context)
                             });
                     encode_destack_time_clock_wall_ns_result(context, result)
@@ -3470,7 +3474,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (duration,) = decode_destack_time_sleep_ns_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_SLEEP_NS)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_SLEEP_NS)?;
                 destack_time_sleep_ns_vm_replay(runtime, context, duration)
             })
             .map_err(Into::into)
@@ -3483,7 +3487,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (duration, clock) = decode_destack_time_sleep_on_ns_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_SLEEP_ON_NS)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_SLEEP_ON_NS)?;
                 destack_time_sleep_on_ns_vm_replay(runtime, context, duration, clock)
             })
             .map_err(Into::into)
@@ -3500,7 +3504,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (deadline,) = decode_destack_time_sleep_until_ns_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_SLEEP_UNTIL_NS)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_SLEEP_UNTIL_NS)?;
                     destack_time_sleep_until_ns_vm_replay(runtime, context, deadline)
                 })
                 .map_err(Into::into)
@@ -3519,7 +3523,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         decode_destack_time_sleep_until_on_ns_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_SLEEP_UNTIL_ON_NS)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_SLEEP_UNTIL_ON_NS)?;
                     destack_time_sleep_until_on_ns_vm_replay(runtime, context, deadline, clock)
                 })
                 .map_err(Into::into)
@@ -3533,7 +3537,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (deadlinens, options) = decode_destack_time_timer_at_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_TIMER_AT)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_AT)?;
                 destack_time_timer_at_vm_replay(runtime, context, deadlinens, options)
             })
             .map_err(Into::into)
@@ -3550,7 +3554,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (handle,) = decode_destack_time_timer_cancel_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_CANCEL)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_CANCEL)?;
                     destack_time_timer_cancel_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -3569,7 +3573,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         decode_destack_time_timer_interval_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_INTERVAL)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_INTERVAL)?;
                     destack_time_timer_interval_vm_replay(runtime, context, periodns, options)
                 })
                 .map_err(Into::into)
@@ -3587,7 +3591,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (handle,) = decode_destack_time_timer_is_active_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_IS_ACTIVE)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_IS_ACTIVE)?;
                     destack_time_timer_is_active_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -3601,7 +3605,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (delayns, options) = decode_destack_time_timer_once_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_TIMER_ONCE)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_ONCE)?;
                 destack_time_timer_once_vm_replay(runtime, context, delayns, options)
             })
             .map_err(Into::into)
@@ -3614,7 +3618,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (handle,) = decode_destack_time_timer_pause_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_TIMER_PAUSE)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_PAUSE)?;
                 destack_time_timer_pause_vm_replay(runtime, context, handle)
             })
             .map_err(Into::into)
@@ -3631,7 +3635,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (handle,) = decode_destack_time_timer_remaining_ns_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_REMAINING_NS)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_REMAINING_NS)?;
                     destack_time_timer_remaining_ns_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -3645,7 +3649,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                 let (handle, delayns) = decode_destack_time_timer_reset_args(context, args)?;
 
                 // execute binding
-                runtime.check_policy(TIME_TIMER_RESET)?;
+                let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_RESET)?;
                 destack_time_timer_reset_vm_replay(runtime, context, handle, delayns)
             })
             .map_err(Into::into)
@@ -3662,7 +3666,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                     let (handle,) = decode_destack_time_timer_resume_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_RESUME)?;
+                    let _binding_hook_guard = runtime.on_before_binding(TIME_TIMER_RESUME)?;
                     destack_time_timer_resume_vm_replay(runtime, context, handle)
                 })
                 .map_err(Into::into)
@@ -3681,7 +3685,8 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
                         decode_destack_time_timer_update_interval_args(context, args)?;
 
                     // execute binding
-                    runtime.check_policy(TIME_TIMER_UPDATE_INTERVAL)?;
+                    let _binding_hook_guard =
+                        runtime.on_before_binding(TIME_TIMER_UPDATE_INTERVAL)?;
                     destack_time_timer_update_interval_vm_replay(runtime, context, handle, periodns)
                 })
                 .map_err(Into::into)

@@ -510,7 +510,8 @@ pub unsafe extern "C" fn destack_ffi_call_invoke(
         let _ = (&out, &symbol, &abi, &flags, &arguments, &resultsize);
 
         {
-            let world = context.check_and_resolve_world(FFI_CALL_INVOKE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_CALL_INVOKE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_call(
@@ -535,7 +536,8 @@ pub unsafe extern "C" fn destack_ffi_library_close(
         let _ = &handle;
 
         {
-            let world = context.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_LIBRARY_CLOSE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_close(context, handle)
@@ -561,7 +563,8 @@ pub unsafe extern "C" fn destack_ffi_library_open(
         let _ = (&out, &path, &flags);
 
         {
-            let world = context.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_LIBRARY_OPEN)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_open(context, out, path, flags)
@@ -586,7 +589,8 @@ pub unsafe extern "C" fn destack_ffi_pointer_address(
         let _ = (&out, &pointer);
 
         {
-            let world = context.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_POINTER_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_address(context, out, pointer)
@@ -611,7 +615,8 @@ pub unsafe extern "C" fn destack_ffi_pointer_from_address(
         let _ = (&out, &address);
 
         {
-            let world = context.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_from_address(context, out, address)
@@ -636,7 +641,8 @@ pub unsafe extern "C" fn destack_ffi_symbol_address(
         let _ = (&out, &symbol);
 
         {
-            let world = context.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_SYMBOL_ADDRESS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_symbol_address(context, out, symbol)
@@ -662,7 +668,8 @@ pub unsafe extern "C" fn destack_ffi_symbol_lookup(
         let _ = (&out, &library, &name);
 
         {
-            let world = context.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
+            let (world, _binding_hook_guard) =
+                context.on_before_binding_resolve_world(FFI_SYMBOL_LOOKUP)?;
             match world {
                 RuntimeWorld::Host => unsafe {
                     platform_native::destack_ffi_symbol_lookup(context, out, library, name)
@@ -688,7 +695,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(FFI_CALL_INVOKE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(FFI_CALL_INVOKE)?;
                     match world {
                         RuntimeWorld::Host => platform_vm::destack_ffi_call(
                             runtime, context, symbol, abi, flags, arguments, resultsize,
@@ -715,7 +723,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(FFI_LIBRARY_CLOSE)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(FFI_LIBRARY_CLOSE)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_close(runtime, context, handle)
@@ -739,7 +748,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                 // execute binding
                 let result = {
-                    let world = runtime.check_and_resolve_world(FFI_LIBRARY_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(FFI_LIBRARY_OPEN)?;
                     match world {
                         RuntimeWorld::Host => {
                             platform_vm::destack_ffi_open(runtime, context, path, flags)
@@ -766,7 +776,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(FFI_POINTER_ADDRESS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(FFI_POINTER_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_address(runtime, context, pointer)
@@ -796,7 +807,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(FFI_POINTER_FROM_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_from_address(runtime, context, address)
@@ -826,7 +838,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(FFI_SYMBOL_ADDRESS)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(FFI_SYMBOL_ADDRESS)?;
                         match world {
                             RuntimeWorld::Host => {
                                 platform_vm::destack_ffi_symbol_address(runtime, context, symbol)
@@ -856,7 +869,8 @@ pub fn register_ffi_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(FFI_SYMBOL_LOOKUP)?;
+                        let (world, _binding_hook_guard) =
+                            runtime.on_before_binding_resolve_world(FFI_SYMBOL_LOOKUP)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_ffi_symbol_lookup(
                                 runtime, context, library, name,

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::Hook;
+
 /// Activation behavior for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ActivationWindow {
@@ -15,6 +17,17 @@ pub enum ActivationWindow {
         /// Matching call count before activation.
         call_count: u64,
     },
+}
+
+impl ActivationWindow {
+    /// Return true when this activation window is reached.
+    pub fn is_reached(&self, total_calls_seen: u64, now_virtual_ns: u64) -> bool {
+        match self {
+            Self::Immediate => true,
+            Self::AtVirtualNs { virtual_ns } => now_virtual_ns >= *virtual_ns,
+            Self::AfterCallCount { call_count } => total_calls_seen >= *call_count,
+        }
+    }
 }
 
 /// Lifetime behavior for runtime rules.
@@ -34,32 +47,6 @@ pub enum Lifetime {
     },
 }
 
-/// Hook for runtime effect rules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Hook {
-    /// Trigger before invoking one binding implementation.
-    BindingBefore,
-    /// Trigger after invoking one binding implementation.
-    BindingAfter,
-    /// Trigger when one task is enqueued.
-    SchedulerEnqueue,
-    /// Trigger when one task is dequeued.
-    SchedulerDequeue,
-    /// Trigger when one timer fires.
-    SchedulerTimerFire,
-    /// Trigger when one external event wakes the scheduler.
-    SchedulerEventWake,
-    /// Trigger when time is read.
-    TimeRead,
-    /// Trigger when random data is read.
-    RandomRead,
-    /// Trigger when one resource is attached.
-    ResourceAttach,
-    /// Trigger when one resource is detached.
-    ResourceDetach,
-}
-
 /// Bounded probability value in parts-per-million.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProbabilityPpm(pub u32);
@@ -70,7 +57,7 @@ pub struct Trigger {
     /// Hook for this trigger.
     pub on: Hook,
     /// Activation window for this trigger.
-    pub activation_window: Option<ActivationWindow>,
+    pub activation: Option<ActivationWindow>,
     /// Lifetime window for this trigger.
     pub lifetime: Option<Lifetime>,
     /// Activation probability in parts-per-million.

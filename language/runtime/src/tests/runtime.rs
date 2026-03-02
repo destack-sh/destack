@@ -2,7 +2,6 @@ use destack_base::LocalStringPool;
 use destack_mir::NodeTree;
 use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
-use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorId, RuntimeResult, RuntimeStatus};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -11,13 +10,13 @@ use crate::platform::random::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceKind};
 use crate::platform::{PlatformContext, PlatformError};
-use crate::runtime::{Agent, BindingCallContext, RuntimeContext, enter_binding_call_context};
+use crate::runtime::{Agent, BindingCallContext, enter_binding_call_context};
 
 /// Runtime harness for runtime tests.
 #[cfg_attr(windows, allow(dead_code))]
 pub(crate) struct TestRuntime {
     /// Agent under test.
-    pub agent: Agent,
+    pub agent: Box<Agent>,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
 }
@@ -67,20 +66,22 @@ impl TestRuntime {
     /// Build a test runtime from explicit runtime options.
     fn from_runtime_options(options: RuntimeOptions) -> Self {
         // build runtime state from explicit options
-        let state = Arc::new(RuntimeContext::from_options(
-            PlatformContext::new(Vec::new()),
-            &options,
-        ));
-        let agent = Agent::new(state);
+        let agent = Agent::from_options(PlatformContext::new(Vec::new()), &options)
+            .expect("runtime test agent should build");
 
         let tree = NodeTree::new();
         let strings = LocalStringPool::new().into_immutable();
         let vm_isolate = vm::Isolate::new(tree, strings).expect("test vm isolate should build");
 
         Self {
-            agent,
+            agent: Box::new(agent),
             vm_isolate: std::cell::RefCell::new(vm_isolate),
         }
+    }
+
+    /// Install default VM bindings using the test agent.
+    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
+        self.agent.install_vm_defaults(isolate);
     }
 
     /// Execute a native binding within a runtime call context.
@@ -90,7 +91,7 @@ impl TestRuntime {
     ) -> T {
         // enter a native call context for the binding
         let call_context = BindingCallContext::new(
-            &self.agent.state,
+            &self.agent,
             self.agent.event_loop.as_ref(),
             self.agent.bindings.policy_snapshot(),
         );
@@ -109,7 +110,7 @@ impl TestRuntime {
         let mut isolate = self.vm_isolate.borrow_mut();
         isolate.with_runtime_context(|context| {
             let call_context = BindingCallContext::new(
-                &self.agent.state,
+                &self.agent,
                 self.agent.event_loop.as_ref(),
                 self.agent.bindings.policy_snapshot(),
             );
@@ -159,7 +160,7 @@ impl TestRuntime {
 
         // take the stored runtime error
         let error_id = RuntimeErrorId::from_raw(status.error_id);
-        let error = self.agent.state.errors.take(error_id).unwrap_or_else(|| {
+        let error = self.agent.errors.take(error_id).unwrap_or_else(|| {
             RuntimeError::from(PlatformError::io(format!(
                 "{label} failed with missing runtime error",
             )))
@@ -174,7 +175,6 @@ impl TestRuntime {
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
         let fd = self
             .agent
-            .state
             .resources
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {
@@ -213,7 +213,6 @@ impl TestRuntime {
 
         let socket = self
             .agent
-            .state
             .resources
             .with_entry(handle.0, |entry| {
                 if entry.kind != ResourceKind::Listener {

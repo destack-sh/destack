@@ -96,7 +96,10 @@ pub(crate) unsafe fn destack_fs_open_bytes(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -176,7 +179,10 @@ pub(crate) unsafe fn destack_fs_open_utf16(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -262,7 +268,10 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -348,7 +357,10 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
             status_flags: Arc::new(Mutex::new(0)),
         })
         .with_finalizer(HandleFinalizer::new(handle));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }

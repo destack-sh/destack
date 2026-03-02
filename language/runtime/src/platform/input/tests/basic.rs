@@ -897,11 +897,10 @@ fn test_input_linux_list_uses_stable_runtime_ids() {
 #[test]
 fn test_input_close_rejects_non_input_handle() {
     with_harness_context(|mut context| {
-        let forged = context
-            .call_context
-            .runtime()
-            .resources
-            .insert(ResourceEntry::new(ResourceKind::Unknown));
+        let forged = context.call_context.runtime().resources.insert(
+            ResourceEntry::new(ResourceKind::Unknown),
+            Some(context.call_context.engine()),
+        );
         let forged = InputDeviceHandle(forged);
 
         assert_platform_error_code(

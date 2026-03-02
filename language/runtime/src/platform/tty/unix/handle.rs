@@ -98,7 +98,10 @@ fn register_stdio_tty(
         .with_finalizer(UnixDescriptorFinalizer {
             descriptor: duplicated,
         });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));

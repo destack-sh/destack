@@ -203,7 +203,10 @@ pub(crate) unsafe fn destack_process_try_wait(
     };
 
     if is_terminal_wait_status(&status) {
-        let _ = context.runtime().resources.remove_and_finalize(handle.0);
+        let _ = context
+            .runtime()
+            .resources
+            .remove_and_finalize(handle.0, Some(context.engine()));
     }
 
     unsafe {
@@ -246,7 +249,10 @@ pub(crate) unsafe fn destack_process_wait(
     };
 
     if is_terminal_wait_status(&status) {
-        let _ = context.runtime().resources.remove_and_finalize(handle.0);
+        let _ = context
+            .runtime()
+            .resources
+            .remove_and_finalize(handle.0, Some(context.engine()));
     }
 
     unsafe {

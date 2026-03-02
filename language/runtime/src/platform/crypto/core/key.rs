@@ -908,7 +908,11 @@ fn rollback_key_publish(
     }
 
     // remove the key resource and zeroize secret bytes before drop
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return;
     };
     if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
@@ -2647,7 +2651,11 @@ pub(crate) fn key_delete(
     }
 
     // remove key resource and verify kind
-    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+    else {
         return Err(handle_not_found(
             "destack.crypto.key.delete",
             "crypto key",

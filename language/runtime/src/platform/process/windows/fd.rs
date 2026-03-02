@@ -163,7 +163,10 @@ fn register_stdio_handle(
         .with_label(label)
         .with_handle(duplicated as _)
         .with_finalizer(StdioHandleFinalizer::new(duplicated));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::FileHandle(resource_id);
@@ -631,7 +634,10 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 ) -> RuntimeResult<()> {
     ensure_process_fd_handle(context, handle)?;
 
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -683,7 +689,10 @@ pub(crate) unsafe fn destack_process_process_fd_open(
         .with_payload(core_process::ProcessFdBinding { pid })
         .with_handle(process_handle as _)
         .with_finalizer(ProcessHandleFinalizer::new(process_handle));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::ProcessFdHandle(resource_id);
@@ -823,7 +832,10 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 ) -> RuntimeResult<()> {
     ensure_signal_fd_handle(context, handle)?;
 
-    let removed = context.runtime().resources.remove_and_finalize(handle.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(handle.0, Some(context.engine()));
     if !removed {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -873,7 +885,10 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
     let entry = resource::ResourceEntry::new(resource::ResourceKind::SignalFd)
         .with_label("process.signal.fd")
         .with_payload(core_process::SignalFdBinding { signals });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
 
     unsafe {
         *out = resource::SignalFdHandle(resource_id);

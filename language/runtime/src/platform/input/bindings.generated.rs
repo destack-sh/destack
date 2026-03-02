@@ -9020,7 +9020,8 @@ pub unsafe extern "C" fn destack_input_device_capabilities(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
         destack_input_device_capabilities_replay(context, world, out, handle)
     })
 }
@@ -9032,7 +9033,8 @@ pub unsafe extern "C" fn destack_input_device_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(INPUT_DEVICE_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_DEVICE_CLOSE)?;
         destack_input_device_close_replay(context, world, handle)
     })
 }
@@ -9047,7 +9049,8 @@ pub unsafe extern "C" fn destack_input_device_list(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(INPUT_DEVICE_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_DEVICE_LIST)?;
         destack_input_device_list_replay(context, world, out)
     })
 }
@@ -9063,7 +9066,8 @@ pub unsafe extern "C" fn destack_input_device_open(
         }
         let _ = (&out, &id);
 
-        let world = context.check_and_resolve_world(INPUT_DEVICE_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_DEVICE_OPEN)?;
         destack_input_device_open_replay(context, world, out, id)
     })
 }
@@ -9075,7 +9079,8 @@ pub unsafe extern "C" fn destack_input_event_monitor_close(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
         destack_input_event_monitor_close_replay(context, world, handle)
     })
 }
@@ -9090,7 +9095,8 @@ pub unsafe extern "C" fn destack_input_event_monitor_open(
         }
         let _ = &out;
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
         destack_input_event_monitor_open_replay(context, world, out)
     })
 }
@@ -9106,7 +9112,8 @@ pub unsafe extern "C" fn destack_input_event_monitor_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_MONITOR_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_READ)?;
         destack_input_event_monitor_read_replay(context, world, out, handle)
     })
 }
@@ -9122,7 +9129,8 @@ pub unsafe extern "C" fn destack_input_event_monitor_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
         destack_input_event_monitor_try_read_replay(context, world, out, handle)
     })
 }
@@ -9138,7 +9146,8 @@ pub unsafe extern "C" fn destack_input_event_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_READ)?;
         destack_input_event_read_replay(context, world, out, handle)
     })
 }
@@ -9155,7 +9164,8 @@ pub unsafe extern "C" fn destack_input_event_read_batch(
         }
         let _ = (&out, &handle, &maxevents);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_READ_BATCH)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_READ_BATCH)?;
         destack_input_event_read_batch_replay(context, world, out, handle, maxevents)
     })
 }
@@ -9168,7 +9178,8 @@ pub unsafe extern "C" fn destack_input_event_set_exclusive_grab(
     native_call(|context| {
         let _ = (&handle, &enable);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
         destack_input_event_set_exclusive_grab_replay(context, world, handle, enable)
     })
 }
@@ -9181,7 +9192,8 @@ pub unsafe extern "C" fn destack_input_event_set_read_mode(
     native_call(|context| {
         let _ = (&handle, &mode);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
         destack_input_event_set_read_mode_replay(context, world, handle, mode)
     })
 }
@@ -9197,7 +9209,8 @@ pub unsafe extern "C" fn destack_input_event_try_read(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_EVENT_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_EVENT_TRY_READ)?;
         destack_input_event_try_read_replay(context, world, out, handle)
     })
 }
@@ -9212,7 +9225,8 @@ pub unsafe extern "C" fn destack_input_gamepad_set_light(
     native_call(|context| {
         let _ = (&handle, &red, &green, &blue);
 
-        let world = context.check_and_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
         destack_input_gamepad_set_light_replay(context, world, handle, red, green, blue)
     })
 }
@@ -9225,7 +9239,8 @@ pub unsafe extern "C" fn destack_input_gamepad_set_player_index(
     native_call(|context| {
         let _ = (&handle, &playerindex);
 
-        let world = context.check_and_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
         destack_input_gamepad_set_player_index_replay(context, world, handle, playerindex)
     })
 }
@@ -9241,7 +9256,8 @@ pub unsafe extern "C" fn destack_input_gamepad_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_GAMEPAD_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_GAMEPAD_STATE)?;
         destack_input_gamepad_state_replay(context, world, out, handle)
     })
 }
@@ -9257,7 +9273,8 @@ pub unsafe extern "C" fn destack_input_haptics_effects(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_HAPTICS_EFFECTS)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_HAPTICS_EFFECTS)?;
         destack_input_haptics_effects_replay(context, world, out, handle)
     })
 }
@@ -9275,7 +9292,8 @@ pub unsafe extern "C" fn destack_input_haptics_play(
         }
         let _ = (&out, &handle, &effect, &parameters);
 
-        let world = context.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_HAPTICS_PLAY)?;
         destack_input_haptics_play_replay(context, world, out, handle, effect, parameters)
     })
 }
@@ -9287,7 +9305,8 @@ pub unsafe extern "C" fn destack_input_haptics_stop(
     native_call(|context| {
         let _ = &handle;
 
-        let world = context.check_and_resolve_world(INPUT_HAPTICS_STOP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_HAPTICS_STOP)?;
         destack_input_haptics_stop_replay(context, world, handle)
     })
 }
@@ -9303,7 +9322,8 @@ pub unsafe extern "C" fn destack_input_keyboard_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_KEYBOARD_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_KEYBOARD_STATE)?;
         destack_input_keyboard_state_replay(context, world, out, handle)
     })
 }
@@ -9317,7 +9337,8 @@ pub unsafe extern "C" fn destack_input_pointer_capture(
     native_call(|context| {
         let _ = (&handle, &target, &enabled);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_CAPTURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_CAPTURE)?;
         destack_input_pointer_capture_replay(context, world, handle, target, enabled)
     })
 }
@@ -9333,7 +9354,8 @@ pub unsafe extern "C" fn destack_input_pointer_relative_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
         destack_input_pointer_relative_state_replay(context, world, out, handle)
     })
 }
@@ -9347,7 +9369,8 @@ pub unsafe extern "C" fn destack_input_pointer_set_grab_mode(
     native_call(|context| {
         let _ = (&handle, &target, &mode);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
         destack_input_pointer_set_grab_mode_replay(context, world, handle, target, mode)
     })
 }
@@ -9360,7 +9383,8 @@ pub unsafe extern "C" fn destack_input_pointer_set_relative_mode(
     native_call(|context| {
         let _ = (&handle, &enabled);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
         destack_input_pointer_set_relative_mode_replay(context, world, handle, enabled)
     })
 }
@@ -9376,7 +9400,8 @@ pub unsafe extern "C" fn destack_input_pointer_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_STATE)?;
         destack_input_pointer_state_replay(context, world, out, handle)
     })
 }
@@ -9391,7 +9416,8 @@ pub unsafe extern "C" fn destack_input_pointer_warp(
     native_call(|context| {
         let _ = (&handle, &target, &x, &y);
 
-        let world = context.check_and_resolve_world(INPUT_POINTER_WARP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_POINTER_WARP)?;
         destack_input_pointer_warp_replay(context, world, handle, target, x, y)
     })
 }
@@ -9409,7 +9435,8 @@ pub unsafe extern "C" fn destack_input_rawhid_get_feature(
         }
         let _ = (&out, &handle, &reportid, &maxbytes);
 
-        let world = context.check_and_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
         destack_input_rawhid_get_feature_replay(context, world, out, handle, reportid, maxbytes)
     })
 }
@@ -9427,7 +9454,8 @@ pub unsafe extern "C" fn destack_input_rawhid_read(
         }
         let _ = (&out, &handle, &maxbytes, &timeoutns);
 
-        let world = context.check_and_resolve_world(INPUT_RAWHID_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_RAWHID_READ)?;
         destack_input_rawhid_read_replay(context, world, out, handle, maxbytes, timeoutns)
     })
 }
@@ -9441,7 +9469,8 @@ pub unsafe extern "C" fn destack_input_rawhid_set_feature(
     native_call(|context| {
         let _ = (&handle, &reportid, &data);
 
-        let world = context.check_and_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
         destack_input_rawhid_set_feature_replay(context, world, handle, reportid, data)
     })
 }
@@ -9458,7 +9487,8 @@ pub unsafe extern "C" fn destack_input_rawhid_try_read(
         }
         let _ = (&out, &handle, &maxbytes);
 
-        let world = context.check_and_resolve_world(INPUT_RAWHID_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_RAWHID_TRY_READ)?;
         destack_input_rawhid_try_read_replay(context, world, out, handle, maxbytes)
     })
 }
@@ -9476,7 +9506,8 @@ pub unsafe extern "C" fn destack_input_rawhid_write(
         }
         let _ = (&out, &handle, &reportid, &data);
 
-        let world = context.check_and_resolve_world(INPUT_RAWHID_WRITE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_RAWHID_WRITE)?;
         destack_input_rawhid_write_replay(context, world, out, handle, reportid, data)
     })
 }
@@ -9494,7 +9525,8 @@ pub unsafe extern "C" fn destack_input_sensor_configure(
         }
         let _ = (&out, &handle, &kind, &config);
 
-        let world = context.check_and_resolve_world(INPUT_SENSOR_CONFIGURE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_SENSOR_CONFIGURE)?;
         destack_input_sensor_configure_replay(context, world, out, handle, kind, config)
     })
 }
@@ -9510,7 +9542,8 @@ pub unsafe extern "C" fn destack_input_sensor_list(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_SENSOR_LIST)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_SENSOR_LIST)?;
         destack_input_sensor_list_replay(context, world, out, handle)
     })
 }
@@ -9527,7 +9560,8 @@ pub unsafe extern "C" fn destack_input_sensor_read(
         }
         let _ = (&out, &handle, &kind);
 
-        let world = context.check_and_resolve_world(INPUT_SENSOR_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_SENSOR_READ)?;
         destack_input_sensor_read_replay(context, world, out, handle, kind)
     })
 }
@@ -9544,7 +9578,8 @@ pub unsafe extern "C" fn destack_input_sensor_try_read(
         }
         let _ = (&out, &handle, &kind);
 
-        let world = context.check_and_resolve_world(INPUT_SENSOR_TRY_READ)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_SENSOR_TRY_READ)?;
         destack_input_sensor_try_read_replay(context, world, out, handle, kind)
     })
 }
@@ -9561,7 +9596,8 @@ pub unsafe extern "C" fn destack_input_text_get_area(
         }
         let _ = (&out, &handle, &target);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_GET_AREA)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
         destack_input_text_get_area_replay(context, world, out, handle, target)
     })
 }
@@ -9577,7 +9613,8 @@ pub unsafe extern "C" fn destack_input_text_is_active(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
         destack_input_text_is_active_replay(context, world, out, handle)
     })
 }
@@ -9593,7 +9630,8 @@ pub unsafe extern "C" fn destack_input_text_read_composition(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
         destack_input_text_read_composition_replay(context, world, out, handle)
     })
 }
@@ -9607,7 +9645,8 @@ pub unsafe extern "C" fn destack_input_text_set_area(
     native_call(|context| {
         let _ = (&handle, &target, &area);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_SET_AREA)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
         destack_input_text_set_area_replay(context, world, handle, target, area)
     })
 }
@@ -9621,7 +9660,8 @@ pub unsafe extern "C" fn destack_input_text_start(
     native_call(|context| {
         let _ = (&handle, &target, &inputtype);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_START)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_START)?;
         destack_input_text_start_replay(context, world, handle, target, inputtype)
     })
 }
@@ -9634,7 +9674,8 @@ pub unsafe extern "C" fn destack_input_text_stop(
     native_call(|context| {
         let _ = (&handle, &target);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_STOP)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
         destack_input_text_stop_replay(context, world, handle, target)
     })
 }
@@ -9650,7 +9691,8 @@ pub unsafe extern "C" fn destack_input_text_try_read_composition(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
         destack_input_text_try_read_composition_replay(context, world, out, handle)
     })
 }
@@ -9666,7 +9708,8 @@ pub unsafe extern "C" fn destack_input_touch_state(
         }
         let _ = (&out, &handle);
 
-        let world = context.check_and_resolve_world(INPUT_TOUCH_STATE)?;
+        let (world, _binding_hook_guard) =
+            context.on_before_binding_resolve_world(INPUT_TOUCH_STATE)?;
         destack_input_touch_state_replay(context, world, out, handle)
     })
 }
@@ -16000,7 +16043,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_device_capabilities_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_CAPABILITIES)?;
                     destack_input_device_capabilities_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16018,7 +16062,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_device_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_DEVICE_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_CLOSE)?;
                     destack_input_device_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16033,7 +16078,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_DEVICE_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_LIST)?;
                     destack_input_device_list_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -16051,7 +16097,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (id,) = decode_destack_input_device_open_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_DEVICE_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_DEVICE_OPEN)?;
                     destack_input_device_open_vm_replay(runtime, context, world, id)
                 })
                 .map_err(Into::into)
@@ -16069,7 +16116,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_event_monitor_close_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_CLOSE)?;
                     destack_input_event_monitor_close_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16084,7 +16132,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, _args| {
                 with_binding_call_context(|runtime| {
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_OPEN)?;
                     destack_input_event_monitor_open_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
@@ -16102,7 +16151,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_event_monitor_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_MONITOR_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_READ)?;
                     destack_input_event_monitor_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16121,7 +16171,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_event_monitor_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_MONITOR_TRY_READ)?;
                     destack_input_event_monitor_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16135,7 +16186,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle,) = decode_destack_input_event_read_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(INPUT_EVENT_READ)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(INPUT_EVENT_READ)?;
                 destack_input_event_read_vm_replay(runtime, context, world, handle)
             })
             .map_err(Into::into)
@@ -16153,7 +16205,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_event_read_batch_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_READ_BATCH)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_READ_BATCH)?;
                     destack_input_event_read_batch_vm_replay(
                         runtime, context, world, handle, maxevents,
                     )
@@ -16174,7 +16227,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_event_set_exclusive_grab_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_SET_EXCLUSIVE_GRAB)?;
                     destack_input_event_set_exclusive_grab_vm_replay(
                         runtime, context, world, handle, enable,
                     )
@@ -16195,7 +16249,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_event_set_read_mode_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_SET_READ_MODE)?;
                     destack_input_event_set_read_mode_vm_replay(
                         runtime, context, world, handle, mode,
                     )
@@ -16215,7 +16270,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_event_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_EVENT_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_EVENT_TRY_READ)?;
                     destack_input_event_try_read_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16234,7 +16290,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_gamepad_set_light_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_LIGHT)?;
                     destack_input_gamepad_set_light_vm_replay(
                         runtime, context, world, handle, red, green, blue,
                     )
@@ -16255,7 +16312,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_gamepad_set_player_index_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_SET_PLAYER_INDEX)?;
                     destack_input_gamepad_set_player_index_vm_replay(
                         runtime,
                         context,
@@ -16279,7 +16337,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_gamepad_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_GAMEPAD_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_GAMEPAD_STATE)?;
                     destack_input_gamepad_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16297,7 +16356,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_haptics_effects_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_EFFECTS)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_EFFECTS)?;
                     destack_input_haptics_effects_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16316,7 +16376,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_haptics_play_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_PLAY)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_PLAY)?;
                     destack_input_haptics_play_vm_replay(
                         runtime, context, world, handle, effect, parameters,
                     )
@@ -16336,7 +16397,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_haptics_stop_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_HAPTICS_STOP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_HAPTICS_STOP)?;
                     destack_input_haptics_stop_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16354,7 +16416,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_keyboard_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_KEYBOARD_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_KEYBOARD_STATE)?;
                     destack_input_keyboard_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16373,7 +16436,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_pointer_capture_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_CAPTURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_CAPTURE)?;
                     destack_input_pointer_capture_vm_replay(
                         runtime, context, world, handle, target, enabled,
                     )
@@ -16394,7 +16458,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_pointer_relative_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_RELATIVE_STATE)?;
                     destack_input_pointer_relative_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16413,7 +16478,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_pointer_set_grab_mode_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_SET_GRAB_MODE)?;
                     destack_input_pointer_set_grab_mode_vm_replay(
                         runtime, context, world, handle, target, mode,
                     )
@@ -16434,7 +16500,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_pointer_set_relative_mode_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_SET_RELATIVE_MODE)?;
                     destack_input_pointer_set_relative_mode_vm_replay(
                         runtime, context, world, handle, enabled,
                     )
@@ -16454,7 +16521,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_pointer_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_STATE)?;
                     destack_input_pointer_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16473,7 +16541,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_pointer_warp_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_POINTER_WARP)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_POINTER_WARP)?;
                     destack_input_pointer_warp_vm_replay(
                         runtime, context, world, handle, target, x, y,
                     )
@@ -16494,7 +16563,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_rawhid_get_feature_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_GET_FEATURE)?;
                     destack_input_rawhid_get_feature_vm_replay(
                         runtime, context, world, handle, reportid, maxbytes,
                     )
@@ -16515,7 +16585,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_rawhid_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_READ)?;
                     destack_input_rawhid_read_vm_replay(
                         runtime, context, world, handle, maxbytes, timeoutns,
                     )
@@ -16536,7 +16607,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_rawhid_set_feature_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_SET_FEATURE)?;
                     destack_input_rawhid_set_feature_vm_replay(
                         runtime, context, world, handle, reportid, data,
                     )
@@ -16557,7 +16629,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_rawhid_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_TRY_READ)?;
                     destack_input_rawhid_try_read_vm_replay(
                         runtime, context, world, handle, maxbytes,
                     )
@@ -16578,7 +16651,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_rawhid_write_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_RAWHID_WRITE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_RAWHID_WRITE)?;
                     destack_input_rawhid_write_vm_replay(
                         runtime, context, world, handle, reportid, data,
                     )
@@ -16599,7 +16673,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_sensor_configure_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_CONFIGURE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_CONFIGURE)?;
                     destack_input_sensor_configure_vm_replay(
                         runtime, context, world, handle, kind, config,
                     )
@@ -16619,7 +16694,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_sensor_list_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_LIST)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_LIST)?;
                     destack_input_sensor_list_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16637,7 +16713,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, kind) = decode_destack_input_sensor_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_READ)?;
                     destack_input_sensor_read_vm_replay(runtime, context, world, handle, kind)
                 })
                 .map_err(Into::into)
@@ -16655,7 +16732,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, kind) = decode_destack_input_sensor_try_read_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_SENSOR_TRY_READ)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_SENSOR_TRY_READ)?;
                     destack_input_sensor_try_read_vm_replay(runtime, context, world, handle, kind)
                 })
                 .map_err(Into::into)
@@ -16673,7 +16751,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle, target) = decode_destack_input_text_get_area_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TEXT_GET_AREA)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TEXT_GET_AREA)?;
                     destack_input_text_get_area_vm_replay(runtime, context, world, handle, target)
                 })
                 .map_err(Into::into)
@@ -16691,7 +16770,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_text_is_active_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TEXT_IS_ACTIVE)?;
                     destack_input_text_is_active_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16709,7 +16789,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_text_read_composition_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TEXT_READ_COMPOSITION)?;
                     destack_input_text_read_composition_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)
@@ -16728,7 +16809,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_text_set_area_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TEXT_SET_AREA)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TEXT_SET_AREA)?;
                     destack_input_text_set_area_vm_replay(
                         runtime, context, world, handle, target, area,
                     )
@@ -16745,7 +16827,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     decode_destack_input_text_start_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(INPUT_TEXT_START)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(INPUT_TEXT_START)?;
                 destack_input_text_start_vm_replay(
                     runtime, context, world, handle, target, inputtype,
                 )
@@ -16760,7 +16843,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 let (handle, target) = decode_destack_input_text_stop_args(context, args)?;
 
                 // execute binding
-                let world = runtime.check_and_resolve_world(INPUT_TEXT_STOP)?;
+                let (world, _binding_hook_guard) =
+                    runtime.on_before_binding_resolve_world(INPUT_TEXT_STOP)?;
                 destack_input_text_stop_vm_replay(runtime, context, world, handle, target)
             })
             .map_err(Into::into)
@@ -16778,7 +16862,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                         decode_destack_input_text_try_read_composition_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TEXT_TRY_READ_COMPOSITION)?;
                     destack_input_text_try_read_composition_vm_replay(
                         runtime, context, world, handle,
                     )
@@ -16798,7 +16883,8 @@ pub fn register_input_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     let (handle,) = decode_destack_input_touch_state_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(INPUT_TOUCH_STATE)?;
+                    let (world, _binding_hook_guard) =
+                        runtime.on_before_binding_resolve_world(INPUT_TOUCH_STATE)?;
                     destack_input_touch_state_vm_replay(runtime, context, world, handle)
                 })
                 .map_err(Into::into)

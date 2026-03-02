@@ -1,83 +1,93 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::diagnostic::RuntimeResult;
+use destack_vm::Isolate;
+use serde::{Deserialize, Serialize};
+
+use crate::diagnostic::{AgentErrorStore, RuntimeResult};
 use crate::host::{Host, HostEventKind};
-use crate::platform::{PlatformContext, ResourceId};
-use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
-use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::platform::{PlatformContext, ResourceId, ResourceTable};
+use crate::runtime::Hooks;
+use crate::runtime::bindings::{BindingPolicy, BindingRegistry, BindingReplayPayload};
+use crate::runtime::engine::{EngineContinuation, AgentValue};
 use crate::runtime::memory::Heap;
+use crate::runtime::policy::{Policy, PolicyIdentity};
 use crate::runtime::poller::PollerToken;
+use crate::runtime::random::Random;
+use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
+use crate::runtime::time::{Clock, HostClockSource};
 use crate::runtime::world::World;
-use destack_workspace::RuntimeOptions;
+use destack_workspace::{
+    ExecutionMode, RandomMode, ReplayOptions, ReplayPayloadMode, RuntimeOptions, TimeMode,
+};
 
-use super::RuntimeContext;
+/// Number of bytes in a megabyte for replay chunk sizing.
+const BYTES_PER_MB: u64 = 1024 * 1024;
+
+/// Stable identifier for one runtime-managed agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct AgentId(pub u64);
 
 /// Primary agent lane for executing Destack programs.
 pub struct Agent {
+    /// Monotonic process-local agent identity.
+    pub id: AgentId,
+    /// Stable agent name for selector matching.
+    pub name: String,
+    /// Agent labels for selector matching.
+    pub labels: BTreeMap<String, String>,
+    /// Platform context for host integrations.
+    pub platform: PlatformContext,
+    /// Host integration state.
+    pub host: Host,
+    /// Shared deterministic world for policy, simulation, clock, and randomness.
+    pub world: Arc<World>,
+    /// Immutable runtime options.
+    pub options: RuntimeOptions,
+
+    /// External resource table and finalizers.
+    pub resources: ResourceTable,
+    /// Agent hooks and effect state.
+    pub hooks: Arc<Hooks>,
+    /// Agent error storage for native bindings.
+    pub errors: AgentErrorStore,
     /// External binding registry and policy enforcement.
     pub bindings: BindingRegistry,
-    /// Shared agent state for platform bindings and execution.
-    pub state: Arc<RuntimeContext>,
-    /// Shared world attached to this agent.
-    pub world: Arc<World>,
     /// Managed heap and GC coordination.
     pub heap: Heap,
     /// Event loop for tasks, microtasks, and timers.
     pub event_loop: Box<EventLoop>,
-    /// Last applied policy revision from the attached world.
-    applied_policy_revision: u64,
 }
 
 impl std::fmt::Debug for Agent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Agent")
-            .field("bindings", &self.bindings)
-            .field("state", &self.state)
+            .field("agent_id", &self.id)
+            .field("name", &self.name)
+            .field("labels", &self.labels)
+            .field("platform", &self.platform)
+            .field("options", &self.options)
+            .field("resources", &self.resources)
+            .field("hooks", &self.hooks)
+            .field("host", &self.host)
             .field("world", &self.world)
+            .field("errors", &self.errors)
+            .field("bindings", &self.bindings)
             .field("heap", &self.heap)
             .field("event_loop", &self.event_loop)
-            .field("host", &self.state.host)
             .finish()
     }
 }
 
 impl Agent {
-    /// Create one agent with explicit shared runtime state.
-    pub fn new(state: Arc<RuntimeContext>) -> Self {
-        let world = Arc::new(state.world.clone());
-        let event_loop = Box::new(EventLoop::default());
-        let mut bindings = BindingRegistry::new();
-        let policy = BindingPolicy::new(state.replay.mode());
-        bindings.set_policy(policy);
-        bindings.set_runtime_handles(&state, event_loop.as_ref());
-        bindings.install_native_defaults();
-        let mut heap = Heap::default();
-        heap.configure_gc(state.options.gc.clone());
-
-        Self {
-            bindings,
-            state,
-            world,
-            heap,
-            event_loop,
-            applied_policy_revision: 0,
-        }
-    }
-
     /// Create one agent with explicit runtime options.
-    #[allow(clippy::arc_with_non_send_sync)]
     pub fn from_options(
         platform: PlatformContext,
         options: &RuntimeOptions,
     ) -> RuntimeResult<Self> {
-        let state = Arc::new(RuntimeContext::from_options(platform, options));
-        let mut agent = Self::new(state);
-        agent.event_loop.configure(options.scheduler.clone())?;
-        agent.bindings.apply_runtime_defaults(options);
-        agent.apply_world_policy_if_needed();
-        Ok(agent)
+        Self::from_options_internal(platform, options, None, None)
     }
 
     /// Create one agent with explicit runtime options in one shared world.
@@ -85,43 +95,177 @@ impl Agent {
     pub fn from_options_in_world(
         platform: PlatformContext,
         options: &RuntimeOptions,
-        world: World,
+        world: Arc<World>,
     ) -> RuntimeResult<Self> {
-        let state = Arc::new(RuntimeContext::from_options_in_world(
-            platform, options, world,
-        ));
-        let mut agent = Self::new(state);
-        agent.event_loop.configure(options.scheduler.clone())?;
-        agent.bindings.apply_runtime_defaults(options);
-        agent.apply_world_policy_if_needed();
-        Ok(agent)
+        Self::from_options_internal(platform, options, None, Some(world))
     }
 
-    /// Synchronize agent policy state from the attached world.
-    pub(super) fn apply_world_policy_if_needed(&mut self) {
-        // skip work when policy state has not changed
-        let policy_revision = self.world.policy_revision();
-        if policy_revision == self.applied_policy_revision {
-            return;
-        }
+    /// Create one agent with explicit runtime options and host clock source.
+    #[cfg(test)]
+    pub(crate) fn from_options_with_host_clock_source(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+        host_clock_source: Arc<dyn HostClockSource>,
+    ) -> RuntimeResult<Self> {
+        Self::from_options_internal(platform, options, Some(host_clock_source), None)
+    }
 
-        // rebuild policy and hook plans from the current world policy set
-        let policy = self.world.policy();
-        self.bindings.apply_runtime_policy(&policy);
-        self.state.hooks.apply_policy(&policy);
-        self.world
-            .prepare_policy_trigger_state(policy_revision, self.state.hooks.rule_count());
-        self.applied_policy_revision = policy_revision;
+    /// Create one agent from runtime options and optional world or host clock overrides.
+    fn from_options_internal(
+        platform: PlatformContext,
+        options: &RuntimeOptions,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
+        world_override: Option<Arc<World>>,
+    ) -> RuntimeResult<Self> {
+        // runtime identity
+        let runtime_name = options
+            .name
+            .clone()
+            .unwrap_or_else(|| "runtime".to_string());
+        let runtime_labels = options.labels.clone();
+
+        // shared world
+        let world = match world_override {
+            Some(world) => world,
+            None => {
+                let replay_header = Self::replay_header_from_runtime_options(options);
+                let is_replay = options.execution == ExecutionMode::Replay;
+                let time_mode = if is_replay {
+                    TimeMode::Virtual
+                } else {
+                    options.time.mode
+                };
+                let random_mode = if is_replay {
+                    RandomMode::Deterministic
+                } else {
+                    options.random.mode
+                };
+                let replay_payload = if is_replay {
+                    replay_header.replay_payload
+                } else {
+                    Self::resolved_replay_payload_from_options(options)
+                };
+
+                let clock = if let Some(host_clock_source) = host_clock_source {
+                    Clock::from_mode_and_options_with_host_clock_source(
+                        time_mode,
+                        &options.time,
+                        host_clock_source,
+                    )
+                } else {
+                    Clock::from_mode_and_options(time_mode, &options.time)
+                };
+                let random = Random::new(options.random.seed.unwrap_or(0), random_mode);
+                let policy = Policy::from_workspace_policy_rules(&options.rules);
+                let replay =
+                    ReplayController::new(options.execution, replay_payload, replay_header);
+
+                Arc::new(World::for_runtime(policy, clock, random, replay))
+            }
+        };
+        let agent_id = world.allocate_agent_id();
+
+        // agent identity
+        let agent_name = options
+            .primary_agent
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("agent-{}", agent_id.0));
+        let agent_labels = options.primary_agent.labels.clone();
+
+        // hooks and resources
+        let hooks = Arc::new(Hooks::new(
+            world.clone(),
+            agent_id,
+            PolicyIdentity {
+                runtime_name: runtime_name.clone(),
+                runtime_labels: runtime_labels.clone(),
+                agent_name: agent_name.clone(),
+                agent_labels: agent_labels.clone(),
+            },
+            world.replay().mode(),
+        ));
+        let resources = ResourceTable::default();
+        resources.set_hooks(hooks.clone());
+
+        // bindings, heap, event loop
+        let mut bindings = BindingRegistry::new();
+        bindings.set_policy(BindingPolicy::new(world.replay().mode()));
+        bindings.install_native_defaults();
+        bindings.apply_runtime_defaults(options);
+
+        let mut heap = Heap::default();
+        heap.configure_gc(options.gc.clone());
+
+        let mut event_loop = Box::new(EventLoop::default());
+        event_loop.configure(options.scheduler.clone())?;
+
+        // agent state
+        Ok(Self {
+            id: agent_id,
+            name: agent_name,
+            labels: agent_labels,
+            platform,
+            options: options.clone(),
+            resources,
+            hooks,
+            host: Host::from_runtime_options(options),
+            world,
+            errors: AgentErrorStore::default(),
+            bindings,
+            heap,
+            event_loop,
+        })
+    }
+
+    /// Return one replay payload policy resolved from runtime options.
+    fn resolved_replay_payload_from_options(options: &RuntimeOptions) -> BindingReplayPayload {
+        match options.replay.payload {
+            ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
+            ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
+        }
+    }
+
+    /// Return one replay header synthesized from runtime options.
+    fn replay_header_from_runtime_options(options: &RuntimeOptions) -> ReplayHeader {
+        // start from the default header
+        let replay_payload = Self::resolved_replay_payload_from_options(options);
+        let mut header = ReplayHeader {
+            execution_mode: options.execution,
+            replay_payload,
+            ..ReplayHeader::default()
+        };
+
+        // apply replay chunk sizing
+        Self::apply_replay_overrides(&options.replay, &mut header);
+
+        header
+    }
+
+    /// Apply replay chunk sizing overrides to one replay header.
+    fn apply_replay_overrides(options: &ReplayOptions, header: &mut ReplayHeader) {
+        // update chunk sizing from runtime options
+        if let Some(chunk_size_mb) = options.chunk_size_mb {
+            let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);
+            if chunk_bytes > 0 {
+                header.max_chunk_bytes = chunk_bytes;
+            }
+        }
+    }
+
+    /// Install default VM bindings for this agent.
+    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
+        self.bindings.install_vm_defaults(isolate);
     }
 
     /// Borrow host integration.
     pub fn host(&self) -> &Host {
-        &self.state.host
+        &self.host
     }
 
     /// Return the callback agent id used by native host callback routing.
     pub fn host_callback_agent_id(&self) -> Option<u64> {
-        self.state.host.callback_runtime_id()
+        self.host.callback_runtime_id()
     }
 
     /// Borrow the shared world attached to this agent.
@@ -134,7 +278,7 @@ impl Agent {
         &mut self,
         handle: ResourceId,
         runnable: EngineContinuation,
-        resume_value: RuntimeValue,
+        resume_value: AgentValue,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
@@ -155,7 +299,7 @@ impl Agent {
         &mut self,
         token: PollerToken,
         runnable: EngineContinuation,
-        resume_value: RuntimeValue,
+        resume_value: AgentValue,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
@@ -176,7 +320,7 @@ impl Agent {
         &mut self,
         kind: HostEventKind,
         runnable: EngineContinuation,
-        resume_value: RuntimeValue,
+        resume_value: AgentValue,
         priority: u8,
     ) -> RuntimeResult<()> {
         let watch = EventLoopWatch {
@@ -213,16 +357,16 @@ impl Agent {
         let checkpoint_id = store.allocate_checkpoint_id();
 
         // capture replay metadata
-        let branch_id = self.state.replay.log().branch_id();
-        let sequence = self.state.replay.log().next_sequence();
+        let branch_id = self.world.replay().log().branch_id();
+        let sequence = self.world.replay().log().next_sequence();
 
         // NOTE #Incomplete: snapshot payload capture is not implemented yet
         let payload = Vec::new();
 
         // write snapshot payload and register in the replay log
         let metadata = store.write_snapshot(checkpoint_id, branch_id, sequence, &payload)?;
-        self.state
-            .replay
+        self.world
+            .replay()
             .log()
             .record_checkpoint(metadata.into_checkpoint_index())?;
 
@@ -231,10 +375,13 @@ impl Agent {
 }
 
 impl Default for Agent {
-    #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
-        Self::new(Arc::new(RuntimeContext::new(PlatformContext::new(
-            Vec::new(),
-        ))))
+        let options = RuntimeOptions::default();
+        match Self::from_options(PlatformContext::new(Vec::new()), &options) {
+            Ok(agent) => agent,
+            Err(error) => {
+                panic!("default runtime options should build an agent: {error:?}");
+            }
+        }
     }
 }
