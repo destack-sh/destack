@@ -33,9 +33,9 @@ instead of wrangling many disparate cast-iron languages, tools, libraries, appro
 - [**Destack Bridge**](bridge/README.md): External-facing SDKs, editor integrations, and host tooling bridges.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 
-Aspiritionally, **Destack is a meta framework for building and customizing your _own_ stack with foundational building blocks**.
-Destack is more of a "software factory toolkit" than "ready-to-wear software"; it is optimized for developers building their own software processes in one correct, optimal, integrated system.
-Therefore, while Destack is designed as an integrated system, you are encouraged to pick and adapt just the components you need.
+Aspiritionally, **Destack is a meta framework for developing and maintaining your _own_ stack using foundational building blocks**.
+Destack is more of a "software factory toolkit" than "ready-to-wear software"; we do provide base apps and a plugin system, but Destaqck is optimized for developers (of all stripes) building their own software processes in one correct, optimal, integrated system.
+Therefore, while Destack is designed as one integrated system, you are encouraged to pick and customize just the components you need.
 
 ---
 
@@ -55,10 +55,6 @@ There is great promise in turning more things _into_ correct, optimal, integrate
 ---
 
 ## Why You Should Not Use Destack
-
-> [!WARNING]
-> **Destack is an alpha-stage, _experimental_ computing stack.**
-> Things may change or break or disappear entirely.
 
 Destack has been in development for years and went through a _lot_ of iteration, and Destack intentionally follows known good standards like TypeScript, TSX, Node and Web-shaped APIs.
 However, obviously, it is still rather early, it is definitely quite different, and there are sound arguments against the Destack-shaped "universal software engine" way:
@@ -82,6 +78,10 @@ However, obviously, it is still rather early, it is definitely quite different, 
 9. **Maybe Destack is good _today_ but eventually "best of breed" will win again**: Having a "fully integrated" solution win out over special solutions at the onset of a technological change due to the benefits of integration is quite common, and then losing out against the benefits of specialisation is also quite common, which then forces annoying userland churn.
 
 ### If you _really_ insist on using Destack
+
+> [!WARNING]
+> **Destack is an alpha-stage, _experimental_ computing stack.**
+> Things may change or break or disappear entirely.
 
 We tried to warn you:
 - Install Destack via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
@@ -137,7 +137,7 @@ Software is more than code, and while it's possible there is a future where _no_
 More importantly, we need to program machines in _some_ symbolic system to control the probabilistic system. 
 What those systems look like _exactly_ is up for debate, but we reckon it won't be _completely_ different from the same nouns and verbs we already know, primarily because we already know them.
 
-9. **Wy not abandon existing standards entirely and fix _all_ the problems, considering we're rewriting the stack anyway?** 
+9. **Why not abandon existing standards entirely and fix _all_ the problems, given that we're rewriting the stack anyway?** 
 Yeah, it is tempting to go ahead and design the "theoretically optimal" stack, in the hopes that AI will just make it trivial to migrate and all the "optimal" concepts will reasonate immediately.
 However, one of the core tensions in designing Destack is deciding which standards and approaches are good for a universal stack, and "good" means all of: 
 a) expressive enough to support everything we might want, 
@@ -147,7 +147,7 @@ The intersection of a, b, and c turns out to be surprisingly web-shaped.
 
 10. **Why is Destack itself built on top of Rust, considering Destack and "TS++" are so great?** 
 Destack is _currently_ primarily implemented in Rust, especially the language toolchain, but that is just the pragmatic bootstrapping path to eventual self-hosting.
-Library, services, and apps are already (mostly) written in Destack itself.
+Library, services, and apps are already (mostly) written in Destack.
 
 ---
 
@@ -171,7 +171,7 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-The Destack language, toolchain, library, service, app, bridge, and template are fully open source under the MIT license.
+The Destack is fully open source under the MIT license.
 See [LICENSE.txt](LICENSE.txt).
 
 Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (WITH LLVM-exception) license.
