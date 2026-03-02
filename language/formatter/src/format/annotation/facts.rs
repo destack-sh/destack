@@ -62,3 +62,23 @@ pub(crate) fn next_non_trivia_token_index(
 
     None
 }
+
+/// Return the next token type after one seam while skipping newline tokens only.
+pub(crate) fn next_non_newline_token_type_after_seam(
+    semantic_tokens: &[TokenSpan],
+    token_after_type: Option<TokenType>,
+    token_after_index: Option<usize>,
+) -> Option<TokenType> {
+    if token_after_type.is_some_and(|token_type| token_type != TokenType::Newline) {
+        return token_after_type;
+    }
+
+    let token_after_index = token_after_index?;
+    for token in semantic_tokens.iter().skip(token_after_index) {
+        if token.token.ty != TokenType::Newline {
+            return Some(token.token.ty);
+        }
+    }
+
+    None
+}

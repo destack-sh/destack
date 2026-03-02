@@ -277,6 +277,44 @@ impl<'a> DestackFormatContext<'a> {
         None
     }
 
+    /// Return the nearest non-trivia token before one span.
+    pub fn previous_non_trivia_token_before_span(&self, span: Span) -> Option<TokenSpan> {
+        let tokens = self.tokens;
+        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+
+        while index > 0 {
+            index -= 1;
+            let token = tokens[index];
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                continue;
+            }
+
+            return Some(token);
+        }
+
+        None
+    }
+
+    /// Return the nearest non-trivia token type before one span.
+    pub fn previous_non_trivia_token_type_before_span(&self, span: Span) -> Option<TokenType> {
+        self.previous_non_trivia_token_before_span(span)
+            .map(|token| token.token.ty)
+    }
+
+    /// Return the nearest non-trivia token type after one span.
+    pub fn next_non_trivia_token_type_after_span(&self, span: Span) -> Option<TokenType> {
+        self.next_non_trivia_token_after_span(span)
+            .map(|token| token.token.ty)
+    }
+
     /// Return whether one span has a newline before its next non-whitespace token.
     pub fn span_has_newline_before_next_non_whitespace_token(&self, span: Span) -> bool {
         let Some(next_token) = self.next_non_whitespace_token_after_span(span) else {

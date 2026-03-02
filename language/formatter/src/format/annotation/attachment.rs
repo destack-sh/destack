@@ -801,6 +801,150 @@ fn trailing_property_owner_before_comma(
     promote_owner_to_node_type_ancestor(tree, parents, candidate_owner, NodeType::Property)
 }
 
+/// Mutable dispatch context for one comment seam attachment pipeline.
+struct CommentAttachmentDispatchContext<'a, 'cache> {
+    /// The syntax tree.
+    tree: &'a NodeTree,
+    /// The precomputed owner index.
+    owner_index: &'a FormatterTriviaOwnerIndex,
+    /// Parent links for owner promotion.
+    parents: &'a NodeParentIndex,
+    /// The seam context.
+    seam_context: &'a CommentSeamContext<'a>,
+    /// The derived seam facts.
+    seam: &'a CommentSeamData,
+    /// Neighbor owner candidates.
+    owners: CommentAttachmentNeighbors,
+    /// Mutable enclosing owner cache.
+    enclosing_owner_cache: &'cache mut CommentEnclosingOwnerCache,
+}
+
+/// One attachment handler in the seam dispatch pipeline.
+type CommentAttachmentHandler =
+    fn(&mut CommentAttachmentDispatchContext<'_, '_>) -> Option<CommentAttachment>;
+
+/// Run one ordered list of seam attachment handlers.
+fn run_comment_attachment_handlers(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+    handlers: &[CommentAttachmentHandler],
+) -> Option<CommentAttachment> {
+    for handler in handlers {
+        if let Some(attachment) = handler(context) {
+            return Some(attachment);
+        }
+    }
+
+    None
+}
+
+/// Attach one delimiter interior seam comment.
+fn attach_comment_delimiter_interior_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_delimiter_interior(context.tree, context.seam_context)
+}
+
+/// Attach one parameter type boundary seam comment.
+fn attach_comment_parameter_type_boundary_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_parameter_type_boundary(
+        context.tree,
+        context.parents,
+        context.seam_context,
+        context.owners,
+    )
+}
+
+/// Attach one expression seam comment.
+fn attach_comment_expression_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_expression(
+        context.tree,
+        context.owner_index,
+        context.parents,
+        context.seam_context,
+        context.seam,
+        context.enclosing_owner_cache,
+        context.owners,
+    )
+}
+
+/// Attach one statement prefix seam comment.
+fn attach_comment_statement_prefix_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_statement_prefix(
+        context.tree,
+        context.parents,
+        context.seam_context,
+        context.seam,
+        context.enclosing_owner_cache,
+        context.owners,
+    )
+}
+
+/// Attach one declaration seam comment.
+fn attach_comment_declaration_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_declaration(
+        context.tree,
+        context.owner_index,
+        context.parents,
+        context.seam_context,
+        context.seam,
+        context.owners,
+    )
+}
+
+/// Attach one statement suffix seam comment.
+fn attach_comment_statement_suffix_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_statement_suffix(
+        context.tree,
+        context.parents,
+        context.seam_context,
+        context.seam,
+        context.owners,
+    )
+}
+
+/// Attach one assignment seam comment.
+fn attach_comment_assignment_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_assignment(
+        context.tree,
+        context.parents,
+        context.seam_context,
+        context.seam,
+        context.enclosing_owner_cache,
+        context.owners,
+    )
+}
+
+/// Attach one block body seam comment.
+fn attach_comment_block_body_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    try_attach_comment_block_body(context.tree, context.seam, context.owners)
+}
+
+/// Attach one default seam comment fallback.
+fn attach_comment_default_dispatch(
+    context: &mut CommentAttachmentDispatchContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    Some(attach_comment_default(
+        context.seam_context,
+        context.seam,
+        context.enclosing_owner_cache,
+        context.owners,
+    ))
+}
+
 /// Resolve one comment trivia target owner and position from one token seam.
 pub(crate) fn comment_trivia_attachment(
     file: &File,
@@ -879,57 +1023,33 @@ pub(crate) fn comment_trivia_attachment(
     let owners = CommentAttachmentNeighbors::new(preceding_owner, following_owner);
     let seam = CommentSeamData::build(&context);
     let mut enclosing_owner_cache = CommentEnclosingOwnerCache::default();
-
-    let attachment = if let Some(attachment) = try_attach_comment_delimiter_interior(tree, &context)
-    {
-        attachment
-    } else if let Some(attachment) =
-        try_attach_comment_parameter_type_boundary(tree, parents, &context, owners)
-    {
-        attachment
-    } else if let Some(attachment) = try_attach_comment_expression(
+    let mut dispatch_context = CommentAttachmentDispatchContext {
         tree,
         owner_index,
         parents,
-        &context,
-        &seam,
-        &mut enclosing_owner_cache,
+        seam_context: &context,
+        seam: &seam,
         owners,
-    ) {
-        attachment
-    } else if let Some(attachment) = try_attach_comment_statement_prefix(
-        tree,
-        parents,
-        &context,
-        &seam,
-        &mut enclosing_owner_cache,
-        owners,
-    ) {
-        attachment
-    } else if let Some(attachment) =
-        try_attach_comment_declaration(tree, owner_index, parents, &context, &seam, owners)
-    {
-        attachment
-    } else if let Some(attachment) =
-        try_attach_comment_statement_suffix(tree, parents, &context, &seam, owners)
-    {
-        attachment
-    } else if let Some(attachment) = try_attach_comment_assignment(
-        tree,
-        parents,
-        &context,
-        &seam,
-        &mut enclosing_owner_cache,
-        owners,
-    ) {
-        attachment
-    } else if let Some(attachment) = try_attach_comment_block_body(tree, &seam, owners) {
-        attachment
-    } else {
-        attach_comment_default(&context, &seam, &mut enclosing_owner_cache, owners)
+        enclosing_owner_cache: &mut enclosing_owner_cache,
     };
+    let attachment = run_comment_attachment_handlers(
+        &mut dispatch_context,
+        &[
+            attach_comment_delimiter_interior_dispatch,
+            attach_comment_parameter_type_boundary_dispatch,
+            attach_comment_expression_dispatch,
+            attach_comment_statement_prefix_dispatch,
+            attach_comment_declaration_dispatch,
+            attach_comment_statement_suffix_dispatch,
+            attach_comment_assignment_dispatch,
+            attach_comment_block_body_dispatch,
+            attach_comment_default_dispatch,
+        ],
+    )
+    .expect("comment attachment pipeline should always produce one attachment");
 
     let (target_node, mut position) = attachment;
+
     if seam.comment_is_line
         && position == AnnotationPosition::BlockPrefix
         && comment_directive_is_ignore(trivia.directive)
