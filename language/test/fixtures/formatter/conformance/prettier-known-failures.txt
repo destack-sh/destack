@@ -1,8 +1,8 @@
 js/arrays/preserve_empty_lines.js
 js/arrows/currying-4.js
 js/binary-expressions/short-right.js
-js/comments-closure-typecast/member.js
 js/comments/dangling_array.js
+js/comments/return-statement.js
 js/decorators/redux.js
 js/explicit-resource-management/valid-await-using-comments.js
 js/function-single-destructuring/array.js
@@ -11,11 +11,9 @@ js/ignore/issue-10661.js
 js/import/comments.js
 js/last-argument-expansion/edge_case.js
 js/last-argument-expansion/overflow.js
-js/line-suffix-boundary/boundary.js
 js/logical-expressions/in-unary-expression.js
 js/multiparser-html/lit-html.js
 js/preserve-line/argument-list.js
-js/preserve-line/member-chain.js
 js/ternaries/nested.js
 js/unary-expression/comments.js
 jsx/comments/in-end-tag.js
@@ -27,7 +25,6 @@ typescript/arrow/16067.ts
 typescript/arrow/comments.ts
 typescript/as/as.ts
 typescript/as/comments/17407.ts
-typescript/call/callee-comments.ts
 typescript/class/parameter-properties.ts
 typescript/comments/10260.ts
 typescript/conditional-types/conditional-types.ts

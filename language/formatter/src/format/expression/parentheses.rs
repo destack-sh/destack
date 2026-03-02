@@ -1372,11 +1372,21 @@ fn should_drop_parenthesized_expression_parent(
         node_id,
         inner_expression_id,
     );
+    let should_drop_assignment_right_prefix_wrapper = matches!(
+        parent_expression,
+        Expression::Assign { right, .. } if *right == node_id
+    ) && !context.has_annotation(node_id)
+        && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
+        && expression_has_prefix_comment_or_doc_annotation_in_left_spine(
+            context,
+            inner_expression_id,
+        );
 
     should_drop_statement_type_binary_wrapper
         || should_drop_assignment_must
         || should_drop_statement_lambda
         || should_drop_call_callee_instantiation_wrapper
+        || should_drop_assignment_right_prefix_wrapper
 }
 
 /// Decide whether a parenthesized expression should drop wrappers in generic expression contexts.

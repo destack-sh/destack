@@ -2215,11 +2215,12 @@ mod tests {
         call_force_expand_single_multiline_with_static_arguments,
     };
     use crate::{
-        DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
-        assert_format, assert_format_output_eq, assert_format_program_idempotent_with_file_type,
+        Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
+        TestFormatter, assert_format, assert_format_output_eq,
+        assert_format_program_idempotent_with_file_type,
         assert_format_program_roundtrip_with_file_type, statement_list,
     };
-    use destack_ast::{Argument, Expression, LocalNodeId, NodeParentIndex};
+    use destack_ast::{AnnotationPosition, Argument, Expression, LocalNodeId, NodeParentIndex};
     use destack_source::FileType;
 
     /// Build a formatter context for call-argument separator assertions.
@@ -2872,6 +2873,251 @@ this.props.dao)"#;
             FileType::JavaScript,
             DestackFormatOptions::default(),
         );
+    }
+
+    /// Single chain-valued arguments inside member chains should not force unstable expansion.
+    #[test]
+    fn test_format_member_chain_single_chain_argument_is_idempotent() {
+        let source = r#"const sel = this.connections
+
+  .concat(this.activities.concat(this.operators))
+  .filter(x => x.selected);
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+    }
+
+    /// Member-chain nested calls should keep stable chain argument expansion state across passes.
+    #[test]
+    fn test_member_chain_nested_call_chain_expansion_signal_is_stable() {
+        let source = r#"this.connections
+
+  .concat(this.activities.concat(this.operators))
+  .filter(x => x.selected)"#;
+
+        let (first_formatter, root_call_id) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse first member-chain call");
+        let first_context = context_from_formatter(&first_formatter);
+        let concat_call_id = nested_concat_call_id(&first_context, root_call_id);
+        let concat_arguments = call_dynamic_arguments(&first_context, concat_call_id);
+        let first_force_expand = super::call_arguments_force_expand_for_chain(
+            &first_context,
+            concat_call_id,
+            &concat_arguments,
+        );
+        let first_has_blank_prefix = first_context.has_blank_prefix_annotation(concat_arguments[0]);
+        let first_argument_value_id =
+            super::argument_value_id(first_context.tree, concat_arguments[0]);
+        let first_has_value_blank_prefix =
+            first_context.has_blank_prefix_annotation(first_argument_value_id);
+
+        let first_output = first_formatter.format(
+            &root_call_id,
+            DestackFormatOptions::default_with_line_width(80),
+        );
+        let (second_formatter, second_root_call_id) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+                p.eat_expression(Default::default())
+            })
+            .expect("parse second member-chain call");
+        let second_context = context_from_formatter(&second_formatter);
+        let second_concat_call_id = nested_concat_call_id(&second_context, second_root_call_id);
+        let second_concat_arguments =
+            call_dynamic_arguments(&second_context, second_concat_call_id);
+        let second_force_expand = super::call_arguments_force_expand_for_chain(
+            &second_context,
+            second_concat_call_id,
+            &second_concat_arguments,
+        );
+        let second_has_blank_prefix =
+            second_context.has_blank_prefix_annotation(second_concat_arguments[0]);
+        let second_argument_value_id =
+            super::argument_value_id(second_context.tree, second_concat_arguments[0]);
+        let second_has_value_blank_prefix =
+            second_context.has_blank_prefix_annotation(second_argument_value_id);
+
+        assert_eq!(
+            first_force_expand, second_force_expand,
+            "nested concat call chain expansion should stay stable across passes",
+        );
+        assert_eq!(
+            first_has_blank_prefix, second_has_blank_prefix,
+            "nested concat argument blank-prefix ownership should stay stable across passes",
+        );
+        assert_eq!(
+            first_has_value_blank_prefix, second_has_value_blank_prefix,
+            "nested concat argument value blank-prefix ownership should stay stable across passes",
+        );
+    }
+
+    /// Preserve-line call-argument clusters should keep statement spacing stable across passes.
+    #[test]
+    fn test_format_preserve_line_argument_cluster_spacing_is_idempotent() {
+        let source = r#"differentArgTypes(
+
+  () => {
+    return true
+  },
+
+  isTrue ?
+    doSomething() : 12,
+
+);
+moreArgTypes(
+
+  [1, 2,
+    3],
+
+  {
+    name: 'Hello World',
+    age: 29
+  },
+
+  doSomething(
+
+    // Hello world
+
+
+    // Hello world again
+    { name: 'Hello World', age: 34 },
+
+
+    oneThing
+      + anotherThing,
+
+    // Comment
+
+  ),
+
+);"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        assert_format_program_idempotent_with_file_type(source, FileType::JavaScript, options);
+    }
+
+    /// Preserve-line statement gap ownership should stay stable across formatting passes.
+    #[test]
+    fn test_preserve_line_argument_cluster_statement_gap_signals_are_stable() {
+        let source = r#"differentArgTypes(
+
+  () => {
+    return true
+  },
+
+  isTrue ?
+    doSomething() : 12,
+
+);
+
+moreArgTypes(
+
+  [1, 2,
+    3],
+
+  {
+    name: 'Hello World',
+    age: 29
+  },
+
+  doSomething(
+
+    // Hello world
+
+
+    // Hello world again
+    { name: 'Hello World', age: 34 },
+
+
+    oneThing
+      + anotherThing,
+
+    // Comment
+
+  ),
+
+);
+"#;
+
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+        let (first_formatter, first_roots) =
+            TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+                .expect("parse first preserve-line argument cluster");
+        let first_context = context_from_formatter(&first_formatter);
+        let first_previous_has_blank_postfix =
+            expression_has_blank_postfix_annotation(&first_context, first_roots[0]);
+        let first_following_has_blank_prefix =
+            first_context.has_blank_prefix_annotation(first_roots[1]);
+        let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+
+        let (second_formatter, second_roots) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+                Ok(p.parse())
+            })
+            .expect("parse second preserve-line argument cluster");
+        let second_context = context_from_formatter(&second_formatter);
+        let second_previous_has_blank_postfix =
+            expression_has_blank_postfix_annotation(&second_context, second_roots[0]);
+        let second_following_has_blank_prefix =
+            second_context.has_blank_prefix_annotation(second_roots[1]);
+
+        assert_eq!(
+            first_previous_has_blank_postfix, second_previous_has_blank_postfix,
+            "previous statement blank postfix signal should stay stable across passes",
+        );
+        assert_eq!(
+            first_following_has_blank_prefix, second_following_has_blank_prefix,
+            "following statement blank prefix signal should stay stable across passes",
+        );
+    }
+
+    /// Return the nested `.concat(...)` call id from one `.filter(...)` chain expression.
+    fn nested_concat_call_id(
+        context: &DestackFormatContext<'_>,
+        root_call_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let Expression::Call {
+            left: filter_callee,
+            ..
+        } = context.tree.get(root_call_id)
+        else {
+            panic!("expected root call expression");
+        };
+        let Expression::Member {
+            left: concat_call_id,
+            ..
+        } = context.tree.get(*filter_callee)
+        else {
+            panic!("expected filter member callee");
+        };
+        let Expression::Call { .. } = context.tree.get(*concat_call_id) else {
+            panic!("expected nested concat call");
+        };
+
+        *concat_call_id
+    }
+
+    /// Return whether one expression has a blank postfix annotation.
+    fn expression_has_blank_postfix_annotation(
+        context: &DestackFormatContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some(annotation_ids) = context.annotations(expression_id) else {
+            return false;
+        };
+
+        annotation_ids.iter().any(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id),
+                Annotation::Blank {
+                    position: AnnotationPosition::BlockPostfix
+                        | AnnotationPosition::LinePostfix
+                        | AnnotationPosition::LinePostfixBoundary,
+                    ..
+                }
+            )
+        })
     }
 
     #[test]

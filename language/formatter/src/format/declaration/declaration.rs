@@ -2,7 +2,10 @@ use crate::format::collection::list_like;
 use crate::format::collection::property::{format_block_of_members, format_key_with_quotes};
 use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::declaration::statement::format_block_of_statements;
-use crate::format::expression::{BinaryOperator, ParenthesizedDropMode, should_drop_parenthesized};
+use crate::format::expression::{
+    BinaryOperator, ParenthesizedDropMode, expression_has_static_type_arguments,
+    should_drop_parenthesized,
+};
 use crate::format::operator::{
     flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix, is_type_context,
 };
@@ -247,36 +250,76 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
     start_on_new_line: bool,
 ) -> FormatResult<()> {
     assert!(!types.is_empty());
+    let should_group_clause = !start_on_new_line
+        && !force_expand
+        && super_type_clause_prefers_group_mode(f.context(), types);
 
-    write!(
-        f,
-        [group(&indent(&format_args![
-            format_with(|f| {
-                if start_on_new_line {
-                    write!(f, [hard_line_break()])?;
-                } else {
-                    write!(f, [soft_line_break_or_space()])?;
-                }
-                Ok(())
-            }),
-            keyword,
-            space(),
-            format_with(|f| {
-                let format_types = types.iter().copied().map(|type_id| {
-                    format_with(move |f| format_super_type_expression(f, keyword, type_id))
-                });
-                if start_on_new_line && !force_expand {
-                    f.join_with(&format_args![&token(","), space()])
-                        .entries(format_types)
-                        .finish()
-                } else {
-                    f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(format_types)
-                        .finish()
-                }
-            }),
-        ]))
-        .should_expand(force_expand)]
+    let format_clause = format_with(|f| {
+        if start_on_new_line {
+            write!(f, [hard_line_break()])?;
+        } else if force_expand || should_group_clause {
+            write!(f, [soft_line_break_or_space()])?;
+        } else {
+            write!(f, [space()])?;
+        }
+
+        write!(f, [keyword, space()])?;
+
+        let format_types = types
+            .iter()
+            .copied()
+            .map(|type_id| format_with(move |f| format_super_type_expression(f, keyword, type_id)));
+        if start_on_new_line && !force_expand {
+            f.join_with(&format_args![&token(","), space()])
+                .entries(format_types)
+                .finish()
+        } else {
+            f.join_with(&format_args![&token(","), soft_line_break_or_space()])
+                .entries(format_types)
+                .finish()
+        }
+    });
+
+    if start_on_new_line || force_expand || should_group_clause {
+        write!(
+            f,
+            [group(&indent(&format_clause)).should_expand(force_expand)]
+        )
+    } else {
+        write!(f, [group(&format_clause)])
+    }
+}
+
+/// Return whether one super-type clause should use grouped head layout.
+fn super_type_clause_prefers_group_mode(
+    context: &DestackFormatContext<'_>,
+    types: &[LocalNodeId<Expression>],
+) -> bool {
+    if types.len() > 1 {
+        return true;
+    }
+
+    let Some(type_id) = types.first().copied() else {
+        return false;
+    };
+    if expression_has_static_type_arguments(context, type_id) {
+        return false;
+    }
+
+    let type_id = match context.tree.get(type_id) {
+        Expression::Statement(inner_type_id)
+        | Expression::Parenthesized {
+            expression: inner_type_id,
+        } => *inner_type_id,
+        _ => type_id,
+    };
+
+    matches!(
+        context.tree.get(type_id),
+        Expression::Path { path, .. } if path.segments.len() > 1
+    ) || matches!(
+        context.tree.get(type_id),
+        Expression::Member { .. } | Expression::PrivateMember { .. }
     )
 }
 

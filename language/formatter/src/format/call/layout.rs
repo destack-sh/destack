@@ -11,14 +11,17 @@ use crate::format::call::arguments::{
     single_argument_separator_line_comment_source,
 };
 use crate::format::expression::{
-    Argument, Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeType,
-    ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
-    argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
-    argument_is_template_literal, argument_value_id, is_block_lambda_argument, is_complex_argument,
-    is_expression_chain, is_trivial_argument, transparent_inner_expression,
+    AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression, FunctionKind,
+    LocalNodeId, NodeType, ScalarLiteral, TrailingComma, argument_is_array_literal,
+    argument_is_block_callback, argument_is_function_expression, argument_is_lambda_expression,
+    argument_is_object_literal, argument_is_template_literal, argument_value_id,
+    is_block_lambda_argument, is_complex_argument, is_expression_chain, is_trivial_argument,
+    transparent_inner_expression,
 };
 use crate::format::tree::has_multiline_jsx_argument;
-use crate::{CallArgumentExpansionCache, CallArgumentExpansionsCache, CallArgumentLayoutCache};
+use crate::{
+    Annotation, CallArgumentExpansionCache, CallArgumentExpansionsCache, CallArgumentLayoutCache,
+};
 use destack_ast::TypeBinaryOperator;
 
 /// Return whether all leading arguments before the last are compact and simple.
@@ -706,11 +709,53 @@ pub(crate) fn single_argument_requires_expanded_list(
         return false;
     }
 
-    // force expand only from owned annotation signals
-    let has_annotation_signal = context.has_non_blank_annotation(argument_id)
-        || context.has_non_blank_annotation(raw_value_id)
-        || context.has_non_blank_annotation(value_id);
+    // force expand only from non-boundary annotation signals on the argument value path
+    let has_annotation_signal =
+        argument_has_non_blank_non_boundary_annotation(context, argument_id)
+            || expression_has_non_blank_non_boundary_annotation(context, raw_value_id)
+            || expression_has_non_blank_non_boundary_annotation(context, value_id);
     has_annotation_signal
+}
+
+/// Return whether one argument has non-blank annotations excluding boundary postfix markers.
+fn argument_has_non_blank_non_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    context
+        .visit_annotations(argument_id, |annotations| {
+            annotation_ids_have_non_blank_non_boundary_annotation(context, annotations)
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one expression has non-blank annotations excluding boundary postfix markers.
+fn expression_has_non_blank_non_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotations| {
+            annotation_ids_have_non_blank_non_boundary_annotation(context, annotations)
+        })
+        .unwrap_or(false)
+}
+
+/// Return whether one annotation list has a non-blank non-boundary annotation.
+fn annotation_ids_have_non_blank_non_boundary_annotation(
+    context: &DestackFormatContext<'_>,
+    annotation_ids: &[LocalNodeId<Annotation>],
+) -> bool {
+    annotation_ids
+        .iter()
+        .any(|annotation_id| match context.annotation(*annotation_id) {
+            Annotation::Blank { .. } => false,
+            Annotation::Comment { position, .. }
+            | Annotation::Doc { position, .. }
+            | Annotation::Decorator { position, .. } => {
+                position != AnnotationPosition::LinePostfixBoundary
+            }
+        })
 }
 
 /// Return whether an expression should use chain-aware single-argument call layout rules.
