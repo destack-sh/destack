@@ -19,7 +19,7 @@ pub struct SwcSuite {
 
 impl SwcSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("conformance");
+        let conformance_dir = fixtures_dir().join("parser").join("conformance");
         let root = conformance_dir.join("swc");
         Self {
             root,
@@ -179,7 +179,7 @@ impl ConformanceSuite for SwcSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/conformance/swc-fetch.sh\n"
+               ./language/test/fixtures/parser/conformance/swc-fetch.sh\n"
         )
     }
 

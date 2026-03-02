@@ -1,7 +1,7 @@
 # Formatter Conformance Fixtures
 
 This directory stores external formatter conformance corpora and baselines.
-Parser conformance remains in `fixtures/conformance`.
+Parser conformance remains in `fixtures/parser/conformance`.
 Local formatter smoke fixtures live in `fixtures/formatter/smoke`.
 
 ## Structure

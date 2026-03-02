@@ -20,7 +20,7 @@ ci-lint:
 
 # install fixture sets required by ci language tests
 ci-install:
-    just install-conformance
+    just install-parser-conformance
     just install-formatter-conformance
 
 # run language test gates used in ci
@@ -38,10 +38,10 @@ ci:
 
 # install test fixtures (conformance suites, ecosystem packages, resolver fixtures)
 install:
-    ./test/fixtures/conformance/test262-fetch.sh
-    ./test/fixtures/conformance/babel-fetch.sh
-    ./test/fixtures/conformance/swc-fetch.sh
-    ./test/fixtures/conformance/biome-fetch.sh
+    ./test/fixtures/parser/conformance/test262-fetch.sh
+    ./test/fixtures/parser/conformance/babel-fetch.sh
+    ./test/fixtures/parser/conformance/swc-fetch.sh
+    ./test/fixtures/parser/conformance/biome-fetch.sh
     just install-formatter-conformance
     ./test/fixtures/ecosystem/ecosystem-fetch.sh
     just install-resolver
@@ -50,11 +50,11 @@ install:
 install-fixtures := "install"
 
 # install conformance suites
-install-conformance:
-    ./test/fixtures/conformance/test262-fetch.sh
-    ./test/fixtures/conformance/babel-fetch.sh
-    ./test/fixtures/conformance/swc-fetch.sh
-    ./test/fixtures/conformance/biome-fetch.sh
+install-parser-conformance:
+    ./test/fixtures/parser/conformance/test262-fetch.sh
+    ./test/fixtures/parser/conformance/babel-fetch.sh
+    ./test/fixtures/parser/conformance/swc-fetch.sh
+    ./test/fixtures/parser/conformance/biome-fetch.sh
 
 # install formatter conformance sources
 install-formatter-conformance:
@@ -367,7 +367,7 @@ test-ci:
     just test-grammar-overlay
     just test-grammar-corpus-routing
     just test-grammar-destack-node-coverage
-    just test-conformance
+    just test-parser-conformance
     just generate-stress
     just test-stress
     just test-formatter-conformance
@@ -409,12 +409,12 @@ test-mdtest:
     just test-query
 
 # run conformance tests
-test-conformance:
-    cargo test --release -p destack_test --test conformance
+test-parser-conformance:
+    cargo test --release -p destack_test --test parser-conformance
 
 # update conformance test baselines
-test-conformance-update:
-    cargo test --release -p destack_test --test conformance -- --update-known-failures
+test-parser-conformance-update:
+    cargo test --release -p destack_test --test parser-conformance -- --update-known-failures
 
 # run formatter tests
 test-formatter:

@@ -105,7 +105,7 @@ impl BabelOptions {
 
 impl BabelSuite {
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("conformance");
+        let conformance_dir = fixtures_dir().join("parser").join("conformance");
         let root = conformance_dir.join("babel");
         Self {
             root,
@@ -353,7 +353,7 @@ impl ConformanceSuite for BabelSuite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/conformance/babel-fetch.sh\n"
+               ./language/test/fixtures/parser/conformance/babel-fetch.sh\n"
         )
     }
 

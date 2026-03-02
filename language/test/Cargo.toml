@@ -42,8 +42,8 @@ path = "src/query/main.rs"
 harness = false
 
 [[test]]
-name = "conformance"
-path = "src/conformance/main.rs"
+name = "parser-conformance"
+path = "src/parser/conformance/main.rs"
 harness = false
 
 [[test]]

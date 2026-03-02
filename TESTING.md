@@ -28,7 +28,7 @@ The only way to ensure 100% reliability is to test everything, and test it thoro
 | **Codegen** | [language/test/fixtures/codegen/](language/test/fixtures/codegen/) | Codegen output matches expected snapshots |
 | **Specification** | [language/test/fixtures/specification/](language/test/fixtures/specification/) | MDTest-driven type checking and diagnostics |
 | **Query** | [language/test/fixtures/query/](language/test/fixtures/query/) | MDTest-driven IDE/LSP queries (goto definition, completion, rename) |
-| **Conformance** | [language/test/fixtures/conformance/](language/test/fixtures/conformance/) | Parser conformance against established test suites |
+| **Conformance** | [language/test/fixtures/parser/conformance/](language/test/fixtures/parser/conformance/) | Parser conformance against established test suites |
 | **Formatter** | [language/test/fixtures/formatter/](language/test/fixtures/formatter/) | Format roundtrip stability |
 | **Resolver** | [language/test/fixtures/resolver/](language/test/fixtures/resolver/) | Module resolution (node_modules, pnpm, yarn, tsconfig paths) |
 | **Ecosystem** | [language/test/fixtures/ecosystem/](language/test/fixtures/ecosystem/) | Real-world package parsing |
@@ -47,7 +47,7 @@ just language/test-smoke
 just language/test-codegen
 just language/test-specification
 just language/test-query
-just language/test-conformance
+just language/test-parser-conformance
 just language/test-formatter
 just language/test-resolver
 just language/test-ecosystem

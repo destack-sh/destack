@@ -1,4 +1,4 @@
-# Conformance Tests
+# Parser Conformance Tests
 
 Parser conformance tests using external test suites.
 
@@ -9,13 +9,13 @@ Parser conformance tests using external test suites.
 just language/install
 
 # run all conformance tests
-cargo test --release --test conformance
+cargo test --release --test parser-conformance
 
 # run a specific suite
-cargo test --release --test conformance -- --test262
+cargo test --release --test parser-conformance -- --test262
 
 # run a specific suite with an inner filter
-cargo test --release --test conformance -- --babel --suite-filter type-only-import-export-specifiers
+cargo test --release --test parser-conformance -- --babel --suite-filter type-only-import-export-specifiers
 ```
 
 ## Test Suites
@@ -66,10 +66,10 @@ Annex B and other sloppy mode behaviors are treated as expected failures.
 
 ```sh
 # update known failures for all suites
-cargo test --release --test conformance -- --update-known-failures
+cargo test --release --test parser-conformance -- --update-known-failures
 
 # update for a specific suite
-cargo test --release --test conformance -- --test262 --update-known-failures
+cargo test --release --test parser-conformance -- --test262 --update-known-failures
 ```
 
 ## Updating Suite Versions

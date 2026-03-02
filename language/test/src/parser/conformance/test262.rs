@@ -21,7 +21,7 @@ pub struct Test262Suite {
 impl Test262Suite {
     /// Create suite with default paths.
     pub fn new() -> Self {
-        let conformance_dir = fixtures_dir().join("conformance");
+        let conformance_dir = fixtures_dir().join("parser").join("conformance");
         let root = conformance_dir.join("test262");
         Self {
             root,
@@ -161,7 +161,7 @@ impl ConformanceSuite for Test262Suite {
                just language/install-fixtures\n\
              \n\
              Or manually:\n\
-               ./language/test/fixtures/conformance/test262-fetch.sh\n"
+               ./language/test/fixtures/parser/conformance/test262-fetch.sh\n"
         )
     }
 }

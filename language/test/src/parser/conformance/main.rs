@@ -2,12 +2,14 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::conformance::{ConformanceHarnessSuite, ConformanceSelection};
 use destack_test::harness::{Runner, TestOptions};
+use destack_test::parser::conformance::{
+    ParserConformanceHarnessSuite, ParserConformanceSelection,
+};
 
-/// CLI options for the `conformance` test binary.
+/// CLI options for the `parser-conformance` test binary.
 #[derive(Parser, Debug)]
-#[command(name = "conformance", about = "Run parser conformance tests")]
+#[command(name = "parser-conformance", about = "Run parser conformance tests")]
 struct Args {
     /// Filter tests inside a selected conformance suite.
     #[arg(long)]
@@ -36,13 +38,13 @@ struct Args {
 
 fn main() -> ExitCode {
     let args = Args::parse();
-    let selection = ConformanceSelection {
+    let selection = ParserConformanceSelection {
         test262: args.test262,
         babel: args.babel,
         swc: args.swc,
         biome: args.biome,
     };
-    let suite = ConformanceHarnessSuite::new(
+    let suite = ParserConformanceHarnessSuite::new(
         selection,
         args.test.update_known_failures,
         args.suite_filter,

@@ -2,7 +2,9 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
-use destack_test::formatter::conformance::{ConformanceHarnessSuite, ConformanceSelection};
+use destack_test::formatter::conformance::{
+    FormatterConformanceHarnessSuite, FormatterConformanceSelection,
+};
 use destack_test::harness::{Runner, TestOptions};
 
 /// CLI options for the `formatter-conformance` test binary.
@@ -33,11 +35,11 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let mut test_options = args.test;
     test_options.continue_on_timeout = true;
-    let selection = ConformanceSelection {
+    let selection = FormatterConformanceSelection {
         prettier: args.prettier,
         oxfmt: args.oxfmt,
     };
-    let suite = ConformanceHarnessSuite::new(
+    let suite = FormatterConformanceHarnessSuite::new(
         selection,
         test_options.update_known_failures,
         args.suite_filter,
