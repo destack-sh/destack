@@ -1644,20 +1644,58 @@ fn attach_expression_tail_chain_and_call_comments(
     let token_before_is_greater_than = seam.token_before_is(TokenType::GreaterThan);
     let token_before_is_open_brace = seam.token_before_is(TokenType::OpenBrace);
     let token_before_is_open_parenthesis = seam.token_before_is(TokenType::OpenParenthesis);
+
     // seam comments before index and inline member operators stay with the left segment
     if !has_leading_newline
         && (token_after_is_open_bracket || (token_after_is_dot && comment_is_star))
         && seam_has_shared_expression_owner
         && !token_before_is_comma
         && !token_before_is_open_brace
-        && let Some(target_node) = preceding_token_owner.or(preceding_owner)
+        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
     {
-        let target_node =
+        target_node =
             normalize_owner_with_shared_end(tree, parents, target_node, token_before_source_span);
+        if tree.get_node_type(target_node) != NodeType::Expression
+            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                tree,
+                parents,
+                target_node,
+                NodeType::Expression,
+            )
+        {
+            target_node = expression_target;
+        }
+        target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
         if has_trailing_newline {
             return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
         }
+
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
+    }
+
+    // end-of-line line comments before member dots stay on the left expression boundary
+    if comment_is_line
+        && !has_leading_newline
+        && token_after_is_dot
+        && !token_before_is_comma
+        && !token_before_is_open_brace
+        && let Some(mut target_node) = preceding_token_owner.or(preceding_owner)
+    {
+        target_node =
+            normalize_owner_with_shared_end(tree, parents, target_node, token_before_source_span);
+        if tree.get_node_type(target_node) != NodeType::Expression
+            && let Some(expression_target) = promote_owner_to_node_type_ancestor(
+                tree,
+                parents,
+                target_node,
+                NodeType::Expression,
+            )
+        {
+            target_node = expression_target;
+        }
+        target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // comments between static type-argument closers and call `(` follow call-like ownership
@@ -2262,6 +2300,14 @@ pub(crate) fn try_attach_comment_expression(
 
     // decorator seams belong to declaration-specific routing.
     if comment_context.token_after_is_at {
+        return None;
+    }
+
+    // own-line member-dot seams are owned by dedicated own-line routing
+    let own_line_member_dot_seam = comment_context.has_leading_newline
+        && (comment_context.comment_is_line || comment_context.comment_is_star)
+        && comment_context.seam.token_after_is(TokenType::Dot);
+    if own_line_member_dot_seam {
         return None;
     }
 

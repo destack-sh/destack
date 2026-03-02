@@ -3,8 +3,9 @@ use destack_ast::{
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
     EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
     ImportSource, ImportTarget, IntType, Key, Member, Mutability, Name, Parameter, Pattern,
-    PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
-    TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    PatternField, PostfixPosition, Property, ScalarLiteral, TemplateLiteral, TokenType,
+    TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 use destack_source::{DiagnosticSeverity, LanguageType};
 
@@ -206,6 +207,80 @@ fn test_parse_private_member_expression_with_newline_before_dot_typescript() {
         assert_string!(parser, *name, "value");
         assert!(static_arguments.is_none());
     });
+}
+
+/// Parse member access across one line comment before dot in TypeScript.
+#[test]
+fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
+    let mut test = TestParser::new_with_options(
+        "container // marker\n.left as PropertyAccessExpression",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+    parser.attach_trivia();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::TypeBinary {
+            left,
+            operator,
+            right
+        } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "container.left");
+            assert_expression_path!(parser, parser.tree.get(*right), "PropertyAccessExpression");
+        }
+    );
+
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let comment_trivia = parser.tree.comment_trivia()[0];
+    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "marker");
+
+    let token_before = parser
+        .tokens()
+        .get(comment_trivia.boundary.token_before as usize)
+        .copied()
+        .expect("line comment should have one preceding token");
+    let token_after = parser
+        .tokens()
+        .get(comment_trivia.boundary.token_after as usize)
+        .copied()
+        .expect("line comment should have one following token");
+    assert_eq!(token_before.token.ty, TokenType::Identifier);
+    assert_eq!(token_after.token.ty, TokenType::Dot);
+}
+
+/// Keep full-function line-comment seams before member dots attached to the dot boundary.
+#[test]
+fn test_parse_function_member_comment_seam_before_dot_typescript() {
+    let mut test = TestParser::new_with_options(
+        "function f(container) { return ((container // marker\n.left as PropertyAccessExpression).expression as PropertyAccessExpression).expression; }",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let _ = parser.eat_expression(parser.options).unwrap();
+    parser.attach_trivia();
+
+    assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    let comment_trivia = parser.tree.comment_trivia()[0];
+    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "marker");
+
+    let token_before = parser
+        .tokens()
+        .get(comment_trivia.boundary.token_before as usize)
+        .copied()
+        .expect("line comment should have one preceding token");
+    let token_after = parser
+        .tokens()
+        .get(comment_trivia.boundary.token_after as usize)
+        .copied()
+        .expect("line comment should have one following token");
+    assert_eq!(token_before.token.ty, TokenType::Identifier);
+    assert_eq!(token_after.token.ty, TokenType::Dot);
 }
 
 /// Parse private member casts with a newline before dot in object property values.

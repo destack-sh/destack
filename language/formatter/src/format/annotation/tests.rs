@@ -7,7 +7,7 @@ use crate::{
 };
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
-    NodeParentIndex, NodeType,
+    NodeParentIndex, NodeType, TokenType,
 };
 use destack_source::{FileType, LanguageType};
 use destack_workspace::FormatterOptions;
@@ -253,6 +253,70 @@ const fragment = (
             "marker={marker}, owner={owner_node}"
         );
     }
+}
+
+/// Type-cast member chain comments before dots should stay on expression owners.
+#[test]
+fn test_annotation_typescript_cast_member_chain_comment_before_dot_stays_on_expression_owner() {
+    let source = r#"
+function getClassNameFromPrototypeMethod(container) {
+  return ((container // a
+    .left as PropertyAccessExpression) // b
+    .expression as PropertyAccessExpression) // c
+    .expression; // d
+}
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+            .expect("parse cast member-chain source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "a").expect("expected marker a");
+    let comment_node = match context.annotation(annotation_id) {
+        Annotation::Comment { node, .. } => node,
+        other => panic!("expected comment annotation for marker a, got {other:?}"),
+    };
+    let comment_trivia = formatter
+        .tree
+        .comment_trivia()
+        .iter()
+        .find(|trivia| trivia.comment.id == comment_node.id)
+        .expect("expected trivia entry for marker a comment");
+    let token_before_index = comment_trivia.boundary.token_before as usize;
+    let token_after_index = comment_trivia.boundary.token_after as usize;
+    let token_before = formatter
+        .tokens
+        .get(token_before_index)
+        .copied()
+        .expect("expected token before marker a comment");
+    let token_after = formatter
+        .tokens
+        .get(token_after_index)
+        .copied()
+        .expect("expected token after marker a comment");
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected marker a owner node");
+    let owner_node_id = owner_node as u32;
+    let owner_node_type = context.tree.get_node_type(owner_node_id);
+    let owner_expression_debug = if owner_node_type == NodeType::Expression {
+        format!(
+            "{:?}",
+            context
+                .tree
+                .get(LocalNodeId::<Expression>::new(owner_node_id))
+        )
+    } else {
+        "non-expression".to_string()
+    };
+    assert_eq!(
+        owner_node_type,
+        NodeType::Expression,
+        "marker a should attach to expression owner, owner={owner_node} node_type={owner_node_type:?}, expression={owner_expression_debug}, token_before={:?}@{:?}, token_after={:?}@{:?}",
+        token_before.token.ty,
+        token_before.span,
+        token_after.token.ty,
+        token_after.span,
+    );
 }
 
 /// Own-line slash comments after closing-tag block seams should stay idempotent.
@@ -1239,7 +1303,7 @@ call?.(); // optional-call-tail-marker
         source,
         expected,
         FileType::JavaScript,
-        javascript_format_options(),
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
@@ -1389,7 +1453,7 @@ const y = 1;
         source,
         expected,
         FileType::JavaScript,
-        javascript_format_options(),
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
@@ -1409,7 +1473,7 @@ foo();
         source,
         expected,
         FileType::JavaScript,
-        javascript_format_options(),
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
@@ -1810,11 +1874,10 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_attaches_to_
     let annotation_id = find_annotation_by_marker(&context, "own-line-as-union-marker")
         .expect("expected own-line as union marker annotation");
     let position = context.annotation(annotation_id).position();
-    let next_token = context.annotation_next_non_whitespace_token_type(annotation_id);
     assert_eq!(
         position,
-        AnnotationPosition::BlockPrefix,
-        "position={position:?}, next_token={next_token:?}"
+        AnnotationPosition::LinePrefix,
+        "position={position:?}"
     );
 }
 
@@ -1839,11 +1902,10 @@ fn test_annotation_type_binary_own_line_comment_after_as_with_union_reparse_keep
         find_annotation_by_marker(&reparsed_context, "own-line-as-union-reparse-marker")
             .expect("expected own-line as union reparse marker annotation");
     let position = reparsed_context.annotation(annotation_id).position();
-    let next_token = reparsed_context.annotation_next_non_whitespace_token_type(annotation_id);
     assert_eq!(
         position,
         AnnotationPosition::BlockPrefix,
-        "position={position:?}, next_token={next_token:?}, formatted={formatted}"
+        "position={position:?}, formatted={formatted}"
     );
 }
 
@@ -3166,9 +3228,14 @@ verylongidentifierthatwillwrap123123123123123(
     let ignore_position = context.annotation(ignore_annotation_id).position();
     let previous_token_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
     let next_token_type = context.annotation_next_non_whitespace_token_type(annotation_id);
+    let ignore_next_non_trivia_token_type =
+        context.annotation_next_non_trivia_token_type(ignore_annotation_id);
     let owner_node = find_annotation_target_owner_node(&context, annotation_id)
         .expect("expected member-dot marker owner node");
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
+    let ignore_owner_node = find_annotation_target_owner_node(&context, ignore_annotation_id)
+        .expect("expected member-dot ignore owner node");
+    let ignore_owner_node_type = context.tree.get_node_type(ignore_owner_node as u32);
 
     assert_eq!(
         position,
@@ -3180,7 +3247,167 @@ verylongidentifierthatwillwrap123123123123123(
         AnnotationPosition::LinePostfixBoundary,
         "expected member-dot ignore directive to stay on the left seam boundary, got {ignore_position:?}"
     );
+    assert_eq!(
+        ignore_next_non_trivia_token_type,
+        Some(TokenType::Dot),
+        "expected member-dot ignore directive to stay on a dot continuation seam, got {ignore_next_non_trivia_token_type:?}"
+    );
     assert_eq!(owner_node_type, NodeType::Expression);
+    let owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(owner_node as u32));
+    assert!(
+        matches!(owner_expression, Expression::Path { path, .. } if path.segments.len() >= 2),
+        "expected marker owner to stay on path-like member chain argument, got {owner_expression:?}"
+    );
+    assert_eq!(
+        ignore_owner_node_type,
+        NodeType::Expression,
+        "expected member-dot ignore directive owner to stay expression-boundary, got owner={ignore_owner_node} type={ignore_owner_node_type:?}"
+    );
+    let ignore_owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(ignore_owner_node as u32));
+    assert!(
+        matches!(
+            ignore_owner_expression,
+            Expression::Path { path, .. } if path.segments.len() >= 2
+        ),
+        "expected ignore owner to stay on path-like member chain argument, got {ignore_owner_expression:?}"
+    );
+}
+
+/// Own-line ignore directives before member dots should keep expression-boundary ownership.
+#[test]
+fn test_annotation_member_dot_ignore_with_plain_following_comment_keeps_expression_owner() {
+    let source = r#"
+verylongidentifierthatwillwrap123123123123123(
+  a.b
+    // prettier-ignore
+    // Some other comment here
+    .c
+);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse member-dot own-line ignore source");
+    let context = context_from_formatter(&formatter);
+
+    let ignore_annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
+        .expect("expected member-dot ignore annotation");
+    let comment_annotation_id = find_annotation_by_marker(&context, "Some other comment here")
+        .expect("expected member-dot plain comment annotation");
+    let ignore_position = context.annotation(ignore_annotation_id).position();
+    let comment_position = context.annotation(comment_annotation_id).position();
+    let ignore_next_non_trivia_token_type =
+        context.annotation_next_non_trivia_token_type(ignore_annotation_id);
+    let ignore_next_non_whitespace_token = context
+        .annotation_next_non_whitespace_token(ignore_annotation_id)
+        .expect("expected next non-whitespace token for ignore annotation");
+    let ignore_owner_node = find_annotation_target_owner_node(&context, ignore_annotation_id)
+        .expect("expected member-dot ignore owner node");
+    let comment_owner_node = find_annotation_target_owner_node(&context, comment_annotation_id)
+        .expect("expected member-dot plain comment owner node");
+    let ignore_owner_expression_id = LocalNodeId::<Expression>::new(ignore_owner_node as u32);
+    let ignore_owner_span = context.span(ignore_owner_expression_id);
+    let first_dot_start = context
+        .nth_token_type_start_in_span(ignore_owner_span, TokenType::Dot, 1)
+        .expect("expected first path dot");
+    let second_dot_start = context
+        .nth_token_type_start_in_span(ignore_owner_span, TokenType::Dot, 2)
+        .expect("expected second path dot");
+
+    assert_eq!(ignore_position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(comment_position, AnnotationPosition::LinePostfixBoundary);
+    assert_eq!(ignore_next_non_trivia_token_type, Some(TokenType::Dot));
+    assert_eq!(
+        ignore_next_non_whitespace_token.span.start, second_dot_start,
+        "member-dot ignore should target the second dot seam, not the first",
+    );
+    assert_ne!(
+        ignore_next_non_whitespace_token.span.start, first_dot_start,
+        "member-dot ignore should not target the first dot seam",
+    );
+    assert_eq!(
+        context.tree.get_node_type(ignore_owner_node as u32),
+        NodeType::Expression
+    );
+    assert_eq!(
+        context.tree.get_node_type(comment_owner_node as u32),
+        NodeType::Expression
+    );
+    let ignore_owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(ignore_owner_node as u32));
+    let comment_owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(comment_owner_node as u32));
+    assert!(
+        matches!(
+            ignore_owner_expression,
+            Expression::Path { path, .. } if path.segments.len() >= 2
+        ),
+        "expected ignore owner to stay on path-like member chain argument, got {ignore_owner_expression:?}"
+    );
+    assert!(
+        matches!(
+            comment_owner_expression,
+            Expression::Path { path, .. } if path.segments.len() >= 2
+        ),
+        "expected plain comment owner to stay on path-like member chain argument, got {comment_owner_expression:?}"
+    );
+}
+
+/// Own-line flowfix comments before member dots should stay on the left chain boundary.
+#[test]
+fn test_annotation_member_dot_flowfix_comment_stays_on_left_chain_boundary() {
+    let source = r#"
+_.a(a)
+  /* very very very very very very very long such that it is longer than 80 columns */
+  .a()
+
+Something
+  // flowfix-marker
+  .getInstance(this.props.dao)
+  .getters()
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse member-dot flowfix source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id =
+        find_annotation_by_marker(&context, "flowfix-marker").expect("expected flowfix marker");
+    let position = context.annotation(annotation_id).position();
+    let has_leading_newline = context.annotation_has_leading_newline(annotation_id);
+    let starts_on_own_line = context.annotation_starts_on_own_line(annotation_id);
+    let previous_non_whitespace_token_type =
+        context.annotation_previous_non_whitespace_token_type(annotation_id);
+    let next_non_trivia_token_type = context.annotation_next_non_trivia_token_type(annotation_id);
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected flowfix marker owner node");
+    let owner_node_type = context.tree.get_node_type(owner_node as u32);
+
+    let owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(owner_node as u32));
+    assert_eq!(
+        position,
+        AnnotationPosition::LinePostfixBoundary,
+        "expected own-line member-dot comment to stay on the left boundary, got position={position:?}, leading={has_leading_newline}, own_line={starts_on_own_line}, prev={previous_non_whitespace_token_type:?}, next={next_non_trivia_token_type:?}, owner={owner_expression:?}"
+    );
+    assert_eq!(next_non_trivia_token_type, Some(TokenType::Dot));
+    assert_eq!(owner_node_type, NodeType::Expression);
+    assert!(
+        matches!(
+            owner_expression,
+            Expression::Path { .. }
+                | Expression::Member { .. }
+                | Expression::PrivateMember { .. }
+                | Expression::Index { .. }
+        ),
+        "expected flowfix owner to stay on a member-chain expression boundary, got {owner_expression:?}"
+    );
 }
 
 /// TypeScript mapped-type prettier-ignore seams should stay idempotent.
@@ -3763,5 +3990,93 @@ fn test_format_call_trailing_comma_comment_before_close_paren_is_idempotent() {
         source,
         FileType::JavaScript,
         DestackFormatOptions::default(),
+    );
+}
+
+/// Own-line comments after call blocks should stay as leading comments for the next statement.
+#[test]
+fn test_annotation_own_line_comment_after_call_block_stays_leading() {
+    let source = r#"global().longcalllongcall().property
+  .test
+  .only("foobarbazqux", async () => {
+    //
+  })
+
+// issue-17272
+test.fixme("x", async ({ page: _page }, testInfo) => {
+  // TODO
+});
+"#;
+    let expected = r#"global()
+    .longcalllongcall()
+    .property.test.only("foobarbazqux", async () => {
+        //
+    });
+
+// issue-17272
+test.fixme("x", async ({ page: _page }, testInfo) => {
+    // TODO
+});
+"#;
+
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse own-line call-block comment source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "issue-17272")
+        .expect("expected own-line comment annotation");
+    assert_eq!(
+        context.annotation(annotation_id).position(),
+        AnnotationPosition::LinePrefix,
+        "position={:?}",
+        context.annotation(annotation_id).position()
+    );
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Own-line ignore comments after nested blocks should stay as leading comments.
+#[test]
+fn test_annotation_own_line_ignore_comment_after_nested_block_stays_leading() {
+    let source = r#"function a() {
+  function b() {
+    run();
+  }
+
+  // oxfmt-ignore
+  console.error("x");
+}
+"#;
+    let expected = r#"function a() {
+  function b() {
+    run();
+  }
+
+  // oxfmt-ignore
+  console.error("x");
+}
+"#;
+
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse own-line ignore comment source");
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "oxfmt-ignore")
+        .expect("expected own-line ignore annotation");
+    assert_eq!(
+        context.annotation(annotation_id).position(),
+        AnnotationPosition::LinePrefix
+    );
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }

@@ -1,8 +1,9 @@
 use crate::format::context::{
-    Cell, Comment, Cow, DestackFormatContext, Expression, File, FxHashMap, Keyword, LocalNodeId,
-    NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_SPAN_CHAR_LEN_UNKNOWN, Node, NodeTree,
-    NodeTreeImpl, NodeType, SmallVec, Span, TYPE_CONTEXT_STATE_FALSE, TYPE_CONTEXT_STATE_TRUE,
-    TYPE_CONTEXT_STATE_UNKNOWN, TokenSpan, TokenType, normalize_comment_payload,
+    Cell, Comment, Cow, DestackFormatContext, Doc, Expression, File, FxHashMap, Keyword,
+    LocalNodeId, NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_SPAN_CHAR_LEN_UNKNOWN, Node,
+    NodeTree, NodeTreeImpl, NodeType, SmallVec, Span, TYPE_CONTEXT_STATE_FALSE,
+    TYPE_CONTEXT_STATE_TRUE, TYPE_CONTEXT_STATE_UNKNOWN, TokenSpan, TokenType,
+    normalize_comment_payload,
 };
 
 /// Build one keyword map for identifier tokens across main and side streams.
@@ -492,6 +493,12 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn comment_raw_text(&self, comment_id: LocalNodeId<Comment>) -> &'a str {
         self.span_str(self.span(comment_id))
+    }
+
+    /// Get one raw doc text slice.
+    #[inline]
+    pub fn doc_raw_text(&self, doc_id: LocalNodeId<Doc>) -> &'a str {
+        self.span_str(self.span(doc_id))
     }
 
     /// Get the source position for one byte offset.

@@ -17,7 +17,8 @@ use super::declaration::try_attach_comment_declaration;
 use super::endofline::attach_end_of_line_comment;
 use super::expression::try_attach_comment_expression;
 use super::facts::{
-    previous_non_trivia_token_index, token_type_is_comment_trivia, token_type_is_whitespace_trivia,
+    next_non_trivia_token_index, previous_non_trivia_token_index, token_type_is_comment_trivia,
+    token_type_is_trivia, token_type_is_whitespace_trivia,
 };
 use super::operator::try_attach_comment_assignment;
 use super::ownership::{
@@ -546,6 +547,61 @@ pub(crate) fn decode_token_index(token_index: u32) -> Option<usize> {
     (token_index != NO_TOKEN_INDEX).then_some(token_index as usize)
 }
 
+/// Normalize one boundary-before token index to the nearest non-trivia token at or before it.
+fn normalize_boundary_before_token_index(
+    semantic_tokens: &[TokenSpan],
+    token_index: Option<usize>,
+) -> Option<usize> {
+    let token_index = token_index?;
+    let token_type = semantic_tokens.get(token_index)?.token.ty;
+    if !token_type_is_trivia(token_type) {
+        return Some(token_index);
+    }
+
+    previous_non_trivia_token_index(semantic_tokens, token_index)
+}
+
+/// Normalize one boundary-after token index to the nearest non-trivia token at or after it.
+fn normalize_boundary_after_token_index(
+    semantic_tokens: &[TokenSpan],
+    token_index: Option<usize>,
+) -> Option<usize> {
+    let token_index = token_index?;
+    let token_type = semantic_tokens.get(token_index)?.token.ty;
+    if !token_type_is_trivia(token_type) {
+        return Some(token_index);
+    }
+
+    next_non_trivia_token_index(semantic_tokens, token_index)
+}
+
+/// Resolve the nearest non-trivia token index before one source offset.
+fn previous_non_trivia_token_index_before_offset(
+    semantic_tokens: &[TokenSpan],
+    offset: u32,
+) -> Option<usize> {
+    let token_index = semantic_tokens.partition_point(|token| token.span.start < offset);
+    previous_non_trivia_token_index(semantic_tokens, token_index)
+}
+
+/// Resolve the nearest non-trivia token index at or after one source offset.
+fn next_non_trivia_token_index_at_or_after_offset(
+    semantic_tokens: &[TokenSpan],
+    offset: u32,
+) -> Option<usize> {
+    let mut token_index = semantic_tokens.partition_point(|token| token.span.start < offset);
+    while token_index < semantic_tokens.len() {
+        let token_type = semantic_tokens[token_index].token.ty;
+        if !token_type_is_trivia(token_type) {
+            return Some(token_index);
+        }
+
+        token_index += 1;
+    }
+
+    None
+}
+
 /// Return whether one expression is delimited by one matching token pair.
 fn expression_matches_delimiter_pair(
     tree: &NodeTree,
@@ -1003,8 +1059,16 @@ pub(crate) fn comment_trivia_attachment(
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
 ) -> CommentAttachment {
-    let token_before = decode_token_index(trivia.boundary.token_before);
-    let token_after = decode_token_index(trivia.boundary.token_after);
+    let token_before = normalize_boundary_before_token_index(
+        semantic_tokens,
+        decode_token_index(trivia.boundary.token_before),
+    )
+    .or_else(|| previous_non_trivia_token_index_before_offset(semantic_tokens, trivia.span.start));
+    let token_after = normalize_boundary_after_token_index(
+        semantic_tokens,
+        decode_token_index(trivia.boundary.token_after),
+    )
+    .or_else(|| next_non_trivia_token_index_at_or_after_offset(semantic_tokens, trivia.span.end));
     let token_before_span = token_before
         .and_then(|index| semantic_tokens.get(index))
         .copied();
@@ -1080,21 +1144,20 @@ pub(crate) fn comment_trivia_attachment(
         owners,
         enclosing_owner_cache: &mut enclosing_owner_cache,
     };
-    let attachment = run_comment_attachment_handlers(
-        &mut dispatch_context,
-        &[
-            attach_comment_delimiter_interior_dispatch,
-            attach_comment_parameter_type_boundary_dispatch,
-            attach_comment_expression_dispatch,
-            attach_comment_statement_prefix_dispatch,
-            attach_comment_declaration_dispatch,
-            attach_comment_statement_suffix_dispatch,
-            attach_comment_assignment_dispatch,
-            attach_comment_block_body_dispatch,
-            attach_comment_default_dispatch,
-        ],
-    )
-    .expect("comment attachment pipeline should always produce one attachment");
+    let handlers = [
+        attach_comment_delimiter_interior_dispatch as CommentAttachmentHandler,
+        attach_comment_parameter_type_boundary_dispatch,
+        attach_comment_expression_dispatch,
+        attach_comment_statement_prefix_dispatch,
+        attach_comment_declaration_dispatch,
+        attach_comment_statement_suffix_dispatch,
+        attach_comment_assignment_dispatch,
+        attach_comment_block_body_dispatch,
+        attach_comment_default_dispatch,
+    ];
+    let attachment = run_comment_attachment_handlers(&mut dispatch_context, &handlers);
+    let attachment =
+        attachment.expect("comment attachment pipeline should always produce one attachment");
 
     let (target_node, mut position) = attachment;
 
@@ -1826,10 +1889,18 @@ fn attach_default_own_line_comment(
     enclosing_owner_cache: &mut CommentEnclosingOwnerCache,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
+    let resolved_owners = CommentAttachmentNeighbors {
+        preceding: owners.preceding,
+        following: following_owner_with_token_after_fallback(
+            context.tree,
+            context,
+            owners.following,
+        ),
+    };
     let comment_is_ignore_directive = seam_comment_is_ignore_directive(context, seam);
 
     if comment_is_ignore_directive {
-        return attach_to_following_owner(context, owners, AnnotationPosition::LinePrefix);
+        return attach_to_following_owner(context, resolved_owners, AnnotationPosition::LinePrefix);
     }
 
     let following_position = if seam.comment_is_line {
@@ -1837,7 +1908,9 @@ fn attach_default_own_line_comment(
     } else {
         AnnotationPosition::BlockPrefix
     };
-    if let Some(attachment) = attach_to_following_owner(context, owners, following_position) {
+    if let Some(attachment) =
+        attach_to_following_owner(context, resolved_owners, following_position)
+    {
         return Some(attachment);
     }
 
@@ -1977,11 +2050,17 @@ pub(crate) fn following_owner_with_token_after_fallback(
     context: &CommentSeamContext<'_>,
     following_owner: Option<u32>,
 ) -> Option<u32> {
-    following_owner.or_else(|| {
-        context
-            .token_after_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-    })
+    following_owner
+        .or_else(|| {
+            context.token_after.and_then(|token_index| {
+                find_owner_at_or_after_token(tree, context.semantic_tokens, token_index)
+            })
+        })
+        .or_else(|| {
+            context
+                .token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        })
 }
 
 /// Return the then-branch owner id for one if-expression owner that has no else branch.
