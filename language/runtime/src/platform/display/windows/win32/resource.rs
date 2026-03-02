@@ -63,7 +63,10 @@ pub(super) fn open_display_handle(
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(DISPLAY_RESOURCE_LABEL)
         .with_payload(Win32DisplayBinding { id });
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     resource::DisplayHandle(resource_id)
 }
 

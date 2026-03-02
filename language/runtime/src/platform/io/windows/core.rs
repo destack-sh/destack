@@ -58,9 +58,23 @@ impl ResourceFinalizer for WindowsSocketFinalizer {
 }
 
 /// Create one completion backend for Windows hosts.
-pub(crate) fn host_completion_create_proactor(entries: u32) -> RuntimeResult<Box<dyn Proactor>> {
+pub(crate) fn host_completion_create_proactor(
+    context: &BindingCallContext,
+    entries: u32,
+) -> RuntimeResult<Box<dyn Proactor>> {
     let _ = entries;
-    Ok(Box::new(IocpProactor::new()?))
+
+    let pending_poll_slice_ns = context
+        .runtime()
+        .module_options
+        .io
+        .windows_iocp_pending_poll_slice_ns
+        .unwrap_or(10_000_000)
+        .max(1);
+
+    Ok(Box::new(IocpProactor::with_pending_poll_slice_ns(
+        pending_poll_slice_ns,
+    )?))
 }
 
 /// Execute one generic descriptor fcntl-style operation.

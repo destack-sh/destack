@@ -8,6 +8,7 @@ use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::runtime::BindingCallContext;
 
 #[cfg(target_os = "linux")]
 use std::collections::HashMap;
@@ -20,12 +21,13 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 #[cfg(target_os = "linux")]
 use std::sync::mpsc::{self, SyncSender};
 #[cfg(target_os = "linux")]
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
 use std::thread::{self, JoinHandle};
 
 /// One persistent pactl monitor worker.
 #[cfg(target_os = "linux")]
+#[derive(Debug)]
 struct PactlDeviceMonitor {
     /// Stop signal for the worker thread.
     stop: Arc<AtomicBool>,
@@ -39,14 +41,57 @@ struct PactlDeviceMonitor {
 
 /// One shared pactl monitor slot keyed by audio backend.
 #[cfg(target_os = "linux")]
-static PACTL_DEVICE_MONITOR_SLOT: OnceLock<
-    Mutex<HashMap<audio_core::AudioBackend, PactlDeviceMonitor>>,
-> = OnceLock::new();
+#[derive(Debug, Default)]
+struct PactlMonitorRuntimeState {
+    /// Runtime-owned pactl monitor workers keyed by backend.
+    monitors: Mutex<HashMap<audio_core::AudioBackend, PactlDeviceMonitor>>,
+    /// Whether teardown finalizer was registered.
+    shutdown_registered: AtomicBool,
+}
 
-/// Return one shared pactl monitor slot.
+/// Return runtime-owned pactl monitor state.
 #[cfg(target_os = "linux")]
-fn monitor_slot() -> &'static Mutex<HashMap<audio_core::AudioBackend, PactlDeviceMonitor>> {
-    PACTL_DEVICE_MONITOR_SLOT.get_or_init(|| Mutex::new(HashMap::new()))
+fn pactl_monitor_runtime_state(context: &BindingCallContext) -> Arc<PactlMonitorRuntimeState> {
+    let runtime_state = context
+        .runtime()
+        .module_state
+        .get_or_init(PactlMonitorRuntimeState::default);
+    register_runtime_finalizer(context, &runtime_state);
+
+    runtime_state
+}
+
+/// Register one runtime finalizer for pactl monitor teardown.
+#[cfg(target_os = "linux")]
+fn register_runtime_finalizer(
+    context: &BindingCallContext,
+    runtime_state: &Arc<PactlMonitorRuntimeState>,
+) {
+    if runtime_state
+        .shutdown_registered
+        .swap(true, Ordering::AcqRel)
+    {
+        return;
+    }
+
+    let runtime_state = Arc::clone(runtime_state);
+    context.runtime().finalizers.register(move || {
+        let mut monitor_registry = runtime_state
+            .monitors
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let monitors = monitor_registry
+            .drain()
+            .map(|(_, monitor)| monitor)
+            .collect::<Vec<_>>();
+        drop(monitor_registry);
+
+        for monitor in monitors {
+            monitor.stop.store(true, Ordering::Relaxed);
+            kill_process(monitor.process_id.load(Ordering::Acquire));
+            let _ = monitor.handle.join();
+        }
+    });
 }
 
 /// Return one startup error payload for one pactl monitor failure.
@@ -85,14 +130,17 @@ pub(crate) fn native_device_events_supported(backend: audio_core::AudioBackend) 
 
 /// Start native device-event monitoring for one pactl-based backend.
 pub(crate) fn start_native_device_event_monitor(
+    context: &BindingCallContext,
     backend: audio_core::AudioBackend,
     backend_name: &'static str,
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
         let _ = backend_name;
+        let runtime_state = pactl_monitor_runtime_state(context);
 
-        let mut monitor_slot = monitor_slot()
+        let mut monitor_slot = runtime_state
+            .monitors
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         if let Some(monitor) = monitor_slot.get_mut(&backend) {
@@ -101,12 +149,20 @@ pub(crate) fn start_native_device_event_monitor(
         }
 
         let stop = Arc::new(AtomicBool::new(false));
+        let runtime_state = audio_core::audio_event_runtime_state(context);
         let process_id = Arc::new(AtomicU32::new(0));
         let stop_signal = Arc::clone(&stop);
+        let callback_runtime_state = Arc::clone(&runtime_state);
         let process_id_signal = Arc::clone(&process_id);
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
         let handle = thread::spawn(move || {
-            run_pactl_monitor_thread(backend, stop_signal, process_id_signal, ready_sender)
+            run_pactl_monitor_thread(
+                callback_runtime_state,
+                backend,
+                stop_signal,
+                process_id_signal,
+                ready_sender,
+            )
         });
 
         let ready_result = ready_receiver
@@ -143,11 +199,16 @@ pub(crate) fn start_native_device_event_monitor(
 }
 
 /// Stop native device-event monitoring for one pactl-based backend.
-pub(crate) fn stop_native_device_event_monitor(backend: audio_core::AudioBackend) {
+pub(crate) fn stop_native_device_event_monitor(
+    _context: &BindingCallContext,
+    backend: audio_core::AudioBackend,
+) {
     #[cfg(target_os = "linux")]
     {
+        let runtime_state = pactl_monitor_runtime_state(_context);
         let monitor = {
-            let mut monitor_slot = monitor_slot()
+            let mut monitor_slot = runtime_state
+                .monitors
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
             let Some(monitor) = monitor_slot.get_mut(&backend) else {
@@ -180,6 +241,7 @@ pub(crate) fn stop_native_device_event_monitor(backend: audio_core::AudioBackend
 /// Run one pactl monitor worker thread for one backend.
 #[cfg(target_os = "linux")]
 fn run_pactl_monitor_thread(
+    runtime_state: Arc<audio_core::AudioEventRuntimeState>,
     backend: audio_core::AudioBackend,
     stop: Arc<AtomicBool>,
     process_id: Arc<AtomicU32>,
@@ -250,7 +312,7 @@ fn run_pactl_monitor_thread(
         // forward device-related subscription notifications into runtime snapshots
         if should_publish_snapshot(&line) {
             let _ = std::panic::catch_unwind(|| {
-                audio_core::publish_device_snapshot_native(backend);
+                audio_core::publish_device_snapshot_native(&runtime_state, backend);
             });
         }
     }

@@ -34,7 +34,7 @@ pub(crate) unsafe fn destack_audio_event_close(
         let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
         binding.options.backend
     };
-    audio_core::unregister_event_binding(&binding);
+    audio_core::unregister_event_binding(context, &binding);
 
     let removed = context
         .runtime()
@@ -47,7 +47,7 @@ pub(crate) unsafe fn destack_audio_event_close(
         ));
     }
 
-    let _ = audio_core::refresh_backend_device_monitor(backend);
+    let _ = audio_core::refresh_backend_device_monitor(context, backend);
 
     Ok(())
 }
@@ -89,13 +89,14 @@ pub(crate) unsafe fn destack_audio_event_open(
     let payload = Arc::new(Mutex::new(binding));
 
     let handle = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::AudioEvent, Some(context.engine()))
+        ResourceEntry::new(ResourceKind::AudioEvent)
             .with_label(audio_core::AUDIO_EVENT_RESOURCE_LABEL)
             .with_payload(payload.clone()),
+        Some(context.engine()),
     );
-    audio_core::register_event_binding(&payload);
-    if let Err(error) = audio_core::refresh_backend_device_monitor(options.backend) {
-        audio_core::unregister_event_binding(&payload);
+    audio_core::register_event_binding(context, &payload);
+    if let Err(error) = audio_core::refresh_backend_device_monitor(context, options.backend) {
+        audio_core::unregister_event_binding(context, &payload);
         let _ = context
             .runtime()
             .resources

@@ -278,13 +278,9 @@ pub(crate) fn stream_descriptor(
 /// Build one null backend worker thread.
 pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<()> {
     thread::spawn(move || {
-        let period_frames = binding.period_frames.max(MIN_STREAM_PERIOD_FRAMES) as usize;
-        let period_duration = Duration::from_nanos(
-            (period_frames as u64)
-                .saturating_mul(1_000_000_000u64)
-                .checked_div(binding.sample_rate.max(1) as u64)
-                .unwrap_or(1_000_000),
-        );
+        let period_frames_u32 = binding.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
+        let period_frames = period_frames_u32 as usize;
+        let period_duration = resolved_worker_poll_period(period_frames_u32, binding.sample_rate);
 
         loop {
             let mut state = binding
@@ -497,6 +493,7 @@ pub(crate) fn open_null_stream(
         sample_rate: config.sample_rate,
         channels: config.channels,
         period_frames: config.period_frames.max(MIN_STREAM_PERIOD_FRAMES),
+        max_queued_frames: resolved_max_queued_frames(),
         share_mode,
         runtime_capabilities: AudioStreamRuntimeCapabilities {
             supports_write_at: opened_direction != AudioDeviceDirection::Capture
@@ -510,6 +507,8 @@ pub(crate) fn open_null_stream(
         host_ops: Mutex::new(None),
         name: Mutex::new(String::new()),
         sync: sync.clone(),
+        stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
+        event_runtime_state: Mutex::new(None),
         null_worker: Mutex::new(None),
     });
 

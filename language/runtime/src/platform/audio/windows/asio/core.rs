@@ -330,7 +330,7 @@ impl Drop for AsioHostStreamOps {
     }
 }
 
-/// One global callback runtime slot.
+/// One global callback runtime slot required by ASIO callback ABI without user-data pointers.
 static ACTIVE_ASIO_RUNTIME: OnceLock<Mutex<Option<Weak<AsioStreamRuntime>>>> = OnceLock::new();
 
 /// Return one callback-runtime slot for ASIO callbacks.

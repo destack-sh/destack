@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex, Weak};
-use std::time::Duration;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+use std::sync::{Arc, Mutex, Weak};
 
 use super::abi::AlsaPcm;
 use super::constants::{ALSA_FALSE, ALSA_STREAM_CAPTURE, ALSA_STREAM_PLAYBACK, ALSA_TRUE};
@@ -43,6 +41,7 @@ pub(super) fn open_stream(
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,
+        max_queued_frames: audio_core::resolved_max_queued_frames(),
         share_mode,
         runtime_capabilities: audio_core::AudioStreamRuntimeCapabilities {
             supports_write_at: false,
@@ -58,6 +57,8 @@ pub(super) fn open_stream(
             state: audio_core::Mutex::new(audio_core::initial_stream_state()),
             wake: audio_core::Condvar::new(),
         }),
+        stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
+        event_runtime_state: audio_core::Mutex::new(None),
         null_worker: audio_core::Mutex::new(None),
     });
 
@@ -177,13 +178,7 @@ fn open_runtime(
         .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
 
     let frame_bytes = audio_core::frame_bytes(config.format, channels)?;
-    let poll_period = Duration::from_nanos(
-        ((period_frames as u64)
-            .saturating_mul(1_000_000_000u64)
-            .checked_div(sample_rate.max(1) as u64)
-            .unwrap_or(1_000_000))
-        .max(1_000_000),
-    );
+    let poll_period = audio_core::resolved_worker_poll_period(period_frames, sample_rate);
 
     let supports_pause = playback_lane
         .as_ref()

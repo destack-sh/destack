@@ -553,7 +553,11 @@ pub(crate) unsafe fn monitor_close(
 ) -> RuntimeResult<()> {
     let _ = display_resource::resolve_display_id(context, handle, "destack.display.monitor.close")?;
 
-    let removed = context.runtime().resources.remove(handle.0).is_some();
+    let removed = context
+        .runtime()
+        .resources
+        .remove(handle.0, Some(context.engine()))
+        .is_some();
     if !removed {
         return Err(core::not_found(
             "destack.display.monitor.close",
@@ -708,8 +712,9 @@ pub(crate) unsafe fn monitor_set_mode(
 
     apply_monitor_mode_by_id(&id, mode, "destack.display.monitor.setMode")?;
     if let Some(snapshot) = monitor_snapshot_by_id(&id)? {
-        event::publish_mode_changed_event(&id, snapshot.current_mode);
+        event::publish_mode_changed_event(context, &id, snapshot.current_mode);
         event::publish_descriptor_changed_event(
+            context,
             &snapshot.descriptor,
             core::DISPLAY_CHANGED_MASK_BOUNDS
                 | core::DISPLAY_CHANGED_MASK_WORKAREA
@@ -717,7 +722,7 @@ pub(crate) unsafe fn monitor_set_mode(
                 | core::DISPLAY_CHANGED_MASK_ORIENTATION,
         );
     } else {
-        event::publish_mode_changed_event(&id, mode);
+        event::publish_mode_changed_event(context, &id, mode);
     }
 
     Ok(())

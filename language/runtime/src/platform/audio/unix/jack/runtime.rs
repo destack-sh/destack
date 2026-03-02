@@ -301,6 +301,7 @@ pub(super) fn open_stream(
         sample_rate,
         channels: negotiated_channels,
         period_frames,
+        max_queued_frames: audio_core::resolved_max_queued_frames(),
         share_mode,
         runtime_capabilities: audio_core::AudioStreamRuntimeCapabilities {
             supports_write_at: false,
@@ -316,6 +317,8 @@ pub(super) fn open_stream(
             state: audio_core::Mutex::new(audio_core::initial_stream_state()),
             wake: audio_core::Condvar::new(),
         }),
+        stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
+        event_runtime_state: audio_core::Mutex::new(None),
         null_worker: audio_core::Mutex::new(None),
     });
 

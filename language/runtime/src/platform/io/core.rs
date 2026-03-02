@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Instant;
 
 use parking_lot::Mutex;
@@ -162,16 +162,25 @@ impl PollResource {
     }
 }
 
-/// Agent-scoped key for event attachment routing.
-type EventAttachmentKey = (usize, ResourceId);
+/// Runtime-scoped key for event attachment routing.
 /// Attachment targets keyed by poll resource id.
 type EventAttachmentTargets = HashMap<ResourceId, u64>;
-/// Global event attachment registry keyed by agent and token.
-type EventAttachmentRegistry = HashMap<EventAttachmentKey, EventAttachmentTargets>;
+/// Runtime attachment registry keyed by event token resource id.
+type EventAttachmentRegistry = HashMap<ResourceId, EventAttachmentTargets>;
 
-/// Return a stable identity key for the current agent.
-pub(super) fn agent_key(context: &BindingCallContext) -> usize {
-    context.runtime() as *const _ as usize
+/// Runtime-owned io module state.
+#[derive(Default)]
+struct IoRuntimeState {
+    /// Event attachment routing keyed by event token id.
+    event_attachments: Mutex<EventAttachmentRegistry>,
+}
+
+/// Return runtime-owned io module state.
+fn io_runtime_state(context: &BindingCallContext) -> Arc<IoRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(IoRuntimeState::default)
 }
 
 /// Build one not-found error for poll handles.
@@ -347,13 +356,9 @@ pub(super) fn poll_close(
 
     // drop stale event token attachments for this poll handle
     {
-        let current_agent_key = agent_key(context);
-        let mut attachments_by_token = event_attachment_map().lock();
-        attachments_by_token.retain(|(key, _), attachments| {
-            if *key != current_agent_key {
-                return true;
-            }
-
+        let runtime_state = io_runtime_state(context);
+        let mut attachments_by_token = runtime_state.event_attachments.lock();
+        attachments_by_token.retain(|_, attachments| {
             attachments.remove(&handle.0);
             !attachments.is_empty()
         });
@@ -621,17 +626,6 @@ fn event_exists(context: &BindingCallContext, token: EventToken) -> bool {
             entry.label.as_deref() == Some(EVENT_RESOURCE_LABEL)
         })
         .unwrap_or(false)
-}
-
-/// Return attachment mappings for event tokens.
-fn event_attachment_map() -> &'static Mutex<EventAttachmentRegistry> {
-    static ATTACHMENTS: OnceLock<Mutex<EventAttachmentRegistry>> = OnceLock::new();
-    ATTACHMENTS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Return the attachment key for one event token in one agent.
-fn event_attachment_key(context: &BindingCallContext, token: EventToken) -> (usize, ResourceId) {
-    (agent_key(context), ResourceId(token.0))
 }
 
 /// Resolve one io_uring payload from one uring handle.
@@ -995,7 +989,7 @@ pub(super) fn completion_open(
     }
 
     // create one host completion backend
-    let proactor = io_host::host_completion_create_proactor(entries)?;
+    let proactor = io_host::host_completion_create_proactor(context, entries)?;
     let resource = Arc::new(CompletionResource::new(proactor));
 
     // store one runtime completion resource
@@ -1274,8 +1268,11 @@ pub(super) fn event_close(context: &BindingCallContext, token: EventToken) -> Ru
     }
 
     // remove stored poll attachments for this token
-    let attachment_key = event_attachment_key(context, token);
-    event_attachment_map().lock().remove(&attachment_key);
+    let runtime_state = io_runtime_state(context);
+    runtime_state
+        .event_attachments
+        .lock()
+        .remove(&ResourceId(token.0));
 
     io_host::host_event_close(context, token)
 }
@@ -1313,10 +1310,11 @@ pub(super) fn event_signal(
     io_host::host_event_signal(context, token, value)?;
 
     // read current attachment mappings before dispatch
-    let attachment_key = event_attachment_key(context, token);
-    let attachments = event_attachment_map()
+    let runtime_state = io_runtime_state(context);
+    let attachments = runtime_state
+        .event_attachments
         .lock()
-        .get(&attachment_key)
+        .get(&ResourceId(token.0))
         .cloned()
         .unwrap_or_default();
 
@@ -1331,18 +1329,18 @@ pub(super) fn event_signal(
 
     // prune stale attachments that no longer point to live poll handles
     if !stale_targets.is_empty() {
-        let mut attachments_by_token = event_attachment_map().lock();
-        if let Some(attachments) = attachments_by_token.get_mut(&attachment_key) {
+        let mut attachments_by_token = runtime_state.event_attachments.lock();
+        if let Some(attachments) = attachments_by_token.get_mut(&ResourceId(token.0)) {
             for target in stale_targets {
                 attachments.remove(&target);
             }
         }
 
         if matches!(
-            attachments_by_token.get(&attachment_key),
+            attachments_by_token.get(&ResourceId(token.0)),
             Some(attachments) if attachments.is_empty()
         ) {
-            attachments_by_token.remove(&attachment_key);
+            attachments_by_token.remove(&ResourceId(token.0));
         }
     }
 
@@ -1376,10 +1374,10 @@ pub(super) fn event_attach(
     }
 
     // store the attachment routing metadata for this token
-    let attachment_key = event_attachment_key(context, token);
-    let mut attachments = event_attachment_map().lock();
+    let runtime_state = io_runtime_state(context);
+    let mut attachments = runtime_state.event_attachments.lock();
     attachments
-        .entry(attachment_key)
+        .entry(ResourceId(token.0))
         .or_default()
         .insert(target, key);
 

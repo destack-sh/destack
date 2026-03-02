@@ -197,13 +197,7 @@ pub(super) fn open_stream(
     let period_frames = config
         .period_frames
         .max(audio_core::MIN_STREAM_PERIOD_FRAMES);
-    let poll_period = Duration::from_nanos(
-        (period_frames as u64)
-            .saturating_mul(1_000_000_000u64)
-            .checked_div(sample_spec.rate.max(1) as u64)
-            .unwrap_or(1_000_000)
-            .max(1_000_000),
-    );
+    let poll_period = audio_core::resolved_worker_poll_period(period_frames, sample_spec.rate);
 
     let runtime = Arc::new(PulseStreamRuntime {
         library,
@@ -229,6 +223,7 @@ pub(super) fn open_stream(
         sample_rate: runtime.sample_rate,
         channels: runtime.channels,
         period_frames: runtime.period_frames,
+        max_queued_frames: audio_core::resolved_max_queued_frames(),
         share_mode,
         runtime_capabilities: audio_core::AudioStreamRuntimeCapabilities {
             supports_write_at: false,
@@ -244,6 +239,8 @@ pub(super) fn open_stream(
             state: audio_core::Mutex::new(audio_core::initial_stream_state()),
             wake: audio_core::Condvar::new(),
         }),
+        stream_handle_raw: std::sync::atomic::AtomicU64::new(0),
+        event_runtime_state: audio_core::Mutex::new(None),
         null_worker: audio_core::Mutex::new(None),
     });
 

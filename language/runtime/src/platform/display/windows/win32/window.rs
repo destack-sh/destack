@@ -1,6 +1,5 @@
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::time::Duration;
 
@@ -14,17 +13,17 @@ use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AdjustWindowRectEx, CW_USEDEFAULT, ClipCursor, CreateWindowExW, DefWindowProcW, DestroyWindow,
     DispatchMessageW, FLASHW_TIMERNOFG, FLASHW_TRAY, FLASHWINFO, FlashWindowEx, GWL_EXSTYLE,
-    GWL_STYLE, GetClientRect, GetForegroundWindow, GetWindowRect, HWND_NOTOPMOST, HWND_TOPMOST,
-    IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_NO, IDC_SIZEALL,
-    IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT, IsIconic, IsWindowVisible,
-    IsZoomed, LoadCursorW, MSG, PM_REMOVE, PeekMessageW, RegisterClassW, SIZE_MAXIMIZED,
-    SIZE_MINIMIZED, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_SHOW, SW_SHOWNA, SWP_FRAMECHANGED,
-    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetCursor, SetCursorPos,
-    SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowCursor, ShowWindow,
-    TranslateMessage, WA_INACTIVE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_ACTIVATE, WM_CLOSE,
-    WM_DESTROY, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_KILLFOCUS, WM_MOVE, WM_QUIT, WM_SETFOCUS,
-    WM_SHOWWINDOW, WM_SIZE, WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSW, WS_CAPTION,
-    WS_EX_LAYERED, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
+    GWL_STYLE, GWLP_USERDATA, GetClientRect, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect,
+    HWND_NOTOPMOST, HWND_TOPMOST, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS, IDC_HAND, IDC_HELP,
+    IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE, IDC_SIZEWE, IDC_WAIT,
+    IsIconic, IsWindowVisible, IsZoomed, LoadCursorW, MSG, PM_REMOVE, PeekMessageW, RegisterClassW,
+    SIZE_MAXIMIZED, SIZE_MINIMIZED, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_SHOW, SW_SHOWNA,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetCursor,
+    SetCursorPos, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, SetWindowTextW, ShowCursor,
+    ShowWindow, TranslateMessage, WA_INACTIVE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_ACTIVATE,
+    WM_CLOSE, WM_DESTROY, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_KILLFOCUS, WM_MOVE, WM_QUIT,
+    WM_SETFOCUS, WM_SHOWWINDOW, WM_SIZE, WM_THEMECHANGED, WM_WINDOWPOSCHANGED, WNDCLASSW,
+    WS_CAPTION, WS_EX_LAYERED, WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU,
     WS_THICKFRAME,
 };
 
@@ -40,17 +39,14 @@ use crate::runtime::BindingCallContext;
 use super::model::{ExclusiveModeRestore, Win32WindowBinding};
 use super::{core, event, monitor, resource as display_resource};
 
-/// Shared registration state for the Win32 window class.
-static WINDOW_CLASS_REGISTERED: OnceLock<()> = OnceLock::new();
-/// Shared class-name payload for Win32 window class registration.
-static WINDOW_CLASS_NAME: OnceLock<Vec<u16>> = OnceLock::new();
-/// Shared global cursor visibility state.
-static CURSOR_VISIBLE_STATE: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
-/// Monotonic counter used for stable runtime window identifiers.
-static NEXT_WINDOW_IDENTIFIER: AtomicU64 = AtomicU64::new(1);
-/// Shared runtime registry for one live hwnd to one runtime window binding mapping.
-static WINDOW_RUNTIME_REGISTRY: OnceLock<Mutex<HashMap<HWND, WindowRuntimeEntry>>> =
-    OnceLock::new();
+/// Runtime-owned mutable state for win32 window bindings.
+#[derive(Debug, Default)]
+struct WindowRuntimeState {
+    /// Shared global cursor visibility state.
+    cursor_visible_state: Mutex<Option<bool>>,
+    /// Monotonic counter used for stable runtime window identifiers.
+    next_window_identifier: AtomicU64,
+}
 
 /// Runtime mapping payload for one live hwnd.
 #[derive(Clone)]
@@ -59,50 +55,56 @@ struct WindowRuntimeEntry {
     window: resource::WindowHandle,
     /// Weak binding reference for this window.
     binding: Weak<Mutex<Win32WindowBinding>>,
+    /// Runtime-owned display event stream state.
+    event_runtime_state: Arc<event::DisplayEventRuntimeState>,
 }
 
-/// Return one shared global cursor visibility state lock.
-fn cursor_visible_state() -> &'static Mutex<Option<bool>> {
-    CURSOR_VISIBLE_STATE.get_or_init(|| Mutex::new(None))
+/// Return runtime-owned win32 window state.
+fn window_runtime_state(context: &BindingCallContext) -> Arc<WindowRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(WindowRuntimeState::default)
 }
 
-/// Return one shared runtime hwnd registry lock.
-fn window_runtime_registry() -> &'static Mutex<HashMap<HWND, WindowRuntimeEntry>> {
-    WINDOW_RUNTIME_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+/// Allocate one stable runtime window identifier.
+fn next_window_identifier(context: &BindingCallContext) -> u64 {
+    let runtime_state = window_runtime_state(context);
+    runtime_state
+        .next_window_identifier
+        .fetch_add(1, Ordering::Relaxed)
 }
 
 /// Register one live hwnd mapping for runtime window callbacks.
-fn register_runtime_window(
-    hwnd: HWND,
-    window: resource::WindowHandle,
-    binding: &Arc<Mutex<Win32WindowBinding>>,
-) {
-    let mut registry = window_runtime_registry()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    registry.insert(
-        hwnd,
-        WindowRuntimeEntry {
-            window,
-            binding: Arc::downgrade(binding),
-        },
-    );
+fn register_runtime_window(hwnd: HWND, entry: WindowRuntimeEntry) {
+    let entry = Box::new(entry);
+    let entry = Box::into_raw(entry);
+    unsafe {
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, entry as isize);
+    }
 }
 
 /// Unregister one live hwnd mapping.
 fn unregister_runtime_window(hwnd: HWND) {
-    let mut registry = window_runtime_registry()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    let _ = registry.remove(&hwnd);
+    let pointer = unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0) } as *mut WindowRuntimeEntry;
+    if pointer.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(pointer));
+    }
 }
 
 /// Resolve one runtime hwnd entry.
 fn runtime_window_entry(hwnd: HWND) -> Option<WindowRuntimeEntry> {
-    let registry = window_runtime_registry()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    registry.get(&hwnd).cloned()
+    let pointer = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut WindowRuntimeEntry;
+    if pointer.is_null() {
+        return None;
+    }
+
+    let entry = unsafe { &*pointer };
+    Some(entry.clone())
 }
 
 /// Return the current host thread identifier.
@@ -490,10 +492,8 @@ fn refresh_window_snapshot(binding: &mut Win32WindowBinding) {
 }
 
 /// Resolve one class-name payload for Win32 window registration.
-fn window_class_name() -> &'static [u16] {
-    WINDOW_CLASS_NAME
-        .get_or_init(|| core_platform::wide_with_nul("destack_display_win32"))
-        .as_slice()
+fn window_class_name() -> Vec<u16> {
+    core_platform::wide_with_nul("destack_display_win32")
 }
 
 /// Apply one window-message snapshot mutation and publish state deltas.
@@ -593,7 +593,7 @@ fn apply_window_message_snapshot(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_state_deltas(entry.window, &previous, &next);
+    event::publish_state_deltas(&entry.event_runtime_state, entry.window, &previous, &next);
 }
 
 /// Drain pending window-thread messages and dispatch them through the registered wndproc.
@@ -631,7 +631,10 @@ unsafe extern "system" fn display_window_proc(
             if !binding.close_requested_emitted {
                 binding.close_requested_emitted = true;
                 drop(binding);
-                event::publish_window_close_requested_event(entry.window);
+                event::publish_window_close_requested_event(
+                    &entry.event_runtime_state,
+                    entry.window,
+                );
             }
         }
 
@@ -650,7 +653,7 @@ unsafe extern "system" fn display_window_proc(
 
         apply_window_message_snapshot(&entry, message, wparam, lparam);
         if should_emit_destroyed {
-            event::publish_window_destroyed_event(entry.window);
+            event::publish_window_destroyed_event(&entry.event_runtime_state, entry.window);
         }
         unregister_runtime_window(hwnd);
         return 0;
@@ -678,10 +681,6 @@ unsafe extern "system" fn display_window_proc(
 
 /// Ensure the display window class is registered.
 fn ensure_window_class_registered() -> RuntimeResult<()> {
-    if WINDOW_CLASS_REGISTERED.get().is_some() {
-        return Ok(());
-    }
-
     let instance = unsafe { GetModuleHandleW(std::ptr::null()) } as HINSTANCE;
     if instance == 0 {
         return Err(core::io_error(
@@ -718,7 +717,6 @@ fn ensure_window_class_registered() -> RuntimeResult<()> {
         }
     }
 
-    WINDOW_CLASS_REGISTERED.get_or_init(|| ());
     Ok(())
 }
 
@@ -740,13 +738,15 @@ fn mode_target_display(
 
 /// Restore one captured exclusive-fullscreen display mode snapshot.
 fn restore_exclusive_mode(
+    context: &BindingCallContext,
     restore: &ExclusiveModeRestore,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     monitor::apply_monitor_mode_by_id(&restore.display_id, restore.mode, operation)?;
-    event::publish_mode_changed_event(&restore.display_id, restore.mode);
+    event::publish_mode_changed_event(context, &restore.display_id, restore.mode);
     if let Some(snapshot) = monitor::monitor_snapshot_by_id(&restore.display_id)? {
         event::publish_descriptor_changed_event(
+            context,
             &snapshot.descriptor,
             core::DISPLAY_CHANGED_MASK_BOUNDS
                 | core::DISPLAY_CHANGED_MASK_WORKAREA
@@ -779,7 +779,7 @@ fn apply_mode_options(
             && restore.display_id != display_id
         {
             let restore = restore.clone();
-            restore_exclusive_mode(&restore, operation)?;
+            restore_exclusive_mode(context, &restore, operation)?;
             binding.exclusive_restore = None;
         }
 
@@ -799,9 +799,10 @@ fn apply_mode_options(
 
         if let Some(display_mode) = mode.display_mode {
             monitor::apply_monitor_mode_by_id(&display_id, display_mode, operation)?;
-            event::publish_mode_changed_event(&display_id, display_mode);
+            event::publish_mode_changed_event(context, &display_id, display_mode);
             if let Some(snapshot) = monitor::monitor_snapshot_by_id(&display_id)? {
                 event::publish_descriptor_changed_event(
+                    context,
                     &snapshot.descriptor,
                     core::DISPLAY_CHANGED_MASK_BOUNDS
                         | core::DISPLAY_CHANGED_MASK_WORKAREA
@@ -811,7 +812,7 @@ fn apply_mode_options(
             }
         }
     } else if let Some(restore) = binding.exclusive_restore.clone() {
-        restore_exclusive_mode(&restore, operation)?;
+        restore_exclusive_mode(context, &restore, operation)?;
         binding.exclusive_restore = None;
     }
 
@@ -827,8 +828,9 @@ fn apply_mode_options(
 }
 
 /// Set one cursor visibility lane.
-fn set_cursor_visibility(visible: bool) {
-    let mut state = cursor_visible_state()
+fn set_cursor_visibility(runtime_state: &Arc<WindowRuntimeState>, visible: bool) {
+    let mut state = runtime_state
+        .cursor_visible_state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     if *state == Some(visible) {
@@ -853,7 +855,10 @@ fn set_cursor_visibility(visible: bool) {
 }
 
 /// Restore global cursor state when one window is closed.
-fn restore_cursor_after_close(binding: &Win32WindowBinding) {
+fn restore_cursor_after_close(
+    runtime_state: &Arc<WindowRuntimeState>,
+    binding: &Win32WindowBinding,
+) {
     if matches!(
         binding.cursor_mode,
         WindowCursorMode::Confined | WindowCursorMode::Locked
@@ -864,7 +869,7 @@ fn restore_cursor_after_close(binding: &Win32WindowBinding) {
     }
 
     if !binding.cursor_visible || binding.cursor_mode == WindowCursorMode::Hidden {
-        set_cursor_visibility(true);
+        set_cursor_visibility(runtime_state, true);
     }
 }
 
@@ -1042,10 +1047,7 @@ pub(crate) unsafe fn window_open(
 
     let initial_mode = options.mode;
     let mut provisional_binding = Win32WindowBinding {
-        id: format!(
-            "win32-window-{}",
-            NEXT_WINDOW_IDENTIFIER.fetch_add(1, Ordering::Relaxed)
-        ),
+        id: format!("win32-window-{}", next_window_identifier(context)),
         hwnd: 0,
         owner_thread_id: current_thread_id(),
         title: title.clone(),
@@ -1128,9 +1130,20 @@ pub(crate) unsafe fn window_open(
 
     let binding = Arc::new(Mutex::new(provisional_binding));
     let entry = display_resource::window_resource_entry(hwnd, Arc::clone(&binding));
-    let resource_id = context.runtime().resources.insert(entry);
+    let resource_id = context
+        .runtime()
+        .resources
+        .insert(entry, Some(context.engine()));
     let handle = resource::WindowHandle(resource_id);
-    register_runtime_window(hwnd, handle, &binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    register_runtime_window(
+        hwnd,
+        WindowRuntimeEntry {
+            window: handle,
+            binding: Arc::downgrade(&binding),
+            event_runtime_state: Arc::clone(&event_runtime_state),
+        },
+    );
 
     if options.visibility != WindowVisibility::Hidden {
         unsafe {
@@ -1148,7 +1161,7 @@ pub(crate) unsafe fn window_open(
         }
     }
 
-    event::publish_window_created_event(handle);
+    event::publish_window_created_event(&event_runtime_state, handle);
 
     let previous = {
         let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
@@ -1172,7 +1185,7 @@ pub(crate) unsafe fn window_open(
         || previous.occluded != next.occluded
         || previous.theme != next.theme
     {
-        event::publish_state_deltas(handle, &previous, &next);
+        event::publish_state_deltas(&event_runtime_state, handle, &previous, &next);
     }
 
     unsafe {
@@ -1193,11 +1206,12 @@ pub(crate) unsafe fn window_close(
     ensure_window_thread(&binding, "destack.display.window.close")?;
 
     if let Some(restore) = binding.exclusive_restore.clone() {
-        restore_exclusive_mode(&restore, "destack.display.window.close")?;
+        restore_exclusive_mode(context, &restore, "destack.display.window.close")?;
         binding.exclusive_restore = None;
     }
 
-    restore_cursor_after_close(&binding);
+    let runtime_state = window_runtime_state(context);
+    restore_cursor_after_close(&runtime_state, &binding);
     let hwnd = binding.hwnd;
 
     let should_emit_close_requested = !binding.close_requested_emitted;
@@ -1205,9 +1219,10 @@ pub(crate) unsafe fn window_close(
         binding.close_requested_emitted = true;
     }
     drop(binding);
+    let event_runtime_state = event::display_event_runtime_state(context);
 
     if should_emit_close_requested {
-        event::publish_window_close_requested_event(window);
+        event::publish_window_close_requested_event(&event_runtime_state, window);
     }
 
     if unsafe { windows_sys::Win32::UI::WindowsAndMessaging::IsWindow(hwnd) } != 0 {
@@ -1223,13 +1238,16 @@ pub(crate) unsafe fn window_close(
     if !binding.destroyed_emitted {
         binding.destroyed_emitted = true;
         drop(binding);
-        event::publish_window_destroyed_event(window);
+        event::publish_window_destroyed_event(&event_runtime_state, window);
         unregister_runtime_window(hwnd);
     } else {
         drop(binding);
     }
 
-    let removed = context.runtime().resources.remove_and_finalize(window.0);
+    let removed = context
+        .runtime()
+        .resources
+        .remove_and_finalize(window.0, Some(context.engine()));
     if !removed {
         return Err(core::not_found(
             "destack.display.window.close",
@@ -1367,7 +1385,8 @@ pub(crate) unsafe fn window_set_visibility(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_state_deltas(window, &previous, &next);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
 }
@@ -1411,7 +1430,8 @@ pub(crate) unsafe fn window_set_position(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_state_deltas(window, &previous, &next);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
 }
@@ -1469,7 +1489,8 @@ pub(crate) unsafe fn window_set_size_logical(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_state_deltas(window, &previous, &next);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
 }
@@ -1528,7 +1549,8 @@ pub(crate) unsafe fn window_set_size_physical(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_state_deltas(window, &previous, &next);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
 }
@@ -1645,7 +1667,8 @@ pub(crate) unsafe fn window_set_cursor_visible(
     let mut binding = binding.lock().unwrap_or_else(|error| error.into_inner());
     ensure_window_thread(&binding, "destack.display.window.setCursorVisible")?;
 
-    set_cursor_visibility(visible);
+    let runtime_state = window_runtime_state(context);
+    set_cursor_visibility(&runtime_state, visible);
     binding.cursor_visible = visible;
 
     Ok(())
@@ -1736,11 +1759,12 @@ pub(crate) unsafe fn window_set_cursor_mode(
 
     apply_cursor_mode(binding.hwnd, mode, "destack.display.window.setCursorMode")?;
 
+    let runtime_state = window_runtime_state(context);
     if mode == WindowCursorMode::Hidden {
-        set_cursor_visibility(false);
+        set_cursor_visibility(&runtime_state, false);
         binding.cursor_visible = false;
     } else if mode == WindowCursorMode::Normal {
-        set_cursor_visibility(true);
+        set_cursor_visibility(&runtime_state, true);
         binding.cursor_visible = true;
     }
 
@@ -1800,7 +1824,8 @@ pub(crate) unsafe fn window_request_refresh(
     )?;
     let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
     drop(binding);
-    event::publish_window_refresh_event(window);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_window_refresh_event(&event_runtime_state, window);
 
     Ok(())
 }
@@ -1830,11 +1855,12 @@ pub(crate) unsafe fn window_set_mode(
     let next = binding.clone();
     drop(binding);
 
-    event::publish_window_mode_event(window, mode);
+    let event_runtime_state = event::display_event_runtime_state(context);
+    event::publish_window_mode_event(&event_runtime_state, window, mode);
     if previous.display != next.display {
-        event::publish_window_display_event(window, next.display);
+        event::publish_window_display_event(&event_runtime_state, window, next.display);
     }
-    event::publish_state_deltas(window, &previous, &next);
+    event::publish_state_deltas(&event_runtime_state, window, &previous, &next);
 
     Ok(())
 }
@@ -1862,7 +1888,8 @@ pub(crate) unsafe fn window_vsync_wait(
     }
     drop(binding);
 
-    let sleep_ns = timeoutns.min(core::FALLBACK_VSYNC_INTERVAL_NS);
+    let fallback_vsync_interval_ns = core::fallback_vsync_interval_ns(context);
+    let sleep_ns = timeoutns.min(fallback_vsync_interval_ns);
     thread::sleep(Duration::from_nanos(sleep_ns));
 
     Ok(())

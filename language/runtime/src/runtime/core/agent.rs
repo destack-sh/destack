@@ -1,13 +1,15 @@
-use std::collections::BTreeMap;
+use std::any::{Any, TypeId};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_heap as heap;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{AgentErrorStore, RuntimeResult};
 use crate::host::{Host, HostEventKind};
 use crate::platform::{PlatformContext, ResourceId, ResourceTable};
-use crate::runtime::Hooks;
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry, BindingReplayPayload};
 use crate::runtime::engine::EngineContinuation;
 use crate::runtime::memory::Heap;
@@ -19,12 +21,116 @@ use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
 use crate::runtime::time::{Clock, HostClockSource};
 use crate::runtime::world::World;
+use crate::runtime::{Hooks, RuntimeFinalizers};
 use destack_workspace::{
-    ExecutionMode, RandomMode, ReplayOptions, ReplayPayloadMode, RuntimeOptions, TimeMode,
+    ExecutionMode, PlatformAudioOptions, PlatformCryptoOptions, PlatformDebugOptions,
+    PlatformDeviceOptions, PlatformDisplayOptions, PlatformErrorOptions, PlatformFfiOptions,
+    PlatformFsOptions, PlatformGpuOptions, PlatformInputOptions, PlatformIoOptions,
+    PlatformIpcOptions, PlatformMemoryOptions, PlatformNetOptions, PlatformOptions,
+    PlatformOsOptions, PlatformProcessOptions, PlatformResourceOptions, PlatformSecurityOptions,
+    PlatformThreadOptions, PlatformTlsOptions, PlatformTtyOptions, RandomMode, ReplayOptions,
+    ReplayPayloadMode, RuntimeOptions, TimeMode,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
+/// Global agent-state id sequence for stable per-agent identity.
+static NEXT_AGENT_INSTANCE_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Resolved module runtime options for the current compile target.
+#[derive(Debug, Clone)]
+pub struct ResolvedModuleOptions {
+    /// Filesystem module options for this runtime target.
+    pub fs: PlatformFsOptions,
+    /// Network module options for this runtime target.
+    pub net: PlatformNetOptions,
+    /// Process module options for this runtime target.
+    pub process: PlatformProcessOptions,
+    /// Audio module options for this runtime target.
+    pub audio: PlatformAudioOptions,
+    /// Input module options for this runtime target.
+    pub input: PlatformInputOptions,
+    /// GPU module options for this runtime target.
+    pub gpu: PlatformGpuOptions,
+    /// TLS module options for this runtime target.
+    pub tls: PlatformTlsOptions,
+    /// Security module options for this runtime target.
+    pub security: PlatformSecurityOptions,
+    /// OS service module options for this runtime target.
+    pub os: PlatformOsOptions,
+    /// Device service module options for this runtime target.
+    pub device: PlatformDeviceOptions,
+    /// Crypto module options for this runtime target.
+    pub crypto: PlatformCryptoOptions,
+    /// Debug module options for this runtime target.
+    pub debug: PlatformDebugOptions,
+    /// Display module options for this runtime target.
+    pub display: PlatformDisplayOptions,
+    /// Error module options for this runtime target.
+    pub error: PlatformErrorOptions,
+    /// FFI module options for this runtime target.
+    pub ffi: PlatformFfiOptions,
+    /// I/O module options for this runtime target.
+    pub io: PlatformIoOptions,
+    /// IPC module options for this runtime target.
+    pub ipc: PlatformIpcOptions,
+    /// Memory module options for this runtime target.
+    pub memory: PlatformMemoryOptions,
+    /// Resource module options for this runtime target.
+    pub resource: PlatformResourceOptions,
+    /// Thread module options for this runtime target.
+    pub thread: PlatformThreadOptions,
+    /// TTY module options for this runtime target.
+    pub tty: PlatformTtyOptions,
+}
+
+/// Agent-owned typed storage for module-local mutable state.
+#[derive(Debug, Default)]
+pub struct ModuleStateStore {
+    /// Per-type singleton state entries for this agent instance.
+    entries: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
+}
+
+impl ModuleStateStore {
+    /// Return one existing typed state entry when present.
+    pub fn get<T>(&self) -> Option<Arc<T>>
+    where
+        T: Send + Sync + 'static,
+    {
+        let entries = self.entries.read();
+        let value = entries.get(&TypeId::of::<T>())?.clone();
+
+        value.downcast::<T>().ok()
+    }
+
+    /// Return one typed state entry, initializing it once when missing.
+    pub fn get_or_init<T>(&self, initialize: impl FnOnce() -> T) -> Arc<T>
+    where
+        T: Send + Sync + 'static,
+    {
+        if let Some(value) = self.get::<T>() {
+            return value;
+        }
+
+        let mut entries = self.entries.write();
+        let type_id = TypeId::of::<T>();
+        if let Some(existing) = entries.get(&type_id) {
+            let value = existing.clone();
+            let value = value.downcast::<T>().unwrap_or_else(|_| {
+                panic!(
+                    "agent module state type collision for {}",
+                    std::any::type_name::<T>()
+                )
+            });
+
+            return value;
+        }
+
+        let value = Arc::new(initialize());
+        entries.insert(type_id, value.clone());
+        value
+    }
+}
 
 /// Stable identifier for one runtime-managed agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -34,6 +140,8 @@ pub struct AgentId(pub u64);
 pub struct Agent {
     /// Monotonic process-local agent identity.
     pub id: AgentId,
+    /// Monotonic process-local agent state identity.
+    pub instance_id: u64,
     /// Stable agent name for selector matching.
     pub name: String,
     /// Agent labels for selector matching.
@@ -46,11 +154,19 @@ pub struct Agent {
     pub world: Arc<World>,
     /// Immutable runtime options.
     pub options: RuntimeOptions,
+    /// Platform-specific runtime configuration options.
+    pub platform_options: PlatformOptions,
+    /// Resolved module options for this compile target.
+    pub module_options: ResolvedModuleOptions,
 
     /// External resource table and finalizers.
     pub resources: ResourceTable,
     /// Agent hooks and effect state.
     pub hooks: Arc<Hooks>,
+    /// Agent-level finalizer registry for module services.
+    pub finalizers: RuntimeFinalizers,
+    /// Agent-owned module mutable state store.
+    pub module_state: ModuleStateStore,
     /// Agent error storage for native bindings.
     pub errors: AgentErrorStore,
     /// External binding registry and policy enforcement.
@@ -69,8 +185,11 @@ impl std::fmt::Debug for Agent {
             .field("labels", &self.labels)
             .field("platform", &self.platform)
             .field("options", &self.options)
+            .field("platform_options", &self.platform_options)
+            .field("module_options", &self.module_options)
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
+            .field("finalizers", &self.finalizers)
             .field("host", &self.host)
             .field("world", &self.world)
             .field("errors", &self.errors)
@@ -204,12 +323,17 @@ impl Agent {
         // agent state
         Ok(Self {
             id: agent_id,
+            instance_id: NEXT_AGENT_INSTANCE_ID.fetch_add(1, Ordering::Relaxed),
             name: agent_name,
             labels: agent_labels,
             platform,
             options: options.clone(),
+            platform_options: options.platform.clone(),
+            module_options: ResolvedModuleOptions::from_runtime_options(options),
             resources,
             hooks,
+            finalizers: RuntimeFinalizers::default(),
+            module_state: ModuleStateStore::default(),
             host: Host::from_runtime_options(options),
             world,
             errors: AgentErrorStore::default(),
@@ -378,6 +502,42 @@ impl Default for Agent {
             Err(error) => {
                 panic!("default runtime options should build an agent: {error:?}");
             }
+        }
+    }
+}
+
+impl Drop for Agent {
+    /// Run agent-level finalizers when agent state is released.
+    fn drop(&mut self) {
+        self.finalizers.run_all();
+    }
+}
+
+impl ResolvedModuleOptions {
+    /// Resolve global module options for the current compile target.
+    fn from_runtime_options(options: &RuntimeOptions) -> Self {
+        Self {
+            fs: options.fs.clone(),
+            net: options.net.clone(),
+            process: options.process.clone(),
+            audio: options.audio.clone(),
+            input: options.input.clone(),
+            gpu: options.gpu.clone(),
+            tls: options.tls.clone(),
+            security: options.security.clone(),
+            os: options.os.clone(),
+            device: options.device.clone(),
+            crypto: options.crypto.clone(),
+            debug: options.debug.clone(),
+            display: options.display.clone(),
+            error: options.error.clone(),
+            ffi: options.ffi.clone(),
+            io: options.io.clone(),
+            ipc: options.ipc.clone(),
+            memory: options.memory.clone(),
+            resource: options.resource.clone(),
+            thread: options.thread.clone(),
+            tty: options.tty.clone(),
         }
     }
 }

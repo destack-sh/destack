@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use destack_workspace::PlatformWindowsPacketBackend;
 use parking_lot::Mutex;
@@ -115,7 +115,7 @@ const BPF_MISC_TAX: u16 = 0x00;
 const BPF_MISC_TXA: u16 = 0x80;
 
 /// One classic BPF instruction row.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 struct ClassicBpfInstruction {
     /// BPF opcode.
@@ -129,7 +129,7 @@ struct ClassicBpfInstruction {
 }
 
 /// Runtime packet-socket metadata for one Windows raw socket endpoint.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct WindowsPacketState {
     /// Bound interface index reported in capture records.
     interface_index: u32,
@@ -152,12 +152,17 @@ struct WindowsPacketState {
 struct WindowsPacketFinalizer {
     /// Raw WinSock socket descriptor.
     socket: SOCKET,
+    /// Runtime-owned packet state table.
+    runtime_state: Arc<WindowsPacketRuntimeState>,
 }
 
 impl WindowsPacketFinalizer {
     /// Build one packet-socket finalizer for one raw socket.
-    fn new(socket: SOCKET) -> Self {
-        Self { socket }
+    fn new(socket: SOCKET, runtime_state: Arc<WindowsPacketRuntimeState>) -> Self {
+        Self {
+            socket,
+            runtime_state,
+        }
     }
 }
 
@@ -170,17 +175,32 @@ impl ResourceFinalizer for WindowsPacketFinalizer {
         }
 
         // clear packet metadata for this resource id
-        PACKET_SOCKET_STATES.lock().remove(&resource_id);
+        self.runtime_state.socket_states.lock().remove(&resource_id);
     }
 }
 
-/// Packet-state table for Windows packet sockets.
-static PACKET_SOCKET_STATES: LazyLock<Mutex<HashMap<ResourceId, WindowsPacketState>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+/// Runtime-owned mutable state for windows packet sockets.
+#[derive(Debug, Default)]
+struct WindowsPacketRuntimeState {
+    /// Packet metadata keyed by runtime resource id.
+    socket_states: Mutex<HashMap<ResourceId, WindowsPacketState>>,
+}
+
+/// Return runtime-owned windows packet state.
+fn windows_packet_runtime_state(context: &BindingCallContext) -> Arc<WindowsPacketRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(WindowsPacketRuntimeState::default)
+}
 
 /// Return configured packet backend mode for Windows packet lanes.
 fn windows_packet_backend_mode(context: &BindingCallContext) -> PlatformWindowsPacketBackend {
-    context.runtime().options.windows.net_packet_backend
+    context
+        .runtime()
+        .platform_options
+        .windows
+        .net_packet_backend
 }
 
 /// Return one `notSupported` error for unsupported Windows packet lanes.
@@ -363,7 +383,9 @@ fn packet_socket_metadata(
     let socket = socket_descriptor(context, handle)?;
 
     // resolve one packet metadata row for packet-only lanes
-    let state = PACKET_SOCKET_STATES
+    let runtime_state = windows_packet_runtime_state(context);
+    let state = runtime_state
+        .socket_states
         .lock()
         .get(&handle.0)
         .cloned()
@@ -740,10 +762,12 @@ fn evaluate_filter_program(instructions: &[ClassicBpfInstruction], packet: &[u8]
 
 /// Update one packet metadata row in place.
 fn update_packet_socket_state(
+    context: &BindingCallContext,
     handle: SocketHandle,
     update: impl FnOnce(&mut WindowsPacketState),
 ) -> RuntimeResult<()> {
-    let mut states = PACKET_SOCKET_STATES.lock();
+    let runtime_state = windows_packet_runtime_state(context);
+    let mut states = runtime_state.socket_states.lock();
     let state = states.get_mut(&handle.0).ok_or_else(|| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -840,16 +864,20 @@ pub(crate) unsafe fn destack_net_packet_open(
     }
 
     // register one packet socket resource and one packet metadata row
+    let runtime_state = windows_packet_runtime_state(context);
     let entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(socket as _)
-        .with_finalizer(WindowsPacketFinalizer::new(socket));
+        .with_finalizer(WindowsPacketFinalizer::new(
+            socket,
+            Arc::clone(&runtime_state),
+        ));
     let resource_id = context
         .runtime()
         .resources
         .insert(entry, Some(context.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);
     let snap_length = snap_length.clamp(1, WINDOWS_PACKET_MAX_LENGTH);
-    PACKET_SOCKET_STATES.lock().insert(
+    runtime_state.socket_states.lock().insert(
         resource_id,
         WindowsPacketState {
             interface_index: options.interface_index,
@@ -948,7 +976,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
             break bytes;
         }
 
-        update_packet_socket_state(handle, |state| {
+        update_packet_socket_state(context, handle, |state| {
             state.dropped_packets = state.dropped_packets.saturating_add(1);
         })?;
     };
@@ -972,7 +1000,7 @@ pub(crate) unsafe fn destack_net_packet_receive(
     };
 
     // update packet counters after a successful receive
-    update_packet_socket_state(handle, |state| {
+    update_packet_socket_state(context, handle, |state| {
         state.received_packets = state.received_packets.saturating_add(1);
         if truncated {
             state.dropped_packets = state.dropped_packets.saturating_add(1);
@@ -1084,7 +1112,7 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 
     // ensure one packet endpoint exists and store the timestamp mode
     let _ = packet_socket_metadata(context, handle)?;
-    update_packet_socket_state(handle, |state| {
+    update_packet_socket_state(context, handle, |state| {
         state.timestamp_mode = mode;
     })?;
 
@@ -1147,7 +1175,7 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 
     // ensure one packet endpoint exists and clear the active filter
     let _ = packet_socket_metadata(context, handle)?;
-    update_packet_socket_state(handle, |state| {
+    update_packet_socket_state(context, handle, |state| {
         state.filter_program = None;
     })?;
 
@@ -1247,7 +1275,7 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
     let filter_program = Arc::<[ClassicBpfInstruction]>::from(instructions.into_boxed_slice());
 
     // install the filter program on the packet endpoint
-    update_packet_socket_state(handle, |state| {
+    update_packet_socket_state(context, handle, |state| {
         state.filter_program = Some(filter_program);
     })?;
 

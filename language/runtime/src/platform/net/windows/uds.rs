@@ -1,4 +1,5 @@
 use std::mem;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use windows_sys::Win32::Networking::WinSock::{
@@ -17,7 +18,21 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::runtime::BindingCallContext;
 
 /// Monotonic suffix for temporary UDS socket-pair paths.
-static NEXT_UDS_SOCKET_PAIR_ID: AtomicU64 = AtomicU64::new(1);
+#[derive(Debug, Default)]
+struct WindowsUdsRuntimeState {
+    /// Monotonic suffix for temporary UDS socket-pair paths.
+    next_socket_pair_id: AtomicU64,
+}
+
+/// Return runtime-owned state for windows UDS helpers.
+fn windows_uds_runtime_state(context: &BindingCallContext) -> Arc<WindowsUdsRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(|| WindowsUdsRuntimeState {
+            next_socket_pair_id: AtomicU64::new(1),
+        })
+}
 
 /// Convert a OsPath into a UTF-8 byte buffer.
 fn uds_path_bytes(path: OsPath) -> RuntimeResult<Vec<u8>> {
@@ -68,10 +83,13 @@ fn uds_sockaddr(path: OsPath) -> RuntimeResult<(SOCKADDR_UN, i32)> {
 }
 
 /// Build one unique temporary path for UDS socket-pair emulation.
-fn temporary_uds_socket_pair_path() -> String {
+fn temporary_uds_socket_pair_path(context: &BindingCallContext) -> String {
     // build a deterministic short filename suffix
+    let runtime_state = windows_uds_runtime_state(context);
     let pid = unsafe { GetCurrentProcessId() };
-    let suffix = NEXT_UDS_SOCKET_PAIR_ID.fetch_add(1, Ordering::Relaxed);
+    let suffix = runtime_state
+        .next_socket_pair_id
+        .fetch_add(1, Ordering::Relaxed);
     let file_name = format!("destack-net-{pid}-{suffix}.sock");
 
     // prefer the system temp directory when it fits into sockaddr_un
@@ -334,7 +352,7 @@ pub(crate) unsafe fn destack_net_uds_socket_pair(
     ensure_winsock()?;
 
     // allocate one temporary filesystem path for the pair setup
-    let socket_path = temporary_uds_socket_pair_path();
+    let socket_path = temporary_uds_socket_pair_path(context);
     let (address, address_length) = uds_sockaddr_from_bytes(socket_path.as_bytes())?;
 
     // create one listener socket

@@ -1,4 +1,6 @@
 use super::*;
+use std::sync::Weak;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// One normalized host device descriptor.
 #[derive(Debug, Clone)]
@@ -176,6 +178,8 @@ pub(crate) struct AudioStreamBinding {
     pub(crate) channels: u16,
     /// Effective host period in frames.
     pub(crate) period_frames: u32,
+    /// Effective per-stream queued frame budget.
+    pub(crate) max_queued_frames: usize,
     /// Effective share mode.
     pub(crate) share_mode: AudioShareMode,
     /// Runtime capability snapshot for this stream instance.
@@ -186,6 +190,10 @@ pub(crate) struct AudioStreamBinding {
     pub(crate) name: Mutex<String>,
     /// Shared runtime state.
     pub(crate) sync: Arc<AudioStreamSync>,
+    /// Bound stream handle once this binding is inserted into the resource table.
+    pub(crate) stream_handle_raw: AtomicU64,
+    /// Event-runtime owner used by cross-thread native event publishing.
+    pub(crate) event_runtime_state: Mutex<Option<Weak<AudioEventRuntimeState>>>,
     /// Optional null backend worker thread.
     pub(crate) null_worker: Mutex<Option<JoinHandle<()>>>,
 }
@@ -198,6 +206,7 @@ impl std::fmt::Debug for AudioStreamBinding {
             .field("sample_rate", &self.sample_rate)
             .field("channels", &self.channels)
             .field("period_frames", &self.period_frames)
+            .field("max_queued_frames", &self.max_queued_frames)
             .field("share_mode", &self.share_mode)
             .finish()
     }
@@ -206,12 +215,24 @@ impl std::fmt::Debug for AudioStreamBinding {
 impl AudioStreamBinding {
     /// Return queued playback samples capacity.
     pub(crate) fn playback_capacity_samples(&self) -> usize {
-        MAX_QUEUED_FRAMES.saturating_mul(self.channels as usize)
+        self.max_queued_frames
+            .saturating_mul(self.channels as usize)
     }
 
     /// Return queued capture samples capacity.
     pub(crate) fn capture_capacity_samples(&self) -> usize {
-        MAX_QUEUED_FRAMES.saturating_mul(self.channels as usize)
+        self.max_queued_frames
+            .saturating_mul(self.channels as usize)
+    }
+
+    /// Return the bound stream handle when this binding has been registered.
+    pub(crate) fn stream_handle(&self) -> Option<resource::AudioStreamHandle> {
+        let raw = self.stream_handle_raw.load(Ordering::Acquire);
+        if raw == 0 {
+            return None;
+        }
+
+        Some(resource::AudioStreamHandle(resource::ResourceId(raw)))
     }
 
     /// Return one buffered playback frame count.

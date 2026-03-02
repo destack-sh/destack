@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_ACCESS_DENIED,
@@ -83,8 +84,123 @@ const WINDOW_TARGET_DEFAULT_RESOURCE_ID: u64 = 0;
 const XINPUT_PLAYER_INDEX_MIN: u8 = 1;
 /// Maximum supported XInput player index.
 const XINPUT_PLAYER_INDEX_MAX: u8 = 4;
-/// Number of active console input streams.
-pub(super) static WINDOWS_CONSOLE_STREAMS: AtomicUsize = AtomicUsize::new(0);
+/// Default poll interval for blocking XInput reads.
+const DEFAULT_XINPUT_POLL_INTERVAL_NS: u64 = 1_000_000;
+/// Default queue capacity for Windows console record buffering.
+const DEFAULT_WINDOWS_CONSOLE_RECORD_QUEUE_CAPACITY: usize = 4096;
+/// Default queue capacity for Windows console composition buffering.
+const DEFAULT_WINDOWS_CONSOLE_COMPOSITION_QUEUE_CAPACITY: usize = 4096;
+/// Default queue capacity for Windows raw-input buffering.
+const DEFAULT_WINDOWS_RAW_INPUT_QUEUE_CAPACITY: usize = 8192;
+/// Default queue capacity for Windows raw-monitor buffering.
+const DEFAULT_WINDOWS_RAW_MONITOR_QUEUE_CAPACITY: usize = 1024;
+/// Default queue capacity for Windows raw-hid buffering.
+const DEFAULT_WINDOWS_RAW_HID_QUEUE_CAPACITY: usize = 4096;
+/// Default queue capacity for Windows raw-touch buffering.
+const DEFAULT_WINDOWS_RAW_TOUCH_QUEUE_CAPACITY: usize = 2048;
+
+/// Runtime-owned mutable state for windows input core bindings.
+#[derive(Debug, Default)]
+pub(super) struct WindowsInputCoreRuntimeState {
+    /// Number of active console input streams in this runtime.
+    pub(super) console_streams: AtomicUsize,
+}
+
+/// Return runtime-owned windows input core state.
+pub(super) fn windows_input_core_runtime_state(
+    context: &BindingCallContext,
+) -> Arc<WindowsInputCoreRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(WindowsInputCoreRuntimeState::default)
+}
+
+/// Resolve one optional queue capacity override from runtime options.
+fn configured_capacity(value: Option<u64>, default: usize) -> usize {
+    value
+        .and_then(|configured| usize::try_from(configured).ok())
+        .unwrap_or(default)
+        .max(1)
+}
+
+/// Return the configured queue capacity for windows console records.
+pub(super) fn windows_console_record_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_console_record_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_CONSOLE_RECORD_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured queue capacity for windows console composition events.
+pub(super) fn windows_console_composition_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_console_composition_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_CONSOLE_COMPOSITION_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured queue capacity for windows raw input events.
+pub(super) fn windows_raw_input_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_raw_input_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_RAW_INPUT_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured queue capacity for windows raw monitor events.
+pub(super) fn windows_raw_monitor_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_raw_monitor_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_RAW_MONITOR_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured queue capacity for windows raw hid events.
+pub(super) fn windows_raw_hid_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_raw_hid_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_RAW_HID_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured queue capacity for windows raw touch events.
+pub(super) fn windows_raw_touch_queue_capacity(context: &BindingCallContext) -> usize {
+    let options = &context.runtime().module_options.input;
+    configured_capacity(
+        options
+            .windows_raw_touch_queue_capacity
+            .or(options.event_queue_capacity),
+        DEFAULT_WINDOWS_RAW_TOUCH_QUEUE_CAPACITY,
+    )
+}
+
+/// Return the configured polling interval for blocking xinput reads.
+pub(super) fn xinput_poll_interval(context: &BindingCallContext) -> Duration {
+    let options = &context.runtime().module_options.input;
+    let interval_ns = options
+        .xinput_poll_interval_ns
+        .or(options.monitor_poll_interval_ns)
+        .unwrap_or(DEFAULT_XINPUT_POLL_INTERVAL_NS)
+        .max(1);
+
+    Duration::from_nanos(interval_ns)
+}
 
 /// Build one zeroed payload shell for event-kind projection.
 pub(super) fn empty_event_payload(context: &BindingCallContext) -> InputEventPayload {
@@ -366,6 +482,8 @@ pub(super) struct WindowsInputFinalizer {
     pub(super) restore_mode: Option<u32>,
     /// Whether this finalizer releases the singleton console stream lane.
     pub(super) release_console_lane: bool,
+    /// Runtime-owned console-stream state for lane accounting.
+    pub(super) runtime_state: Option<Arc<WindowsInputCoreRuntimeState>>,
 }
 
 /// Resolved input-handle state for one read or control operation.
@@ -417,7 +535,9 @@ impl ResourceFinalizer for WindowsInputFinalizer {
         }
 
         if self.release_console_lane {
-            WINDOWS_CONSOLE_STREAMS.fetch_sub(1, Ordering::AcqRel);
+            if let Some(runtime_state) = self.runtime_state {
+                runtime_state.console_streams.fetch_sub(1, Ordering::AcqRel);
+            }
         }
     }
 }
@@ -427,12 +547,14 @@ impl ResourceFinalizer for WindowsInputFinalizer {
 pub(super) struct RawInputDeviceFinalizer {
     /// Registered raw-input device identifier.
     pub(super) device_id: String,
+    /// Runtime-owned raw-input mutable state.
+    pub(super) runtime_state: Arc<raw_input::WindowsRawInputRuntimeState>,
 }
 
 impl ResourceFinalizer for RawInputDeviceFinalizer {
     /// Release one registered raw-input stream on resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        raw_input::release_input_stream(&self.device_id);
+        raw_input::release_input_stream(&self.runtime_state, &self.device_id);
     }
 }
 
@@ -621,8 +743,12 @@ pub(super) fn duplicate_console_handle(handle: HANDLE) -> RuntimeResult<HANDLE> 
 }
 
 /// Acquire the singleton console stream lane for this process.
-pub(super) fn acquire_console_stream(operation: &'static str) -> RuntimeResult<()> {
-    let mut current = WINDOWS_CONSOLE_STREAMS.load(Ordering::Acquire);
+pub(super) fn acquire_console_stream(
+    context: &BindingCallContext,
+    operation: &'static str,
+) -> RuntimeResult<Arc<WindowsInputCoreRuntimeState>> {
+    let runtime_state = windows_input_core_runtime_state(context);
+    let mut current = runtime_state.console_streams.load(Ordering::Acquire);
     loop {
         if current > 0 {
             return Err(RuntimeError::from(PlatformError::io_with(
@@ -636,13 +762,13 @@ pub(super) fn acquire_console_stream(operation: &'static str) -> RuntimeResult<(
             .boxed());
         }
 
-        match WINDOWS_CONSOLE_STREAMS.compare_exchange_weak(
+        match runtime_state.console_streams.compare_exchange_weak(
             current,
             current + 1,
             Ordering::AcqRel,
             Ordering::Acquire,
         ) {
-            Ok(_) => return Ok(()),
+            Ok(_) => return Ok(runtime_state),
             Err(next) => current = next,
         }
     }

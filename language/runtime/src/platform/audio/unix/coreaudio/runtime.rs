@@ -6,8 +6,6 @@ use std::ptr;
 use std::sync::Arc;
 #[cfg(target_os = "macos")]
 use std::thread;
-#[cfg(target_os = "macos")]
-use std::time::Duration;
 
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
@@ -323,6 +321,9 @@ pub(super) fn spawn_cleanup_thread(
     binding: Arc<audio_core::AudioStreamBinding>,
     runtime: Arc<CoreAudioStreamRuntime>,
 ) -> std::thread::JoinHandle<()> {
+    let wait_interval =
+        audio_core::resolved_worker_poll_period(binding.period_frames, binding.sample_rate);
+
     thread::spawn(move || {
         let mut state = binding
             .sync
@@ -333,7 +334,7 @@ pub(super) fn spawn_cleanup_thread(
             let wait = binding
                 .sync
                 .wake
-                .wait_timeout(state, Duration::from_millis(25))
+                .wait_timeout(state, wait_interval)
                 .unwrap_or_else(|error| error.into_inner());
             state = wait.0;
         }

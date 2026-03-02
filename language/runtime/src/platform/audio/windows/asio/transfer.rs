@@ -128,6 +128,7 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     if !runtime.input_lanes.is_empty() {
         if let Some(encoding) = runtime.input_encoding {
             transfer_capture_block(
+                &binding,
                 runtime,
                 &mut state,
                 &runtime.input_lanes,
@@ -217,6 +218,7 @@ fn transfer_playback_block(
 
 /// Transfer one capture callback block from ASIO input lane buffers.
 fn transfer_capture_block(
+    binding: &Arc<audio_core::AudioStreamBinding>,
     runtime: &Arc<AsioStreamRuntime>,
     state: &mut audio_core::AudioStreamStateInner,
     input_lanes: &[AsioBufferLane],
@@ -228,7 +230,7 @@ fn transfer_capture_block(
         return;
     }
 
-    let capture_capacity = runtime.channels as usize * audio_core::MAX_QUEUED_FRAMES;
+    let capture_capacity = binding.capture_capacity_samples();
 
     // read one de-interleaved input block into the capture sample queue
     for frame_index in 0usize..runtime.period_frames as usize {

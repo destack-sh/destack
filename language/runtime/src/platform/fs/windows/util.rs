@@ -741,6 +741,7 @@ pub(super) fn posix_sids(
     let domain_sid = context
         .runtime()
         .options
+        .platform
         .windows
         .posix_domain_sid
         .as_deref()

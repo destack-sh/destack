@@ -266,13 +266,19 @@ pub(crate) fn backend_native_device_events_supported(backend: AudioBackend) -> b
 }
 
 /// Start one backend native device-event monitor.
-pub(crate) fn start_backend_native_device_events(backend: AudioBackend) -> RuntimeResult<()> {
-    start_backend_native_device_events_impl(backend)
+pub(crate) fn start_backend_native_device_events(
+    context: &BindingCallContext,
+    backend: AudioBackend,
+) -> RuntimeResult<()> {
+    start_backend_native_device_events_impl(context, backend)
 }
 
 /// Stop one backend native device-event monitor.
-pub(crate) fn stop_backend_native_device_events(backend: AudioBackend) {
-    stop_backend_native_device_events_impl(backend)
+pub(crate) fn stop_backend_native_device_events(
+    context: &BindingCallContext,
+    backend: AudioBackend,
+) {
+    stop_backend_native_device_events_impl(context, backend)
 }
 
 /// Return one standardized unsupported error for host MIDI lanes.

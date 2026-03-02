@@ -71,6 +71,7 @@ fn test_audio_event_open_native_only_delivers_stream_events_without_polling() {
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
         event_options.stream = Some(stream);
+        event_options.poll_interval_ns = audio_core::MAX_EVENT_POLL_INTERVAL_NS;
         event_options.delivery_mode = AudioEventDeliveryMode::NativeOnly;
         let event_options = harness_event_options(&mut context, event_options);
         let events = context.destack_audio_event_open(event_options)?;

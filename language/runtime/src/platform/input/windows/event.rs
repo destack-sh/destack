@@ -1,9 +1,9 @@
 use super::{core as input_core, raw as raw_input, xinput as xinput_input};
 use std::collections::VecDeque;
 use std::mem::MaybeUninit;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use std::time::Duration;
 
 use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::System::Console::{
@@ -30,8 +30,23 @@ use crate::runtime::BindingCallContext;
 
 /// Resource-table label for opened monitor stream entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
-/// Number of active windows monitor streams.
-static WINDOWS_MONITOR_STREAMS: AtomicUsize = AtomicUsize::new(0);
+
+/// Runtime-owned mutable state for windows input event bindings.
+#[derive(Debug, Default)]
+struct WindowsInputEventRuntimeState {
+    /// Number of active monitor streams in this runtime instance.
+    monitor_streams: AtomicUsize,
+}
+
+/// Return runtime-owned windows input-event state.
+fn windows_input_event_runtime_state(
+    context: &BindingCallContext,
+) -> Arc<WindowsInputEventRuntimeState> {
+    context
+        .runtime()
+        .module_state
+        .get_or_init(WindowsInputEventRuntimeState::default)
+}
 
 /// Resource payload for one windows monitor handle.
 #[derive(Debug)]
@@ -51,12 +66,17 @@ fn set_monitor_event_sequence(event: &mut InputMonitorEvent, sequence: u64) {
 
 /// Finalizer payload for monitor stream ownership.
 #[derive(Debug)]
-struct WindowsMonitorFinalizer;
+struct WindowsMonitorFinalizer {
+    /// Runtime-owned monitor stream counter.
+    runtime_state: Arc<WindowsInputEventRuntimeState>,
+}
 
 impl ResourceFinalizer for WindowsMonitorFinalizer {
     /// Release one monitor stream lane on resource finalization.
     fn finalize(self: Box<Self>, _resource_id: ResourceId) {
-        WINDOWS_MONITOR_STREAMS.fetch_sub(1, Ordering::AcqRel);
+        self.runtime_state
+            .monitor_streams
+            .fetch_sub(1, Ordering::AcqRel);
     }
 }
 
@@ -105,8 +125,12 @@ fn validate_monitor_handle(
 }
 
 /// Acquire one singleton monitor stream lane.
-fn acquire_monitor_stream(operation: &'static str) -> RuntimeResult<()> {
-    let mut current = WINDOWS_MONITOR_STREAMS.load(Ordering::Acquire);
+fn acquire_monitor_stream(
+    context: &BindingCallContext,
+    operation: &'static str,
+) -> RuntimeResult<Arc<WindowsInputEventRuntimeState>> {
+    let runtime_state = windows_input_event_runtime_state(context);
+    let mut current = runtime_state.monitor_streams.load(Ordering::Acquire);
     loop {
         if current > 0 {
             return Err(RuntimeError::from(PlatformError::io_with(
@@ -120,13 +144,13 @@ fn acquire_monitor_stream(operation: &'static str) -> RuntimeResult<()> {
             .boxed());
         }
 
-        match WINDOWS_MONITOR_STREAMS.compare_exchange_weak(
+        match runtime_state.monitor_streams.compare_exchange_weak(
             current,
             current + 1,
             Ordering::AcqRel,
             Ordering::Acquire,
         ) {
-            Ok(_) => return Ok(()),
+            Ok(_) => return Ok(runtime_state),
             Err(next) => current = next,
         }
     }
@@ -176,8 +200,10 @@ const POINTER_BUTTON_X1: u32 = 1u32 << 3;
 /// Stable bit for x2 pointer button in pointer snapshots.
 const POINTER_BUTTON_X2: u32 = 1u32 << 4;
 /// Maximum queued console records per opened console handle.
+#[cfg(test)]
 const WINDOWS_PENDING_CONSOLE_RECORD_LIMIT: usize = 4096;
 /// Maximum queued composition events per opened console handle.
+#[cfg(test)]
 const WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT: usize = 4096;
 
 /// One mapped console record result with optional deferred transitions.
@@ -704,8 +730,9 @@ fn composition_code_unit_from_console_record(record: &INPUT_RECORD) -> Option<u1
 fn push_bounded_console_record(
     queue: &mut VecDeque<input_core::PendingConsoleRecord>,
     pending_record: input_core::PendingConsoleRecord,
+    queue_capacity: usize,
 ) {
-    if queue.len() >= WINDOWS_PENDING_CONSOLE_RECORD_LIMIT {
+    if queue.len() >= queue_capacity {
         queue.pop_front();
     }
 
@@ -716,8 +743,9 @@ fn push_bounded_console_record(
 fn push_bounded_console_composition_event(
     queue: &mut VecDeque<input_core::PendingConsoleCompositionEvent>,
     pending_event: input_core::PendingConsoleCompositionEvent,
+    queue_capacity: usize,
 ) {
-    if queue.len() >= WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT {
+    if queue.len() >= queue_capacity {
         queue.pop_front();
     }
 
@@ -781,6 +809,10 @@ pub(super) fn queue_console_record_for_demux(
     pending_record: input_core::PendingConsoleRecord,
     operation: &'static str,
 ) -> RuntimeResult<()> {
+    let console_record_queue_capacity = input_core::windows_console_record_queue_capacity(context);
+    let composition_queue_capacity =
+        input_core::windows_console_composition_queue_capacity(context);
+
     let updated = context
         .runtime()
         .resources
@@ -804,7 +836,11 @@ pub(super) fn queue_console_record_for_demux(
             let timestamp_ns = pending_record.timestamp_ns;
             let composition_code_unit =
                 composition_code_unit_from_console_record(&pending_record.record);
-            push_bounded_console_record(&mut binding.pending_console_records, pending_record);
+            push_bounded_console_record(
+                &mut binding.pending_console_records,
+                pending_record,
+                console_record_queue_capacity,
+            );
 
             if let Some(code_unit) = composition_code_unit {
                 push_bounded_console_composition_event(
@@ -813,6 +849,7 @@ pub(super) fn queue_console_record_for_demux(
                         timestamp_ns,
                         code_unit,
                     },
+                    composition_queue_capacity,
                 );
             }
 
@@ -1028,7 +1065,7 @@ pub(super) fn read_event(
                         ));
                     }
 
-                    thread::sleep(Duration::from_millis(1));
+                    thread::sleep(input_core::xinput_poll_interval(context));
                 };
 
                 // publish one gamepad-change event keyed by packet-number deltas
@@ -1374,14 +1411,14 @@ pub(crate) unsafe fn destack_input_monitor_open(
     }
 
     // ensure raw monitor backend is active
-    raw_input::ensure_service("destack.input.event.monitorOpen")?;
-    acquire_monitor_stream("destack.input.event.monitorOpen")?;
+    raw_input::ensure_service(context, "destack.input.event.monitorOpen")?;
+    let runtime_state = acquire_monitor_stream(context, "destack.input.event.monitorOpen")?;
 
     // allocate monitor handle in the resource table
     let entry = resource::ResourceEntry::new(ResourceKind::Input)
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(WindowsInputMonitorBinding { next_sequence: 1 })
-        .with_finalizer(WindowsMonitorFinalizer);
+        .with_finalizer(WindowsMonitorFinalizer { runtime_state });
     let handle = resource::InputMonitorHandle(
         context
             .runtime()
@@ -1748,6 +1785,7 @@ mod tests {
                     timestamp_ns: index as u64,
                     record,
                 },
+                WINDOWS_PENDING_CONSOLE_RECORD_LIMIT,
             );
         }
 
@@ -1774,6 +1812,7 @@ mod tests {
                     timestamp_ns: index as u64,
                     code_unit: index as u16,
                 },
+                WINDOWS_PENDING_CONSOLE_COMPOSITION_EVENT_LIMIT,
             );
         }
 

@@ -21,6 +21,8 @@ const SEMAPHORE_WAIT_OPERATION: &str = "destack.ipc.sync.semaphoreWait";
 const FUTEX_WAIT_OPERATION: &str = "destack.ipc.sync.futexWait";
 /// Wake futex waiters.
 const FUTEX_WAKE_OPERATION: &str = "destack.ipc.sync.futexWake";
+/// Default poll interval for timed semaphore waits on Unix hosts.
+const DEFAULT_SEMAPHORE_POLL_INTERVAL_NS: u64 = 1_000_000;
 
 /// Futex wait operation code for shared mappings.
 #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -51,6 +53,20 @@ fn relative_timespec(timeout: Duration) -> RuntimeResult<libc::timespec> {
         tv_sec: seconds as libc::time_t,
         tv_nsec: timeout.subsec_nanos() as libc::c_long,
     })
+}
+
+/// Return the configured timed-semaphore poll interval for this runtime.
+fn semaphore_poll_interval(context: &BindingCallContext) -> Duration {
+    let configured = context
+        .runtime()
+        .module_options
+        .ipc
+        .unix_semaphore_poll_interval_ns;
+    Duration::from_nanos(
+        configured
+            .unwrap_or(DEFAULT_SEMAPHORE_POLL_INTERVAL_NS)
+            .max(1),
+    )
 }
 
 /// Map one futex word from one shared-memory object and offset.
@@ -564,7 +580,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
                 ));
             }
 
-            std::thread::sleep(Duration::from_millis(1));
+            std::thread::sleep(semaphore_poll_interval(context));
             continue;
         }
         if errno == libc::ETIMEDOUT {

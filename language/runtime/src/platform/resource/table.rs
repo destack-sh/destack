@@ -1,12 +1,10 @@
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt;
 #[cfg(unix)]
 use std::os::unix::io::RawFd;
 #[cfg(windows)]
 use std::os::windows::io::{RawHandle, RawSocket};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -330,12 +328,30 @@ impl ResourceEntry {
 /// External resource table and finalizer registry.
 #[derive(Debug)]
 pub struct ResourceTable {
-    /// Next resource identifier to allocate.
-    next_id: AtomicU64,
-    /// Stored resource entries.
-    entries: RwLock<HashMap<ResourceId, ResourceEntry>>,
+    /// Mutable slot table for all resources.
+    inner: RwLock<ResourceTableInner>,
     /// Runtime hooks sink for non-binding resource mutations.
     hooks: RwLock<Option<Arc<Hooks>>>,
+}
+
+/// Mutable slot table payload.
+#[derive(Debug)]
+struct ResourceTableInner {
+    /// Allocated slots indexed by resource slot id minus one.
+    slots: Vec<ResourceSlot>,
+    /// Reusable slot ids with no active entry.
+    free_slots: Vec<u32>,
+    /// Next slot id for first-use allocations.
+    next_slot: u32,
+}
+
+/// One slot payload in the resource table.
+#[derive(Debug)]
+struct ResourceSlot {
+    /// Current generation stamp for this slot.
+    generation: u32,
+    /// Active entry payload when one is present.
+    entry: Option<ResourceEntry>,
 }
 
 impl ResourceTable {
@@ -344,12 +360,86 @@ impl ResourceTable {
         *self.hooks.write() = Some(hooks);
     }
 
+    /// Number of bits used for one resource slot id.
+    const SLOT_BITS: u64 = 32;
+    /// Mask for one packed resource slot id.
+    const SLOT_MASK: u64 = (1u64 << Self::SLOT_BITS) - 1;
+
+    /// Decode one resource id into slot and generation selectors.
+    fn decode_resource_id(resource_id: ResourceId) -> Option<(u32, u32)> {
+        let slot = (resource_id.0 & Self::SLOT_MASK) as u32;
+        let generation = (resource_id.0 >> Self::SLOT_BITS) as u32;
+        if slot == 0 {
+            return None;
+        }
+
+        Some((slot, generation))
+    }
+
+    /// Encode one slot and generation selector into one resource id.
+    fn encode_resource_id(slot: u32, generation: u32) -> ResourceId {
+        let value = (u64::from(generation) << Self::SLOT_BITS) | u64::from(slot);
+        ResourceId(value)
+    }
+
+    /// Return one mutable slot reference for one decoded slot id.
+    fn slot_mut(inner: &mut ResourceTableInner, slot: u32) -> Option<&mut ResourceSlot> {
+        let index = slot.checked_sub(1)? as usize;
+        inner.slots.get_mut(index)
+    }
+
+    /// Return one read-only slot reference for one decoded slot id.
+    fn slot(inner: &ResourceTableInner, slot: u32) -> Option<&ResourceSlot> {
+        let index = slot.checked_sub(1)? as usize;
+        inner.slots.get(index)
+    }
+
+    /// Return one next generation value after one removal.
+    fn next_generation(generation: u32) -> u32 {
+        generation.wrapping_add(1)
+    }
+
     /// Allocate and insert a resource entry.
     pub fn insert(&self, entry: ResourceEntry, engine: Option<BindingEngine>) -> ResourceId {
-        let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
-        self.entries.write().insert(id, entry);
-        self.emit_resource_attach(id, engine);
-        id
+        let mut inner = self.inner.write();
+
+        let (resource_id, slot_index) = if let Some(slot) = inner.free_slots.pop() {
+            let id = Self::slot(&inner, slot)
+                .map(|value| Self::encode_resource_id(slot, value.generation))
+                .unwrap_or_else(|| panic!("resource table free slot {slot} is missing"));
+            let index = slot
+                .checked_sub(1)
+                .unwrap_or_else(|| panic!("resource table free slot {slot} is invalid"))
+                as usize;
+            (id, index)
+        } else {
+            let slot = inner.next_slot;
+            inner.next_slot = inner
+                .next_slot
+                .checked_add(1)
+                .unwrap_or_else(|| panic!("resource table exhausted all slot ids"));
+            inner.slots.push(ResourceSlot {
+                generation: 0,
+                entry: None,
+            });
+            let id = Self::encode_resource_id(slot, 0);
+            let index = slot
+                .checked_sub(1)
+                .unwrap_or_else(|| panic!("resource table allocated invalid slot id {slot}"))
+                as usize;
+            (id, index)
+        };
+
+        let slot = inner
+            .slots
+            .get_mut(slot_index)
+            .unwrap_or_else(|| panic!("resource table missing slot {slot_index}"));
+        slot.entry = Some(entry);
+        drop(inner);
+
+        self.emit_resource_attach(resource_id, engine);
+
+        resource_id
     }
 
     /// Insert a resource entry with an explicit id.
@@ -359,14 +449,41 @@ impl ResourceTable {
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
     ) {
-        self.entries.write().insert(resource_id, entry);
-        self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
+        let (slot, generation) = Self::decode_resource_id(resource_id)
+            .unwrap_or_else(|| panic!("resource table insert_with_id received invalid id 0"));
+
+        let mut inner = self.inner.write();
+        let required_len = slot as usize;
+        if inner.slots.len() < required_len {
+            inner.slots.resize_with(required_len, || ResourceSlot {
+                generation: 0,
+                entry: None,
+            });
+        }
+
+        let slot_entry = Self::slot_mut(&mut inner, slot)
+            .unwrap_or_else(|| panic!("resource table missing slot {slot}"));
+        slot_entry.generation = generation;
+        slot_entry.entry = Some(entry);
+        inner.free_slots.retain(|value| *value != slot);
+        inner.next_slot = inner.next_slot.max(slot.saturating_add(1));
+        drop(inner);
+
         self.emit_resource_attach(resource_id, engine);
     }
 
     /// Return true if the table contains the resource id.
     pub fn contains(&self, resource_id: ResourceId) -> bool {
-        self.entries.read().contains_key(&resource_id)
+        let Some((slot, generation)) = Self::decode_resource_id(resource_id) else {
+            return false;
+        };
+
+        let inner = self.inner.read();
+        let Some(slot_entry) = Self::slot(&inner, slot) else {
+            return false;
+        };
+
+        slot_entry.generation == generation && slot_entry.entry.is_some()
     }
 
     /// Run a closure with a read-only entry reference.
@@ -375,8 +492,14 @@ impl ResourceTable {
         resource_id: ResourceId,
         f: impl FnOnce(&ResourceEntry) -> R,
     ) -> Option<R> {
-        let entries = self.entries.read();
-        let entry = entries.get(&resource_id)?;
+        let (slot, generation) = Self::decode_resource_id(resource_id)?;
+        let inner = self.inner.read();
+        let slot_entry = Self::slot(&inner, slot)?;
+        if slot_entry.generation != generation {
+            return None;
+        }
+        let entry = slot_entry.entry.as_ref()?;
+
         Some(f(entry))
     }
 
@@ -386,8 +509,14 @@ impl ResourceTable {
         resource_id: ResourceId,
         f: impl FnOnce(&mut ResourceEntry) -> R,
     ) -> Option<R> {
-        let mut entries = self.entries.write();
-        let entry = entries.get_mut(&resource_id)?;
+        let (slot, generation) = Self::decode_resource_id(resource_id)?;
+        let mut inner = self.inner.write();
+        let slot_entry = Self::slot_mut(&mut inner, slot)?;
+        if slot_entry.generation != generation {
+            return None;
+        }
+        let entry = slot_entry.entry.as_mut()?;
+
         Some(f(entry))
     }
 
@@ -397,7 +526,20 @@ impl ResourceTable {
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> Option<ResourceEntry> {
-        let removed = self.entries.write().remove(&resource_id);
+        let (slot, generation) = Self::decode_resource_id(resource_id)?;
+        let mut inner = self.inner.write();
+        let slot_entry = Self::slot_mut(&mut inner, slot)?;
+        if slot_entry.generation != generation {
+            return None;
+        }
+
+        let removed = slot_entry.entry.take();
+        if removed.is_some() {
+            slot_entry.generation = Self::next_generation(slot_entry.generation);
+            inner.free_slots.push(slot);
+        }
+        drop(inner);
+
         if removed.is_some() {
             self.emit_resource_detach(resource_id, engine);
         }
@@ -444,8 +586,11 @@ impl ResourceTable {
 impl Default for ResourceTable {
     fn default() -> Self {
         Self {
-            next_id: AtomicU64::new(1),
-            entries: RwLock::new(HashMap::new()),
+            inner: RwLock::new(ResourceTableInner {
+                slots: Vec::new(),
+                free_slots: Vec::new(),
+                next_slot: 1,
+            }),
             hooks: RwLock::new(None),
         }
     }
@@ -456,7 +601,7 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
+    use super::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceTable};
 
     /// Ensures entries can be inserted, removed, and finalized.
     #[test]
@@ -482,6 +627,43 @@ mod tests {
         // removing again should return false
         let removed_again = table.remove_and_finalize(resource_id, None);
         assert!(!removed_again);
+    }
+
+    /// Ensures stale handles are rejected after slot reuse.
+    #[test]
+    fn test_rejects_stale_handle_after_reuse() {
+        // create a new resource table
+        let table = ResourceTable::default();
+
+        // allocate one handle and then remove it
+        let first = table.insert(ResourceEntry::new(ResourceKind::Timer), None);
+        assert!(table.remove(first, None).is_some());
+        assert!(!table.contains(first));
+
+        // allocate one new handle and ensure the stale handle is rejected
+        let second = table.insert(ResourceEntry::new(ResourceKind::Timer), None);
+        assert_ne!(first, second);
+        assert!(!table.contains(first));
+        assert!(table.contains(second));
+    }
+
+    /// Ensures explicit id insertion respects generation checks.
+    #[test]
+    fn test_insert_with_id_honors_generation() {
+        // create a new resource table
+        let table = ResourceTable::default();
+        let slot = ResourceId(7);
+        let generation = ResourceId((3u64 << 32) | 7u64);
+
+        // insert one legacy id and then one generated id in the same slot
+        table.insert_with_id(slot, ResourceEntry::new(ResourceKind::Timer), None);
+        assert!(table.contains(slot));
+        table.remove(slot, None);
+        table.insert_with_id(generation, ResourceEntry::new(ResourceKind::Timer), None);
+
+        // stale and current ids should resolve as expected
+        assert!(!table.contains(slot));
+        assert!(table.contains(generation));
     }
 
     struct TestFinalizer {
