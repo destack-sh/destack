@@ -1,7 +1,6 @@
 # App
 
-Destack first-party applications and operator tools.
-This layer currently contains the Destack CLI.
+Destack first-party applications, developer, and operator tools.
 
 ## Components
 
