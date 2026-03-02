@@ -6,8 +6,9 @@ use crate::format::expression::{
     space, token, transparent_inner_expression,
 };
 use crate::format::tree::argument::{
-    TreeExpressionArgument, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
-    tree_child_breaks_element, tree_children_have_blank_line_between, tree_text_is_whitespace_only,
+    TreeExpressionArgument, is_jsx_whitespace_char, should_force_break_tree_attributes,
+    tree_argument_is_wrapped_in_braces, tree_child_breaks_element,
+    tree_children_have_blank_line_between, tree_text_is_whitespace_only,
 };
 use destack_ast::{IfKind, NodeType};
 use destack_fir::format::{Buffer, Format};
@@ -69,6 +70,19 @@ enum TreeFillSeparator {
     InlineWhitespace,
     /// One hard line break separator.
     HardBreak,
+}
+
+/// Boundary whitespace flags for one tree text child.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct TreeTextBoundarySpacingFlags {
+    /// Whether leading boundary whitespace contains one newline.
+    leading_has_newline: bool,
+    /// Whether trailing boundary whitespace contains one newline.
+    trailing_has_newline: bool,
+    /// Whether leading boundary whitespace is inline-only.
+    leading_has_inline_whitespace: bool,
+    /// Whether trailing boundary whitespace is inline-only.
+    trailing_has_inline_whitespace: bool,
 }
 
 /// Return the value expression id for one tree child argument.
@@ -182,9 +196,14 @@ fn tree_children_layout(
 /// Write one tree closing tag.
 fn write_tree_closing_tag<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     write!(f, [token("</")])?;
+    write!(
+        f,
+        [f.context().tree_closing_tag_head_annotations(expression_id)]
+    )?;
     if let Some(left) = left {
         let left_expression = f.context().tree.get(*left);
         if let Expression::Path { path, .. } = left_expression {
@@ -345,18 +364,24 @@ fn tree_fill_separators(
             continue;
         }
 
-        let previous_newline_flags =
-            tree_text_boundary_newline_flags(context, inline_elements[index - 1]);
-        let current_newline_flags =
-            tree_text_boundary_newline_flags(context, inline_elements[index]);
+        let previous_spacing_flags =
+            tree_text_boundary_spacing_flags(context, inline_elements[index - 1]);
+        let current_spacing_flags =
+            tree_text_boundary_spacing_flags(context, inline_elements[index]);
         let previous_trailing_has_newline =
-            previous_newline_flags.is_some_and(|(_, trailing_has_newline)| trailing_has_newline);
+            previous_spacing_flags.is_some_and(|flags| flags.trailing_has_newline);
         let current_leading_has_newline =
-            current_newline_flags.is_some_and(|(leading_has_newline, _)| leading_has_newline);
+            current_spacing_flags.is_some_and(|flags| flags.leading_has_newline);
+        let previous_trailing_has_inline_whitespace =
+            previous_spacing_flags.is_some_and(|flags| flags.trailing_has_inline_whitespace);
+        let current_leading_has_inline_whitespace =
+            current_spacing_flags.is_some_and(|flags| flags.leading_has_inline_whitespace);
         let force_hard_break =
             force_hard_break || previous_trailing_has_newline || current_leading_has_newline;
         if force_hard_break {
             separators.push(TreeFillSeparator::HardBreak);
+        } else if previous_trailing_has_inline_whitespace || current_leading_has_inline_whitespace {
+            separators.push(TreeFillSeparator::InlineWhitespace);
         } else {
             separators.push(TreeFillSeparator::None);
         }
@@ -365,11 +390,11 @@ fn tree_fill_separators(
     separators
 }
 
-/// Return whether one tree text child has leading or trailing newline whitespace.
-fn tree_text_boundary_newline_flags(
+/// Return one tree-text boundary spacing snapshot.
+fn tree_text_boundary_spacing_flags(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-) -> Option<(bool, bool)> {
+) -> Option<TreeTextBoundarySpacingFlags> {
     let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
         return None;
     };
@@ -381,21 +406,25 @@ fn tree_text_boundary_newline_flags(
     let text = context.strings.get(*string_id);
     let leading_end = text
         .char_indices()
-        .find(|(_, c)| !c.is_whitespace())
+        .find(|(_, c)| !is_jsx_whitespace_char(*c))
         .map_or(text.len(), |(index, _)| index);
     let trailing_start = text
         .char_indices()
         .rev()
-        .find(|(_, c)| !c.is_whitespace())
+        .find(|(_, c)| !is_jsx_whitespace_char(*c))
         .map_or(0, |(index, c)| index + c.len_utf8());
 
     let leading_whitespace = &text[..leading_end];
     let trailing_whitespace = &text[trailing_start..];
+    let leading_has_newline = leading_whitespace.contains(['\n', '\r']);
+    let trailing_has_newline = trailing_whitespace.contains(['\n', '\r']);
 
-    Some((
-        leading_whitespace.contains(['\n', '\r']),
-        trailing_whitespace.contains(['\n', '\r']),
-    ))
+    Some(TreeTextBoundarySpacingFlags {
+        leading_has_newline,
+        trailing_has_newline,
+        leading_has_inline_whitespace: !leading_whitespace.is_empty() && !leading_has_newline,
+        trailing_has_inline_whitespace: !trailing_whitespace.is_empty() && !trailing_has_newline,
+    })
 }
 
 /// Return whether one whitespace-only child run contains inline or newline spacing.
@@ -456,6 +485,11 @@ fn write_tree_jsx_whitespace_separator<'ast>(
     )
 }
 
+/// Emit one raw JSX whitespace token (`{" "}` or `{' '}`) unconditionally.
+fn write_tree_raw_jsx_whitespace<'ast>(f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    write!(f, [token(tree_raw_jsx_space_token(f.context()))])
+}
+
 /// Return whether one tree child is a multiline tree expression in source.
 fn tree_child_is_multiline_tree_expression(
     context: &DestackFormatContext<'_>,
@@ -511,7 +545,7 @@ fn format_tree_children_fill<'ast>(
         if let Some(spacing) = spacing {
             match spacing {
                 TreeWhitespaceSpacing::Newline => write!(f, [hard_line_break()])?,
-                TreeWhitespaceSpacing::Inline => write_tree_jsx_whitespace_separator(f)?,
+                TreeWhitespaceSpacing::Inline => write_tree_raw_jsx_whitespace(f)?,
             }
         }
 
@@ -538,12 +572,18 @@ fn format_tree_children_fill<'ast>(
     let prefix_spacing = tree_whitespace_run_spacing(f.context(), &elements[..first_inline_index]);
     let suffix_spacing =
         tree_whitespace_run_spacing(f.context(), &elements[last_inline_index + 1..]);
-    let prefix_has_boundary_newline = first_inline_element_id
-        .and_then(|element_id| tree_text_boundary_newline_flags(f.context(), element_id))
-        .is_some_and(|(leading_has_newline, _)| leading_has_newline);
-    let suffix_has_boundary_newline = last_inline_element_id
-        .and_then(|element_id| tree_text_boundary_newline_flags(f.context(), element_id))
-        .is_some_and(|(_, trailing_has_newline)| trailing_has_newline);
+    let prefix_spacing_flags = first_inline_element_id
+        .and_then(|element_id| tree_text_boundary_spacing_flags(f.context(), element_id));
+    let suffix_spacing_flags = last_inline_element_id
+        .and_then(|element_id| tree_text_boundary_spacing_flags(f.context(), element_id));
+    let prefix_has_boundary_newline =
+        prefix_spacing_flags.is_some_and(|flags| flags.leading_has_newline);
+    let suffix_has_boundary_newline =
+        suffix_spacing_flags.is_some_and(|flags| flags.trailing_has_newline);
+    let prefix_has_boundary_inline_whitespace =
+        prefix_spacing_flags.is_some_and(|flags| flags.leading_has_inline_whitespace);
+    let suffix_has_boundary_inline_whitespace =
+        suffix_spacing_flags.is_some_and(|flags| flags.trailing_has_inline_whitespace);
 
     let separators = tree_fill_separators(f.context(), elements, &inline_elements);
 
@@ -554,6 +594,8 @@ fn format_tree_children_fill<'ast>(
         }
     } else if prefix_has_boundary_newline {
         write!(f, [hard_line_break()])?;
+    } else if prefix_has_boundary_inline_whitespace {
+        write_tree_jsx_whitespace_separator(f)?;
     }
 
     let mut fill = f.fill();
@@ -590,6 +632,8 @@ fn format_tree_children_fill<'ast>(
         }
     } else if suffix_has_boundary_newline {
         write!(f, [hard_line_break()])?;
+    } else if suffix_has_boundary_inline_whitespace {
+        write_tree_jsx_whitespace_separator(f)?;
     }
 
     Ok(())
@@ -930,6 +974,7 @@ fn format_tree_opening_tag<'ast>(
 /// Format one tree body and closing tag.
 fn format_tree_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
     layout: TreeLiteralLayout,
@@ -939,7 +984,8 @@ fn format_tree_body<'ast>(
     };
 
     if elements.is_empty() {
-        return write_tree_closing_tag(f, left);
+        write!(f, [f.context().block_infix_annotations(expression_id)])?;
+        return write_tree_closing_tag(f, expression_id, left);
     }
 
     let children_layout = layout.children.unwrap_or_else(|| {
@@ -952,7 +998,8 @@ fn format_tree_body<'ast>(
         write!(f, [group(&soft_block_indent(&format_children))])?;
     }
 
-    write_tree_closing_tag(f, left)
+    write!(f, [f.context().block_infix_annotations(expression_id)])?;
+    write_tree_closing_tag(f, expression_id, left)
 }
 
 /// Format one tree literal from precomputed layout data.
@@ -970,7 +1017,7 @@ fn format_tree_literal_with_layout<'ast>(
             let opening_tag =
                 format_with(|f| format_tree_opening_tag(f, left, arguments, elements, layout));
             write!(f, [group(&opening_tag)])?;
-            format_tree_body(f, left, elements, layout)
+            format_tree_body(f, _expression_id, left, elements, layout)
         }))
         .should_expand(layout.should_expand)]
     )

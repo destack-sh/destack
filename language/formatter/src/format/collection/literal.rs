@@ -501,17 +501,9 @@ pub(crate) fn format_template_literal<'ast>(
 
 /// Normalize jsx text by collapsing whitespace to single spaces.
 fn normalize_jsx_text(text: &str) -> String {
-    let Some(mut normalized) = collapse_jsx_whitespace_to_single_spaces(text) else {
+    let Some(normalized) = collapse_jsx_whitespace_to_single_spaces(text) else {
         return String::new();
     };
-
-    if jsx_has_leading_inline_space(text) {
-        normalized.insert(0, ' ');
-    }
-
-    if jsx_has_trailing_inline_space(text) {
-        normalized.push(' ');
-    }
 
     normalized
 }
@@ -522,7 +514,7 @@ fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
         return None;
     }
 
-    let mut lines = text
+    let lines = text
         .lines()
         .filter_map(collapse_jsx_whitespace_to_single_spaces)
         .collect::<Vec<_>>();
@@ -530,44 +522,8 @@ fn normalize_jsx_text_multiline_lines(text: &str) -> Option<Vec<String>> {
         return None;
     }
 
-    if let Some(first_line) = lines.first_mut()
-        && jsx_has_leading_inline_space(text)
-    {
-        first_line.insert(0, ' ');
-    }
-
-    if let Some(last_line) = lines.last_mut()
-        && jsx_has_trailing_inline_space(text)
-    {
-        last_line.push(' ');
-    }
-
     Some(lines)
 }
-
-/// Return whether one jsx text node starts with inline boundary whitespace.
-fn jsx_has_leading_inline_space(text: &str) -> bool {
-    let leading_end = text
-        .char_indices()
-        .find(|(_, c)| !is_jsx_whitespace_char(*c))
-        .map_or(text.len(), |(index, _)| index);
-
-    let leading_whitespace = &text[..leading_end];
-    !leading_whitespace.is_empty() && !leading_whitespace.contains(['\n', '\r'])
-}
-
-/// Return whether one jsx text node ends with inline boundary whitespace.
-fn jsx_has_trailing_inline_space(text: &str) -> bool {
-    let trailing_start = text
-        .char_indices()
-        .rev()
-        .find(|(_, c)| !is_jsx_whitespace_char(*c))
-        .map_or(0, |(index, c)| index + c.len_utf8());
-
-    let trailing_whitespace = &text[trailing_start..];
-    !trailing_whitespace.is_empty() && !trailing_whitespace.contains(['\n', '\r'])
-}
-
 /// Return whether one character is JSX whitespace.
 #[inline]
 fn is_jsx_whitespace_char(character: char) -> bool {

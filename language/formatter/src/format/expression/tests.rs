@@ -4368,3 +4368,28 @@ switch (foo) {
         DestackFormatOptions::default(),
     );
 }
+
+/// JSX text wrapping should keep spacing stable across formatter passes.
+#[test]
+fn test_format_jsx_text_wrap_spacing_is_idempotent() {
+    let source = r#"
+x =
+  <div>
+    before{stuff}after{stuff}after{stuff}after{stuff}after{stuff}after{stuff}{stuff}{stuff}after{stuff}after
+  </div>;
+
+single_expression_child_tags =
+  <div>
+    You currently have <strong>{dashboardStr}</strong> and <strong>{userStr}</strong>
+  </div>;
+
+convert_space_expressions =
+  <div>{" "}</div>;
+"#
+    .trim_start();
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}

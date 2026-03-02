@@ -681,6 +681,7 @@ fn declarator_shape(
     let value_inner_expr = tree.get(value_inner_id);
     let value_is_binary = matches!(value_inner_expr, Expression::Binary { .. });
     let value_is_sequence = matches!(value_inner_expr, Expression::SequenceExpression { .. });
+    let value_is_tree = matches!(value_inner_expr, Expression::TreeExpression { .. });
     let value_is_chain_root = is_chain_root(tree, value_inner_id);
     let value_is_chain = is_expression_chain(tree, value_inner_id) || value_is_chain_root;
     let value_is_call_like = matches!(
@@ -690,6 +691,7 @@ fn declarator_shape(
     let value_is_declaration = matches!(value_inner_expr, Expression::Declaration(_));
     let value_handles_its_own_breaking = value_is_binary
         || value_is_sequence
+        || value_is_tree
         || value_is_chain
         || value_is_call_like
         || value_is_declaration;

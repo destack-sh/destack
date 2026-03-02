@@ -14,9 +14,6 @@ js/multiparser-html/lit-html.js
 js/preserve-line/argument-list.js
 js/ternaries/nested.js
 js/unary-expression/comments.js
-jsx/comments/in-end-tag.js
-jsx/fragment/fragment.js
-jsx/text-wrap/test.js
 typescript/angular-component-examples/test.component.ts
 typescript/array/comment.ts
 typescript/arrow/16067.ts
