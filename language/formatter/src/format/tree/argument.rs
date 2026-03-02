@@ -1357,7 +1357,7 @@ pub(crate) fn tree_text_is_whitespace_only(
 
 /// Return whether one character is JSX whitespace.
 #[inline]
-fn is_jsx_whitespace_char(character: char) -> bool {
+pub(crate) fn is_jsx_whitespace_char(character: char) -> bool {
     matches!(character, ' ' | '\n' | '\r' | '\t')
 }
 
