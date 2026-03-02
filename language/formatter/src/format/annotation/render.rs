@@ -1,4 +1,4 @@
-use super::facts::token_type_is_comment_trivia;
+use super::facts::{is_tree_closing_tag_head_seam, token_type_is_comment_trivia};
 use super::semicolon::annotation_needs_semicolon_guard_continuation_indent;
 use crate::format::directive::{
     comment_node_is_any_ignore_directive, comment_node_is_ignore_directive,
@@ -28,6 +28,7 @@ pub enum AnnotationCapture {
     AnyPostfixExceptLinePostfixBoundary,
     AnyInfixOrPostfix,
     AnyInfixOrPostfixExceptLinePostfixBoundary,
+    TreeClosingTagHead,
     DeclarationPrefix,
     DeclarationExportHead,
     DeclarationGenericHead,
@@ -1005,6 +1006,18 @@ impl<'ast> DestackFormatContext<'ast> {
         }
     }
 
+    /// Format line boundary comments inside one JSX closing-tag head.
+    #[inline]
+    pub fn tree_closing_tag_head_annotations(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> Annotations<Expression> {
+        Annotations {
+            position: AnnotationCapture::TreeClosingTagHead,
+            node_id,
+        }
+    }
+
     /// Format delimiter-interior infix annotations for a node.
     #[inline]
     pub fn delimited_interior_annotations<T: Node>(
@@ -1069,6 +1082,7 @@ pub(crate) fn annotation_capture_includes_position(
                 | AnnotationCapture::AnyPostfixExceptLinePostfixBoundary
                 | AnnotationCapture::AnyInfixOrPostfix
                 | AnnotationCapture::AnyInfixOrPostfixExceptLinePostfixBoundary
+                | AnnotationCapture::TreeClosingTagHead
         ),
         AnnotationPosition::LinePrefix => matches!(
             capture,
@@ -1092,8 +1106,71 @@ pub(crate) fn annotation_capture_includes_position(
             AnnotationCapture::LinePostfixBoundary
                 | AnnotationCapture::AnyPostfix
                 | AnnotationCapture::AnyInfixOrPostfix
+                | AnnotationCapture::TreeClosingTagHead
         ),
     }
+}
+
+/// Return whether one comment seam is before or after a JSX closing slash.
+fn annotation_is_tree_closing_tag_head_slash_seam(
+    context: &DestackFormatContext<'_>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let token_before_type = context.annotation_previous_non_whitespace_token_type(annotation_id);
+    let token_after = context.annotation_next_non_whitespace_token(annotation_id);
+    let token_after_type = token_after.map(|token| token.token.ty);
+    let token_before_predecessor_type = context
+        .annotation_previous_non_whitespace_token(annotation_id)
+        .and_then(|token| context.previous_non_trivia_token_before_span(token.span))
+        .map(|token| token.token.ty);
+    let token_after_successor_type = token_after
+        .and_then(|token| context.next_non_trivia_token_after_span(token.span))
+        .map(|token| token.token.ty);
+
+    is_tree_closing_tag_head_seam(
+        token_before_type,
+        token_before_predecessor_type,
+        token_after_type,
+        token_after_successor_type,
+    )
+}
+
+/// Return whether one annotation is one JSX closing-tag head slash line comment.
+fn annotation_is_tree_closing_tag_head_line_comment(
+    context: &DestackFormatContext<'_>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    let Annotation::Comment { node, position } = annotation else {
+        return false;
+    };
+    if position != AnnotationPosition::LinePostfixBoundary {
+        return false;
+    }
+
+    let comment = context.tree.get::<Comment>(node);
+    if comment.style != CommentStyle::Slash {
+        return false;
+    }
+
+    annotation_is_tree_closing_tag_head_slash_seam(context, annotation_id)
+}
+
+/// Return whether one annotation is one JSX closing-tag head slash block comment.
+fn annotation_is_tree_closing_tag_head_block_comment(
+    context: &DestackFormatContext<'_>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if annotation.position() != AnnotationPosition::BlockPostfix {
+        return false;
+    }
+
+    if !annotation_is_star_style(context, &annotation) {
+        return false;
+    }
+
+    annotation_is_tree_closing_tag_head_slash_seam(context, annotation_id)
 }
 
 /// Return whether one any-infix-or-postfix capture should drop tagged-template head comments.
@@ -1129,6 +1206,29 @@ fn any_infix_or_postfix_skips_tagged_template_head_comment<T: Node>(
     is_tagged_template_head_comment
 }
 
+/// Return whether one annotation is a JSX closing-tag head line comment owned by a tree expression.
+fn tree_closing_tag_head_includes_annotation<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(node_id.id);
+    if !matches!(
+        context.tree.get(expression_id),
+        Expression::TreeExpression { .. }
+    ) {
+        return false;
+    }
+
+    annotation_is_tree_closing_tag_head_line_comment(context, annotation, annotation_id)
+        || annotation_is_tree_closing_tag_head_block_comment(context, annotation, annotation_id)
+}
+
 /// Return whether capture mode keeps this declaration annotation in the active stream.
 pub(crate) fn annotation_is_included_for_capture<T: Node>(
     context: &DestackFormatContext<'_>,
@@ -1145,6 +1245,15 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
     let node_raw_id = node_id.id;
     let is_delimited_interior_comment =
         annotation_is_delimited_interior_comment(context, annotation, annotation_id);
+    let is_tree_closing_tag_head_annotation = tree_closing_tag_head_includes_annotation(
+        context,
+        LocalNodeId::<T>::new(node_raw_id),
+        annotation,
+        annotation_id,
+    );
+    if is_tree_closing_tag_head_annotation {
+        return capture == AnnotationCapture::TreeClosingTagHead;
+    }
 
     match capture {
         AnnotationCapture::DeclarationPrefix => {
@@ -1237,6 +1346,12 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
         AnnotationCapture::AnyPostfixExceptLinePostfixBoundary => {
             position != AnnotationPosition::LinePostfixBoundary
         }
+        AnnotationCapture::TreeClosingTagHead => tree_closing_tag_head_includes_annotation(
+            context,
+            LocalNodeId::<T>::new(node_raw_id),
+            annotation,
+            annotation_id,
+        ),
         _ => true,
     }
 }
@@ -1690,6 +1805,10 @@ pub(crate) fn write_inline_slash_line_postfix_comment<'ast>(
         return Ok(false);
     }
 
+    if annotation_is_tree_closing_tag_head_line_comment(f.context(), annotation, annotation_id) {
+        return Ok(false);
+    }
+
     // own-line comments should keep normal prefix/postfix spacing semantics
     // line_postfix is only for same-line suffix comments, except decorator seams
     if flow.starts_on_own_line {
@@ -1903,10 +2022,10 @@ fn first_block_prefix_spacing(
 
 /// Return first-spacing decision for one line postfix annotation.
 fn first_line_postfix_spacing(
-    position: AnnotationPosition,
+    _position: AnnotationPosition,
     flow: AnnotationFlow,
 ) -> AnnotationSpacing {
-    if position == AnnotationPosition::LinePostfixBoundary && flow.starts_on_own_line {
+    if flow.starts_on_own_line {
         return AnnotationSpacing::HardLine;
     }
 

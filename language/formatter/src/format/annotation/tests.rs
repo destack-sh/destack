@@ -133,6 +133,258 @@ fn find_annotation_target_owner_node(
         })
 }
 
+/// Closing-tag seam comments should attach to the tree-expression boundary owner.
+#[test]
+fn test_annotation_jsx_closing_tag_seam_comments_attach_to_tree_expression_boundary() {
+    let source = r#"
+const beforeSlash = <a><// jsx-before-slash-line
+/a>;
+const beforeSlashBlock = <a></* jsx-before-slash-block */
+/a>;
+const afterSlash = <a></ // jsx-after-slash-line
+a>;
+const afterSlashBlock = <a></ /* jsx-after-slash-block */
+a>;
+const afterName = <a></a // jsx-after-name-line
+>;
+const afterNameBlock = <a></a /* jsx-after-name-block */
+>;
+const fragmentAfterSlash = <></ // jsx-fragment-after-slash-line
+>;
+const fragmentAfterSlashBlock = <></ /* jsx-fragment-after-slash-block */
+>;
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
+            .expect("parse jsx closing-tag seam source");
+    let context = context_from_formatter(&formatter);
+
+    for (marker, expected_position) in [
+        (
+            "jsx-before-slash-line",
+            AnnotationPosition::LinePostfixBoundary,
+        ),
+        ("jsx-before-slash-block", AnnotationPosition::BlockPostfix),
+        (
+            "jsx-after-slash-line",
+            AnnotationPosition::LinePostfixBoundary,
+        ),
+        ("jsx-after-slash-block", AnnotationPosition::BlockPostfix),
+        (
+            "jsx-after-name-line",
+            AnnotationPosition::LinePostfixBoundary,
+        ),
+        ("jsx-after-name-block", AnnotationPosition::BlockPostfix),
+        (
+            "jsx-fragment-after-slash-line",
+            AnnotationPosition::LinePostfixBoundary,
+        ),
+        (
+            "jsx-fragment-after-slash-block",
+            AnnotationPosition::BlockPostfix,
+        ),
+    ] {
+        let annotation_id =
+            find_annotation_by_marker(&context, marker).expect("expected closing-tag annotation");
+        let annotation = context.annotation(annotation_id);
+        let position = annotation.position();
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected closing-tag annotation owner node");
+        let owner_node_id = owner_node as u32;
+
+        assert_eq!(
+            position, expected_position,
+            "marker={marker}, owner={owner_node}"
+        );
+        assert_eq!(
+            context.tree.get_node_type(owner_node_id),
+            NodeType::Expression,
+            "marker={marker}, owner={owner_node}"
+        );
+        assert!(
+            matches!(
+                context
+                    .tree
+                    .get(LocalNodeId::<Expression>::new(owner_node_id)),
+                Expression::TreeExpression { .. }
+            ),
+            "marker={marker}, owner={owner_node}"
+        );
+    }
+}
+
+/// Parenthesized assignment JSX closing-tag seam comments should stay on the tree-expression owner.
+#[test]
+fn test_annotation_jsx_closing_tag_seam_comments_stay_on_parenthesized_assignment_tree_owner() {
+    let source = r#"
+const element = (
+    <a></ // jsx-element-after-slash
+a>
+);
+const fragment = (
+    <></ // jsx-fragment-after-slash
+>
+);
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
+            .expect("parse parenthesized jsx closing-tag seam source");
+    let context = context_from_formatter(&formatter);
+
+    for marker in ["jsx-element-after-slash", "jsx-fragment-after-slash"] {
+        let annotation_id =
+            find_annotation_by_marker(&context, marker).expect("expected closing-tag annotation");
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected closing-tag annotation owner node");
+        let owner_node_id = owner_node as u32;
+
+        assert_eq!(
+            context.tree.get_node_type(owner_node_id),
+            NodeType::Expression,
+            "marker={marker}, owner={owner_node}"
+        );
+        assert!(
+            matches!(
+                context
+                    .tree
+                    .get(LocalNodeId::<Expression>::new(owner_node_id)),
+                Expression::TreeExpression { .. }
+            ),
+            "marker={marker}, owner={owner_node}"
+        );
+    }
+}
+
+/// Own-line slash comments after closing-tag block seams should stay idempotent.
+#[test]
+fn test_format_jsx_closing_tag_block_then_line_comment_is_idempotent() {
+    let source = r#"
+<a></a>;
+/* block */
+// line
+<a></a>;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Closing-tag slash seam line comments should remain stable across format passes.
+#[test]
+fn test_format_jsx_closing_tag_after_slash_line_comments_are_idempotent() {
+    let source = r#"
+<a></ // element-close
+a>;
+<></ // fragment-close
+>;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Closing-tag slash seam comments in assignment expressions should stay idempotent.
+#[test]
+fn test_format_jsx_closing_tag_after_slash_line_comments_in_assignments_are_idempotent() {
+    let source = r#"
+const element = <a></ // element-close
+a>;
+const fragment = <></ // fragment-close
+>;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Heading block comments after line-postfix JSX statements should keep blank-line stability.
+#[test]
+fn test_format_jsx_line_postfix_then_heading_block_comment_is_idempotent() {
+    let source = r#"
+<></>;
+<></>; // line
+
+/* heading */
+<a></a>;
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Prettier in-end-tag JSX comment shapes should remain idempotent.
+#[test]
+fn test_format_jsx_closing_tag_prettier_in_end_tag_fixture_is_idempotent() {
+    let source = r#"
+/* =========== before slash =========== */
+<a><// line
+/a>;
+<a></* block */
+/a>;
+
+<><// line
+/>;
+<></* block */
+/>;
+
+/* =========== after slash =========== */
+<a></ // line
+a>;
+<a></ /* block */
+a>;
+
+<></ // line
+>;
+<></ /* block */
+>;
+
+/* =========== after name =========== */
+<a></a // line
+>;
+<a></a /* block */
+>;
+
+
+/* =========== block =========== */
+<a></a /* block */>;
+<></ /* block */>;
+
+/* =========== multiple ===========  */
+<a><// line 1
+// line 2
+/a>;
+<a></* block1 */ /* block2 */
+/a>;
+<a></* block */ // line
+/a>;
+
+<><// line 1
+// line 2
+/>;
+<></* block1 */ /* block2 */
+/>;
+<></* block */ // line
+/>;"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Trailing array-comma line comments should attach to the array element owner.
 #[test]
 fn test_annotation_trailing_array_comma_line_comment_attaches_to_element_owner() {

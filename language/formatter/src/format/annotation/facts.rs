@@ -82,3 +82,37 @@ pub(crate) fn next_non_newline_token_type_after_seam(
 
     None
 }
+
+/// Return whether one seam token snapshot is one JSX closing-tag head seam.
+#[inline]
+pub(crate) fn is_tree_closing_tag_head_seam(
+    token_before_type: Option<TokenType>,
+    token_before_predecessor_type: Option<TokenType>,
+    token_after_type: Option<TokenType>,
+    token_after_successor_type: Option<TokenType>,
+) -> bool {
+    let token_before_is_less_than = token_before_type == Some(TokenType::LessThan);
+    let token_before_is_divide = token_before_type == Some(TokenType::Divide);
+    let token_before_is_identifier = token_before_type == Some(TokenType::Identifier);
+    let token_after_is_divide = token_after_type == Some(TokenType::Divide);
+    let token_after_is_identifier = token_after_type == Some(TokenType::Identifier);
+    let token_after_is_greater_than = token_after_type == Some(TokenType::GreaterThan);
+
+    // before slash: `</*comment*/tag>`
+    let seam_is_before_closing_slash = token_before_is_less_than
+        && token_after_is_divide
+        && matches!(
+            token_after_successor_type,
+            Some(TokenType::Identifier | TokenType::GreaterThan)
+        );
+    // after slash: `</*comment*/tag>` or `</*comment*/>`
+    let seam_is_after_closing_slash = token_before_is_divide
+        && token_before_predecessor_type == Some(TokenType::LessThan)
+        && (token_after_is_identifier || token_after_is_greater_than);
+    // after name: `</tag/*comment*/>`
+    let seam_is_after_closing_tag_name = token_before_is_identifier
+        && token_after_is_greater_than
+        && token_before_predecessor_type == Some(TokenType::Divide);
+
+    seam_is_before_closing_slash || seam_is_after_closing_slash || seam_is_after_closing_tag_name
+}
