@@ -80,9 +80,9 @@ However, obviously, it is still rather early, it is definitely quite different, 
 
 > [!WARNING]
 > **Destack is an alpha-stage, _experimental_ computing stack.**
-> Things may change or break or disappear entirely.
+> Things may change or break or vanish.
 
-We tried to warn you:
+To get started using Destack, despite our best warnings:
 - Install Destack via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
 - Create a new Destack app with `npm create destack@latest my-destack-app` or `bun create destack my-destack-app`.
 
