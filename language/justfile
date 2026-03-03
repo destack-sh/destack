@@ -112,62 +112,36 @@ lint:
     just check
 
 # check runtime against windows gnu cross target
-check-runtime-windows-cross:
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
+runtime-windows-gnu-cross-check:
+    ../scripts/toolchain/runtime-windows-gnu-env.sh cargo check -p destack_runtime --target x86_64-pc-windows-gnu
 
 # run runtime smoke binary on the active host target
 run-runtime-smoke-host:
     CARGO_INCREMENTAL=0 cargo run -p destack_runtime --bin runtime-smoke --quiet
 
 # run runtime smoke binary on windows gnu target through wine
-run-runtime-smoke-windows-gnu:
-    CARGO_INCREMENTAL=0 cargo build -p destack_runtime --target x86_64-pc-windows-gnu --bin runtime-smoke
-    EXE="../target/x86_64-pc-windows-gnu/debug/runtime-smoke.exe"; \
-    if [ ! -f "$EXE" ]; then \
-      EXE="target/x86_64-pc-windows-gnu/debug/runtime-smoke.exe"; \
-    fi; \
-    if [ ! -f "$EXE" ]; then \
-      echo "missing windows gnu runtime smoke executable"; \
-      exit 1; \
-    fi; \
-    WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
+runtime-windows-gnu-smoke:
+    ../scripts/toolchain/runtime-windows-gnu-smoke.sh
 
 # check runtime on windows gnu target with compile, clippy, and executable tests
-check-runtime-windows-gnu:
-    ../scripts/toolchain/check-runtime-windows-gnu.sh
+runtime-windows-gnu-check filter='':
+    ../scripts/toolchain/runtime-windows-gnu-check.sh "{{filter}}"
 
 # build and run one crate's tests for windows target through wine
-test-windows-crate crate:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    crate="{{crate}}"
-    crate_pattern="${crate//-/_}"
-
-    CARGO_INCREMENTAL=0 CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc \
-      cargo test -p "$crate" --target x86_64-pc-windows-gnu --no-run
-    # locate newest windows test binary from cargo output layout
-    EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/${crate_pattern}-*.exe 2>/dev/null | head -n1); \
-    if [ -z "$EXE" ]; then \
-      EXE=$(ls -t target/x86_64-pc-windows-gnu/debug/deps/${crate_pattern}-*.exe 2>/dev/null | head -n1); \
-    fi; \
-    if [ -z "$EXE" ]; then \
-      echo "missing windows test executable for crate: $crate"; \
-      exit 1; \
-    fi; \
-    WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
+runtime-windows-gnu-test-crate crate filter='':
+    ../scripts/toolchain/runtime-windows-gnu-test-crate.sh "{{crate}}" "{{filter}}"
 
 # build and run runtime tests for windows target through wine
-test-runtime-windows-cross:
-    ../scripts/toolchain/test-runtime-windows-gnu.sh
+runtime-windows-gnu-test filter='':
+    ../scripts/toolchain/runtime-windows-gnu-test.sh "{{filter}}"
 
 # build and run runtime tests for windows target through wine
-test-windows-runtime:
-    just test-runtime-windows-cross
+test-windows-runtime filter='':
+    just runtime-windows-gnu-test "{{filter}}"
 
 # build and run resolver tests for windows target through wine
 test-windows-resolver:
-    just test-windows-crate destack_resolver
+    just runtime-windows-gnu-test-crate destack_resolver
 
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:
@@ -177,51 +151,55 @@ test-runtime-privileged:
         echo "test-runtime-privileged requires elevated privileges (run as root/admin)"
         exit 1
     fi
-    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::process::tests:: -- --nocapture
-    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
-    DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::process::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::fs::tests:: -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C DESTACK_TEST_PRIVILEGED=1 cargo test -p destack_runtime platform::net::tests:: -- --nocapture
 
 # inspect runtime target toolchain readiness on this host
 runtime-toolchain-doctor:
     ../scripts/toolchain/runtime-toolchain-doctor.sh
+
+# lint runtime toolchain shell scripts
+runtime-toolchain-lint:
+    ../scripts/toolchain/runtime-toolchain-lint.sh
 
 # bootstrap runtime target toolchains and host prerequisites where possible
 runtime-toolchain-bootstrap:
     ../scripts/toolchain/runtime-toolchain-bootstrap.sh
 
 # check runtime for cross targets using Zig as the C toolchain
-check-runtime-cross-targets:
-    ../scripts/toolchain/check-runtime-cross-targets.sh
+runtime-cross-targets-check:
+    ../scripts/toolchain/runtime-cross-targets-check.sh
 
 # check runtime for android target using one configured ndk toolchain
-check-runtime-android:
-    ../scripts/toolchain/check-runtime-android.sh
+runtime-android-check:
+    ../scripts/toolchain/runtime-android-check.sh
 
 # check runtime for ios target using active xcode sdk
-check-runtime-ios:
-    ../scripts/toolchain/check-runtime-ios.sh
+runtime-ios-check:
+    ../scripts/toolchain/runtime-ios-check.sh
 
 # check runtime for wasip1 target
-check-runtime-wasip1:
-    ../scripts/toolchain/check-runtime-wasip1.sh
+runtime-wasip1-check:
+    ../scripts/toolchain/runtime-wasip1-check.sh
 
 # check runtime on linux host
-check-runtime-linux:
-    cargo check -p destack_runtime
-    cargo clippy -p destack_runtime --all-targets -- -D warnings
-    cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
+runtime-linux-check:
+    LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
+    LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
+    LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
     just run-runtime-smoke-host
 
 # check runtime on macos host
-check-runtime-macos:
-    cargo check -p destack_runtime
-    cargo clippy -p destack_runtime --all-targets -- -D warnings
-    cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
+runtime-macos-check:
+    LC_ALL=C LANG=C LC_CTYPE=C cargo check -p destack_runtime
+    LC_ALL=C LANG=C LC_CTYPE=C cargo clippy -p destack_runtime --all-targets -- -D warnings
+    LC_ALL=C LANG=C LC_CTYPE=C cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
     just run-runtime-smoke-host
 
 # check runtime on windows host
-check-runtime-windows-host:
-    ../scripts/toolchain/check-runtime-windows-msvc.sh
+runtime-windows-msvc-check:
+    ../scripts/toolchain/runtime-windows-msvc-check.sh
 
 # build
 build:

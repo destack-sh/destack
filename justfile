@@ -215,56 +215,60 @@ test-ide:
     just bridge/test-ide
 
 # run language runtime windows target tests through wine
-test-runtime-windows-cross:
-    just language/test-runtime-windows-cross
+runtime-windows-gnu-test:
+    just language/runtime-windows-gnu-test
 
 # inspect runtime target toolchain readiness on this host
 runtime-toolchain-doctor:
     just language/runtime-toolchain-doctor
+
+# lint runtime toolchain shell scripts
+runtime-toolchain-lint:
+    just language/runtime-toolchain-lint
 
 # bootstrap runtime target toolchains and host prerequisites where possible
 runtime-toolchain-bootstrap:
     just language/runtime-toolchain-bootstrap
 
 # run language runtime android target checks
-check-runtime-android:
-    just language/check-runtime-android
+runtime-android-check:
+    just language/runtime-android-check
 
 # run language runtime ios target checks
-check-runtime-ios:
-    just language/check-runtime-ios
+runtime-ios-check:
+    just language/runtime-ios-check
 
 # run language runtime wasip1 target checks
-check-runtime-wasip1:
-    just language/check-runtime-wasip1
+runtime-wasip1-check:
+    just language/runtime-wasip1-check
 
 # run language runtime linux host checks
-check-runtime-linux:
-    just language/check-runtime-linux
+runtime-linux-check:
+    just language/runtime-linux-check
 
 # run language runtime macos host checks
-check-runtime-macos:
-    just language/check-runtime-macos
+runtime-macos-check:
+    just language/runtime-macos-check
 
 # run language runtime windows host checks
-check-runtime-windows-host:
-    just language/check-runtime-windows-host
+runtime-windows-msvc-check:
+    just language/runtime-windows-msvc-check
 
 # run language runtime windows gnu target checks with runnable tests
-check-runtime-windows-gnu:
-    just language/check-runtime-windows-gnu
+runtime-windows-gnu-check:
+    just language/runtime-windows-gnu-check
 
 # run language runtime windows target checks via zig cross
-check-runtime-windows-cross:
-    just language/check-runtime-windows-cross
+runtime-windows-gnu-cross-check:
+    just language/runtime-windows-gnu-cross-check
 
 # run language resolver windows target tests through wine
 test-windows-resolver:
     just language/test-windows-resolver
 
 # run language runtime cross-target checks
-check-runtime-cross-targets:
-    just language/check-runtime-cross-targets
+runtime-cross-targets-check:
+    just language/runtime-cross-targets-check
 
 # run privileged language runtime platform tests
 test-runtime-privileged:

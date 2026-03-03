@@ -3,33 +3,20 @@ set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
 repository_root="$(cd "${script_directory}/../.." && pwd)"
-host_kernel="$(uname -s)"
 
-ensure_command() {
-    command_name="$1"
-    if ! command -v "${command_name}" >/dev/null 2>&1; then
-        echo "missing required command: ${command_name}" >&2
-        exit 1
-    fi
-}
+# shellcheck source=./scripts/toolchain/lib/runtime-common.sh
+source "${script_directory}/lib/runtime-common.sh"
+# shellcheck source=./scripts/toolchain/lib/runtime-windows-gnu.sh
+source "${script_directory}/lib/runtime-windows-gnu.sh"
 
-ensure_rust_target() {
-    target="$1"
-    if rustup target list --installed | grep -Fx "${target}" >/dev/null 2>&1; then
-        echo "rust target already installed: ${target}"
-        return 0
-    fi
+host_kernel="$(runtime_host_kernel)"
 
-    echo "installing rust target: ${target}"
-    rustup target add "${target}"
-}
-
-ensure_command rustup
-ensure_command cargo
+runtime_require_command rustup "missing required command: rustup" >&2 || exit 1
+runtime_require_command cargo "missing required command: cargo" >&2 || exit 1
 
 # host sdk tools
 if [ "${host_kernel}" = "Darwin" ]; then
-    if ! command -v xcrun >/dev/null 2>&1; then
+    if [ -z "$(runtime_command_path xcrun)" ]; then
         echo "missing xcrun: install xcode command line tools" >&2
         echo "run: xcode-select --install" >&2
         exit 1
@@ -43,21 +30,21 @@ if ! rustup component list --installed | grep -E '^clippy(-|$)' >/dev/null 2>&1;
 fi
 
 # runtime target matrix
-ensure_rust_target wasm32-wasip1
-ensure_rust_target x86_64-pc-windows-gnu
-ensure_rust_target aarch64-linux-android
+runtime_ensure_rust_target wasm32-wasip1
+runtime_ensure_rust_target x86_64-pc-windows-gnu
+runtime_ensure_rust_target aarch64-linux-android
 
 if [ "${host_kernel}" = "Darwin" ]; then
-    ensure_rust_target aarch64-apple-ios
+    runtime_ensure_rust_target aarch64-apple-ios
 fi
 
 if [ "${host_kernel}" = "Linux" ]; then
-    ensure_rust_target x86_64-unknown-linux-gnu
-    ensure_rust_target aarch64-unknown-linux-gnu
+    runtime_ensure_rust_target x86_64-unknown-linux-gnu
+    runtime_ensure_rust_target aarch64-unknown-linux-gnu
 fi
 
 # android sdk and ndk
-if ndk_root="$(${script_directory}/resolve-android-ndk-root.sh 2>/dev/null)"; then
+if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
     echo "android ndk already available: ${ndk_root}"
 else
     if [ "${host_kernel}" = "Darwin" ]; then
@@ -84,10 +71,16 @@ fi
 
 # host package manager guidance for optional system tools
 if ! command -v zig >/dev/null 2>&1; then
-    echo "zig is missing: install zig to run windows gnu and cross runtime lanes"
+    echo "zig is missing: install zig to run linux-hosted windows gnu and cross runtime lanes"
 fi
-if [ "${host_kernel}" = "Linux" ] && ! command -v wine >/dev/null 2>&1; then
+if [ -z "$(runtime_command_path python3)" ]; then
+    echo "python3 is missing: install python3 for runtime windows gnu test artifact parsing"
+fi
+if runtime_windows_gnu_is_execution_host && [ -z "$(runtime_command_path wine)" ]; then
     echo "wine is missing: install wine to run windows gnu executable runtime tests"
+fi
+if [ "${host_kernel}" = "Darwin" ] && [ -z "$(runtime_command_path x86_64-w64-mingw32-gcc)" ]; then
+    echo "mingw-w64 compiler is missing: install mingw-w64 for macos windows gnu runtime lanes"
 fi
 if [ "${host_kernel}" = "Linux" ] \
     && command -v pkg-config >/dev/null 2>&1 \

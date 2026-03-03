@@ -2,10 +2,14 @@
 set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
-repository_root="$(cd "${script_directory}/../.." && pwd)"
+
+# shellcheck source=./scripts/toolchain/lib/runtime-common.sh
+source "${script_directory}/lib/runtime-common.sh"
+# shellcheck source=./scripts/toolchain/lib/runtime-windows-gnu.sh
+source "${script_directory}/lib/runtime-windows-gnu.sh"
 
 has_error="0"
-host_kernel="$(uname -s)"
+host_kernel="$(runtime_host_kernel)"
 host_arch="$(uname -m)"
 
 print_ok() {
@@ -29,8 +33,8 @@ check_command() {
     required="$2"
     description="$3"
 
-    if command -v "${command_name}" >/dev/null 2>&1; then
-        command_path="$(command -v "${command_name}")"
+    command_path="$(runtime_command_path "${command_name}")"
+    if [ -n "${command_path}" ]; then
         print_ok "${description}: ${command_path}"
         return 0
     fi
@@ -46,7 +50,7 @@ check_rust_target() {
     target="$1"
     required="$2"
 
-    if rustup target list --installed | grep -Fx "${target}" >/dev/null 2>&1; then
+    if runtime_rust_target_installed "${target}"; then
         print_ok "rust target installed: ${target}"
         return 0
     fi
@@ -64,13 +68,28 @@ printf 'host: %s (%s)\n' "${host_kernel}" "${host_arch}"
 check_command rustup required "rustup"
 check_command cargo required "cargo"
 check_command just required "just"
-check_command zig required "zig"
 
-# wine is required only when windows gnu tests execute through wine on linux
+# zig is required on linux where zig linker wrappers are active
 if [ "${host_kernel}" = "Linux" ]; then
+    check_command zig required "zig"
+else
+    check_command zig optional "zig"
+fi
+
+# wine is required when windows gnu tests execute through wine
+if runtime_windows_gnu_is_execution_host; then
     check_command wine required "wine"
+    check_command python3 required "python3"
 else
     check_command wine optional "wine"
+    check_command python3 optional "python3"
+fi
+
+# mingw-w64 compiler is required on macos for windows gnu linker wiring
+if [ "${host_kernel}" = "Darwin" ]; then
+    check_command x86_64-w64-mingw32-gcc required "mingw-w64 compiler"
+else
+    check_command x86_64-w64-mingw32-gcc optional "mingw-w64 compiler"
 fi
 
 # host sdk checks
@@ -100,7 +119,7 @@ else
 fi
 
 # android ndk resolution
-if ndk_root="$(${script_directory}/resolve-android-ndk-root.sh 2>/dev/null)"; then
+if ndk_root="$("${script_directory}"/resolve-android-ndk-root.sh 2>/dev/null)"; then
     print_ok "android ndk root: ${ndk_root}"
 else
     print_error "android ndk root: not found, run just runtime-toolchain-bootstrap"
