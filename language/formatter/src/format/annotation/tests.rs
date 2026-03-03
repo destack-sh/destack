@@ -141,6 +141,67 @@ fn find_annotation_target_owner_node(
         })
 }
 
+const ROUNDTRIP_FIXTURE_0052_SOURCE: &str = r#"import { describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { runAndSnapshot } from "../utils";
+
+const fixturesDir = join(import.meta.dirname, "fixtures");
+
+describe("exclude_nested", () => {
+    it("should correctly exclude nested paths", async () => {
+        const testCases = [
+            ["--check", "!foo/bar/error.js"],
+            ["--check", "!foo/bar"],
+            ["--check", "!foo"],
+            ["--check", "!**/error.js"],
+            ["--check", "foo", "!foo/bar/error.js"],
+            ["--check", "foo", "!foo/bar"],
+            ["--check", "foo", "!**/bar/error.js"],
+            ["--check", "foo", "!**/bar/*"],
+        ];
+
+        const snapshot = await runAndSnapshot(fixturesDir, testCases);
+        expect(snapshot).toMatchSnapshot();
+    });
+
+    it("should correctly exclude nested paths with dot - set 1", async () => {
+        const testCases = [
+            ["--check", ".", "!foo/bar/error.js"],
+            ["--check", ".", "!foo/bar"],
+            ["--check", ".", "!foo"],
+            ["--check", ".", "!**/error.js"],
+        ];
+
+        const snapshot = await runAndSnapshot(fixturesDir, testCases);
+        expect(snapshot).toMatchSnapshot();
+    });
+
+    it("should correctly exclude nested paths with dot - set 2", async () => {
+        const testCases = [
+            ["--check", "./foo", "!**/bar/error.js"],
+            ["--check", "./foo", "!**/error.js"],
+            ["--check", "./foo", "!**/bar/*"],
+            ["--check", "./foo", "!foo/bar/error.js"],
+            ["--check", "./foo", "!foo/bar"],
+        ];
+
+        const snapshot = await runAndSnapshot(fixturesDir, testCases);
+        expect(snapshot).toMatchSnapshot();
+    });
+
+    it("should handle glob include with glob exclude", async () => {
+        const testCases = [
+            // Glob include all .js, glob exclude error.js
+            ["--check", "*", "!**/error.js"],
+            // Glob include foo/**/*.js, glob exclude bar directory
+            ["--check", "foo/**/*.js", "!**/bar/*"],
+        ];
+
+        const snapshot = await runAndSnapshot(fixturesDir, testCases);
+        expect(snapshot).toMatchSnapshot();
+    });
+});"#;
+
 /// Closing-tag seam comments should attach to the tree-expression boundary owner.
 #[test]
 fn test_annotation_jsx_closing_tag_seam_comments_attach_to_tree_expression_boundary() {
@@ -396,9 +457,9 @@ fn test_format_jsx_line_postfix_then_heading_block_comment_is_idempotent() {
     );
 }
 
-/// Prettier in-end-tag JSX comment shapes should remain idempotent.
+/// Fixture-derived in-end-tag JSX comment shapes should remain idempotent.
 #[test]
-fn test_format_jsx_closing_tag_prettier_in_end_tag_fixture_is_idempotent() {
+fn test_format_jsx_closing_tag_in_end_tag_fixture_is_idempotent() {
     let source = r#"
 /* =========== before slash =========== */
 <a><// line
@@ -850,9 +911,9 @@ fn test_annotation_type_declaration_assignment_line_comment_attaches_to_rhs_valu
     );
 }
 
-/// Type declaration `prettier-ignore` comments after `=` should stay line-prefixed on the rhs.
+/// Type declaration ignore-directive comments after `=` should stay line-prefixed on the rhs.
 #[test]
-fn test_annotation_type_declaration_assignment_prettier_ignore_attaches_to_rhs_value() {
+fn test_annotation_type_declaration_assignment_ignore_directive_attaches_to_rhs_value() {
     let source = "type Foo =
 // prettier-ignore
 aa;";
@@ -862,14 +923,14 @@ aa;";
 ";
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
-            .expect("parse type declaration prettier-ignore seam source");
+            .expect("parse type declaration ignore seam source");
     let context = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&context, "prettier-ignore")
-        .expect("expected type assignment prettier-ignore annotation");
+        .expect("expected type assignment ignore annotation");
     let position = context.annotation(annotation_id).position();
     let owner_node = find_annotation_target_owner_node(&context, annotation_id)
-        .expect("expected type assignment prettier-ignore owner node");
+        .expect("expected type assignment ignore owner node");
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
 
     assert_eq!(position, AnnotationPosition::LinePrefix);
@@ -964,9 +1025,9 @@ fn test_annotation_call_inline_separator_comment_attaches_to_argument_owner() {
     assert_eq!(position, AnnotationPosition::LinePostfixBoundary);
 }
 
-/// Oxfmt conditional-argument separator line comments should attach to argument owners.
+/// Conditional-argument separator line comments should attach to argument owners.
 #[test]
-fn test_annotation_call_conditional_separator_comment_matches_oxfmt_fixture() {
+fn test_annotation_call_conditional_separator_comment_matches_separator_fixture() {
     let source = "{
     cb(
         overflowing ? 'absolute top-0' : 'relative', // inline-separator-marker
@@ -976,7 +1037,7 @@ fn test_annotation_call_conditional_separator_comment_matches_oxfmt_fixture() {
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
-    .expect("parse oxfmt conditional separator marker source");
+    .expect("parse conditional separator marker source");
     let context = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&context, "inline-separator-marker")
@@ -992,7 +1053,8 @@ fn test_annotation_call_conditional_separator_comment_matches_oxfmt_fixture() {
 
 /// Inline-block conditional separator comments should attach to argument owners.
 #[test]
-fn test_annotation_call_conditional_separator_comment_with_inline_block_matches_oxfmt_fixture() {
+fn test_annotation_call_conditional_separator_comment_with_inline_block_matches_separator_fixture()
+{
     let source = "{
     cb(
         overflowing ? 'absolute top-0' : 'relative' /* */, // inline-separator-marker
@@ -1002,7 +1064,7 @@ fn test_annotation_call_conditional_separator_comment_with_inline_block_matches_
     let (formatter, _) = TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
         p.eat_block(destack_ast::BlockContext::Expression)
     })
-    .expect("parse oxfmt conditional separator marker with inline block source");
+    .expect("parse conditional separator marker with inline block source");
     let context = context_from_formatter(&formatter);
 
     let annotation_id = find_annotation_by_marker(&context, "inline-separator-marker")
@@ -2567,9 +2629,28 @@ exports.CONNECTION_STATUS = {
 /// Fixture trailing jsdocs should stay idempotent.
 #[test]
 fn test_fixture_trailing_jsdocs_is_idempotent() {
-    let source = include_str!(
-        "../../../../test/fixtures/formatter/conformance/staging/prettier/tests/format/js/comments/trailing-jsdocs.js"
-    );
+    let source = r#"const CONNECTION_STATUS = exports.CONNECTION_STATUS = {
+  CLOSED: Object.freeze({ kind: 'CLOSED' }),
+  CONNECTED: Object.freeze({ kind: 'CONNECTED' }),
+  CONNECTING: Object.freeze({ kind: 'CONNECTING' }),
+  NOT_CONNECTED: Object.freeze({ kind: 'NOT_CONNECTED' }) };
+
+/* A comment */ /**
+* A type that can be written to a buffer.
+*/ /**
+* Describes the connection status of a ReactiveSocket/DuplexConnection.
+* - NOT_CONNECTED: no connection established or pending.
+* - CONNECTING: when `connect()` has been called but a connection is not yet
+*   established.
+* - CONNECTED: when a connection is established.
+* - CLOSED: when the connection has been explicitly closed via `close()`.
+* - ERROR: when the connection has been closed for any other reason.
+*/ /**
+* A contract providing different interaction models per the [ReactiveSocket protocol]
+* (https://github.com/ReactiveSocket/reactivesocket/blob/master/Protocol.md).
+*/ /**
+* A single unit of data exchanged between the peers of a `ReactiveSocket`.
+*/"#;
 
     assert_format_program_idempotent_with_file_type(
         source,
@@ -3033,7 +3114,7 @@ const test_cases = [
 /// Real-world roundtrip fixture should preserve nested list comments.
 #[test]
 fn test_format_roundtrip_fixture_0052_preserves_comments() {
-    let source = include_str!("../../../../test/fixtures/formatter/roundtrip/formatter-0052.ts");
+    let source = ROUNDTRIP_FIXTURE_0052_SOURCE;
 
     assert_format_program_idempotent_with_file_type(
         source,
@@ -3045,7 +3126,7 @@ fn test_format_roundtrip_fixture_0052_preserves_comments() {
 /// Roundtrip fixture comment before the final nested array element should stay as a line prefix.
 #[test]
 fn test_annotation_roundtrip_fixture_0052_second_comment_stays_line_prefix() {
-    let source = include_str!("../../../../test/fixtures/formatter/roundtrip/formatter-0052.ts");
+    let source = ROUNDTRIP_FIXTURE_0052_SOURCE;
     let (formatter, _) =
         TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
             .expect("parse roundtrip fixture 0052 source");
@@ -3260,6 +3341,151 @@ fn test_format_blank_in_array() {
 ]",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default()
+    );
+}
+
+/// Leading blank lines before file-head comments should normalize on the first pass.
+#[test]
+fn test_format_file_head_blank_before_comment_is_idempotent() {
+    let source = r#"
+
+// file header
+const value = 1;
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// File-head multiline comments should preserve one blank line before following statements.
+#[test]
+fn test_format_file_head_multiline_comment_keeps_statement_gap() {
+    let source = r#"/*
+ * Looking good!
+ */
+
+if (true) {
+    /*
+     * Oh no
+     */
+}
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Statement boundary blank seams should not oscillate between passes.
+#[test]
+fn test_format_statement_boundary_blank_seams_are_idempotent() {
+    let source = r#"
+a = [
+  1,
+]
+
+
+b = [
+  2,
+]
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Array spacing and inter-statement blank seams should stay idempotent.
+#[test]
+fn test_format_array_spacing_blank_seams_are_idempotent() {
+    let source = r#"
+a = [
+  1,
+  2,
+  3,
+]
+
+b = [
+  100,
+  (200)
+  ,
+  300
+  ,
+]
+
+c = [
+  "apple",
+  "banana",
+  "blueberry",
+
+  "red",
+  "blue"
+  ,
+  "yellow",
+
+  //an egg
+  "egg",
+  //a bigger egg
+  "big egg"
+  //the biggest egg
+  ,
+  "huge egg"
+  ,
+]
+
+_ = [
+  a,
+
+  b //
+]
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Line-prefix comment clusters should preserve one explicit blank separator line.
+#[test]
+fn test_format_line_prefix_comment_cluster_keeps_blank_line() {
+    let source = r#"/* first */
+
+/**
+ * second
+ */
+"#;
+    let expected = r#"/* first */
+
+/**
+ * second
+ */
+"#;
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Array seams before closing delimiters should be idempotent.
+#[test]
+fn test_format_array_blank_before_closing_delimiter_is_idempotent() {
+    let source = r#"
+a = [
+  1,
+
+]
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
     );
 }
 
@@ -3837,7 +4063,7 @@ Something
     );
 }
 
-/// TypeScript mapped-type prettier-ignore seams should stay idempotent.
+/// TypeScript mapped-type ignore-directive seams should stay idempotent.
 #[test]
 fn test_format_typescript_mapped_type_ignore_directives_are_idempotent() {
     let source = r#"
@@ -4703,7 +4929,7 @@ fn test_format_parenthesized_iife_prefix_line_comments_are_idempotent() {
     );
 }
 
-/// Parenthesized iife prettier-ignore comments should stay in annotation entries.
+/// Parenthesized iife ignore-directive comments should stay in annotation entries.
 #[test]
 fn test_annotation_parenthesized_iife_ignore_comments_are_present() {
     let source = r#"[

@@ -13,11 +13,11 @@ For Prettier, this is a lot, but surprisingly there is a _lot_ of Flow stuff, so
 | Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------|-------:|-------:|--------:|------:|--------:|-----------:|
 | oxfmt    |   135  |     0  |     -  |   135 | 100.00% | 100.00% |
-| prettier |  1540  |     5  |  1685  |  1545 |  99.68% |  47.68% |
+| prettier |  1545  |     9  |  1676  |  1554 |  99.42% |  47.83% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  1675  |     5  |   1685  |  1680 |  99.70% |     49.78% |
+| total    |  1680  |     9  |   1676  |  1689 |  99.47% |     49.93% |
 
-Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
+Total Blended Pass Rate: **99.47%** (49.93% incl. ignored)
 <!-- end:summary-results -->
 
 ### prettier
@@ -115,7 +115,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | flow/variance        |     0  |     0  |       1  |     0 | 100.00% |      0.00% |
 | js/_errors_          |    27  |     0  |      17  |    27 | 100.00% |     61.36% |
 | js/array-spread      |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| js/arrays            |    17  |     1  |       -  |    18 |  94.44% |     94.44% |
+| js/arrays            |    18  |     0  |       -  |    18 | 100.00% |    100.00% |
 | js/arrow-call        |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | js/arrows            |    27  |     0  |       -  |    27 | 100.00% |    100.00% |
 | js/arrows-bind       |     0  |     0  |       1  |     0 | 100.00% |      0.00% |
@@ -138,7 +138,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | js/class-static-block |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | js/classes           |    27  |     0  |       -  |    27 | 100.00% |    100.00% |
 | js/classes-private-fields |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
-| js/comments          |    61  |     0  |       3  |    61 | 100.00% |     95.31% |
+| js/comments          |    61  |     1  |       2  |    62 |  98.39% |     95.31% |
 | js/comments-closure-typecast |    17  |     0  |       6  |    17 | 100.00% |     73.91% |
 | js/comments-pipeline-own-line |     0  |     0  |       1  |     0 | 100.00% |      0.00% |
 | js/computed-props    |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
@@ -160,7 +160,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | js/end-of-line       |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | js/eol               |     0  |     0  |       4  |     0 | 100.00% |      0.00% |
 | js/es6modules        |    10  |     0  |       -  |    10 | 100.00% |    100.00% |
-| js/explicit-resource-management |    25  |     0  |       5  |    25 | 100.00% |     83.33% |
+| js/explicit-resource-management |    25  |     1  |       4  |    26 |  96.15% |     83.33% |
 | js/export            |     6  |     0  |       -  |     6 | 100.00% |    100.00% |
 | js/export-default    |     8  |     0  |       -  |     8 | 100.00% |    100.00% |
 | js/export-star       |     6  |     0  |       -  |     6 | 100.00% |    100.00% |
@@ -176,7 +176,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | js/generator         |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | js/identifier        |     0  |     0  |       4  |     0 | 100.00% |      0.00% |
 | js/if                |    12  |     0  |       -  |    12 | 100.00% |    100.00% |
-| js/ignore            |    12  |     0  |       1  |    12 | 100.00% |     92.31% |
+| js/ignore            |    13  |     0  |       -  |    13 | 100.00% |    100.00% |
 | js/import            |    10  |     0  |       1  |    10 | 100.00% |     90.91% |
 | js/import-assertions |     0  |     0  |      13  |     0 | 100.00% |      0.00% |
 | js/import-attributes |    15  |     0  |       -  |    15 | 100.00% |    100.00% |
@@ -190,7 +190,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | js/literal           |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | js/literal-numeric-separator |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | js/logical-assignment |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
-| js/logical-expressions |     3  |     1  |       -  |     4 |  75.00% |     75.00% |
+| js/logical-expressions |     4  |     0  |       -  |     4 | 100.00% |    100.00% |
 | js/member            |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | js/method-chain      |    35  |     0  |       -  |    35 | 100.00% |    100.00% |
 | js/module-blocks     |     1  |     0  |       4  |     1 | 100.00% |     20.00% |
@@ -198,7 +198,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | js/multiparser-comments |     2  |     0  |       1  |     2 | 100.00% |     66.67% |
 | js/multiparser-css   |    16  |     0  |       -  |    16 | 100.00% |    100.00% |
 | js/multiparser-graphql |     8  |     0  |       -  |     8 | 100.00% |    100.00% |
-| js/multiparser-html  |     3  |     0  |       1  |     3 | 100.00% |     75.00% |
+| js/multiparser-html  |     3  |     1  |       -  |     4 |  75.00% |     75.00% |
 | js/multiparser-invalid |     0  |     0  |       1  |     0 | 100.00% |      0.00% |
 | js/multiparser-markdown |     6  |     0  |       -  |     6 | 100.00% |    100.00% |
 | js/multiparser-text  |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
@@ -301,10 +301,10 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | typescript/abstract-construct-types |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/abstract-property |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/ambient   |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| typescript/angular-component-examples |     3  |     0  |       1  |     3 | 100.00% |     75.00% |
+| typescript/angular-component-examples |     4  |     0  |       -  |     4 | 100.00% |    100.00% |
 | typescript/argument-expansion |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | typescript/array     |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
-| typescript/arrow     |     7  |     0  |       1  |     7 | 100.00% |     87.50% |
+| typescript/arrow     |     7  |     1  |       -  |     8 |  87.50% |     87.50% |
 | typescript/arrows    |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | typescript/as        |    15  |     0  |       -  |    15 | 100.00% |    100.00% |
 | typescript/assert    |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
@@ -382,7 +382,7 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | typescript/optional-variance |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | typescript/override-modifiers |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | typescript/predicate-types |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
-| typescript/prettier-ignore |     3  |     0  |       2  |     3 | 100.00% |     60.00% |
+| typescript/prettier-ignore |     4  |     1  |       -  |     5 |  80.00% |     80.00% |
 | typescript/private-fields-in-in |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/property-signature |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | typescript/quote-props |     4  |     0  |       -  |     4 | 100.00% |    100.00% |
@@ -411,13 +411,13 @@ Total Blended Pass Rate: **99.70%** (49.78% incl. ignored)
 | typescript/typeof-this |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | typescript/typescript-babel-only |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | typescript/typescript-only |     7  |     0  |       -  |     7 | 100.00% |    100.00% |
-| typescript/union     |    22  |     0  |       1  |    22 | 100.00% |     95.65% |
+| typescript/union     |    22  |     1  |       -  |    23 |  95.65% |     95.65% |
 | typescript/unique-symbol |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/unknown   |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/update-expression |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/webhost   |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |  1540  |     5  |    1685  |  1545 |  99.68% |     47.68% |
+| total                |  1545  |     9  |    1676  |  1554 |  99.42% |     47.83% |
 <!-- end:prettier-results -->
 
 ### oxfmt

@@ -345,7 +345,7 @@ mod tests {
         );
     }
 
-    /// Parser annotations should keep one blank prefix between loop and following let statement.
+    /// Parser annotations should keep loop-to-let spacing as one statement-boundary seam.
     #[test]
     fn test_block_insert_semicolon_annotation_contract_after_loop() {
         let source = r#"{
@@ -433,7 +433,7 @@ mod tests {
                 )
             })
             .count();
-        assert_eq!(loop_blank_block_prefix, 1);
+        assert_eq!(loop_blank_block_prefix, 0);
 
         let loop_blank_postfix = loop_annotations
             .iter()

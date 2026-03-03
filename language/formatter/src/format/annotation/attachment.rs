@@ -1454,6 +1454,10 @@ pub(crate) fn formatter_annotation_projection(
         let token_before_type = token_before_index
             .and_then(|index| tokens.get(index))
             .map(|token| token.token.ty);
+        let token_after_index = decode_token_index(trivia.boundary.token_after);
+        let token_after_type = token_after_index
+            .and_then(|index| tokens.get(index))
+            .map(|token| token.token.ty);
         let token_before_is_statement_end = matches!(
             token_before_type,
             Some(TokenType::Semicolon | TokenType::CloseBrace | TokenType::CloseParenthesis)
@@ -1478,6 +1482,11 @@ pub(crate) fn formatter_annotation_projection(
                     }
                 )
             });
+
+        // normalize eof seams to one trailing newline
+        if token_after_index.is_none() || token_after_type == Some(TokenType::End) {
+            continue;
+        }
 
         let next_comment = comment_targets
             .iter()

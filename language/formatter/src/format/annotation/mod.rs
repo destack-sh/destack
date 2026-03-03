@@ -20,6 +20,7 @@ mod tests;
 
 pub(crate) use attachment::formatter_annotation_projection;
 pub use render::{AnnotationCapture, Annotations};
+pub(crate) use render::{annotation_render_items, write_annotation_render_items};
 pub(crate) use terminator::{
     expression_needs_statement_terminator, statement_wrapper_needs_semicolon,
 };

@@ -120,8 +120,8 @@ fn owner_before_semicolon(
     owner.map(|owner_id| promote_owner_to_statement_boundary(tree, parents, owner_id))
 }
 
-/// Return whether one seam should be treated as one top-level statement spacing gap.
-fn seam_is_top_level_statement_spacing_gap(
+/// Return whether one seam should be treated as one statement-spacing gap.
+fn seam_is_statement_spacing_gap(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     preceding_owner: Option<u32>,
@@ -156,18 +156,45 @@ fn seam_is_top_level_statement_spacing_gap(
         return false;
     }
 
-    let following_is_top_level =
-        promote_owner_to_node_type_ancestor(tree, parents, following_owner, NodeType::Block)
-            .is_none();
-    if !following_is_top_level {
+    let preceding_boundary_is_statement_owner =
+        owner_is_statement_boundary(tree, preceding_statement_owner);
+    let following_boundary_is_statement_owner =
+        owner_is_statement_boundary(tree, following_statement_owner);
+    if !preceding_boundary_is_statement_owner || !following_boundary_is_statement_owner {
         return false;
     }
 
-    let preceding_type = tree.get_node_type(preceding_owner);
-    let following_type = tree.get_node_type(following_owner);
+    let preceding_statement_block = promote_owner_to_node_type_ancestor(
+        tree,
+        parents,
+        preceding_statement_owner,
+        NodeType::Block,
+    );
+    let following_statement_block = promote_owner_to_node_type_ancestor(
+        tree,
+        parents,
+        following_statement_owner,
+        NodeType::Block,
+    );
+    if preceding_statement_block != following_statement_block {
+        return false;
+    }
 
-    matches!(preceding_type, NodeType::Expression | NodeType::Declaration)
-        && matches!(following_type, NodeType::Expression | NodeType::Declaration)
+    true
+}
+
+/// Return whether one owner is one statement-boundary owner.
+fn owner_is_statement_boundary(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) == NodeType::Declaration {
+        return true;
+    }
+
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    tree.get(LocalNodeId::<Expression>::new(owner_id))
+        .is_top_level_statement()
 }
 
 /// Return one start owner at one semantic token index.
@@ -380,7 +407,6 @@ fn blank_seam_token_state(
 struct BlankSeamCommentState {
     seam_has_comment: bool,
     seam_has_line_comment: bool,
-    file_start_has_comment: bool,
     blank_before_first_comment: bool,
     blank_before_first_comment_in_after_range: bool,
 }
@@ -414,11 +440,6 @@ fn blank_seam_comment_state(
             && seam_index
                 .line_comment_seams
                 .contains(&token_state.normalized_seam));
-    let file_start_has_comment = seam_has_comment
-        || token_state
-            .raw_token_after_type
-            .is_some_and(token_type_is_comment_trivia);
-
     let blank_before_first_comment = seam_index
         .first_comment_start_by_seam
         .get(&token_state.seam)
@@ -436,7 +457,6 @@ fn blank_seam_comment_state(
     BlankSeamCommentState {
         seam_has_comment,
         seam_has_line_comment,
-        file_start_has_comment,
         blank_before_first_comment,
         blank_before_first_comment_in_after_range,
     }
@@ -666,6 +686,13 @@ fn try_attach_blank_specialized_handlers(
         return Some(blank_infix_attachment());
     }
 
+    // separator seams before comments are represented by comment spacing
+    if facts.token_before_is_comma
+        && (facts.token_after_is_comment || facts.raw_token_after_is_comment)
+    {
+        return Some(blank_infix_attachment());
+    }
+
     if let Some(attachment) = try_attach_comment_shape_blank_seam(
         tree,
         parents,
@@ -733,8 +760,23 @@ fn try_attach_blank_generic_handlers(
     owner_state: &BlankSeamOwnerState,
     facts: BlankSeamFacts,
 ) -> Option<(Option<u32>, AnnotationPosition)> {
+    // non comment seams before closing delimiters are represented by container layout
+    if !facts.seam_has_comment
+        && matches!(
+            facts.token_after_type,
+            Some(
+                TokenType::CloseParenthesis
+                    | TokenType::CloseBracket
+                    | TokenType::CloseBrace
+                    | TokenType::Semicolon
+            )
+        )
+    {
+        return Some(blank_infix_attachment());
+    }
+
     if !(facts.token_before_is_semicolon && facts.seam_has_comment)
-        && seam_is_top_level_statement_spacing_gap(
+        && seam_is_statement_spacing_gap(
             tree,
             parents,
             owner_state.preceding_owner,
@@ -1159,24 +1201,6 @@ pub(crate) fn blank_trivia_attachment(
 
     // file start
     if token_before.is_none() {
-        let following_owner = start_owner_at_token(owner_index, token_after);
-        if comment_state.file_start_has_comment
-            && let Some(mut target_node) = following_owner
-        {
-            if tree.get_node_type(target_node) != NodeType::Expression
-                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                    tree,
-                    parents,
-                    target_node,
-                    NodeType::Expression,
-                )
-            {
-                target_node = expression_target;
-            }
-
-            return block_prefix_attachment(tree, target_node);
-        }
-
         return blank_infix_attachment();
     }
 
