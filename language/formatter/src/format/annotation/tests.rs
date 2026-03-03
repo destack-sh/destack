@@ -3244,6 +3244,31 @@ fn test_format_nested_parenthesized_arrow_postfix_comments_are_idempotent() {
     );
 }
 
+/// Nested close-paren inline block comments should stay layered on outer grouped wrappers.
+#[test]
+fn test_format_nested_parenthesized_arrow_close_paren_comments_stay_layered() {
+    let source = r#"f((a) => ((b) => ((c) => (1, 2, 3) /* b */ /* c */)/* a */));"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Inline block comments between a callee and zero-argument call parentheses should stay stable.
+#[test]
+fn test_format_zero_argument_call_callee_comment_stays_on_callee_boundary() {
+    let source = r#"[
+  (function () {}) /* trailing */(),
+  (() => {}) /* trailing */(),
+]"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 /// Member-chain inline block comments should stay attached at the original chain seam.
 #[test]
 fn test_format_member_chain_inline_block_comments_stay_on_chain_seams() {
@@ -4495,6 +4520,46 @@ fn test_annotation_own_line_ignore_comment_after_nested_block_stays_leading() {
         source,
         expected,
         FileType::JavaScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
+/// Type-value seam comments after `=` should keep stable block-prefix placement.
+#[test]
+fn test_annotation_type_value_seam_comment_after_assign_stays_block_prefix() {
+    let source = r#"type A = (
+    /** @deprecated */
+    () => void
+);"#;
+    let expected = r#"type A =
+  /** @deprecated */
+  () => void;
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        expected,
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
+/// Type-union seams with leading comments after `=` should stay idempotent.
+#[test]
+fn test_annotation_type_union_comment_after_assign_is_idempotent() {
+    let source = r#"type A6 = | (
+  /*1*/ | (
+    | (
+          | A
+          // A comment to force break
+          | B
+        )
+  )
+  );"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
