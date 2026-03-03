@@ -1,16 +1,17 @@
 # linter
 
-Static analysis rules for Destack, TypeScript, and JavaScript.
+Static analysis rules for Destack (`.ds`. i.e., "TS++") and TypeScript (`.ts`, `.tsx`).
 Lints run at different IR levels (AST, DIR, MIR), usually per module.
 
 ## Overview
 
-The linter is a separate crate from the compiler, but deeply integrated.
-It runs directly on the same IRs and takes advantage of the same task parallelization.
-Rules can operate on AST (syntax patterns), DIR (typed IR), or MIR (low-level IR).
+The linter is a separate crate from the compiler, but deeply integrated with the same IRs.
+It runs directly in process the same IRs (zero copy) and takes advantage of the same task parallelization.
+Rules can operate on all the main IRs: AST (syntax patterns), DIR (typed IR), or MIR (low-level IR).
 
 We draw inspiration from linters across the ecosystem: ESLint, TypeScript-ESLint, Biome, Clippy, Ruff, SonarQube, Semgrep.
-Each rule notes its source if following an established rule (we also try to keep the name, severity, and fixability the same).
+Each rule notes its main inspiration when following an established rule, and we also try to keep the name, severity, and fixability to a level the ecosystem is used to.
+However, the Destack linter is _not_ intended as a complete replacement or even substitute for contemporary linters like ESLint.
 
 ## Architecture
 
@@ -58,23 +59,6 @@ Rules are organized into categories, each with a letter code for diagnostic IDs:
 
 Lint codes are stable identifiers, and the tables are sorted alphabetically by rule name.
 Gaps are expected, and new rules should use the next available code within their category.
-
----
-
-## Compiler vs Linter
-
-We have a full compiler with its own analysis, verification, and diagnostics.
-Checks that are fundamental to correct compilation are handled by the **compiler** rather than the linter:
-
-| Check | Owner | Reasoning |
-|-------|-------|-----------|
-| Type mismatches | Compiler | Fundamental type system |
-| Unbound symbols | Compiler | Required for compilation |
-| Conflicting symbols | Compiler | Required for compilation |
-| Unreachable code | Compiler | CFG analysis for codegen |
-| Precision loss | Compiler | Numeric type semantics |
-| Pattern exhaustiveness | Compiler | Required for correctness |
-| Ownership violations | Compiler | Enforced in strict borrow mode (`borrowMode: "strict"`) |
 
 ---
 
