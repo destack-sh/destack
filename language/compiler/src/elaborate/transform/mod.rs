@@ -7,3 +7,6 @@ mod process;
 mod r#return;
 mod statement;
 mod ternary;
+
+#[cfg(test)]
+mod tests;
