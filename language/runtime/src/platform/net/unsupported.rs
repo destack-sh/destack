@@ -7,8 +7,8 @@ use crate::platform::net::{
     SocketRecvMessage, SocketSendMessage, SocketShutdown, UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 pub(crate) use crate::platform::net::simulation::native::*;
 

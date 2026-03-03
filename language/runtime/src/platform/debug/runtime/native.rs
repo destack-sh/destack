@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::NativeArray;
 use crate::platform::debug::{InspectorEndpoint, ProfileKind, TraceLevel, native as debug_native};
-use crate::platform::{NativeArray, NativeStringRef};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use crate::platform::resource;
 

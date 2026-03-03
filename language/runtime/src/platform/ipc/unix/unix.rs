@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary};
-use crate::platform::{NativeSlice, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::core::{
     io_error, register_transferred_descriptor, socket_descriptor, transferable_descriptor,

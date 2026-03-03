@@ -5,8 +5,8 @@ use std::time::Duration;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioEvent, AudioEventSubscriptionOptions, core as audio_core};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Close one audio event subscription.
 ///

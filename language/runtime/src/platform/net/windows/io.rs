@@ -14,8 +14,8 @@ use crate::platform::net::{
     SocketSendMessage, SocketSendTo,
 };
 use crate::platform::resource::TransferredHandle;
-use crate::platform::{NativeArray, NativeSlice, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Resolve the `WSARecvMsg` extension pointer for a socket.
 fn receive_message_extension(socket: usize) -> RuntimeResult<LPFN_WSARECVMSG> {

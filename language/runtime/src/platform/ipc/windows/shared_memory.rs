@@ -9,8 +9,8 @@ use windows_sys::Win32::System::Memory::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::ipc::SharedMemoryMapping;
-use crate::platform::{NativeStringRef, PlatformError, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::core::{register_shared_memory_handle, shared_memory_handle, wide_name};
 

@@ -24,10 +24,8 @@ use crate::platform::net::{
     SocketTimestampingMode, UdpSourceMembershipV4, UdpSourceMembershipV6,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, core as core_platform,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 fn parse_ipv4_interface(value: &str) -> RuntimeResult<Ipv4Addr> {
     // treat empty values as INADDR_ANY

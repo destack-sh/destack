@@ -16,8 +16,8 @@ use crate::platform::io::{
 use crate::platform::resource::{
     CompletionHandle, PollHandle, ResourceEntry, ResourceId, ResourceKind, UringHandle,
 };
-use crate::platform::{NativeSlice, PlatformError, VmArray, VmSlice};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, VmArray, VmSlice};
+use crate::runtime::{BindingCallContext, NativeSlice};
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]

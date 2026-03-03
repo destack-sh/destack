@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::VmSlice;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm,
@@ -10,7 +11,7 @@ use crate::platform::os::{
     CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
     CredentialWriteOptionsVm,
 };
-use crate::platform::{NativeStringRef, VmSlice};
+use crate::runtime::NativeStringRef;
 
 use super::super::{HarnessValue, OsHarnessContext};
 

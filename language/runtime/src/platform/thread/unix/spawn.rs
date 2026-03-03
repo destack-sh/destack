@@ -4,9 +4,10 @@ use std::mem::MaybeUninit;
 use std::ptr;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::resource::ThreadHandle;
 use crate::platform::thread::{ThreadOptions, core as core_thread, resource as resource_thread};
-use crate::platform::{NativeStringRef, PlatformError};
+use crate::runtime::NativeStringRef;
 
 use crate::runtime::BindingCallContext;
 

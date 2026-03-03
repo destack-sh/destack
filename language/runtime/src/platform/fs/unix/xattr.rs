@@ -13,7 +13,7 @@ use crate::platform::abi::NativeAbi;
 use crate::platform::fs::{core as core_fs, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, net as platform_net, *};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use std::ffi::{CStr, CString};
 use std::os::unix::ffi::OsStrExt;

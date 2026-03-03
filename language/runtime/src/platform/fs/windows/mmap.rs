@@ -16,11 +16,11 @@ use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::fs::{
     FileHandle, FileOffset, FileSize, MmapAdvice, MmapFlags, MmapProt, MmapSyncFlags,
 };
-use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Stored metadata for a Windows mapping.
 #[derive(Debug, Clone, Copy)]

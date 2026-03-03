@@ -1,9 +1,9 @@
 use super::core::{io_error, tty_descriptor, validate_buffer_length};
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::resource;
 use crate::platform::tty::core::ensure_out;
-use crate::platform::{NativeSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Read bytes from a terminal.
 ///

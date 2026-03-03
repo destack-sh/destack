@@ -26,10 +26,8 @@ use crate::platform::tls::{
     TlsContextOptions, TlsHandshakeStatus, TlsHostnameVerificationMode, TlsRole,
     TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion,
 };
-use crate::platform::{
-    NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, core as core_platform, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 
 /// Canonical resource kind used for tls context resources.
 const TLS_CONTEXT_RESOURCE_KIND: ResourceKind = ResourceKind::TlsContext;

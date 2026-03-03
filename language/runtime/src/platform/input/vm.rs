@@ -17,10 +17,8 @@ use crate::platform::input::{
     InputTextInputAreaVm, InputTextInputType, InputTouchEventVm, InputTouchState,
     InputTouchStateVm, InputWindowTargetVm, host as host_input,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Invoke one host call that writes through an out pointer.
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {

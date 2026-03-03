@@ -215,8 +215,8 @@ test-ide:
     just bridge/test-ide
 
 # run language runtime windows target tests through wine
-runtime-windows-gnu-test:
-    just language/runtime-windows-gnu-test
+runtime-windows-gnu-test *args:
+    just language/runtime-windows-gnu-test {{args}}
 
 # inspect runtime target toolchain readiness on this host
 runtime-toolchain-doctor:
@@ -255,8 +255,8 @@ runtime-windows-msvc-check:
     just language/runtime-windows-msvc-check
 
 # run language runtime windows gnu target checks with runnable tests
-runtime-windows-gnu-check:
-    just language/runtime-windows-gnu-check
+runtime-windows-gnu-check *args:
+    just language/runtime-windows-gnu-check {{args}}
 
 # run language runtime windows target checks via zig cross
 runtime-windows-gnu-cross-check:

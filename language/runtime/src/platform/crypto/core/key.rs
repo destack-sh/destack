@@ -27,10 +27,8 @@ use crate::platform::crypto::{
     CryptoNamedCurve, CryptoPrivateKeyExportRequest, CryptoSignatureAlgorithm,
     CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
-use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::core::{
     CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, CryptoStoreProvenanceResource,

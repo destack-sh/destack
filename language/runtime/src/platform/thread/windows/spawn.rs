@@ -11,7 +11,8 @@ use windows_sys::Win32::System::Threading::{
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ThreadHandle;
 use crate::platform::thread::{ThreadOptions, core as core_thread, resource as resource_thread};
-use crate::platform::{NativeStringRef, PlatformError, core as core_platform};
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::NativeStringRef;
 
 use crate::runtime::BindingCallContext;
 

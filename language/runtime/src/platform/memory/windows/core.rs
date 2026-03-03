@@ -5,8 +5,8 @@ use windows_sys::Win32::System::Memory::{
 use windows_sys::Win32::System::SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core as core_platform;
 use crate::platform::memory::{MemoryProtection, MemoryReserveFlags};
+use crate::platform::{core as core_platform, memory as memory_platform};
 
 /// Operation tag for reserve bindings.
 pub(crate) const RESERVE_OPERATION: &str = "destack.memory.map.reserve";
@@ -18,32 +18,38 @@ pub(crate) const REMAP_OPERATION: &str = "destack.memory.protect.remap";
 pub(crate) const HUGE_PAGE_OPERATION: &str = "destack.memory.advise.hugePage";
 
 /// Supported reserve flag mask.
-pub(crate) const RESERVE_FLAG_MASK: u32 = 0x7;
+pub(crate) const RESERVE_FLAG_MASK: u32 = memory_platform::MEMORY_RESERVE_TOP_DOWN.0
+    | memory_platform::MEMORY_RESERVE_LARGE_PAGES.0
+    | memory_platform::MEMORY_RESERVE_NO_RESERVE.0;
 /// Reserve-top-down flag bit.
-pub(crate) const RESERVE_TOP_DOWN_FLAG: u32 = 0x1;
+pub(crate) const RESERVE_TOP_DOWN_FLAG: u32 = memory_platform::MEMORY_RESERVE_TOP_DOWN.0;
 /// Windows `MEM_TOP_DOWN` bit value.
 const WINDOWS_MEM_TOP_DOWN: u32 = 0x0010_0000;
 /// Reserve-large-pages flag bit.
-pub(crate) const RESERVE_LARGE_PAGES_FLAG: u32 = 0x2;
+pub(crate) const RESERVE_LARGE_PAGES_FLAG: u32 = memory_platform::MEMORY_RESERVE_LARGE_PAGES.0;
 /// Reserve-no-reserve flag bit.
-pub(crate) const RESERVE_NO_RESERVE_FLAG: u32 = 0x4;
+pub(crate) const RESERVE_NO_RESERVE_FLAG: u32 = memory_platform::MEMORY_RESERVE_NO_RESERVE.0;
 
 /// Supported remap flag mask.
-pub(crate) const REMAP_FLAG_MASK: u32 = 0x1;
+pub(crate) const REMAP_FLAG_MASK: u32 = memory_platform::MEMORY_REMAP_MAY_MOVE.0;
 /// Remap-may-move flag bit.
-pub(crate) const REMAP_MAY_MOVE_FLAG: u32 = 0x1;
+pub(crate) const REMAP_MAY_MOVE_FLAG: u32 = memory_platform::MEMORY_REMAP_MAY_MOVE.0;
+/// Supported protection bit mask.
+pub(crate) const PROTECTION_MASK: u32 = memory_platform::MEMORY_PROTECTION_READ.0
+    | memory_platform::MEMORY_PROTECTION_WRITE.0
+    | memory_platform::MEMORY_PROTECTION_EXECUTE.0;
 
 /// Decode one memory-protection mask into one windows page-protection value.
 pub(crate) fn windows_protection(protection: MemoryProtection) -> RuntimeResult<u32> {
     // reject unknown protection bits
-    if protection.0 & !0x7 != 0 {
+    if protection.0 & !PROTECTION_MASK != 0 {
         return Err(core_platform::unsupported_flags("protection", protection.0));
     }
 
     // decode portable permission bits
-    let read = protection.0 & 0x1 != 0;
-    let write = protection.0 & 0x2 != 0;
-    let execute = protection.0 & 0x4 != 0;
+    let read = protection.0 & memory_platform::MEMORY_PROTECTION_READ.0 != 0;
+    let write = protection.0 & memory_platform::MEMORY_PROTECTION_WRITE.0 != 0;
+    let execute = protection.0 & memory_platform::MEMORY_PROTECTION_EXECUTE.0 != 0;
 
     // map permission tuple to one windows protection mode
     let native = match (read, write, execute) {

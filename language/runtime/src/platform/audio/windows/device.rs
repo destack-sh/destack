@@ -9,10 +9,8 @@ use crate::platform::audio::{
     AudioShareMode, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// List host audio backends.
 ///

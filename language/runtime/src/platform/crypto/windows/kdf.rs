@@ -1,10 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::platform::NativeSlice;
 use crate::platform::crypto::{
     CryptoArgon2idRequest, CryptoHkdfRequest, CryptoPbkdf2Request, CryptoScryptRequest,
     core as crypto_core,
 };
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use crate::platform::crypto::core::write_out_bytes;
 

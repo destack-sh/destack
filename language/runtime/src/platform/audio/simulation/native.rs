@@ -11,8 +11,8 @@ use super::super::{
     MidiPortDirection,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 fn unsupported(operation: &'static str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::not_supported(operation)).boxed()

@@ -3,7 +3,8 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::platform::{NativeArray, PlatformError};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;

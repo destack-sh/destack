@@ -15,12 +15,12 @@ use crate::platform::proactor::{
     ProactorOp, ProactorRequest,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, ResourceId, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformInterest, PollerEvent,
     PollerEventPayload, PollerToken, create_host_poller_for_io,
 };
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 #[cfg(target_os = "linux")]
 use io_uring::IoUring;

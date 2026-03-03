@@ -23,10 +23,9 @@ use crate::platform::resource::ListenerHandle;
 #[cfg(windows)]
 use crate::platform::resource::{ResourceId, SocketHandle};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, VmValueCodec,
-    net as platform_net,
+    NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use crate::tests::runtime::TestRuntime;
 use platform_net::{
     KeepAliveConfig, KeepAliveConfigVm, Linger, LingerVm, ResolveFlags, ResolveQuery,

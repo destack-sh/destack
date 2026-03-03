@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::NativeSlice;
 use crate::platform::random::runtime::native as runtime_random;
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata,
 };
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Fill a slice with cryptographically secure random bytes.
 ///

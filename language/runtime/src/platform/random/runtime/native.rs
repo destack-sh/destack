@@ -2,9 +2,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, SecureRandomMetadata, SecureRandomSource,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, PlatformErrorCode};
+use crate::platform::{PlatformError, PlatformErrorCode};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::{BindingCallContext, HookState};
+use crate::runtime::{BindingCallContext, HookState, NativeSlice, NativeStringRef};
 
 /// Convert a platform stream handle into a runtime stream id.
 fn stream_id(stream: RandomStream) -> RandomStreamId {

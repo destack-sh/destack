@@ -10,7 +10,7 @@ use crate::platform::fs::OsPath;
 use crate::platform::net::{core as core_net, *};
 use crate::platform::resource::*;
 use crate::platform::{core as core_platform, *};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};

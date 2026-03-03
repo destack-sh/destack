@@ -4,7 +4,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use crate::platform::ipc::{MessageQueueReceive, MessageQueueReceiveVm};
 use crate::platform::ipc::{UnixPeerCredentials, UnixReceiveAncillary, UnixReceiveAncillaryVm};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice, resource};
+use crate::platform::{PlatformError, VmSlice, resource};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 #[path = "harness.generated.rs"]
 mod generated;

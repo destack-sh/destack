@@ -7,8 +7,8 @@ use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
-use crate::platform::{NativeStringRef, PlatformError, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Resource label used for pipe endpoints.
 pub(super) const PIPE_RESOURCE_LABEL: &str = "ipc.pipe";

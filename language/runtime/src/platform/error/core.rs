@@ -30,8 +30,8 @@ use crate::platform::error::{
     PlatformSystemSourceSignal, PlatformSystemSourceSignalVm, PlatformSystemSourceVm,
     PlatformSystemSourceWinsock, PlatformSystemSourceWinsockVm,
 };
-use crate::platform::{NativeArray, NativeStringRef, VmArray};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, VmArray};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// String storage adapter for native runtime calls.
 #[derive(Debug)]

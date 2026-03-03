@@ -18,8 +18,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::*;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle};
-use crate::platform::{NativeSlice, PlatformError, ResourceId, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Maximum packet buffer length used by the Windows packet backend.
 const WINDOWS_PACKET_MAX_LENGTH: usize = 65_535;

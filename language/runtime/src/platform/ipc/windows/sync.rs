@@ -3,8 +3,8 @@ use windows_sys::Win32::System::Threading::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{NativeStringRef, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::core::{
     register_semaphore_handle, semaphore_handle, timed_out, timeout_to_wait_milliseconds, wide_name,

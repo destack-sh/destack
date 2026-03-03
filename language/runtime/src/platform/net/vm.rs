@@ -20,8 +20,8 @@ use crate::platform::net::{
     UdsPathAddress, UdsUnnamedAddress, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Accept a new connection from a listener.
 ///

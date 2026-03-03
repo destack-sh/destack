@@ -7,6 +7,7 @@ use parking_lot::{Condvar, Mutex};
 
 use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::Host;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -202,8 +203,6 @@ unsafe extern "C" {
     fn CFRunLoopGetCurrent() -> CFRunLoopRef;
     /// Add one source to one run loop with one mode.
     fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFStringRef);
-    /// Run one CoreFoundation run loop until it is stopped.
-    fn CFRunLoopRun();
     /// Stop one CoreFoundation run loop.
     fn CFRunLoopStop(rl: CFRunLoopRef);
     /// Wake one CoreFoundation run loop.
@@ -490,16 +489,18 @@ pub(super) fn is_macos_session_identifier(id: &str, id_lower: &str) -> bool {
 
 /// Ensure the background event-tap worker is started and ready.
 fn ensure_tap_service_ready(
+    context: &BindingCallContext,
     runtime_state: &Arc<MacosTapRuntimeState>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // spawn the worker once for this process
     let start_result = runtime_state.worker.get_or_init(|| {
+        let host = context.host().clone();
         let state = Arc::clone(&runtime_state.state);
         let runtime_state = Arc::clone(runtime_state);
         let worker_runtime_state = Arc::clone(&runtime_state);
         let builder = thread::Builder::new().name("destack-input-macos-tap".to_string());
-        match builder.spawn(move || run_event_tap_worker(worker_runtime_state, state)) {
+        match builder.spawn(move || run_event_tap_worker(worker_runtime_state, state, host)) {
             Ok(handle) => {
                 *runtime_state.worker_handle.lock() = Some(handle);
                 Ok(())
@@ -550,7 +551,7 @@ fn register_subscription(
 ) -> RuntimeResult<u64> {
     let runtime_state = macos_tap_runtime_state(context);
     configure_macos_event_queue_limit(&runtime_state, context);
-    ensure_tap_service_ready(&runtime_state, operation)?;
+    ensure_tap_service_ready(context, &runtime_state, operation)?;
 
     let state = &runtime_state.state;
     let mut queues = state.queues.lock();
@@ -1048,7 +1049,11 @@ pub(super) fn release_macos_session_subscription(
 }
 
 /// Run the global CoreGraphics event-tap worker loop.
-fn run_event_tap_worker(runtime_state: Arc<MacosTapRuntimeState>, state: Arc<MacosTapState>) {
+fn run_event_tap_worker(
+    runtime_state: Arc<MacosTapRuntimeState>,
+    state: Arc<MacosTapState>,
+    host: Host,
+) {
     let callback_runtime_state = Arc::clone(&runtime_state);
     let callback_user_info = Arc::as_ptr(&callback_runtime_state) as *mut libc::c_void;
 
@@ -1100,9 +1105,17 @@ fn run_event_tap_worker(runtime_state: Arc<MacosTapRuntimeState>, state: Arc<Mac
     }
     set_startup_ready(&state);
 
-    // run the event loop until process shutdown
+    // run one host-owned blocking message loop for this worker thread
+    let loop_result = host.run_blocking_thread_message_loop();
+    if let Err(error) = loop_result {
+        set_startup_failed(
+            &state,
+            format!("macos input run-loop failed through host adapter: {error}"),
+        );
+    }
+
+    // clear runtime pointers and release corefoundation objects
     unsafe {
-        CFRunLoopRun();
         runtime_state.run_loop.store(0, Ordering::Release);
         runtime_state.tap_port.store(0, Ordering::Release);
         CFRelease(source.cast::<libc::c_void>());

@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendSelectionPolicy,

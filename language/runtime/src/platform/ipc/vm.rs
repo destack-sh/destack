@@ -3,8 +3,8 @@ use crate::platform::ipc::{
     MessageQueueReceive, MessageQueueReceiveVm, PipePairVm, SharedMemoryMappingVm,
     UnixReceiveAncillary, UnixReceiveAncillaryVm,
 };
-use crate::platform::{NativeSlice, NativeStringRef, VmArray, VmSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 use super::host as host_ipc;

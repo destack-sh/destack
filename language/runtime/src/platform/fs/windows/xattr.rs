@@ -18,10 +18,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::fs::{OsPath, PathBytes, PathUtf16, XattrFlags};
 use crate::platform::resource::FileHandle;
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, core as core_platform,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 const STATUS_SUCCESS: NTSTATUS = 0;
 const STATUS_BUFFER_OVERFLOW: NTSTATUS = 0x8000_0005u32 as i32;

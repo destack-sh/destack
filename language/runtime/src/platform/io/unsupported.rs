@@ -3,7 +3,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::io::{TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec};
-use crate::platform::{NativeArray, NativeSlice, PlatformError};
+use crate::platform::{NativeArray, PlatformError};
+use crate::runtime::NativeSlice;
 
 use crate::runtime::BindingCallContext;
 

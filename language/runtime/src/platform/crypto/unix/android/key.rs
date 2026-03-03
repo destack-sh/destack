@@ -16,6 +16,7 @@ use crate::host::{
     destack_host_android_crypto_supports_hardware_key_pair,
     destack_host_android_crypto_supports_hardware_secret_key,
 };
+use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -26,8 +27,7 @@ use crate::platform::crypto::{
     CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
-use crate::platform::{NativeSlice, NativeStringRef, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::core::{callback_runtime_id, host_status_result, host_store_kind, invalid_data};
 

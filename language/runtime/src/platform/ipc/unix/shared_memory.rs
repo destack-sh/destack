@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::SharedMemoryMapping;
-use crate::platform::{NativeStringRef, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::core::{
     io_error, posix_name, register_shared_memory_descriptor, shared_memory_descriptor,

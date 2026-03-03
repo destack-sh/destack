@@ -1,5 +1,6 @@
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::resource;
+use crate::platform::{VmSlice, resource};
+use crate::runtime::NativeSlice;
 
 use super::core::{assert_platform_error_code, unique_ipc_name};
 use super::{HarnessValue, IpcHarnessContext, with_harness_context};
@@ -7,8 +8,8 @@ use super::{HarnessValue, IpcHarnessContext, with_harness_context};
 /// Clone one byte-slice harness wrapper by copying the contained slice descriptor.
 fn clone_bytes_value(
     context: &IpcHarnessContext<'_>,
-    value: &HarnessValue<crate::platform::NativeSlice<u8>, crate::platform::VmSlice<u8>>,
-) -> HarnessValue<crate::platform::NativeSlice<u8>, crate::platform::VmSlice<u8>> {
+    value: &HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+) -> HarnessValue<NativeSlice<u8>, VmSlice<u8>> {
     match value {
         HarnessValue::Native(value) => context.harness_value(*value),
         HarnessValue::Vm(value) => context.harness_value_vm(*value),

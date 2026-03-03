@@ -19,8 +19,8 @@ use crate::platform::net::{
     NetInterface, NetInterfaceFlags, ResolveFlags, ReverseLookupFlags, ReverseLookupName,
     SocketAddress, SocketFamily, SocketHandle,
 };
-use crate::platform::{NativeArray, NativeStringRef, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 /// Reverse-lookup flag bit for numeric host output.
 const REVERSE_LOOKUP_FLAG_NUMERIC_HOST: u32 = 0x1;

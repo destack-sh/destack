@@ -4,9 +4,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::process_error_code_from_errno;
 use crate::platform::process::bindings_generated as bindings;
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, PlatformErrorCode,
-};
+use crate::platform::{NativeArray, PlatformError, PlatformErrorCode};
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;

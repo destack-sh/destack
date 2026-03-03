@@ -36,18 +36,18 @@ use windows_sys::Win32::UI::Input::{
     RIM_TYPEKEYBOARD, RIM_TYPEMOUSE, RegisterRawInputDevices,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CREATESTRUCTW, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GIDC_ARRIVAL,
-    GIDC_REMOVAL, GWLP_USERDATA, GetCursorPos, GetMessageW, GetWindowLongPtrW, HWND_MESSAGE, MSG,
-    PostQuitMessage, PostThreadMessageW, RI_KEY_BREAK, RI_MOUSE_BUTTON_1_DOWN,
-    RI_MOUSE_BUTTON_1_UP, RI_MOUSE_BUTTON_2_DOWN, RI_MOUSE_BUTTON_2_UP, RI_MOUSE_BUTTON_3_DOWN,
-    RI_MOUSE_BUTTON_3_UP, RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_4_UP, RI_MOUSE_BUTTON_5_DOWN,
-    RI_MOUSE_BUTTON_5_UP, RI_MOUSE_HWHEEL, RI_MOUSE_WHEEL, RegisterClassW, SetWindowLongPtrW,
-    TranslateMessage, WM_DESTROY, WM_INPUT, WM_INPUT_DEVICE_CHANGE, WM_NCCREATE, WM_QUIT, WM_TOUCH,
-    WNDCLASSW,
+    CREATESTRUCTW, CreateWindowExW, DefWindowProcW, DestroyWindow, GIDC_ARRIVAL, GIDC_REMOVAL,
+    GWLP_USERDATA, GetCursorPos, GetWindowLongPtrW, HWND_MESSAGE, PostQuitMessage,
+    PostThreadMessageW, RI_KEY_BREAK, RI_MOUSE_BUTTON_1_DOWN, RI_MOUSE_BUTTON_1_UP,
+    RI_MOUSE_BUTTON_2_DOWN, RI_MOUSE_BUTTON_2_UP, RI_MOUSE_BUTTON_3_DOWN, RI_MOUSE_BUTTON_3_UP,
+    RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_4_UP, RI_MOUSE_BUTTON_5_DOWN, RI_MOUSE_BUTTON_5_UP,
+    RI_MOUSE_HWHEEL, RI_MOUSE_WHEEL, RegisterClassW, SetWindowLongPtrW, WM_DESTROY, WM_INPUT,
+    WM_INPUT_DEVICE_CHANGE, WM_NCCREATE, WM_QUIT, WM_TOUCH, WNDCLASSW,
 };
 
 use super::core as windows_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::Host;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::input::{
     InputAxisMetadata, InputButtonMetadata, InputCapabilityMetadataFidelity,
@@ -2175,6 +2175,7 @@ fn ensure_raw_input_registration(hwnd: HWND) -> RuntimeResult<()> {
 
 /// Spawn the raw-input worker and wait for successful initialization.
 fn spawn_raw_input_service(
+    context: &BindingCallContext,
     runtime_state: &Arc<WindowsRawInputRuntimeState>,
 ) -> Result<RawInputService, String> {
     // reuse existing shared state so restarted workers keep servicing the same queues
@@ -2188,10 +2189,11 @@ fn spawn_raw_input_service(
     let (ready_tx, ready_rx) = mpsc::channel::<Result<u32, String>>();
     let thread_state = Arc::clone(&state);
     let thread_runtime_state = Arc::clone(runtime_state);
+    let thread_host = context.host().clone();
     let handle = thread::Builder::new()
         .name("destack-input-raw".to_string())
         .spawn(move || {
-            raw_input_thread_main(thread_runtime_state, thread_state, ready_tx);
+            raw_input_thread_main(thread_runtime_state, thread_state, thread_host, ready_tx);
         })
         .map_err(|error| format!("failed to spawn raw input thread: {error}"))?;
 
@@ -2218,6 +2220,7 @@ fn spawn_raw_input_service(
 fn raw_input_thread_main(
     runtime_state: Arc<WindowsRawInputRuntimeState>,
     state: Arc<RawInputState>,
+    host: Host,
     ready_tx: mpsc::Sender<Result<u32, String>>,
 ) {
     // resolve module instance and register a message-only window class
@@ -2286,28 +2289,7 @@ fn raw_input_thread_main(
     let _ = ready_tx.send(Ok(thread_id));
 
     // pump the Windows message queue until shutdown
-    let mut message = MSG {
-        hwnd: 0,
-        message: 0,
-        wParam: 0,
-        lParam: 0,
-        time: 0,
-        pt: windows_sys::Win32::Foundation::POINT { x: 0, y: 0 },
-    };
-    loop {
-        let status = unsafe { GetMessageW(&mut message, 0, 0, 0) };
-        if status == 0 {
-            break;
-        }
-        if status < 0 {
-            break;
-        }
-
-        unsafe {
-            TranslateMessage(&message);
-            DispatchMessageW(&message);
-        }
-    }
+    let loop_result = host.run_blocking_thread_message_loop();
 
     // release the worker window on exit
     unsafe {
@@ -2317,6 +2299,11 @@ fn raw_input_thread_main(
     // mark worker exit and wake readers so they can surface restartable failures
     runtime_state.worker_running.store(false, Ordering::Release);
     state.wake.notify_all();
+
+    // crash fast when the host integration contract is unexpectedly broken
+    if let Err(error) = loop_result {
+        panic!("raw input message loop failed: {error:?}");
+    }
 }
 
 /// Dispatch raw input and device-change window messages.
@@ -3143,7 +3130,7 @@ fn ensure_raw_service(
         None => true,
     };
     if requires_spawn {
-        let service = spawn_raw_input_service(&runtime_state)
+        let service = spawn_raw_input_service(context, &runtime_state)
             .map_err(|error| service_error(operation, format!("raw input unavailable: {error}")))?;
         *slot = Some(service);
     }

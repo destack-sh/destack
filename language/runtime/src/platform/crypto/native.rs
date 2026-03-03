@@ -12,8 +12,8 @@ use crate::platform::crypto::{
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreCapability, CryptoStoreKind,
     CryptoStoreOptions, CryptoStoreProvider, host as host_crypto,
 };
-use crate::platform::{NativeArray, NativeSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Derive one symmetric key from one local private key and one peer public key.
 ///

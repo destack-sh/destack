@@ -2,8 +2,8 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::*;
-use crate::platform::{NativeStringRef, PlatformError, VmArray, VmSlice, fs, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
+use crate::runtime::{BindingCallContext, NativeStringRef};
 use destack_vm as vm;
 
 use super::credentials::{
