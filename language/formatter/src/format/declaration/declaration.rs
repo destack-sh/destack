@@ -4,7 +4,7 @@ use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::declaration::statement::format_block_of_statements;
 use crate::format::expression::{
     BinaryOperator, ParenthesizedDropMode, expression_has_static_type_arguments,
-    should_drop_parenthesized, type_index_left_requires_parentheses,
+    should_drop_parenthesized, transparent_inner_expression, type_index_left_requires_parentheses,
 };
 use crate::format::operator::{
     flatten_type_binary_expression, format_leading_pipe_union_with_external_prefix,
@@ -132,8 +132,27 @@ fn expression_has_own_line_prefix_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    context
+    let expression_has_own_line_prefix_annotation = context
         .visit_annotations(expression_id, |annotations| {
+            annotations.iter().copied().any(|annotation_id| {
+                matches!(
+                    context.annotation(annotation_id).position(),
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) && context.annotation_starts_on_own_line(annotation_id)
+            })
+        })
+        .unwrap_or(false);
+    if expression_has_own_line_prefix_annotation {
+        return true;
+    }
+
+    let expression_id = transparent_inner_expression(context, expression_id);
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+
+    context
+        .visit_annotations(*declaration_id, |annotations| {
             annotations.iter().copied().any(|annotation_id| {
                 matches!(
                     context.annotation(annotation_id).position(),
@@ -207,6 +226,25 @@ fn dropped_wrappers_have_block_prefix_annotation(
                         context.annotation(annotation_id).position(),
                         AnnotationPosition::BlockPrefix
                     )
+                })
+            })
+            .unwrap_or(false)
+    })
+}
+
+/// Return whether dropped wrappers include one own-line prefix annotation.
+fn dropped_wrappers_have_own_line_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_ids: &[LocalNodeId<Expression>],
+) -> bool {
+    expression_ids.iter().copied().any(|expression_id| {
+        context
+            .visit_annotations(expression_id, |annotations| {
+                annotations.iter().copied().any(|annotation_id| {
+                    matches!(
+                        context.annotation(annotation_id).position(),
+                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                    ) && context.annotation_starts_on_own_line(annotation_id)
                 })
             })
             .unwrap_or(false)
@@ -678,6 +716,11 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         f.context(),
         dropped_prefix_annotation_owner_ids.as_slice(),
     );
+    let dropped_prefix_has_own_line_prefix_annotation =
+        dropped_wrappers_have_own_line_prefix_annotation(
+            f.context(),
+            dropped_prefix_annotation_owner_ids.as_slice(),
+        );
     let dropped_has_own_line_pipe_prefix_annotation = value_is_type_union
         && dropped_prefix_has_block_prefix_annotation
         && dropped_wrappers_have_own_line_pipe_prefix_annotation(
@@ -732,7 +775,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
                 Ok(())
             });
 
-            if dropped_prefix_has_block_prefix_annotation {
+            if value_is_type_binary {
                 write!(f, [indent(&format_dropped_prefix)])?;
             } else {
                 write!(f, [format_dropped_prefix])?;
@@ -809,9 +852,10 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         _ => false,
     };
     let value_has_own_line_prefix_annotation =
-        expression_has_own_line_prefix_annotation(f.context(), value_id);
+        expression_has_own_line_prefix_annotation(f.context(), value_id)
+            || dropped_prefix_has_own_line_prefix_annotation;
     let should_break_for_prefix_annotation = if value_is_type_binary {
-        false
+        dropped_has_own_line_pipe_prefix_annotation
     } else {
         value_has_own_line_prefix_annotation
     };

@@ -2359,6 +2359,21 @@ for (;;) ;
     );
 }
 
+/// Long call-left binary expressions should keep one stable operator break layout.
+#[test]
+fn test_format_long_call_left_binary_expression_operator_break_is_idempotent() {
+    let source = r#"const marker = true;
+
+fooooooooooooooooooooooooooooooooooooooooooooooooooooooooo(aaaaaaaaaaaaaaaaaaa)
+  + a;
+"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        prettier_javascript_format_options(),
+    );
+}
+
 /// Semicolon guard seams should remain stable with inline trivia before bracket heads.
 #[test]
 fn test_format_semicolon_guard_with_inline_comment_before_bracket_is_idempotent() {
