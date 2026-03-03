@@ -696,8 +696,6 @@ pub struct PlatformDisplayOptions {
     pub default_event_queue_capacity: Option<u64>,
     /// Optional wait-slice interval for blocking window event reads.
     pub window_event_wait_slice_ns: Option<u64>,
-    /// Optional fallback vsync interval for unsupported host-present wait lanes.
-    pub fallback_vsync_interval_ns: Option<u64>,
 }
 
 /// Error runtime options.
@@ -2220,8 +2218,6 @@ pub struct PlatformDisplayOptionsJson {
     pub default_event_queue_capacity: Option<u64>,
     /// Optional wait-slice interval for blocking window event reads.
     pub window_event_wait_slice_ns: Option<u64>,
-    /// Optional fallback vsync interval for unsupported host-present wait lanes.
-    pub fallback_vsync_interval_ns: Option<u64>,
 }
 
 impl PlatformDisplayOptionsJson {
@@ -2232,9 +2228,6 @@ impl PlatformDisplayOptionsJson {
         }
         if let Some(window_event_wait_slice_ns) = self.window_event_wait_slice_ns {
             options.window_event_wait_slice_ns = Some(window_event_wait_slice_ns);
-        }
-        if let Some(fallback_vsync_interval_ns) = self.fallback_vsync_interval_ns {
-            options.fallback_vsync_interval_ns = Some(fallback_vsync_interval_ns);
         }
     }
 }

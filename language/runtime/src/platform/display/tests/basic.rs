@@ -5,7 +5,20 @@ use super::{
     harness_string, with_harness_context,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(windows)]
+use crate::platform::display::DisplayBackend;
 use crate::platform::display::WindowVisibility;
+
+#[cfg(windows)]
+const DISPLAY_CAP_WINDOW_ICON: u64 = 0x1000000;
+#[cfg(windows)]
+const DISPLAY_CAP_WINDOW_ASPECT_RATIO: u64 = 0x100000000;
+#[cfg(windows)]
+const DISPLAY_CAP_MONITOR_COLOR_STATE: u64 = 0x40;
+#[cfg(windows)]
+const DISPLAY_CAP_MONITOR_HDR_CONTROL: u64 = 0x80;
+#[cfg(windows)]
+const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 = 0x100;
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -68,9 +81,9 @@ fn test_display_monitor_surface_works_end_to_end() {
             if matches!(
                 event,
                 super::HarnessValue::Native(
-                    crate::platform::display::DisplayEvent::DisplayModeChangedEvent(_)
+                    crate::platform::display::DisplayMonitorEvent::DisplayModeChangedEvent(_)
                 ) | super::HarnessValue::Vm(
-                    crate::platform::display::DisplayEventVm::DisplayModeChangedEvent(_)
+                    crate::platform::display::DisplayMonitorEventVm::DisplayModeChangedEvent(_)
                 )
             ) {
                 saw_mode_changed = true;
@@ -139,14 +152,52 @@ fn test_display_window_surface_works_end_to_end() {
         let state = decode_harness_value(state);
         assert_eq!(state.visibility, WindowVisibility::Minimized);
 
-        let vsync = context.destack_display_window_vsync_wait(window, 1_000_000);
-        if let Err(error) = vsync {
-            let code = error.platform_error().map(|platform| platform.code);
-            assert_eq!(code, Some(PlatformErrorCode::IoWouldBlock));
-        }
-
         context.destack_display_window_event_close(event_stream)?;
         context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_display_backend_capabilities_match_win32_implementation() {
+    with_harness_context(|mut context| {
+        let backends = context.destack_display_backend_list()?;
+        let (win32_available, win32_capability_flags) = match backends {
+            super::HarnessValue::Native(values) => {
+                let backends = unsafe { values.as_slice()? };
+                let backend = backends
+                    .iter()
+                    .find(|backend| backend.backend == DisplayBackend::Win32)
+                    .expect("backend list should contain win32 descriptor");
+                (backend.available, backend.capability_flags.0)
+            }
+            super::HarnessValue::Vm(values) => {
+                let vm_context = context
+                    .vm_context
+                    .map(|vm_context| unsafe {
+                        &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
+                    })
+                    .expect("vm context should exist for vm harness");
+                let backends = values.read_values(vm_context)?;
+                let backend = backends
+                    .iter()
+                    .find(|backend| backend.backend == DisplayBackend::Win32)
+                    .expect("backend list should contain win32 descriptor");
+                (backend.available, backend.capability_flags.0)
+            }
+        };
+
+        assert!(win32_available);
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_WINDOW_ICON, 0);
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_WINDOW_ASPECT_RATIO, 0);
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_MONITOR_COLOR_STATE, 0);
+        assert_ne!(win32_capability_flags & DISPLAY_CAP_MONITOR_HDR_CONTROL, 0);
+        assert_ne!(
+            win32_capability_flags & DISPLAY_CAP_MONITOR_GAMMA_CONTROL,
+            0
+        );
+
         Ok(())
     });
 }

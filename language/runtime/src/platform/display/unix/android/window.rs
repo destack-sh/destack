@@ -1,9 +1,8 @@
-use super::core::display_unsupported;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
     WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptor, WindowLogicalSize,
     WindowModeOptions, WindowOptions, WindowPhysicalSize, WindowPosition, WindowSizeConstraints,
-    WindowState, WindowVisibility,
+    WindowState, WindowVisibility, unsupported,
 };
 use crate::platform::{NativeStringRef, resource};
 use crate::runtime::BindingCallContext;
@@ -13,7 +12,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_close(
     context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_close(context, window) }
+    unsafe { unsupported::destack_display_window_close(context, window) }
 }
 
 /// Read descriptor metadata for one window.
@@ -22,7 +21,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_descriptor(
     out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_descriptor(context, out, window) }
+    unsafe { unsupported::destack_display_window_descriptor(context, out, window) }
 }
 
 /// Open one window.
@@ -31,7 +30,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_open(
     out: *mut resource::WindowHandle,
     options: WindowOptions,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_open(context, out, options) }
+    unsafe { unsupported::destack_display_window_open(context, out, options) }
 }
 
 /// Request user attention for one window.
@@ -40,7 +39,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_request_attention(
     window: resource::WindowHandle,
     level: WindowAttentionLevel,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_request_attention(context, window, level) }
+    unsafe { unsupported::destack_display_window_request_attention(context, window, level) }
 }
 
 /// Request one redraw for one window.
@@ -48,7 +47,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_request_refresh(
     context: &BindingCallContext,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_request_refresh(context, window) }
+    unsafe { unsupported::destack_display_window_request_refresh(context, window) }
 }
 
 /// Set always-on-top state.
@@ -57,9 +56,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_always_on_top(
     window: resource::WindowHandle,
     alwaysontop: bool,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_window_set_always_on_top(context, window, alwaysontop)
-    }
+    unsafe { unsupported::destack_display_window_set_always_on_top(context, window, alwaysontop) }
 }
 
 /// Set cursor icon for one window.
@@ -68,7 +65,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_icon(
     window: resource::WindowHandle,
     icon: WindowCursorIcon,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_cursor_icon(context, window, icon) }
+    unsafe { unsupported::destack_display_window_set_cursor_icon(context, window, icon) }
 }
 
 /// Set cursor interaction mode for one window.
@@ -77,7 +74,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_mode(
     window: resource::WindowHandle,
     mode: WindowCursorMode,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_cursor_mode(context, window, mode) }
+    unsafe { unsupported::destack_display_window_set_cursor_mode(context, window, mode) }
 }
 
 /// Set cursor position for one window.
@@ -86,9 +83,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_positio
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_window_set_cursor_position(context, window, position)
-    }
+    unsafe { unsupported::destack_display_window_set_cursor_position(context, window, position) }
 }
 
 /// Set cursor visibility for one window.
@@ -97,9 +92,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_cursor_visible
     window: resource::WindowHandle,
     visible: bool,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_window_set_cursor_visible(context, window, visible)
-    }
+    unsafe { unsupported::destack_display_window_set_cursor_visible(context, window, visible) }
 }
 
 /// Set window decoration state.
@@ -108,7 +101,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_decorated(
     window: resource::WindowHandle,
     decorated: bool,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_decorated(context, window, decorated) }
+    unsafe { unsupported::destack_display_window_set_decorated(context, window, decorated) }
 }
 
 /// Set one window mode.
@@ -117,7 +110,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_mode(
     window: resource::WindowHandle,
     mode: WindowModeOptions,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_mode(context, window, mode) }
+    unsafe { unsupported::destack_display_window_set_mode(context, window, mode) }
 }
 
 /// Set one window position.
@@ -126,7 +119,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_position(
     window: resource::WindowHandle,
     position: WindowPosition,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_position(context, window, position) }
+    unsafe { unsupported::destack_display_window_set_position(context, window, position) }
 }
 
 /// Set window resizable state.
@@ -135,7 +128,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_resizable(
     window: resource::WindowHandle,
     resizable: bool,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_resizable(context, window, resizable) }
+    unsafe { unsupported::destack_display_window_set_resizable(context, window, resizable) }
 }
 
 /// Set logical size constraints.
@@ -145,11 +138,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_constrain
     constraints: Option<WindowSizeConstraints>,
 ) -> RuntimeResult<()> {
     unsafe {
-        display_unsupported::destack_display_window_set_size_constraints(
-            context,
-            window,
-            constraints,
-        )
+        unsupported::destack_display_window_set_size_constraints(context, window, constraints)
     }
 }
 
@@ -159,7 +148,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_logical(
     window: resource::WindowHandle,
     size: WindowLogicalSize,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_size_logical(context, window, size) }
+    unsafe { unsupported::destack_display_window_set_size_logical(context, window, size) }
 }
 
 /// Set one physical window size.
@@ -168,7 +157,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_size_physical(
     window: resource::WindowHandle,
     size: WindowPhysicalSize,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_size_physical(context, window, size) }
+    unsafe { unsupported::destack_display_window_set_size_physical(context, window, size) }
 }
 
 /// Set one window title string.
@@ -177,7 +166,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_title(
     window: resource::WindowHandle,
     title: NativeStringRef,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_set_title(context, window, title) }
+    unsafe { unsupported::destack_display_window_set_title(context, window, title) }
 }
 
 /// Set one window visibility state.
@@ -186,9 +175,7 @@ pub(in crate::platform::display::host::unix) unsafe fn window_set_visibility(
     window: resource::WindowHandle,
     visibility: WindowVisibility,
 ) -> RuntimeResult<()> {
-    unsafe {
-        display_unsupported::destack_display_window_set_visibility(context, window, visibility)
-    }
+    unsafe { unsupported::destack_display_window_set_visibility(context, window, visibility) }
 }
 
 /// Read one window state snapshot.
@@ -197,14 +184,5 @@ pub(in crate::platform::display::host::unix) unsafe fn window_state(
     out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_state(context, out, window) }
-}
-
-/// Present one frame interval marker.
-pub(in crate::platform::display::host::unix) unsafe fn window_vsync_wait(
-    context: &BindingCallContext,
-    window: resource::WindowHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    unsafe { display_unsupported::destack_display_window_vsync_wait(context, window, timeoutns) }
+    unsafe { unsupported::destack_display_window_state(context, out, window) }
 }

@@ -2,12 +2,13 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayBackendDescriptorVm, DisplayDescriptorVm, DisplayEventVm, DisplayModeVm,
-    DisplayMonitorEventOpenOptionsVm, DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm,
-    WindowAttentionLevel, WindowCursorIcon, WindowCursorMode, WindowDescriptorVm,
-    WindowEventOpenOptionsVm, WindowEventVm, WindowLogicalSizeVm, WindowModeOptionsVm,
-    WindowOptionsVm, WindowPhysicalSizeVm, WindowPositionVm, WindowSizeConstraintsVm,
-    WindowStateVm, WindowVisibility,
+    DisplayBackendDescriptorVm, DisplayColorState, DisplayDescriptorVm, DisplayGammaRampVm,
+    DisplayHdrMode, DisplayModeVm, DisplayMonitorEventOpenOptionsVm, DisplayMonitorEventVm,
+    DisplayMonitorListRequestVm, DisplayMonitorOpenOptionsVm, WindowAspectRatio,
+    WindowAttentionLevel, WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowDescriptorVm,
+    WindowEventOpenOptionsVm, WindowEventVm, WindowIconSetVm, WindowLogicalSizeVm,
+    WindowModeOptionsVm, WindowOptionsVm, WindowPhysicalSizeVm, WindowPositionVm, WindowResizeEdge,
+    WindowSizeConstraintsVm, WindowStateVm, WindowVisibility,
 };
 use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
@@ -243,7 +244,7 @@ pub(crate) fn destack_display_monitor_event_read(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
     timeoutns: u64,
-) -> RuntimeResult<DisplayEventVm> {
+) -> RuntimeResult<DisplayMonitorEventVm> {
     let _ = (handle, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventRead",
@@ -273,7 +274,7 @@ pub(crate) fn destack_display_monitor_event_read_batch(
     handle: resource::DisplayEventHandle,
     maxevents: u32,
     timeoutns: u64,
-) -> RuntimeResult<VmArray<DisplayEventVm>> {
+) -> RuntimeResult<VmArray<DisplayMonitorEventVm>> {
     let _ = (handle, maxevents, timeoutns);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventReadBatch",
@@ -302,7 +303,7 @@ pub(crate) fn destack_display_monitor_event_try_read(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
-) -> RuntimeResult<DisplayEventVm> {
+) -> RuntimeResult<DisplayMonitorEventVm> {
     let _ = handle;
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventTryRead",
@@ -331,7 +332,7 @@ pub(crate) fn destack_display_monitor_event_try_read_batch(
     _context: &mut vm::ExternalCallContext<'_>,
     handle: resource::DisplayEventHandle,
     maxevents: u32,
-) -> RuntimeResult<VmArray<DisplayEventVm>> {
+) -> RuntimeResult<VmArray<DisplayMonitorEventVm>> {
     let _ = (handle, maxevents);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.display.monitor.eventTryReadBatch",
@@ -1220,31 +1221,294 @@ pub(crate) fn destack_display_window_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.state")).boxed())
 }
 
-/// Present one frame interval marker.
-///
-/// Block until the next present interval for one window when host backends support vsync synchronization.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses compositor frame callbacks or swap-chain present fences.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.vsync`.
-///
-/// # Replay
-/// External, recordable.
-pub(crate) fn destack_display_window_vsync_wait(
+/// Read display color state.
+pub(crate) fn destack_display_monitor_color_state(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<DisplayColorState> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.colorState",
+    ))
+    .boxed())
+}
+
+/// Read display gamma ramp.
+pub(crate) fn destack_display_monitor_gamma_ramp(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<DisplayGammaRampVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.gammaRamp",
+    ))
+    .boxed())
+}
+
+/// Read display HDR mode.
+pub(crate) fn destack_display_monitor_hdr_mode(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<DisplayHdrMode> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.hdrMode",
+    ))
+    .boxed())
+}
+
+/// Set display gamma ramp.
+pub(crate) fn destack_display_monitor_set_gamma_ramp(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DisplayHandle,
+    ramp: DisplayGammaRampVm,
+) -> RuntimeResult<()> {
+    let _ = (handle, ramp);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.setGammaRamp",
+    ))
+    .boxed())
+}
+
+/// Set display HDR mode.
+pub(crate) fn destack_display_monitor_set_hdr_mode(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::DisplayHandle,
+    mode: DisplayHdrMode,
+) -> RuntimeResult<()> {
+    let _ = (handle, mode);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.monitor.setHdrMode",
+    ))
+    .boxed())
+}
+
+/// Begin one native move drag interaction.
+pub(crate) fn destack_display_window_begin_move_drag(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-    timeoutns: u64,
 ) -> RuntimeResult<()> {
-    let _ = (window, timeoutns);
+    let _ = window;
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.display.window.vsyncWait",
+        "destack.display.window.beginMoveDrag",
+    ))
+    .boxed())
+}
+
+/// Begin one native resize drag interaction.
+pub(crate) fn destack_display_window_begin_resize_drag(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    edge: WindowResizeEdge,
+) -> RuntimeResult<()> {
+    let _ = (window, edge);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.beginResizeDrag",
+    ))
+    .boxed())
+}
+
+/// Focus one window.
+pub(crate) fn destack_display_window_focus(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.focus")).boxed())
+}
+
+/// Maximize one window.
+pub(crate) fn destack_display_window_maximize(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.maximize",
+    ))
+    .boxed())
+}
+
+/// Minimize one window.
+pub(crate) fn destack_display_window_minimize(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.minimize",
+    ))
+    .boxed())
+}
+
+/// Read one window opacity.
+pub(crate) fn destack_display_window_opacity(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<f64> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.opacity",
+    ))
+    .boxed())
+}
+
+/// Raise one window.
+pub(crate) fn destack_display_window_raise(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.raise")).boxed())
+}
+
+/// Restore one window.
+pub(crate) fn destack_display_window_restore(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.restore",
+    ))
+    .boxed())
+}
+
+/// Set one window aspect-ratio lock.
+pub(crate) fn destack_display_window_set_aspect_ratio(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    aspectratio: Option<WindowAspectRatio>,
+) -> RuntimeResult<()> {
+    let _ = (window, aspectratio);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setAspectRatio",
+    ))
+    .boxed())
+}
+
+/// Set one window chrome kind.
+pub(crate) fn destack_display_window_set_chrome(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    chrome: WindowChromeKind,
+) -> RuntimeResult<()> {
+    let _ = (window, chrome);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setChrome",
+    ))
+    .boxed())
+}
+
+/// Set one window icon set.
+pub(crate) fn destack_display_window_set_icons(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    icons: Option<WindowIconSetVm>,
+) -> RuntimeResult<()> {
+    let _ = (window, icons);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setIcons",
+    ))
+    .boxed())
+}
+
+/// Set one window modal state.
+pub(crate) fn destack_display_window_set_modal(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    modal: bool,
+) -> RuntimeResult<()> {
+    let _ = (window, modal);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setModal",
+    ))
+    .boxed())
+}
+
+/// Set one window mouse-passthrough state.
+pub(crate) fn destack_display_window_set_mouse_passthrough(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    passthrough: bool,
+) -> RuntimeResult<()> {
+    let _ = (window, passthrough);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setMousePassthrough",
+    ))
+    .boxed())
+}
+
+/// Set one window opacity.
+pub(crate) fn destack_display_window_set_opacity(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    opacity: f64,
+) -> RuntimeResult<()> {
+    let _ = (window, opacity);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setOpacity",
+    ))
+    .boxed())
+}
+
+/// Set one window parent relationship.
+pub(crate) fn destack_display_window_set_parent(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    parent: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    let _ = (window, parent);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setParent",
+    ))
+    .boxed())
+}
+
+/// Set one window taskbar visibility state.
+pub(crate) fn destack_display_window_set_taskbar_visible(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    visible: bool,
+) -> RuntimeResult<()> {
+    let _ = (window, visible);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setTaskbarVisible",
+    ))
+    .boxed())
+}
+
+/// Set one window transient-owner relationship.
+pub(crate) fn destack_display_window_set_transient_for(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    transientfor: Option<resource::WindowHandle>,
+) -> RuntimeResult<()> {
+    let _ = (window, transientfor);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setTransientFor",
     ))
     .boxed())
 }

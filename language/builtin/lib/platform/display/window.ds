@@ -1301,6 +1301,8 @@ declare namespace display {
     /// Set cursor position for one window.
     ///
     /// Warp cursor position relative to one opened window.
+    /// This is one window-scoped convenience lane for UI interactions.
+    /// Use `input.pointer.warp` for device-target scoped pointer control.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1376,29 +1378,4 @@ declare namespace display {
     })
     export function windowBeginResizeDrag(window: WindowHandle, edge: WindowResizeEdge): Result<void, PlatformError>;
 
-    /// Present one frame interval marker.
-    ///
-    /// Block until the next present interval for one window when host backends support vsync synchronization.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses compositor frame callbacks or swap-chain present fences.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    @binding("destack.display.window.vsyncWait", {
-        effect: "external",
-        replay: "recordable",
-        capabilities: ["display.window"],
-        platforms: ["windows", "unix"],
-        scope: "host",
-        blocking: "sometimes",
-    })
-    export function windowVsyncWait(window: WindowHandle, timeoutNs: uint64): Result<void, PlatformError>;
 }

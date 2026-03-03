@@ -28,7 +28,6 @@ export type PlatformCapability =
     | "crypto.store.write"
     | "display.mode"
     | "display.read"
-    | "display.vsync"
     | "display.window"
     | "display.window.events"
     | "console.write"

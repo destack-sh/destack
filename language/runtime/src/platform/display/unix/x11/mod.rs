@@ -1,4 +1,3 @@
-mod core;
 mod event;
 mod monitor;
 mod window;
