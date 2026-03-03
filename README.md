@@ -115,7 +115,7 @@ Modern "backend" code uses TypeScript and Node-ish APIs already, while "frontend
 5. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs TS directly, and "TS++" (`.ds` files) transpiles into `.js`/`.ts` for browsers and regular JS runtimes. 
 On the backend, Destack supports Node APIs, similar to other Node-style runtimes (Bun/Deno).
-However, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (including the VM).
+However, Destack does _not_ fully support arbitrary JS/TS code *on the native path* (including the VM), and it also does not fully support arbitrary web standards.
 
 6. **Why can't we just use TypeScript/web for front-end and Rust/C++/Go for back-end?** 
 We can and that will continue to work pretty well, though with some friction.
@@ -147,9 +147,9 @@ See [TARGETS.md](TARGETS.md).
 
 | Tier | Target triples |
 |------|----------------|
-| **Tier 1: full support** | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
-| **Tier 2: pending support** | `aarch64-apple-ios`, `aarch64-linux-android` |
-| **Tier 3: eventual support** | `wasm32-wasip1` |
+| **Tier 1** --- full support | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
+| **Tier 2** --- pending support | `aarch64-apple-ios`, `aarch64-linux-android` |
+| **Tier 3** --- eventual support | `wasm32-wasip1` |
 
 ## Contributing
 
