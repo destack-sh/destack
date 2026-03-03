@@ -339,7 +339,7 @@ fn resolve_return_type_text(
 }
 
 /// Map a type id into a binding type for generated wrappers.
-fn binding_type_from_type_id(
+pub(crate) fn binding_type_from_type_id(
     type_id: dir::LocalTypeId,
     types: &dir::TypeTable,
     modules: &ModuleRegistry,

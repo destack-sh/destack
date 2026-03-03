@@ -6,11 +6,12 @@
 
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError as HarnessPlatformError;
 use crate::platform::resource::{
     ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership, native as resource_native,
     vm as resource_vm,
 };
-use crate::platform::{NativeStringRef, PlatformError as HarnessPlatformError};
+use crate::runtime::NativeStringRef;
 use destack_vm as vm;
 
 impl<'call> ResourceHarnessContext<'call> {

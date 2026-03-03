@@ -9527,3 +9527,57 @@ pub enum CryptoKeyImportRequestReplayRecord {
     /// CryptoKeyImportRequestX448 variant.
     CryptoKeyImportRequestX448(CryptoKeyImportRequestX448ReplayRecord),
 }
+
+/// Certificate key usage: certificate signing.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN: u32 = 32u32;
+
+/// Certificate key usage: crl signing.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_CRL_SIGN: u32 = 64u32;
+
+/// Certificate key usage: data encipherment.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT: u32 = 8u32;
+
+/// Certificate key usage: decipher only.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_DECIPHER_ONLY: u32 = 256u32;
+
+/// Certificate key usage: digital signature.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE: u32 = 1u32;
+
+/// Certificate key usage: encipher only.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY: u32 = 128u32;
+
+/// Certificate key usage: key agreement.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_AGREEMENT: u32 = 16u32;
+
+/// Certificate key usage: key encipherment.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT: u32 = 4u32;
+
+/// Certificate key usage: non-repudiation.
+pub const CRYPTO_CERTIFICATE_KEY_USAGE_NON_REPUDIATION: u32 = 2u32;
+
+/// Key usage: decrypt.
+pub const CRYPTO_KEY_USAGE_DECRYPT: CryptoKeyUsageMask = CryptoKeyUsageMask(8u32);
+
+/// Key usage: derive bits.
+pub const CRYPTO_KEY_USAGE_DERIVE_BITS: CryptoKeyUsageMask = CryptoKeyUsageMask(64u32);
+
+/// Key usage: derive keys.
+pub const CRYPTO_KEY_USAGE_DERIVE_KEYS: CryptoKeyUsageMask = CryptoKeyUsageMask(128u32);
+
+/// Key usage: encrypt.
+pub const CRYPTO_KEY_USAGE_ENCRYPT: CryptoKeyUsageMask = CryptoKeyUsageMask(4u32);
+
+/// Key usage: export.
+pub const CRYPTO_KEY_USAGE_EXPORT: CryptoKeyUsageMask = CryptoKeyUsageMask(256u32);
+
+/// Key usage: sign.
+pub const CRYPTO_KEY_USAGE_SIGN: CryptoKeyUsageMask = CryptoKeyUsageMask(1u32);
+
+/// Key usage: unwrap.
+pub const CRYPTO_KEY_USAGE_UNWRAP: CryptoKeyUsageMask = CryptoKeyUsageMask(32u32);
+
+/// Key usage: verify.
+pub const CRYPTO_KEY_USAGE_VERIFY: CryptoKeyUsageMask = CryptoKeyUsageMask(2u32);
+
+/// Key usage: wrap.
+pub const CRYPTO_KEY_USAGE_WRAP: CryptoKeyUsageMask = CryptoKeyUsageMask(16u32);

@@ -11,9 +11,8 @@ use crate::platform::tty::{
     TtyTermiosAttributesVm, TtyTermiosFlowAction, TtyTermiosQueue, TtyTermiosSetAction,
     native as tty_native, vm as tty_vm,
 };
-use crate::platform::{
-    NativeSlice, PlatformError as HarnessPlatformError, VmSlice, process, resource,
-};
+use crate::platform::{PlatformError as HarnessPlatformError, VmSlice, process, resource};
+use crate::runtime::NativeSlice;
 use destack_vm as vm;
 
 impl<'call> TtyHarnessContext<'call> {

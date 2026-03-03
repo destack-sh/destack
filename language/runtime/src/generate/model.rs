@@ -143,6 +143,9 @@ pub(crate) struct BindingReturn {
 /// Catalog grouped by domain.
 pub(crate) type BindingCatalog = BTreeMap<String, BTreeMap<String, BindingEntry>>;
 
+/// Constant catalog grouped by domain.
+pub(crate) type ConstantCatalog = BTreeMap<String, BTreeMap<String, ConstantEntry>>;
+
 /// Parameter metadata extracted from signatures.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingParameter {
@@ -253,4 +256,24 @@ pub(crate) enum BindingType {
         /// Declared tagged union variants.
         variants: Vec<BindingTaggedUnionVariant>,
     },
+}
+
+/// Constant declaration metadata extracted from builtin sources.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ConstantEntry {
+    /// Constant name as declared in builtin sources.
+    pub name: String,
+    /// Constant documentation extracted from builtin sources.
+    pub documentation: Option<String>,
+    /// Constant binding type for generated ABI rendering.
+    pub binding_type: BindingType,
+    /// Constant value payload.
+    pub value: ConstantValue,
+}
+
+/// Supported constant value payloads for generated ABI rendering.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ConstantValue {
+    /// Integer literal payload.
+    Integer(i128),
 }

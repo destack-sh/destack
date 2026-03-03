@@ -261,3 +261,33 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         Ok(context.allocate_aggregate(slots))
     }
 }
+
+/// Allow instruction fetch from mapped pages.
+pub const MEMORY_PROTECTION_EXECUTE: MemoryProtection = MemoryProtection(4u32);
+
+/// No protection bits.
+pub const MEMORY_PROTECTION_NONE: MemoryProtection = MemoryProtection(0u32);
+
+/// Allow reads from mapped pages.
+pub const MEMORY_PROTECTION_READ: MemoryProtection = MemoryProtection(1u32);
+
+/// Allow writes to mapped pages.
+pub const MEMORY_PROTECTION_WRITE: MemoryProtection = MemoryProtection(2u32);
+
+/// Allow remap operation to move mapping base address.
+pub const MEMORY_REMAP_MAY_MOVE: MemoryRemapFlags = MemoryRemapFlags(1u32);
+
+/// No remap flags.
+pub const MEMORY_REMAP_NONE: MemoryRemapFlags = MemoryRemapFlags(0u32);
+
+/// Request large-page backing where supported.
+pub const MEMORY_RESERVE_LARGE_PAGES: MemoryReserveFlags = MemoryReserveFlags(2u32);
+
+/// No reserve flags.
+pub const MEMORY_RESERVE_NONE: MemoryReserveFlags = MemoryReserveFlags(0u32);
+
+/// Reserve address space without guaranteed swap reservation where supported.
+pub const MEMORY_RESERVE_NO_RESERVE: MemoryReserveFlags = MemoryReserveFlags(4u32);
+
+/// Prefer high virtual addresses where supported.
+pub const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(1u32);

@@ -11,10 +11,8 @@ use crate::platform::tls::{
     TlsRole, TlsSessionResumptionMode, TlsSessionResumptionState, TlsVersion, native as tls_native,
     vm as tls_vm,
 };
-use crate::platform::{
-    NativeSlice, NativeStringRef, NativeStringSlice, PlatformError as HarnessPlatformError,
-    VmSlice, resource,
-};
+use crate::platform::{PlatformError as HarnessPlatformError, VmSlice, resource};
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
 impl<'call> TlsHarnessContext<'call> {

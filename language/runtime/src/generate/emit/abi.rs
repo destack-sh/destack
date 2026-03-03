@@ -1,9 +1,10 @@
 use super::*;
-use crate::model::BindingTaggedUnionVariant;
+use crate::model::{BindingTaggedUnionVariant, ConstantCatalog, ConstantEntry, ConstantValue};
 
 /// Collect ABI types grouped by their owning domain.
 pub(crate) fn collect_domain_abi_types(
     catalog: &BindingCatalog,
+    constants: &ConstantCatalog,
 ) -> BTreeMap<String, DomainAbiTypes> {
     let mut domains: BTreeMap<String, DomainAbiTypes> = BTreeMap::new();
     for bindings in catalog.values() {
@@ -13,6 +14,14 @@ pub(crate) fn collect_domain_abi_types(
                 collect_domain_types_for_binding(&param.binding_type, &mut domains);
             }
         }
+    }
+
+    for (domain, constants) in constants {
+        for constant in constants.values() {
+            collect_domain_types_for_binding(&constant.binding_type, &mut domains);
+        }
+
+        domains.entry(domain.clone()).or_default();
     }
 
     domains
@@ -182,7 +191,11 @@ fn write_struct_field_docs(output: &mut String, documentation: Option<&str>, fie
 }
 
 /// Render ABI type definitions for a runtime domain.
-pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
+pub(crate) fn render_abi_types(
+    domain: &str,
+    types: &DomainAbiTypes,
+    constants: Option<&BTreeMap<String, ConstantEntry>>,
+) -> String {
     let structs = &types.structs;
     let newtypes = &types.newtypes;
     let enums = &types.enums;
@@ -701,16 +714,127 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         output.push_str("}\n\n");
     }
 
+    if let Some(constants) = constants
+        && !constants.is_empty()
+    {
+        for constant in constants.values() {
+            render_domain_constant(domain, constant, &mut output);
+        }
+    }
+
     output
+}
+
+/// Render one exported constant definition for one domain ABI file.
+fn render_domain_constant(domain: &str, constant: &ConstantEntry, output: &mut String) {
+    if let Some(documentation) = constant.documentation.as_deref() {
+        for line in documentation.lines() {
+            if line.trim().is_empty() {
+                output.push_str("///\n");
+                continue;
+            }
+
+            output.push_str(&format!("/// {}\n", line.trim_end()));
+        }
+    } else {
+        output.push_str(&format!("/// Constant `{}`.\n", constant.name));
+    }
+
+    let type_name = native_type_for_binding(domain, &constant.binding_type);
+    let value = render_constant_value(constant);
+    output.push_str(&format!(
+        "pub const {}: {} = {};\n\n",
+        constant.name, type_name, value
+    ));
+}
+
+/// Render one constant payload expression for one exported constant entry.
+fn render_constant_value(constant: &ConstantEntry) -> String {
+    match &constant.value {
+        ConstantValue::Integer(value) => {
+            render_integer_constant_value(&constant.binding_type, *value)
+        }
+    }
+}
+
+/// Render one integer constant payload for the requested binding type.
+fn render_integer_constant_value(binding_type: &BindingType, value: i128) -> String {
+    match binding_type {
+        BindingType::Int(bits) => render_signed_integer_literal(*bits, value),
+        BindingType::UInt(bits) => render_unsigned_integer_literal(*bits, value),
+        BindingType::Newtype { name, inner, .. } => {
+            let inner = render_integer_constant_value(inner, value);
+            format!("{name}({inner})")
+        }
+        _ => panic!("unsupported constant binding type for integer payload: {binding_type:?}"),
+    }
+}
+
+/// Render one signed integer literal with the requested bit width.
+fn render_signed_integer_literal(bits: u8, value: i128) -> String {
+    match bits {
+        8 => format!(
+            "{}i8",
+            i8::try_from(value).unwrap_or_else(|_| panic!("i8 overflow: {value}"))
+        ),
+        16 => {
+            format!(
+                "{}i16",
+                i16::try_from(value).unwrap_or_else(|_| panic!("i16 overflow: {value}"))
+            )
+        }
+        32 => {
+            format!(
+                "{}i32",
+                i32::try_from(value).unwrap_or_else(|_| panic!("i32 overflow: {value}"))
+            )
+        }
+        64 => {
+            format!(
+                "{}i64",
+                i64::try_from(value).unwrap_or_else(|_| panic!("i64 overflow: {value}"))
+            )
+        }
+        _ => panic!("unsupported signed integer width for constant rendering: {bits}"),
+    }
+}
+
+/// Render one unsigned integer literal with the requested bit width.
+fn render_unsigned_integer_literal(bits: u8, value: i128) -> String {
+    match bits {
+        8 => format!(
+            "{}u8",
+            u8::try_from(value).unwrap_or_else(|_| panic!("u8 overflow: {value}"))
+        ),
+        16 => {
+            format!(
+                "{}u16",
+                u16::try_from(value).unwrap_or_else(|_| panic!("u16 overflow: {value}"))
+            )
+        }
+        32 => {
+            format!(
+                "{}u32",
+                u32::try_from(value).unwrap_or_else(|_| panic!("u32 overflow: {value}"))
+            )
+        }
+        64 => {
+            format!(
+                "{}u64",
+                u64::try_from(value).unwrap_or_else(|_| panic!("u64 overflow: {value}"))
+            )
+        }
+        _ => panic!("unsupported unsigned integer width for constant rendering: {bits}"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::model::{BindingTaggedUnionVariant, BindingType};
+    use crate::model::{BindingTaggedUnionVariant, BindingType, ConstantEntry, ConstantValue};
 
-    use super::tagged_union_variant_tags;
+    use super::{render_constant_value, tagged_union_variant_tags};
 
     /// Keep tagged union tags stable regardless of declaration order.
     #[test]
@@ -749,5 +873,32 @@ mod tests {
         }
 
         assert_eq!(forward_tags, reversed_tags);
+    }
+
+    /// Render integer constant payloads for typed and newtype constants.
+    #[test]
+    fn test_render_constant_value_renders_integer_literals() {
+        let primitive = ConstantEntry {
+            name: "FOO".to_string(),
+            documentation: None,
+            binding_type: BindingType::UInt(32),
+            value: ConstantValue::Integer(7),
+        };
+        assert_eq!(render_constant_value(&primitive), "7u32");
+
+        let wrapped = ConstantEntry {
+            name: "BAR".to_string(),
+            documentation: None,
+            binding_type: BindingType::Newtype {
+                name: "WindowEventKindMask".to_string(),
+                domain: "display".to_string(),
+                inner: Box::new(BindingType::UInt(64)),
+            },
+            value: ConstantValue::Integer(16),
+        };
+        assert_eq!(
+            render_constant_value(&wrapped),
+            "WindowEventKindMask(16u64)"
+        );
     }
 }
