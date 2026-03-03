@@ -26,7 +26,7 @@ pub unsafe fn destack_error_take_platform_error(
     error_id: u64,
 ) -> RuntimeResult<()> {
     let error = take_platform_error(
-        &context.runtime().errors,
+        context.runtime().diagnostic.as_ref(),
         RuntimeErrorId::from_raw(error_id),
     );
     let store = NativeStringStore::new(context);

@@ -181,7 +181,7 @@ impl ResourceFinalizer for WindowsPacketFinalizer {
 
 /// Runtime-owned mutable state for windows packet sockets.
 #[derive(Debug, Default)]
-struct WindowsPacketRuntimeState {
+pub(crate) struct WindowsPacketRuntimeState {
     /// Packet metadata keyed by runtime resource id.
     socket_states: Mutex<HashMap<ResourceId, WindowsPacketState>>,
 }
@@ -190,8 +190,9 @@ struct WindowsPacketRuntimeState {
 fn windows_packet_runtime_state(context: &BindingCallContext) -> Arc<WindowsPacketRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(WindowsPacketRuntimeState::default)
+        .platform_state
+        .net
+        .windows_packet_runtime_state(WindowsPacketRuntimeState::default)
 }
 
 /// Return configured packet backend mode for Windows packet lanes.

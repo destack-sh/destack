@@ -57,8 +57,9 @@ pub(crate) fn audio_event_runtime_state(
 ) -> Arc<AudioEventRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(AudioEventRuntimeState::default);
+        .platform_state
+        .audio
+        .audio_event_runtime_state(AudioEventRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

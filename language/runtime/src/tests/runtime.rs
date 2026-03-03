@@ -172,12 +172,16 @@ impl TestRuntime {
 
         // take the stored runtime error
         let error_id = RuntimeErrorId::from_raw(status.error_id);
-        let error = self.agent.errors.take(error_id).unwrap_or_else(|| {
-            RuntimeError::from(PlatformError::io(format!(
-                "{label} failed with missing runtime error",
-            )))
-            .boxed()
-        });
+        let error = self
+            .agent
+            .diagnostic
+            .take_error(error_id)
+            .unwrap_or_else(|| {
+                RuntimeError::from(PlatformError::io(format!(
+                    "{label} failed with missing runtime error",
+                )))
+                .boxed()
+            });
 
         Err(error)
     }

@@ -19,7 +19,7 @@ use crate::runtime::BindingCallContext;
 
 /// Monotonic suffix for temporary UDS socket-pair paths.
 #[derive(Debug, Default)]
-struct WindowsUdsRuntimeState {
+pub(crate) struct WindowsUdsRuntimeState {
     /// Monotonic suffix for temporary UDS socket-pair paths.
     next_socket_pair_id: AtomicU64,
 }
@@ -28,8 +28,9 @@ struct WindowsUdsRuntimeState {
 fn windows_uds_runtime_state(context: &BindingCallContext) -> Arc<WindowsUdsRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(|| WindowsUdsRuntimeState {
+        .platform_state
+        .net
+        .windows_uds_runtime_state(|| WindowsUdsRuntimeState {
             next_socket_pair_id: AtomicU64::new(1),
         })
 }

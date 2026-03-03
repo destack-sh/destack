@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeResult};
 use crate::platform::{NativeArray, PlatformContext, PlatformError};
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload, RuntimeWorld,
@@ -20,7 +20,7 @@ use crate::runtime::scheduler::{
 
 use super::Agent;
 use crate::runtime::{HookState, Hooks, NativeSlice, NativeStringRef, NativeStringSlice};
-use destack_workspace::RuntimeAccess;
+use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel};
 
 thread_local! {
     /// TLS slot for the current runtime execution context.
@@ -177,6 +177,42 @@ impl BindingCallContext {
     pub fn runtime(&self) -> &Agent {
         // safety: pointer is owned by the runtime caller
         unsafe { &*self.runtime }
+    }
+
+    /// Borrow the runtime diagnostics store.
+    #[inline]
+    pub fn diagnostics(&self) -> &AgentDiagnosticStore {
+        self.runtime().diagnostic.as_ref()
+    }
+
+    /// Record one runtime diagnostic event.
+    pub fn record_diagnostic(
+        &self,
+        level: RuntimeDiagnosticLevel,
+        module: &'static str,
+        operation: &'static str,
+        message: impl Into<String>,
+        os_code: Option<u32>,
+    ) {
+        self.diagnostics()
+            .record(level, module, operation, message.into(), os_code);
+    }
+
+    /// Record one runtime warning diagnostic event.
+    pub fn warn(
+        &self,
+        module: &'static str,
+        operation: &'static str,
+        message: impl Into<String>,
+        os_code: Option<u32>,
+    ) {
+        self.record_diagnostic(
+            RuntimeDiagnosticLevel::Warn,
+            module,
+            operation,
+            message,
+            os_code,
+        );
     }
 
     /// Borrow the event loop.

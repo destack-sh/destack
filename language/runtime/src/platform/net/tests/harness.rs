@@ -223,8 +223,8 @@ impl<'call> NetHarnessContext<'call> {
         let error = self
             .runtime
             .agent
-            .errors
-            .take(RuntimeErrorId::from_raw(status.error_id))
+            .diagnostic
+            .take_error(RuntimeErrorId::from_raw(status.error_id))
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(
                     "{label} failed with missing runtime error",

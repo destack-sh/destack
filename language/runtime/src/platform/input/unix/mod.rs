@@ -19,6 +19,8 @@ pub(crate) use event::*;
 pub(crate) use gamepad::*;
 pub(crate) use haptics::*;
 pub(crate) use keyboard::*;
+#[cfg(target_os = "macos")]
+pub(crate) use macos::MacosTapRuntimeState;
 pub(crate) use pointer::*;
 pub(crate) use rawhid::*;
 pub(crate) use sensor::*;

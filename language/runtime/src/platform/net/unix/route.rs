@@ -40,7 +40,7 @@ const MACOS_ROUTE_REPLY_BUFFER_SIZE: usize = 4096;
 /// Runtime-owned mutable state for macOS route sockets.
 #[cfg(target_os = "macos")]
 #[derive(Debug, Default)]
-struct MacosRouteRuntimeState {
+pub(crate) struct MacosRouteRuntimeState {
     /// Monotonic route message sequence for route sockets.
     sequence: AtomicI32,
 }
@@ -50,8 +50,9 @@ struct MacosRouteRuntimeState {
 fn macos_route_runtime_state(context: &BindingCallContext) -> Arc<MacosRouteRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(|| MacosRouteRuntimeState {
+        .platform_state
+        .net
+        .macos_route_runtime_state(|| MacosRouteRuntimeState {
             sequence: AtomicI32::new(1),
         })
 }

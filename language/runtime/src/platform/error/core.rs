@@ -1,6 +1,6 @@
 use destack_vm as vm;
 
-use crate::diagnostic::{AgentErrorStore, RuntimeError, RuntimeErrorId, RuntimeResult};
+use crate::diagnostic::{AgentDiagnosticStore, RuntimeError, RuntimeErrorId, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformError as DiagnosticPlatformError, PlatformErrorCode as DiagnosticPlatformErrorCode,
     PlatformErrorContext as DiagnosticPlatformErrorContext,
@@ -111,10 +111,10 @@ impl<'a, 'ctx> VmStringStore<'a, 'ctx> {
 
 /// Take a runtime error by id and normalize it as a platform error.
 pub fn take_platform_error(
-    errors: &AgentErrorStore,
+    diagnostics: &AgentDiagnosticStore,
     error_id: RuntimeErrorId,
 ) -> DiagnosticPlatformError {
-    let error = errors.take(error_id).unwrap_or_else(|| {
+    let error = diagnostics.take_error(error_id).unwrap_or_else(|| {
         RuntimeError::Internal {
             message: "missing runtime error for id".to_string(),
         }

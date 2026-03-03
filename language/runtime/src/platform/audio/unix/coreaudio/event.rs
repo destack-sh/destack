@@ -104,7 +104,7 @@ unsafe extern "C" fn coreaudio_device_property_listener(
 /// Runtime-owned mutable state for CoreAudio monitor registration.
 #[cfg(target_os = "macos")]
 #[derive(Debug, Default)]
-struct CoreAudioMonitorRuntimeState {
+pub(crate) struct CoreAudioMonitorRuntimeState {
     /// Whether listeners are currently registered.
     started: AtomicBool,
     /// Whether teardown finalizer was registered.
@@ -118,8 +118,9 @@ fn coreaudio_monitor_runtime_state(
 ) -> std::sync::Arc<CoreAudioMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(CoreAudioMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .coreaudio_monitor_runtime_state(CoreAudioMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

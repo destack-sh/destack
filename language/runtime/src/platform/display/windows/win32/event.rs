@@ -753,7 +753,7 @@ impl EventQueueState<WindowEventRecord> for WindowEventState {
 
 /// Runtime-owned mutable state for display event streams.
 #[derive(Debug)]
-pub(super) struct DisplayEventRuntimeState {
+pub(crate) struct DisplayEventRuntimeState {
     /// Event subscriber list for monitor-event streams.
     monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
     /// Last observed monitor topology snapshot.
@@ -789,8 +789,9 @@ pub(super) fn display_event_runtime_state(
     let diagnostics = Arc::clone(&context.runtime().diagnostic);
     context
         .runtime()
-        .module_state
-        .get_or_init(|| DisplayEventRuntimeState::new(diagnostics))
+        .platform_state
+        .display
+        .display_event_runtime_state(|| DisplayEventRuntimeState::new(diagnostics))
 }
 
 #[path = "codec.rs"]

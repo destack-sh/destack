@@ -34,7 +34,7 @@ struct WasapiDeviceMonitor {
 
 /// Runtime-owned WASAPI monitor slot.
 #[derive(Debug, Default)]
-struct WasapiMonitorRuntimeState {
+pub(crate) struct WasapiMonitorRuntimeState {
     /// Runtime-owned monitor slot.
     monitor: Mutex<Option<WasapiDeviceMonitor>>,
     /// Whether teardown finalizer was registered.
@@ -45,8 +45,9 @@ struct WasapiMonitorRuntimeState {
 fn wasapi_monitor_runtime_state(context: &BindingCallContext) -> Arc<WasapiMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(WasapiMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .wasapi_monitor_runtime_state(WasapiMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

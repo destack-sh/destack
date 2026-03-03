@@ -27,7 +27,7 @@ pub(super) fn destack_error_take_platform_error(
     error_id: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
     let error = take_platform_error(
-        &runtime.runtime().errors,
+        runtime.runtime().diagnostic.as_ref(),
         RuntimeErrorId::from_raw(error_id),
     );
     let mut store = VmStringStore::new(context);

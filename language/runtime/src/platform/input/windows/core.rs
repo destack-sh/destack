@@ -111,7 +111,7 @@ pub(super) fn input_not_found(
 
 /// Runtime-owned mutable state for windows input core bindings.
 #[derive(Debug, Default)]
-pub(super) struct WindowsInputCoreRuntimeState {
+pub(crate) struct WindowsInputCoreRuntimeState {
     /// Number of active console input streams in this runtime.
     pub(super) console_streams: AtomicUsize,
 }
@@ -122,8 +122,9 @@ pub(super) fn windows_input_core_runtime_state(
 ) -> Arc<WindowsInputCoreRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(WindowsInputCoreRuntimeState::default)
+        .platform_state
+        .input
+        .windows_input_core_runtime_state(WindowsInputCoreRuntimeState::default)
 }
 
 /// Resolve one optional queue capacity override from runtime options.

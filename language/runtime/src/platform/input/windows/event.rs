@@ -33,7 +33,7 @@ const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
 
 /// Runtime-owned mutable state for windows input event bindings.
 #[derive(Debug, Default)]
-struct WindowsInputEventRuntimeState {
+pub(crate) struct WindowsInputEventRuntimeState {
     /// Number of active monitor streams in this runtime instance.
     monitor_streams: AtomicUsize,
 }
@@ -44,8 +44,9 @@ fn windows_input_event_runtime_state(
 ) -> Arc<WindowsInputEventRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(WindowsInputEventRuntimeState::default)
+        .platform_state
+        .input
+        .windows_input_event_runtime_state(WindowsInputEventRuntimeState::default)
 }
 
 /// Resource payload for one windows monitor handle.

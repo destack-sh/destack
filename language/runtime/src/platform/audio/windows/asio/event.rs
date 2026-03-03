@@ -41,7 +41,7 @@ struct AsioDeviceMonitor {
 
 /// Runtime-owned ASIO monitor state.
 #[derive(Debug, Default)]
-struct AsioMonitorRuntimeState {
+pub(crate) struct AsioMonitorRuntimeState {
     /// Runtime-owned monitor slot.
     monitor: Mutex<Option<AsioDeviceMonitor>>,
     /// Whether teardown finalizer was registered.
@@ -52,8 +52,9 @@ struct AsioMonitorRuntimeState {
 fn asio_monitor_runtime_state(context: &BindingCallContext) -> Arc<AsioMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(AsioMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .asio_monitor_runtime_state(AsioMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

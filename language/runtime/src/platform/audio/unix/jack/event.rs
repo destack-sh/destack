@@ -41,7 +41,7 @@ struct JackDeviceMonitor {
 /// Runtime-owned JACK monitor slot.
 #[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
-struct JackMonitorRuntimeState {
+pub(crate) struct JackMonitorRuntimeState {
     /// Runtime-owned monitor slot.
     monitor: Mutex<Option<JackDeviceMonitor>>,
     /// Whether teardown finalizer was registered.
@@ -53,8 +53,9 @@ struct JackMonitorRuntimeState {
 fn jack_monitor_runtime_state(context: &BindingCallContext) -> Arc<JackMonitorRuntimeState> {
     let runtime_state = context
         .runtime()
-        .module_state
-        .get_or_init(JackMonitorRuntimeState::default);
+        .platform_state
+        .audio
+        .jack_monitor_runtime_state(JackMonitorRuntimeState::default);
     register_runtime_finalizer(context, &runtime_state);
 
     runtime_state

@@ -15,7 +15,10 @@ mod info;
 pub mod native;
 mod power;
 pub(crate) mod simulation;
+mod state;
 #[cfg(test)]
 mod tests;
 mod unsupported;
 pub mod vm;
+
+pub(crate) use state::*;

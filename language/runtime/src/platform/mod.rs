@@ -48,6 +48,8 @@ pub mod random;
 pub mod resource;
 /// Security bindings.
 pub mod security;
+/// Runtime-owned platform module state.
+pub(crate) mod state;
 /// Thread bindings.
 pub mod thread;
 /// Time bindings.

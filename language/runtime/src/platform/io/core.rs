@@ -168,7 +168,7 @@ type EventAttachmentRegistry = HashMap<ResourceId, EventAttachmentTargets>;
 
 /// Runtime-owned io module state.
 #[derive(Default)]
-struct IoRuntimeState {
+pub(crate) struct IoRuntimeState {
     /// Event attachment routing keyed by event token id.
     event_attachments: Mutex<EventAttachmentRegistry>,
 }
@@ -177,8 +177,9 @@ struct IoRuntimeState {
 fn io_runtime_state(context: &BindingCallContext) -> Arc<IoRuntimeState> {
     context
         .runtime()
-        .module_state
-        .get_or_init(IoRuntimeState::default)
+        .platform_state
+        .io
+        .runtime_state(IoRuntimeState::default)
 }
 
 /// Resolve one poll resource payload from one poll handle.
