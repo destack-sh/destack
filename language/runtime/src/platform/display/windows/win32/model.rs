@@ -1,14 +1,15 @@
 use windows_sys::Win32::Foundation::HWND;
 
 use crate::platform::display::{
-    DisplayBackend, DisplayMode, DisplayOrientation, WindowCursorIcon, WindowCursorMode,
-    WindowLogicalSize, WindowModeOptions, WindowPhysicalSize, WindowPosition,
-    WindowSizeConstraints, WindowTheme, WindowVisibility,
+    DisplayBackend, DisplayMode, DisplayOrientation, DisplaySupportStatus, WindowAspectRatio,
+    WindowChromeKind, WindowCursorIcon, WindowCursorMode, WindowLogicalSize, WindowModeOptions,
+    WindowPhysicalSize, WindowPosition, WindowSafeAreaInsets, WindowSizeConstraints, WindowTheme,
+    WindowVisibility,
 };
 use crate::platform::resource;
 
 /// Stored descriptor payload with owned strings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(super) struct DisplayDescriptorOwned {
     /// Resolved backend that produced this descriptor.
     pub(super) backend: DisplayBackend,
@@ -42,16 +43,16 @@ pub(super) struct DisplayDescriptorOwned {
     pub(super) scale_factor_milli: u32,
     /// Current display orientation.
     pub(super) orientation: DisplayOrientation,
-    /// Whether this display is one built-in panel.
-    pub(super) is_builtin: bool,
-    /// Whether this display reports variable refresh support.
-    pub(super) supports_variable_refresh: bool,
-    /// Whether this display reports hdr support.
-    pub(super) supports_hdr: bool,
+    /// Built-in panel support status.
+    pub(super) builtin_panel: DisplaySupportStatus,
+    /// Variable-refresh support status.
+    pub(super) variable_refresh_support: DisplaySupportStatus,
+    /// HDR support status.
+    pub(super) hdr_support: DisplaySupportStatus,
 }
 
 /// Snapshot payload for one Win32 monitor endpoint.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(super) struct MonitorSnapshot {
     /// Descriptor payload for this monitor.
     pub(super) descriptor: DisplayDescriptorOwned,
@@ -98,10 +99,26 @@ pub(super) struct Win32WindowBinding {
     pub(super) resizable: bool,
     /// Whether this window uses host decorations.
     pub(super) decorated: bool,
+    /// Current window chrome style.
+    pub(super) chrome: WindowChromeKind,
+    /// Whether this window is currently visible in task switching surfaces.
+    pub(super) taskbar_visible: bool,
     /// Whether this window requested compositor transparency.
     pub(super) transparent: bool,
+    /// Current whole-window opacity in `[0.0, 1.0]`.
+    pub(super) opacity: f64,
     /// Whether this window is currently always-on-top.
     pub(super) always_on_top: bool,
+    /// Current parent window relationship.
+    pub(super) parent: Option<resource::WindowHandle>,
+    /// Current transient-owner window relationship.
+    pub(super) transient_for: Option<resource::WindowHandle>,
+    /// Whether this window is currently modal.
+    pub(super) modal: bool,
+    /// Whether this window is currently mouse-passthrough.
+    pub(super) mouse_passthrough: bool,
+    /// Current aspect-ratio lock.
+    pub(super) aspect_ratio: Option<WindowAspectRatio>,
     /// Current visibility state.
     pub(super) visibility: WindowVisibility,
     /// Current optional logical size constraints.
@@ -112,6 +129,10 @@ pub(super) struct Win32WindowBinding {
     pub(super) cursor_mode: WindowCursorMode,
     /// Current cursor icon selector.
     pub(super) cursor_icon: WindowCursorIcon,
+    /// Owned small icon handle currently attached to this window.
+    pub(super) icon_small: isize,
+    /// Owned big icon handle currently attached to this window.
+    pub(super) icon_big: isize,
     /// Current desktop position.
     pub(super) position: WindowPosition,
     /// Current logical size.
@@ -124,6 +145,8 @@ pub(super) struct Win32WindowBinding {
     pub(super) focused: bool,
     /// Current occlusion state.
     pub(super) occluded: bool,
+    /// Current safe-area insets when available.
+    pub(super) safe_area_insets: Option<WindowSafeAreaInsets>,
     /// Current theme value.
     pub(super) theme: WindowTheme,
     /// Optional restore snapshot for exclusive fullscreen transitions.
@@ -132,4 +155,8 @@ pub(super) struct Win32WindowBinding {
     pub(super) close_requested_emitted: bool,
     /// Whether destroyed was already emitted for this window lifetime.
     pub(super) destroyed_emitted: bool,
+    /// Registered Win32 drop-target callback object pointer value when drag and drop is active.
+    pub(super) drop_target_callback: usize,
+    /// Whether OLE apartment init was acquired for this window drop target.
+    pub(super) drop_target_ole_initialized: bool,
 }

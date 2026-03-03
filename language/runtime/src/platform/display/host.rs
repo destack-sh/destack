@@ -14,11 +14,11 @@ pub(crate) use windows::*;
 pub(crate) use super::unsupported::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
 };
-use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List display backends that are available for the active target.
 pub(crate) unsafe fn destack_display_backend_list(

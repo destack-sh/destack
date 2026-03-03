@@ -8,8 +8,10 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::resource;
-use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
+use crate::platform::resource::{
+    ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, resolve_payload,
+};
+use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core;
@@ -48,7 +50,7 @@ impl ResourceFinalizer for Win32WindowFinalizer {
                 }
             } else {
                 unsafe {
-                    let _ = PostMessageW(self.hwnd, WM_CLOSE, 0, 0);
+                    let _ = PostMessageW(self.hwnd, WM_CLOSE, core::WINDOW_CLOSE_FORCE_WPARAM, 0);
                 }
             }
         }
@@ -76,32 +78,20 @@ pub(super) fn resolve_display_id(
     handle: resource::DisplayHandle,
     operation: &'static str,
 ) -> RuntimeResult<String> {
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(handle.0, |entry| {
-            if entry.kind != ResourceKind::Display {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(DISPLAY_RESOURCE_LABEL) {
-                return None;
-            }
-
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Win32DisplayBinding>())
-                .map(|binding| binding.id.clone())
-        })
-        .flatten();
-
-    resolved.ok_or_else(|| {
-        core::not_found(
+    let binding = resolve_payload::<Win32DisplayBinding>(
+        context,
+        handle.0,
+        ResourceKind::Display,
+        Some(DISPLAY_RESOURCE_LABEL),
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
             operation,
             format!("display handle {} was not found", handle.0.0),
         )
-    })
+    })?;
+
+    Ok(binding.id)
 }
 
 /// Resolve one window binding payload from one opened window handle.
@@ -110,28 +100,14 @@ pub(super) fn resolve_window_binding(
     window: resource::WindowHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<Mutex<Win32WindowBinding>>> {
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(window.0, |entry| {
-            if entry.kind != ResourceKind::Window {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(WINDOW_RESOURCE_LABEL) {
-                return None;
-            }
-
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<Win32WindowBinding>>>())
-                .map(Arc::clone)
-        })
-        .flatten();
-
-    resolved.ok_or_else(|| {
-        core::not_found(
+    resolve_payload::<Arc<Mutex<Win32WindowBinding>>>(
+        context,
+        window.0,
+        ResourceKind::Window,
+        Some(WINDOW_RESOURCE_LABEL),
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
             operation,
             format!("window handle {} was not found", window.0.0),
         )
@@ -144,28 +120,14 @@ pub(super) fn resolve_monitor_event_binding(
     handle: resource::DisplayEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<MonitorEventBinding>> {
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(handle.0, |entry| {
-            if entry.kind != ResourceKind::Display {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(DISPLAY_EVENT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<MonitorEventBinding>>())
-                .map(Arc::clone)
-        })
-        .flatten();
-
-    resolved.ok_or_else(|| {
-        core::not_found(
+    resolve_payload::<Arc<MonitorEventBinding>>(
+        context,
+        handle.0,
+        ResourceKind::Display,
+        Some(DISPLAY_EVENT_RESOURCE_LABEL),
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
             operation,
             format!("display event handle {} was not found", handle.0.0),
         )
@@ -178,28 +140,14 @@ pub(super) fn resolve_window_event_binding(
     handle: resource::WindowEventHandle,
     operation: &'static str,
 ) -> RuntimeResult<Arc<WindowEventBinding>> {
-    let resolved = context
-        .runtime()
-        .resources
-        .with_entry(handle.0, |entry| {
-            if entry.kind != ResourceKind::Window {
-                return None;
-            }
-
-            if entry.label.as_deref() != Some(WINDOW_EVENT_RESOURCE_LABEL) {
-                return None;
-            }
-
-            entry
-                .payload
-                .as_ref()
-                .and_then(|payload| payload.downcast_ref::<Arc<WindowEventBinding>>())
-                .map(Arc::clone)
-        })
-        .flatten();
-
-    resolved.ok_or_else(|| {
-        core::not_found(
+    resolve_payload::<Arc<WindowEventBinding>>(
+        context,
+        handle.0,
+        ResourceKind::Window,
+        Some(WINDOW_EVENT_RESOURCE_LABEL),
+    )
+    .ok_or_else(|| {
+        core_platform::io_not_found(
             operation,
             format!("window event handle {} was not found", handle.0.0),
         )

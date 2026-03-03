@@ -1,29 +1,41 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::time::Duration;
 
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{AgentDiagnosticStore, RuntimeResult};
 use crate::platform::display::{
     DisplayAddedEvent, DisplayAddedPayload, DisplayBackend, DisplayDescriptorChangedEvent,
-    DisplayDescriptorChangedPayload, DisplayEvent, DisplayEventMetadata,
-    DisplayEventOverflowPolicy, DisplayMode, DisplayModeChangedEvent, DisplayModeChangedPayload,
+    DisplayDescriptorChangedPayload, DisplayEventOverflowPolicy, DisplayMetricChangedMask,
+    DisplayMode, DisplayModeChangedEvent, DisplayModeChangedPayload, DisplayMonitorEvent,
+    DisplayMonitorEventFilter, DisplayMonitorEventKindMask, DisplayMonitorEventMetadata,
     DisplayMonitorEventOpenOptions, DisplayPrimaryChangedEvent, DisplayPrimaryPayload,
+    DisplayRemovedEvent, DisplayRemovedPayload, WindowAspectRatio, WindowAspectRatioChangedEvent,
+    WindowAspectRatioPayload, WindowChromeChangedEvent, WindowChromeKind, WindowChromePayload,
     WindowCloseRequestedEvent, WindowCreatedEvent, WindowDestroyedEvent, WindowDisplayChangedEvent,
-    WindowDisplayPayload, WindowEvent, WindowEventMetadata, WindowEventOpenOptions,
-    WindowFocusChangedEvent, WindowFocusPayload, WindowLogicalSize, WindowModeChangedEvent,
-    WindowModeOptions, WindowModePayload, WindowOcclusionChangedEvent, WindowOcclusionPayload,
-    WindowPhysicalSize, WindowPosition, WindowPositionChangedEvent, WindowPositionPayload,
-    WindowRefreshRequestedEvent, WindowScaleFactorChangedEvent, WindowScaleFactorPayload,
-    WindowSizeChangedEvent, WindowSizePayload, WindowTheme, WindowThemeChangedEvent,
-    WindowThemePayload, WindowVisibility, WindowVisibilityChangedEvent, WindowVisibilityPayload,
+    WindowDisplayPayload, WindowDropCancelledEvent, WindowDropCompletedEvent,
+    WindowDropFilePayload, WindowDropHoverLeavePayload, WindowDropHoverPayload,
+    WindowDropStartedEvent, WindowDropTextPayload, WindowEvent, WindowEventFilter,
+    WindowEventKindMask, WindowEventMetadata, WindowEventOpenOptions, WindowFileDroppedEvent,
+    WindowFileHoverLeftEvent, WindowFileHoveredEvent, WindowFocusChangedEvent, WindowFocusPayload,
+    WindowLogicalSize, WindowModalChangedEvent, WindowModalPayload, WindowModeChangedEvent,
+    WindowModeOptions, WindowModePayload, WindowMousePassthroughChangedEvent,
+    WindowMousePassthroughPayload, WindowOcclusionChangedEvent, WindowOcclusionPayload,
+    WindowOcclusionState, WindowOpacityChangedEvent, WindowOpacityPayload,
+    WindowParentChangedEvent, WindowParentPayload, WindowPhysicalSize, WindowPosition,
+    WindowPositionChangedEvent, WindowPositionPayload, WindowRefreshRequestedEvent,
+    WindowScaleFactorChangedEvent, WindowScaleFactorPayload, WindowSizeChangedEvent,
+    WindowSizePayload, WindowTaskbarVisibilityChangedEvent, WindowTaskbarVisibilityPayload,
+    WindowTextDroppedEvent, WindowTheme, WindowThemeChangedEvent, WindowThemePayload,
+    WindowTransientChangedEvent, WindowTransientPayload, WindowVisibility,
+    WindowVisibilityChangedEvent, WindowVisibilityPayload,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeArray, resource};
+use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
-use super::model::{DisplayDescriptorOwned, Win32WindowBinding};
+use super::model::{DisplayDescriptorOwned, MonitorSnapshot, Win32WindowBinding};
 use super::{core, monitor, resource as display_resource, window};
 
 /// Stored monitor-event record payload.
@@ -33,6 +45,8 @@ struct DisplayEventRecord {
     timestamp_ns: u64,
     /// Event sequence number.
     sequence: u64,
+    /// Number of dropped events observed before this event.
+    dropped_count: u64,
     /// Event kind payload.
     kind: DisplayEventRecordKind,
 }
@@ -45,15 +59,26 @@ enum DisplayEventRecordKind {
         /// Added descriptor payload.
         descriptor: DisplayDescriptorOwned,
     },
+    /// Removed-event payload.
+    Removed {
+        /// Removed display identifier.
+        id: String,
+        /// Last known descriptor before removal.
+        descriptor: Option<DisplayDescriptorOwned>,
+    },
     /// Primary-changed payload.
     PrimaryChanged {
+        /// Previous primary display identifier.
+        previous_id: Option<String>,
         /// Current primary display identifier.
-        id: Option<String>,
+        current_id: Option<String>,
     },
     /// Descriptor-changed payload.
     DescriptorChanged {
+        /// Descriptor payload before mutation.
+        previous: Option<DisplayDescriptorOwned>,
         /// Descriptor payload after mutation.
-        descriptor: DisplayDescriptorOwned,
+        current: DisplayDescriptorOwned,
         /// Changed-field bit mask.
         changed_mask: u32,
     },
@@ -61,8 +86,10 @@ enum DisplayEventRecordKind {
     ModeChanged {
         /// Associated display identifier.
         id: String,
+        /// Previous display mode payload.
+        previous: Option<DisplayMode>,
         /// Current display mode payload.
-        mode: DisplayMode,
+        current: DisplayMode,
     },
 }
 
@@ -73,6 +100,8 @@ struct WindowEventRecord {
     timestamp_ns: u64,
     /// Event sequence number.
     sequence: u64,
+    /// Number of dropped events observed before this event.
+    dropped_count: u64,
     /// Event kind payload.
     kind: WindowEventRecordKind,
 }
@@ -99,45 +128,59 @@ enum WindowEventRecordKind {
     FocusChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Focus state before this event.
+        previous_focused: bool,
         /// Focus state after this event.
-        focused: bool,
+        current_focused: bool,
     },
     /// Visibility-changed payload.
     VisibilityChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Visibility state before this event.
+        previous_visibility: WindowVisibility,
         /// Visibility state after this event.
-        visibility: WindowVisibility,
+        current_visibility: WindowVisibility,
     },
     /// Occlusion-changed payload.
     OcclusionChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Occlusion state before this event.
+        previous_occlusion: WindowOcclusionState,
         /// Occlusion state after this event.
-        occluded: bool,
+        current_occlusion: WindowOcclusionState,
     },
     /// Position-changed payload.
     PositionChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Position before this event.
+        previous_position: WindowPosition,
         /// Position after this event.
-        position: WindowPosition,
+        current_position: WindowPosition,
     },
     /// Size-changed payload.
     SizeChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Logical size before this event.
+        previous_size_logical: WindowLogicalSize,
+        /// Physical size before this event.
+        previous_size_physical: WindowPhysicalSize,
         /// Logical size after this event.
-        size_logical: WindowLogicalSize,
+        current_size_logical: WindowLogicalSize,
         /// Physical size after this event.
-        size_physical: WindowPhysicalSize,
+        current_size_physical: WindowPhysicalSize,
     },
     /// Scale-factor-changed payload.
     ScaleFactorChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Scale factor before this event.
+        previous_scale_factor_milli: u32,
         /// Scale factor after this event.
-        scale_factor_milli: u32,
+        current_scale_factor_milli: u32,
     },
     /// Refresh-requested payload.
     RefreshRequested {
@@ -148,23 +191,421 @@ enum WindowEventRecordKind {
     ModeChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Mode payload before this event.
+        previous_mode: WindowModeOptions,
         /// Mode payload after this event.
-        mode: WindowModeOptions,
+        current_mode: WindowModeOptions,
     },
     /// Display-changed payload.
     DisplayChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Display payload before this event.
+        previous_display: Option<resource::DisplayHandle>,
         /// Display payload after this event.
-        display: Option<resource::DisplayHandle>,
+        current_display: Option<resource::DisplayHandle>,
     },
     /// Theme-changed payload.
     ThemeChanged {
         /// Associated runtime window handle.
         window: resource::WindowHandle,
+        /// Theme payload before this event.
+        previous_theme: WindowTheme,
         /// Theme payload after this event.
-        theme: WindowTheme,
+        current_theme: WindowTheme,
     },
+    /// Chrome-changed payload.
+    ChromeChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Chrome payload before this event.
+        previous_chrome: WindowChromeKind,
+        /// Chrome payload after this event.
+        current_chrome: WindowChromeKind,
+    },
+    /// Taskbar-visibility-changed payload.
+    TaskbarVisibilityChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous taskbar visibility.
+        previous_taskbar_visible: bool,
+        /// Current taskbar visibility.
+        current_taskbar_visible: bool,
+    },
+    /// Opacity-changed payload.
+    OpacityChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous opacity.
+        previous_opacity: f64,
+        /// Current opacity.
+        current_opacity: f64,
+    },
+    /// Parent-changed payload.
+    ParentChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous parent.
+        previous_parent: Option<resource::WindowHandle>,
+        /// Current parent.
+        current_parent: Option<resource::WindowHandle>,
+    },
+    /// Transient-owner-changed payload.
+    TransientChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous transient owner.
+        previous_transient_for: Option<resource::WindowHandle>,
+        /// Current transient owner.
+        current_transient_for: Option<resource::WindowHandle>,
+    },
+    /// Modal-changed payload.
+    ModalChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous modal state.
+        previous_modal: bool,
+        /// Current modal state.
+        current_modal: bool,
+    },
+    /// Mouse-passthrough-changed payload.
+    MousePassthroughChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous passthrough state.
+        previous_mouse_passthrough: bool,
+        /// Current passthrough state.
+        current_mouse_passthrough: bool,
+    },
+    /// Aspect-ratio-changed payload.
+    AspectRatioChanged {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous aspect ratio.
+        previous_aspect_ratio: Option<WindowAspectRatio>,
+        /// Current aspect ratio.
+        current_aspect_ratio: Option<WindowAspectRatio>,
+    },
+    /// Drop-started payload.
+    DropStarted {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+    },
+    /// File-hovered payload.
+    FileHovered {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Hovered path payload as UTF-16 code units.
+        path_utf16: Option<Vec<u16>>,
+        /// Hover position payload.
+        position: Option<WindowPosition>,
+    },
+    /// Drop-cancelled payload.
+    DropCancelled {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+    },
+    /// Drop-completed payload.
+    DropCompleted {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+    },
+    /// File-hover-left payload.
+    FileHoverLeft {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Previous hovered path payload as UTF-16 code units.
+        previous_path_utf16: Option<Vec<u16>>,
+        /// Last hover position payload.
+        position: Option<WindowPosition>,
+    },
+    /// File-dropped payload.
+    FileDropped {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Dropped path payload as UTF-16 code units.
+        path_utf16: Option<Vec<u16>>,
+        /// Drop position payload.
+        position: Option<WindowPosition>,
+    },
+    /// Text-dropped payload.
+    TextDropped {
+        /// Associated runtime window handle.
+        window: resource::WindowHandle,
+        /// Dropped text payload.
+        text: String,
+        /// Drop position payload.
+        position: Option<WindowPosition>,
+    },
+}
+
+impl DisplayEventRecordKind {
+    /// Return the event-kind bit for this monitor-event record.
+    fn kind_mask(&self) -> u32 {
+        // map monitor event variants to kind mask lanes
+        match self {
+            DisplayEventRecordKind::Added { .. } => core::DISPLAY_MONITOR_EVENT_KIND_ADDED,
+            DisplayEventRecordKind::Removed { .. } => core::DISPLAY_MONITOR_EVENT_KIND_REMOVED,
+            DisplayEventRecordKind::PrimaryChanged { .. } => {
+                core::DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED
+            }
+            DisplayEventRecordKind::DescriptorChanged { .. } => {
+                core::DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED
+            }
+            DisplayEventRecordKind::ModeChanged { .. } => {
+                core::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED
+            }
+        }
+    }
+
+    /// Return whether this monitor-event record matches one display identifier filter.
+    fn matches_display_id(&self, display_id: &str) -> bool {
+        // compare display identity against each event payload shape
+        match self {
+            DisplayEventRecordKind::Added { descriptor } => descriptor.id == display_id,
+            DisplayEventRecordKind::Removed { id, .. } => id == display_id,
+            DisplayEventRecordKind::PrimaryChanged {
+                previous_id,
+                current_id,
+            } => {
+                previous_id.as_deref() == Some(display_id)
+                    || current_id.as_deref() == Some(display_id)
+            }
+            DisplayEventRecordKind::DescriptorChanged { current, .. } => current.id == display_id,
+            DisplayEventRecordKind::ModeChanged { id, .. } => id == display_id,
+        }
+    }
+}
+
+impl WindowEventRecordKind {
+    /// Return the event-kind bit for this window-event record.
+    fn kind_mask(&self) -> u64 {
+        // map window event variants to kind mask lanes
+        match self {
+            WindowEventRecordKind::Created { .. } => core::WINDOW_EVENT_KIND_CREATED,
+            WindowEventRecordKind::CloseRequested { .. } => core::WINDOW_EVENT_KIND_CLOSE_REQUESTED,
+            WindowEventRecordKind::Destroyed { .. } => core::WINDOW_EVENT_KIND_DESTROYED,
+            WindowEventRecordKind::FocusChanged { .. } => core::WINDOW_EVENT_KIND_FOCUS_CHANGED,
+            WindowEventRecordKind::VisibilityChanged { .. } => {
+                core::WINDOW_EVENT_KIND_VISIBILITY_CHANGED
+            }
+            WindowEventRecordKind::OcclusionChanged { .. } => {
+                core::WINDOW_EVENT_KIND_OCCLUSION_CHANGED
+            }
+            WindowEventRecordKind::PositionChanged { .. } => {
+                core::WINDOW_EVENT_KIND_POSITION_CHANGED
+            }
+            WindowEventRecordKind::SizeChanged { .. } => core::WINDOW_EVENT_KIND_SIZE_CHANGED,
+            WindowEventRecordKind::ScaleFactorChanged { .. } => {
+                core::WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED
+            }
+            WindowEventRecordKind::RefreshRequested { .. } => {
+                core::WINDOW_EVENT_KIND_REFRESH_REQUESTED
+            }
+            WindowEventRecordKind::ModeChanged { .. } => core::WINDOW_EVENT_KIND_MODE_CHANGED,
+            WindowEventRecordKind::DisplayChanged { .. } => core::WINDOW_EVENT_KIND_DISPLAY_CHANGED,
+            WindowEventRecordKind::ThemeChanged { .. } => core::WINDOW_EVENT_KIND_THEME_CHANGED,
+            WindowEventRecordKind::ChromeChanged { .. } => core::WINDOW_EVENT_KIND_CHROME_CHANGED,
+            WindowEventRecordKind::TaskbarVisibilityChanged { .. } => {
+                core::WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED
+            }
+            WindowEventRecordKind::OpacityChanged { .. } => core::WINDOW_EVENT_KIND_OPACITY_CHANGED,
+            WindowEventRecordKind::ParentChanged { .. } => core::WINDOW_EVENT_KIND_PARENT_CHANGED,
+            WindowEventRecordKind::TransientChanged { .. } => {
+                core::WINDOW_EVENT_KIND_TRANSIENT_CHANGED
+            }
+            WindowEventRecordKind::ModalChanged { .. } => core::WINDOW_EVENT_KIND_MODAL_CHANGED,
+            WindowEventRecordKind::MousePassthroughChanged { .. } => {
+                core::WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED
+            }
+            WindowEventRecordKind::AspectRatioChanged { .. } => {
+                core::WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED
+            }
+            WindowEventRecordKind::DropStarted { .. } => core::WINDOW_EVENT_KIND_DROP_STARTED,
+            WindowEventRecordKind::FileHovered { .. } => core::WINDOW_EVENT_KIND_FILE_HOVERED,
+            WindowEventRecordKind::DropCancelled { .. } => core::WINDOW_EVENT_KIND_DROP_CANCELLED,
+            WindowEventRecordKind::DropCompleted { .. } => core::WINDOW_EVENT_KIND_DROP_COMPLETED,
+            WindowEventRecordKind::FileHoverLeft { .. } => core::WINDOW_EVENT_KIND_FILE_HOVER_LEFT,
+            WindowEventRecordKind::FileDropped { .. } => core::WINDOW_EVENT_KIND_FILE_DROPPED,
+            WindowEventRecordKind::TextDropped { .. } => core::WINDOW_EVENT_KIND_TEXT_DROPPED,
+        }
+    }
+
+    /// Return the associated runtime window handle.
+    fn window(&self) -> resource::WindowHandle {
+        // project associated window handle from each event variant
+        match self {
+            WindowEventRecordKind::Created { window }
+            | WindowEventRecordKind::CloseRequested { window }
+            | WindowEventRecordKind::Destroyed { window }
+            | WindowEventRecordKind::FocusChanged { window, .. }
+            | WindowEventRecordKind::VisibilityChanged { window, .. }
+            | WindowEventRecordKind::OcclusionChanged { window, .. }
+            | WindowEventRecordKind::PositionChanged { window, .. }
+            | WindowEventRecordKind::SizeChanged { window, .. }
+            | WindowEventRecordKind::ScaleFactorChanged { window, .. }
+            | WindowEventRecordKind::RefreshRequested { window }
+            | WindowEventRecordKind::ModeChanged { window, .. }
+            | WindowEventRecordKind::DisplayChanged { window, .. }
+            | WindowEventRecordKind::ThemeChanged { window, .. }
+            | WindowEventRecordKind::ChromeChanged { window, .. }
+            | WindowEventRecordKind::TaskbarVisibilityChanged { window, .. }
+            | WindowEventRecordKind::OpacityChanged { window, .. }
+            | WindowEventRecordKind::ParentChanged { window, .. }
+            | WindowEventRecordKind::TransientChanged { window, .. }
+            | WindowEventRecordKind::ModalChanged { window, .. }
+            | WindowEventRecordKind::MousePassthroughChanged { window, .. }
+            | WindowEventRecordKind::AspectRatioChanged { window, .. }
+            | WindowEventRecordKind::DropStarted { window }
+            | WindowEventRecordKind::FileHovered { window, .. }
+            | WindowEventRecordKind::DropCancelled { window }
+            | WindowEventRecordKind::DropCompleted { window }
+            | WindowEventRecordKind::FileHoverLeft { window, .. }
+            | WindowEventRecordKind::FileDropped { window, .. }
+            | WindowEventRecordKind::TextDropped { window, .. } => *window,
+        }
+    }
+}
+
+/// Open-time filter state for one monitor-event stream.
+#[derive(Debug, Clone, Default)]
+pub(super) struct MonitorEventFilterState {
+    /// Optional display identifier restriction.
+    display_id: Option<String>,
+    /// Optional monitor-event kind-mask restriction.
+    kind_mask: Option<u32>,
+}
+
+impl MonitorEventFilterState {
+    /// Build one monitor-event filter state from open options.
+    pub(super) unsafe fn from_open_options(
+        options: DisplayMonitorEventOpenOptions,
+    ) -> RuntimeResult<Self> {
+        let Some(filter) = options.filter else {
+            return Ok(Self::default());
+        };
+
+        let filter = unsafe { parse_monitor_event_filter(filter)? };
+        Ok(filter)
+    }
+
+    /// Return whether one monitor-event record matches this filter.
+    fn matches(&self, record: &DisplayEventRecord) -> bool {
+        // reject records outside optional display id lane
+        if let Some(display_id) = self.display_id.as_deref()
+            && !record.kind.matches_display_id(display_id)
+        {
+            return false;
+        }
+
+        // reject records outside optional kind mask lane
+        if let Some(kind_mask) = self.kind_mask
+            && record.kind.kind_mask() & kind_mask == 0
+        {
+            return false;
+        }
+
+        true
+    }
+}
+
+/// Open-time filter state for one window-event stream.
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct WindowEventFilterState {
+    /// Optional window-handle restriction.
+    window: Option<resource::WindowHandle>,
+    /// Optional window-event kind-mask restriction.
+    kind_mask: Option<u64>,
+}
+
+impl WindowEventFilterState {
+    /// Build one window-event filter state from open options.
+    pub(super) fn from_open_options(options: WindowEventOpenOptions) -> RuntimeResult<Self> {
+        let Some(filter) = options.filter else {
+            return Ok(Self::default());
+        };
+
+        let filter = parse_window_event_filter(filter)?;
+        Ok(filter)
+    }
+
+    /// Return whether one window-event record matches this filter.
+    fn matches(&self, record: &WindowEventRecord) -> bool {
+        // reject records outside optional window lane
+        if let Some(window) = self.window
+            && record.kind.window() != window
+        {
+            return false;
+        }
+
+        // reject records outside optional kind mask lane
+        if let Some(kind_mask) = self.kind_mask
+            && record.kind.kind_mask() & kind_mask == 0
+        {
+            return false;
+        }
+
+        true
+    }
+}
+
+/// Build one monitor-event filter state from ABI filter payload.
+unsafe fn parse_monitor_event_filter(
+    filter: DisplayMonitorEventFilter,
+) -> RuntimeResult<MonitorEventFilterState> {
+    let display_id = match filter.display_id {
+        Some(value) => Some(unsafe { value.as_str()? }.to_string()),
+        None => None,
+    };
+
+    let kind_mask = filter
+        .kind_mask
+        .map(|value: DisplayMonitorEventKindMask| value.0);
+    if let Some(kind_mask) = kind_mask {
+        core::validate_monitor_event_kind_mask(kind_mask, "options.filter.kindMask")?;
+    }
+
+    Ok(MonitorEventFilterState {
+        display_id,
+        kind_mask,
+    })
+}
+
+/// Build one window-event filter state from ABI filter payload.
+fn parse_window_event_filter(filter: WindowEventFilter) -> RuntimeResult<WindowEventFilterState> {
+    // decode optional kind mask from abi payload
+    let kind_mask = filter.kind_mask.map(|value: WindowEventKindMask| value.0);
+
+    // validate kind-mask bits when provided
+    if let Some(kind_mask) = kind_mask {
+        core::validate_window_event_kind_mask(kind_mask, "options.filter.kindMask")?;
+    }
+
+    // build normalized runtime filter state
+    Ok(WindowEventFilterState {
+        window: filter.window,
+        kind_mask,
+    })
+}
+
+/// Build one monitor-event record with default queue metadata.
+fn display_event_record(kind: DisplayEventRecordKind) -> DisplayEventRecord {
+    DisplayEventRecord {
+        timestamp_ns: core_platform::monotonic_now_ns(),
+        sequence: 0,
+        dropped_count: 0,
+        kind,
+    }
+}
+
+/// Build one window-event record with default queue metadata.
+fn window_event_record(kind: WindowEventRecordKind) -> WindowEventRecord {
+    WindowEventRecord {
+        timestamp_ns: core_platform::monotonic_now_ns(),
+        sequence: 0,
+        dropped_count: 0,
+        kind,
+    }
 }
 
 /// Resource payload for one monitor-event stream.
@@ -172,13 +613,15 @@ enum WindowEventRecordKind {
 pub(super) struct MonitorEventBinding {
     /// Shared mutable stream state.
     state: Mutex<MonitorEventState>,
+    /// Stream-level event filter payload.
+    filter: MonitorEventFilterState,
     /// Wake lane for blocking readers.
     signal: Condvar,
 }
 
 /// Mutable monitor-event stream state.
 #[derive(Debug)]
-struct MonitorEventState {
+pub(super) struct MonitorEventState {
     /// Queue capacity for this stream.
     queue_capacity: usize,
     /// Queue overflow policy for this stream.
@@ -187,6 +630,8 @@ struct MonitorEventState {
     overflow_error_pending: bool,
     /// Next sequence number for this stream.
     next_sequence: u64,
+    /// Total number of dropped events observed by this stream.
+    dropped_count: u64,
     /// Pending queue payload.
     pending: VecDeque<DisplayEventRecord>,
 }
@@ -196,6 +641,8 @@ struct MonitorEventState {
 pub(super) struct WindowEventBinding {
     /// Shared mutable stream state.
     state: Mutex<WindowEventState>,
+    /// Stream-level event filter payload.
+    filter: WindowEventFilterState,
     /// Wake lane for blocking readers.
     signal: Condvar,
     /// Owner thread identifier used for message pumping.
@@ -204,7 +651,7 @@ pub(super) struct WindowEventBinding {
 
 /// Mutable window-event stream state.
 #[derive(Debug)]
-struct WindowEventState {
+pub(super) struct WindowEventState {
     /// Queue capacity for this stream.
     queue_capacity: usize,
     /// Queue overflow policy for this stream.
@@ -213,1253 +660,536 @@ struct WindowEventState {
     overflow_error_pending: bool,
     /// Next sequence number for this stream.
     next_sequence: u64,
+    /// Total number of dropped events observed by this stream.
+    dropped_count: u64,
     /// Pending queue payload.
     pending: VecDeque<WindowEventRecord>,
 }
 
+/// Shared queue-state interface for monitor and window event streams.
+trait EventQueueState<Record> {
+    /// Return the configured queue capacity for this stream.
+    fn queue_capacity(&self) -> usize;
+
+    /// Return the configured queue overflow policy for this stream.
+    fn overflow_policy(&self) -> DisplayEventOverflowPolicy;
+
+    /// Return the overflow-error latch.
+    fn overflow_error_pending(&mut self) -> &mut bool;
+
+    /// Return the next event sequence counter.
+    fn next_sequence(&mut self) -> &mut u64;
+
+    /// Return the stream dropped-event counter.
+    fn dropped_count(&mut self) -> &mut u64;
+
+    /// Return the pending queue payload.
+    fn pending(&mut self) -> &mut VecDeque<Record>;
+}
+
+impl EventQueueState<DisplayEventRecord> for MonitorEventState {
+    /// Return this stream queue capacity.
+    fn queue_capacity(&self) -> usize {
+        self.queue_capacity
+    }
+
+    /// Return this stream overflow policy.
+    fn overflow_policy(&self) -> DisplayEventOverflowPolicy {
+        self.overflow_policy
+    }
+
+    /// Return mutable access to overflow latch.
+    fn overflow_error_pending(&mut self) -> &mut bool {
+        &mut self.overflow_error_pending
+    }
+
+    /// Return mutable access to next sequence counter.
+    fn next_sequence(&mut self) -> &mut u64 {
+        &mut self.next_sequence
+    }
+
+    /// Return mutable access to dropped counter.
+    fn dropped_count(&mut self) -> &mut u64 {
+        &mut self.dropped_count
+    }
+
+    /// Return mutable access to pending queue.
+    fn pending(&mut self) -> &mut VecDeque<DisplayEventRecord> {
+        &mut self.pending
+    }
+}
+
+impl EventQueueState<WindowEventRecord> for WindowEventState {
+    /// Return this stream queue capacity.
+    fn queue_capacity(&self) -> usize {
+        self.queue_capacity
+    }
+
+    /// Return this stream overflow policy.
+    fn overflow_policy(&self) -> DisplayEventOverflowPolicy {
+        self.overflow_policy
+    }
+
+    /// Return mutable access to overflow latch.
+    fn overflow_error_pending(&mut self) -> &mut bool {
+        &mut self.overflow_error_pending
+    }
+
+    /// Return mutable access to next sequence counter.
+    fn next_sequence(&mut self) -> &mut u64 {
+        &mut self.next_sequence
+    }
+
+    /// Return mutable access to dropped counter.
+    fn dropped_count(&mut self) -> &mut u64 {
+        &mut self.dropped_count
+    }
+
+    /// Return mutable access to pending queue.
+    fn pending(&mut self) -> &mut VecDeque<WindowEventRecord> {
+        &mut self.pending
+    }
+}
+
 /// Runtime-owned mutable state for display event streams.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(super) struct DisplayEventRuntimeState {
     /// Event subscriber list for monitor-event streams.
     monitor_event_registry: Mutex<Vec<Weak<MonitorEventBinding>>>,
+    /// Last observed monitor topology snapshot.
+    monitor_topology_snapshot: Mutex<Option<Vec<MonitorSnapshot>>>,
     /// Event subscriber list for window-event streams.
     window_event_registry: Mutex<Vec<Weak<WindowEventBinding>>>,
+    /// Runtime diagnostics store for callback and best-effort lanes.
+    diagnostics: Arc<AgentDiagnosticStore>,
+}
+
+impl Default for DisplayEventRuntimeState {
+    fn default() -> Self {
+        Self::new(Arc::new(AgentDiagnosticStore::default()))
+    }
+}
+
+impl DisplayEventRuntimeState {
+    /// Create one display-event runtime state with explicit diagnostics storage.
+    fn new(diagnostics: Arc<AgentDiagnosticStore>) -> Self {
+        Self {
+            monitor_event_registry: Mutex::new(Vec::new()),
+            monitor_topology_snapshot: Mutex::new(None),
+            window_event_registry: Mutex::new(Vec::new()),
+            diagnostics,
+        }
+    }
 }
 
 /// Return runtime-owned display-event state.
 pub(super) fn display_event_runtime_state(
     context: &BindingCallContext,
 ) -> Arc<DisplayEventRuntimeState> {
+    let diagnostics = Arc::clone(&context.runtime().diagnostic);
     context
         .runtime()
         .module_state
-        .get_or_init(DisplayEventRuntimeState::default)
+        .get_or_init(|| DisplayEventRuntimeState::new(diagnostics))
 }
 
-/// Convert one remaining timeout payload into a condition wait duration.
-fn wait_duration(remaining_ns: u64) -> Duration {
-    Duration::from_nanos(remaining_ns)
-}
+#[path = "codec.rs"]
+mod codec;
+#[path = "publish.rs"]
+mod publish;
+#[path = "queue.rs"]
+mod queue;
+#[path = "stream.rs"]
+mod stream;
 
-/// Return the current host thread identifier.
-fn current_thread_id() -> u32 {
-    unsafe { GetCurrentThreadId() }
-}
+pub(super) use publish::*;
+pub(in super::super) use stream::*;
 
-/// Ensure one window-event stream operation is running on its owner thread.
-fn ensure_window_event_thread(
-    binding: &WindowEventBinding,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    let current = current_thread_id();
-    if current == binding.owner_thread_id {
-        return Ok(());
-    }
+use codec::*;
+use queue::*;
 
-    Err(core::invalid_argument(
-        "handle",
-        format!(
-            "{operation} must run on owner thread {}, current thread is {current}",
-            binding.owner_thread_id
-        ),
-    ))
-}
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Condvar, Mutex};
 
-/// Push one monitor-event record into one stream queue.
-fn push_monitor_event(state: &mut MonitorEventState, mut event: DisplayEventRecord) {
-    while state.pending.len() >= state.queue_capacity {
-        match state.overflow_policy {
-            DisplayEventOverflowPolicy::DropOldest => {
-                let _ = state.pending.pop_front();
-            }
-            DisplayEventOverflowPolicy::DropNewest => {
-                return;
-            }
-            DisplayEventOverflowPolicy::Error => {
-                state.pending.clear();
-                state.overflow_error_pending = true;
-                return;
-            }
+    use super::{
+        DisplayEventRecordKind, DisplayEventRuntimeState, MonitorEventBinding,
+        MonitorEventFilterState, MonitorEventState, WindowEventBinding, WindowEventFilterState,
+        WindowEventRecordKind, WindowEventState, display_event_record, monitor_topology_records,
+        publish_monitor_event, publish_window_drop_cancelled_event,
+        publish_window_drop_completed_event, publish_window_drop_started_event,
+        publish_window_file_dropped_event,
+    };
+    use crate::platform::display::{
+        DisplayBackend, DisplayEventOverflowPolicy, DisplayMode, DisplayOrientation,
+        DisplaySupportStatus, WindowPosition,
+    };
+    use crate::platform::resource::{ResourceId, WindowHandle};
+
+    use super::super::model::{DisplayDescriptorOwned, MonitorSnapshot};
+
+    /// Build one test descriptor payload with explicit geometry fields.
+    fn descriptor(
+        id: &str,
+        primary: bool,
+        width_px: u32,
+        height_px: u32,
+    ) -> DisplayDescriptorOwned {
+        DisplayDescriptorOwned {
+            backend: DisplayBackend::Win32,
+            id: id.to_string(),
+            name: id.to_string(),
+            primary,
+            x: 0,
+            y: 0,
+            width_px,
+            height_px,
+            work_area_x: 0,
+            work_area_y: 0,
+            work_area_width_px: width_px,
+            work_area_height_px: height_px,
+            width_mm: 500,
+            height_mm: 300,
+            scale_factor_milli: 1000,
+            orientation: DisplayOrientation::Landscape,
+            builtin_panel: DisplaySupportStatus::Unsupported,
+            variable_refresh_support: DisplaySupportStatus::Unknown,
+            hdr_support: DisplaySupportStatus::Unsupported,
         }
     }
 
-    event.sequence = state.next_sequence;
-    state.next_sequence = state.next_sequence.saturating_add(1);
-    state.pending.push_back(event);
-}
-
-/// Push one window-event record into one stream queue.
-fn push_window_event(state: &mut WindowEventState, mut event: WindowEventRecord) {
-    while state.pending.len() >= state.queue_capacity {
-        match state.overflow_policy {
-            DisplayEventOverflowPolicy::DropOldest => {
-                let _ = state.pending.pop_front();
-            }
-            DisplayEventOverflowPolicy::DropNewest => {
-                return;
-            }
-            DisplayEventOverflowPolicy::Error => {
-                state.pending.clear();
-                state.overflow_error_pending = true;
-                return;
-            }
+    /// Build one test mode payload.
+    fn mode(width: u32, height: u32, refresh_milli_hz: u32) -> DisplayMode {
+        DisplayMode {
+            width,
+            height,
+            refresh_milli_hz,
+            format: 0,
+            bit_depth: 8,
         }
     }
 
-    event.sequence = state.next_sequence;
-    state.next_sequence = state.next_sequence.saturating_add(1);
-    state.pending.push_back(event);
-}
-
-/// Publish one monitor-event record to all active stream subscribers.
-fn publish_monitor_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    record: DisplayEventRecord,
-) {
-    let mut registry = runtime_state
-        .monitor_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-
-    registry.retain(|binding| {
-        let Some(binding) = binding.upgrade() else {
-            return false;
-        };
-        let mut state = binding
-            .state
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        push_monitor_event(&mut state, record.clone());
-        drop(state);
-        binding.signal.notify_all();
-        true
-    });
-}
-
-/// Publish one window-event record to all active stream subscribers.
-fn publish_window_event(runtime_state: &Arc<DisplayEventRuntimeState>, record: WindowEventRecord) {
-    let mut registry = runtime_state
-        .window_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-
-    registry.retain(|binding| {
-        let Some(binding) = binding.upgrade() else {
-            return false;
-        };
-        let mut state = binding
-            .state
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        push_window_event(&mut state, record.clone());
-        drop(state);
-        binding.signal.notify_all();
-        true
-    });
-}
-
-/// Build one display-event metadata payload.
-fn display_event_metadata(
-    context: &BindingCallContext,
-    display_id: Option<&str>,
-    timestamp_ns: u64,
-    sequence: u64,
-) -> DisplayEventMetadata {
-    DisplayEventMetadata {
-        backend: DisplayBackend::Win32,
-        display_id: display_id.map(|value| context.store_string(value)),
-        timestamp_ns,
-        sequence,
-    }
-}
-
-/// Build one window-event metadata payload.
-fn window_event_metadata(
-    window: resource::WindowHandle,
-    timestamp_ns: u64,
-    sequence: u64,
-) -> WindowEventMetadata {
-    WindowEventMetadata {
-        backend: DisplayBackend::Win32,
-        window,
-        timestamp_ns,
-        sequence,
-    }
-}
-
-/// Convert one stored monitor-event record into one ABI event payload.
-fn display_event_from_record(
-    context: &BindingCallContext,
-    value: DisplayEventRecord,
-) -> DisplayEvent {
-    match value.kind {
-        DisplayEventRecordKind::Added { descriptor } => {
-            DisplayEvent::DisplayAddedEvent(DisplayAddedEvent {
-                kind: context.store_string("added"),
-                metadata: display_event_metadata(
-                    context,
-                    Some(&descriptor.id),
-                    value.timestamp_ns,
-                    value.sequence,
-                ),
-                payload: DisplayAddedPayload {
-                    descriptor: monitor::descriptor_from_owned(context, &descriptor),
-                },
-            })
-        }
-        DisplayEventRecordKind::PrimaryChanged { id } => {
-            DisplayEvent::DisplayPrimaryChangedEvent(DisplayPrimaryChangedEvent {
-                kind: context.store_string("primaryChanged"),
-                metadata: display_event_metadata(
-                    context,
-                    id.as_deref(),
-                    value.timestamp_ns,
-                    value.sequence,
-                ),
-                payload: DisplayPrimaryPayload {
-                    id: id.map(|value| context.store_string(&value)),
-                },
-            })
-        }
-        DisplayEventRecordKind::DescriptorChanged {
+    /// Build one monitor snapshot payload for tests.
+    fn snapshot(descriptor: DisplayDescriptorOwned, mode: DisplayMode) -> MonitorSnapshot {
+        MonitorSnapshot {
             descriptor,
-            changed_mask,
-        } => DisplayEvent::DisplayDescriptorChangedEvent(DisplayDescriptorChangedEvent {
-            kind: context.store_string("descriptorChanged"),
-            metadata: display_event_metadata(
-                context,
-                Some(&descriptor.id),
-                value.timestamp_ns,
-                value.sequence,
-            ),
-            payload: DisplayDescriptorChangedPayload {
-                descriptor: monitor::descriptor_from_owned(context, &descriptor),
-                changed_mask,
-            },
-        }),
-        DisplayEventRecordKind::ModeChanged { id, mode } => {
-            DisplayEvent::DisplayModeChangedEvent(DisplayModeChangedEvent {
-                kind: context.store_string("modeChanged"),
-                metadata: display_event_metadata(
-                    context,
-                    Some(&id),
-                    value.timestamp_ns,
-                    value.sequence,
-                ),
-                payload: DisplayModeChangedPayload { mode },
-            })
+            current_mode: mode,
+            desktop_mode: mode,
+            modes: vec![mode],
         }
     }
-}
 
-/// Convert one stored window-event record into one ABI event payload.
-fn window_event_from_record(value: WindowEventRecord, context: &BindingCallContext) -> WindowEvent {
-    match value.kind {
-        WindowEventRecordKind::Created { window } => {
-            WindowEvent::WindowCreatedEvent(WindowCreatedEvent {
-                kind: context.store_string("created"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            })
-        }
-        WindowEventRecordKind::CloseRequested { window } => {
-            WindowEvent::WindowCloseRequestedEvent(WindowCloseRequestedEvent {
-                kind: context.store_string("closeRequested"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            })
-        }
-        WindowEventRecordKind::Destroyed { window } => {
-            WindowEvent::WindowDestroyedEvent(WindowDestroyedEvent {
-                kind: context.store_string("destroyed"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            })
-        }
-        WindowEventRecordKind::FocusChanged { window, focused } => {
-            WindowEvent::WindowFocusChangedEvent(WindowFocusChangedEvent {
-                kind: context.store_string("focusChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowFocusPayload { focused },
-            })
-        }
-        WindowEventRecordKind::VisibilityChanged { window, visibility } => {
-            WindowEvent::WindowVisibilityChangedEvent(WindowVisibilityChangedEvent {
-                kind: context.store_string("visibilityChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowVisibilityPayload { visibility },
-            })
-        }
-        WindowEventRecordKind::OcclusionChanged { window, occluded } => {
-            WindowEvent::WindowOcclusionChangedEvent(WindowOcclusionChangedEvent {
-                kind: context.store_string("occlusionChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowOcclusionPayload { occluded },
-            })
-        }
-        WindowEventRecordKind::PositionChanged { window, position } => {
-            WindowEvent::WindowPositionChangedEvent(WindowPositionChangedEvent {
-                kind: context.store_string("positionChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowPositionPayload { position },
-            })
-        }
-        WindowEventRecordKind::SizeChanged {
-            window,
-            size_logical,
-            size_physical,
-        } => WindowEvent::WindowSizeChangedEvent(WindowSizeChangedEvent {
-            kind: context.store_string("sizeChanged"),
-            metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            payload: WindowSizePayload {
-                size_logical,
-                size_physical,
-            },
-        }),
-        WindowEventRecordKind::ScaleFactorChanged {
-            window,
-            scale_factor_milli,
-        } => WindowEvent::WindowScaleFactorChangedEvent(WindowScaleFactorChangedEvent {
-            kind: context.store_string("scaleFactorChanged"),
-            metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            payload: WindowScaleFactorPayload { scale_factor_milli },
-        }),
-        WindowEventRecordKind::RefreshRequested { window } => {
-            WindowEvent::WindowRefreshRequestedEvent(WindowRefreshRequestedEvent {
-                kind: context.store_string("refreshRequested"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-            })
-        }
-        WindowEventRecordKind::ModeChanged { window, mode } => {
-            WindowEvent::WindowModeChangedEvent(WindowModeChangedEvent {
-                kind: context.store_string("modeChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowModePayload { mode },
-            })
-        }
-        WindowEventRecordKind::DisplayChanged { window, display } => {
-            WindowEvent::WindowDisplayChangedEvent(WindowDisplayChangedEvent {
-                kind: context.store_string("displayChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowDisplayPayload { display },
-            })
-        }
-        WindowEventRecordKind::ThemeChanged { window, theme } => {
-            WindowEvent::WindowThemeChangedEvent(WindowThemeChangedEvent {
-                kind: context.store_string("themeChanged"),
-                metadata: window_event_metadata(window, value.timestamp_ns, value.sequence),
-                payload: WindowThemePayload { theme },
-            })
-        }
-    }
-}
+    /// Monitor topology records should include removed, added, mode, and primary events.
+    #[test]
+    fn test_monitor_topology_records_emit_removed_added_and_primary_changed() {
+        let previous = vec![snapshot(
+            descriptor(r"\\.\DISPLAY1", true, 1920, 1080),
+            mode(1920, 1080, 60_000),
+        )];
+        let next = vec![snapshot(
+            descriptor(r"\\.\DISPLAY2", true, 2560, 1440),
+            mode(2560, 1440, 144_000),
+        )];
 
-/// Publish one mode-changed monitor event.
-pub(super) fn publish_mode_changed_event(
-    context: &BindingCallContext,
-    display_id: &str,
-    mode: DisplayMode,
-) {
-    let record = DisplayEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: DisplayEventRecordKind::ModeChanged {
-            id: display_id.to_string(),
-            mode,
-        },
-    };
+        let records = monitor_topology_records(&previous, &next);
 
-    let runtime_state = display_event_runtime_state(context);
-    publish_monitor_event(&runtime_state, record);
-}
-
-/// Publish one descriptor-changed monitor event.
-pub(super) fn publish_descriptor_changed_event(
-    context: &BindingCallContext,
-    descriptor: &DisplayDescriptorOwned,
-    changed_mask: u32,
-) {
-    let record = DisplayEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: DisplayEventRecordKind::DescriptorChanged {
-            descriptor: descriptor.clone(),
-            changed_mask,
-        },
-    };
-
-    let runtime_state = display_event_runtime_state(context);
-    publish_monitor_event(&runtime_state, record);
-}
-
-/// Seed one monitor-event stream with current monitor snapshot events.
-fn seed_monitor_event_stream(state: &mut MonitorEventState) -> RuntimeResult<()> {
-    let snapshots = monitor::enumerate_monitor_snapshots()?;
-    let mut primary_id = None;
-
-    for snapshot in snapshots {
-        if snapshot.descriptor.primary {
-            primary_id = Some(snapshot.descriptor.id.clone());
-        }
-
-        let added = DisplayEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: DisplayEventRecordKind::Added {
-                descriptor: snapshot.descriptor.clone(),
-            },
-        };
-        push_monitor_event(state, added);
-
-        let mode_changed = DisplayEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: DisplayEventRecordKind::ModeChanged {
-                id: snapshot.descriptor.id,
-                mode: snapshot.current_mode,
-            },
-        };
-        push_monitor_event(state, mode_changed);
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::Removed { ref id, .. } if id == r"\\.\DISPLAY1"
+        )));
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::Added { ref descriptor } if descriptor.id == r"\\.\DISPLAY2"
+        )));
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::ModeChanged { ref id, current: mode, .. } if id == r"\\.\DISPLAY2" && mode.refresh_milli_hz == 144_000
+        )));
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::PrimaryChanged { current_id: Some(ref id), .. } if id == r"\\.\DISPLAY2"
+        )));
     }
 
-    let primary_changed = DisplayEventRecord {
-        timestamp_ns: core::now_timestamp_ns(),
-        sequence: 0,
-        kind: DisplayEventRecordKind::PrimaryChanged { id: primary_id },
-    };
-    push_monitor_event(state, primary_changed);
+    /// Monitor topology records should include descriptor and mode deltas for one existing display.
+    #[test]
+    fn test_monitor_topology_records_emit_descriptor_and_mode_changes() {
+        let previous = vec![snapshot(
+            descriptor(r"\\.\DISPLAY1", true, 1920, 1080),
+            mode(1920, 1080, 60_000),
+        )];
+        let next = vec![snapshot(
+            descriptor(r"\\.\DISPLAY1", true, 2560, 1440),
+            mode(2560, 1440, 120_000),
+        )];
 
-    Ok(())
-}
+        let records = monitor_topology_records(&previous, &next);
 
-/// Publish one created window event.
-pub(super) fn publish_window_created_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::Created { window },
-        },
-    );
-}
-
-/// Publish one destroyed window event.
-pub(super) fn publish_window_destroyed_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::Destroyed { window },
-        },
-    );
-}
-
-/// Publish one close-requested window event.
-pub(super) fn publish_window_close_requested_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::CloseRequested { window },
-        },
-    );
-}
-
-/// Publish one refresh-requested window event.
-pub(super) fn publish_window_refresh_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::RefreshRequested { window },
-        },
-    );
-}
-
-/// Publish one visibility-changed window event.
-fn publish_window_visibility_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    visibility: WindowVisibility,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::VisibilityChanged { window, visibility },
-        },
-    );
-}
-
-/// Publish one position-changed window event.
-fn publish_window_position_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    position: WindowPosition,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::PositionChanged { window, position },
-        },
-    );
-}
-
-/// Publish one size-changed window event.
-fn publish_window_size_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    size_logical: WindowLogicalSize,
-    size_physical: WindowPhysicalSize,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::SizeChanged {
-                window,
-                size_logical,
-                size_physical,
-            },
-        },
-    );
-}
-
-/// Publish one scale-factor changed window event.
-fn publish_window_scale_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    scale_factor_milli: u32,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::ScaleFactorChanged {
-                window,
-                scale_factor_milli,
-            },
-        },
-    );
-}
-
-/// Publish one mode-changed window event.
-pub(super) fn publish_window_mode_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    mode: WindowModeOptions,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::ModeChanged { window, mode },
-        },
-    );
-}
-
-/// Publish one display-changed window event.
-pub(super) fn publish_window_display_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    display: Option<resource::DisplayHandle>,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::DisplayChanged { window, display },
-        },
-    );
-}
-
-/// Publish one focus-changed window event.
-fn publish_window_focus_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    focused: bool,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::FocusChanged { window, focused },
-        },
-    );
-}
-
-/// Publish one occlusion-changed window event.
-fn publish_window_occlusion_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    occluded: bool,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::OcclusionChanged { window, occluded },
-        },
-    );
-}
-
-/// Publish one theme-changed window event.
-fn publish_window_theme_event(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    theme: WindowTheme,
-) {
-    publish_window_event(
-        runtime_state,
-        WindowEventRecord {
-            timestamp_ns: core::now_timestamp_ns(),
-            sequence: 0,
-            kind: WindowEventRecordKind::ThemeChanged { window, theme },
-        },
-    );
-}
-
-/// Publish all state transitions observed between two window snapshots.
-pub(super) fn publish_state_deltas(
-    runtime_state: &Arc<DisplayEventRuntimeState>,
-    window: resource::WindowHandle,
-    previous: &Win32WindowBinding,
-    next: &Win32WindowBinding,
-) {
-    if previous.visibility != next.visibility {
-        publish_window_visibility_event(runtime_state, window, next.visibility);
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::DescriptorChanged { ref current, changed_mask, .. }
+                if current.id == r"\\.\DISPLAY1" && (changed_mask & super::core::DISPLAY_CHANGED_MASK_BOUNDS) != 0
+        )));
+        assert!(records.iter().any(|record| matches!(
+            record.kind,
+            DisplayEventRecordKind::ModeChanged { ref id, current: mode, .. }
+                if id == r"\\.\DISPLAY1" && mode.refresh_milli_hz == 120_000
+        )));
     }
 
-    if previous.position != next.position {
-        publish_window_position_event(runtime_state, window, next.position);
-    }
-
-    if previous.size_logical != next.size_logical || previous.size_physical != next.size_physical {
-        publish_window_size_event(runtime_state, window, next.size_logical, next.size_physical);
-    }
-
-    if previous.scale_factor_milli != next.scale_factor_milli {
-        publish_window_scale_event(runtime_state, window, next.scale_factor_milli);
-    }
-
-    if previous.focused != next.focused {
-        publish_window_focus_event(runtime_state, window, next.focused);
-    }
-
-    if previous.occluded != next.occluded {
-        publish_window_occlusion_event(runtime_state, window, next.occluded);
-    }
-
-    if previous.theme != next.theme {
-        publish_window_theme_event(runtime_state, window, next.theme);
-    }
-}
-
-/// Open one global monitor-event stream.
-pub(crate) unsafe fn monitor_event_open(
-    context: &BindingCallContext,
-    out: *mut resource::DisplayEventHandle,
-    options: DisplayMonitorEventOpenOptions,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-
-    let binding = Arc::new(MonitorEventBinding {
-        state: Mutex::new(MonitorEventState {
-            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
-            overflow_policy: options.queue.overflow_policy,
-            overflow_error_pending: false,
-            next_sequence: 1,
-            pending: VecDeque::new(),
-        }),
-        signal: Condvar::new(),
-    });
-
-    {
-        let mut state = binding
-            .state
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
-        seed_monitor_event_stream(&mut state)?;
-    }
-
-    let resource_id = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::Display)
-            .with_label(display_resource::DISPLAY_EVENT_RESOURCE_LABEL)
-            .with_payload(Arc::clone(&binding)),
-        Some(context.engine()),
-    );
-    let runtime_state = display_event_runtime_state(context);
-    runtime_state
-        .monitor_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(Arc::downgrade(&binding));
-
-    unsafe {
-        *out = resource::DisplayEventHandle(resource_id);
-    }
-
-    Ok(())
-}
-
-/// Close one global monitor-event stream.
-pub(crate) unsafe fn monitor_event_close(
-    context: &BindingCallContext,
-    handle: resource::DisplayEventHandle,
-) -> RuntimeResult<()> {
-    let binding = display_resource::resolve_monitor_event_binding(
-        context,
-        handle,
-        "destack.display.monitor.eventClose",
-    )?;
-
-    let identity = Arc::as_ptr(&binding) as usize;
-    let runtime_state = display_event_runtime_state(context);
-    runtime_state
-        .monitor_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .retain(|value| {
-            let Some(active) = value.upgrade() else {
-                return false;
-            };
-            Arc::as_ptr(&active) as usize != identity
+    /// Build one runtime state and one subscribed window-event stream for publication tests.
+    fn subscribed_window_stream_with_filter(
+        filter: WindowEventFilterState,
+    ) -> (
+        Arc<DisplayEventRuntimeState>,
+        Arc<WindowEventBinding>,
+        WindowHandle,
+    ) {
+        let runtime_state = Arc::new(DisplayEventRuntimeState::default());
+        let binding = Arc::new(WindowEventBinding {
+            state: Mutex::new(WindowEventState {
+                queue_capacity: 32,
+                overflow_policy: DisplayEventOverflowPolicy::DropOldest,
+                overflow_error_pending: false,
+                next_sequence: 1,
+                dropped_count: 0,
+                pending: std::collections::VecDeque::new(),
+            }),
+            filter,
+            signal: Condvar::new(),
+            owner_thread_id: 0,
         });
+        runtime_state
+            .window_event_registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(Arc::downgrade(&binding));
+        let window = WindowHandle(ResourceId(123));
 
-    let removed = context
-        .runtime()
-        .resources
-        .remove(handle.0, Some(context.engine()))
-        .is_some();
-    if !removed {
-        return Err(core::not_found(
-            "destack.display.monitor.eventClose",
-            format!("display event handle {} was not found", handle.0.0),
-        ));
+        (runtime_state, binding, window)
     }
 
-    Ok(())
-}
-
-/// Wait for one monitor event.
-pub(crate) unsafe fn monitor_event_read(
-    context: &BindingCallContext,
-    out: *mut DisplayEvent,
-    handle: resource::DisplayEventHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-
-    let binding = display_resource::resolve_monitor_event_binding(
-        context,
-        handle,
-        "destack.display.monitor.eventRead",
-    )?;
-
-    let deadline = core::now_timestamp_ns().saturating_add(timeoutns);
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    loop {
-        if state.overflow_error_pending {
-            state.overflow_error_pending = false;
-            return Err(core::io_busy(
-                "destack.display.monitor.eventRead",
-                "event queue overflowed",
-            ));
-        }
-
-        if let Some(record) = state.pending.pop_front() {
-            unsafe {
-                *out = display_event_from_record(context, record);
-            }
-            return Ok(());
-        }
-
-        let now = core::now_timestamp_ns();
-        if now >= deadline {
-            return Err(core::io_would_block(
-                "destack.display.monitor.eventRead",
-                "event read timed out",
-            ));
-        }
-
-        let remaining = deadline.saturating_sub(now);
-        let wait_duration = wait_duration(remaining);
-        let (next_state, _) = binding
-            .signal
-            .wait_timeout(state, wait_duration)
-            .unwrap_or_else(|error| error.into_inner());
-        state = next_state;
-    }
-}
-
-/// Wait for one batch of monitor events.
-pub(crate) unsafe fn monitor_event_read_batch(
-    context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
-    handle: resource::DisplayEventHandle,
-    maxevents: u32,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-    let maxevents = core::validate_max_events(maxevents, "maxevents")?;
-
-    let binding = display_resource::resolve_monitor_event_binding(
-        context,
-        handle,
-        "destack.display.monitor.eventReadBatch",
-    )?;
-
-    let deadline = core::now_timestamp_ns().saturating_add(timeoutns);
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    loop {
-        if state.overflow_error_pending {
-            state.overflow_error_pending = false;
-            return Err(core::io_busy(
-                "destack.display.monitor.eventReadBatch",
-                "event queue overflowed",
-            ));
-        }
-
-        if !state.pending.is_empty() {
-            let take = maxevents.min(state.pending.len());
-            let mut events = Vec::with_capacity(take);
-            for _ in 0..take {
-                if let Some(record) = state.pending.pop_front() {
-                    events.push(display_event_from_record(context, record));
-                }
-            }
-
-            unsafe {
-                *out = context.store_array(events);
-            }
-            return Ok(());
-        }
-
-        let now = core::now_timestamp_ns();
-        if now >= deadline {
-            return Err(core::io_would_block(
-                "destack.display.monitor.eventReadBatch",
-                "event read timed out",
-            ));
-        }
-
-        let remaining = deadline.saturating_sub(now);
-        let wait_duration = wait_duration(remaining);
-        let (next_state, _) = binding
-            .signal
-            .wait_timeout(state, wait_duration)
-            .unwrap_or_else(|error| error.into_inner());
-        state = next_state;
-    }
-}
-
-/// Poll one monitor event without blocking.
-pub(crate) unsafe fn monitor_event_try_read(
-    context: &BindingCallContext,
-    out: *mut DisplayEvent,
-    handle: resource::DisplayEventHandle,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-
-    let binding = display_resource::resolve_monitor_event_binding(
-        context,
-        handle,
-        "destack.display.monitor.eventTryRead",
-    )?;
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    if state.overflow_error_pending {
-        state.overflow_error_pending = false;
-        return Err(core::io_busy(
-            "destack.display.monitor.eventTryRead",
-            "event queue overflowed",
-        ));
+    /// Build one runtime state and one subscribed window-event stream for publication tests.
+    fn subscribed_window_stream() -> (
+        Arc<DisplayEventRuntimeState>,
+        Arc<WindowEventBinding>,
+        WindowHandle,
+    ) {
+        subscribed_window_stream_with_filter(WindowEventFilterState::default())
     }
 
-    let Some(record) = state.pending.pop_front() else {
-        return Err(core::io_would_block(
-            "destack.display.monitor.eventTryRead",
-            "no monitor event is currently queued",
-        ));
-    };
-
-    unsafe {
-        *out = display_event_from_record(context, record);
-    }
-
-    Ok(())
-}
-
-/// Poll one batch of monitor events without blocking.
-pub(crate) unsafe fn monitor_event_try_read_batch(
-    context: &BindingCallContext,
-    out: *mut NativeArray<DisplayEvent>,
-    handle: resource::DisplayEventHandle,
-    maxevents: u32,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-    let maxevents = core::validate_max_events(maxevents, "maxevents")?;
-
-    let binding = display_resource::resolve_monitor_event_binding(
-        context,
-        handle,
-        "destack.display.monitor.eventTryReadBatch",
-    )?;
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    if state.overflow_error_pending {
-        state.overflow_error_pending = false;
-        return Err(core::io_busy(
-            "destack.display.monitor.eventTryReadBatch",
-            "event queue overflowed",
-        ));
-    }
-
-    if state.pending.is_empty() {
-        return Err(core::io_would_block(
-            "destack.display.monitor.eventTryReadBatch",
-            "no monitor event is currently queued",
-        ));
-    }
-
-    let take = maxevents.min(state.pending.len());
-    let mut events = Vec::with_capacity(take);
-    for _ in 0..take {
-        if let Some(record) = state.pending.pop_front() {
-            events.push(display_event_from_record(context, record));
-        }
-    }
-
-    unsafe {
-        *out = context.store_array(events);
-    }
-
-    Ok(())
-}
-
-/// Open one global window-event stream.
-pub(crate) unsafe fn window_event_open(
-    context: &BindingCallContext,
-    out: *mut resource::WindowEventHandle,
-    options: WindowEventOpenOptions,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-
-    let binding = Arc::new(WindowEventBinding {
-        state: Mutex::new(WindowEventState {
-            queue_capacity: core::resolved_queue_capacity(context, options.queue.queue_capacity),
-            overflow_policy: options.queue.overflow_policy,
-            overflow_error_pending: false,
-            next_sequence: 1,
-            pending: VecDeque::new(),
-        }),
-        signal: Condvar::new(),
-        owner_thread_id: current_thread_id(),
-    });
-
-    let resource_id = context.runtime().resources.insert(
-        ResourceEntry::new(ResourceKind::Window)
-            .with_label(display_resource::WINDOW_EVENT_RESOURCE_LABEL)
-            .with_payload(Arc::clone(&binding)),
-        Some(context.engine()),
-    );
-    let runtime_state = display_event_runtime_state(context);
-    runtime_state
-        .window_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(Arc::downgrade(&binding));
-
-    unsafe {
-        *out = resource::WindowEventHandle(resource_id);
-    }
-
-    Ok(())
-}
-
-/// Close one global window-event stream.
-pub(crate) unsafe fn window_event_close(
-    context: &BindingCallContext,
-    handle: resource::WindowEventHandle,
-) -> RuntimeResult<()> {
-    let binding = display_resource::resolve_window_event_binding(
-        context,
-        handle,
-        "destack.display.window.eventClose",
-    )?;
-
-    let identity = Arc::as_ptr(&binding) as usize;
-    let runtime_state = display_event_runtime_state(context);
-    runtime_state
-        .window_event_registry
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .retain(|value| {
-            let Some(active) = value.upgrade() else {
-                return false;
-            };
-            Arc::as_ptr(&active) as usize != identity
+    /// Build one runtime state and one subscribed monitor-event stream for publication tests.
+    fn subscribed_monitor_stream_with_filter(
+        filter: MonitorEventFilterState,
+    ) -> (Arc<DisplayEventRuntimeState>, Arc<MonitorEventBinding>) {
+        let runtime_state = Arc::new(DisplayEventRuntimeState::default());
+        let binding = Arc::new(MonitorEventBinding {
+            state: Mutex::new(MonitorEventState {
+                queue_capacity: 32,
+                overflow_policy: DisplayEventOverflowPolicy::DropOldest,
+                overflow_error_pending: false,
+                next_sequence: 1,
+                dropped_count: 0,
+                pending: std::collections::VecDeque::new(),
+            }),
+            filter,
+            signal: Condvar::new(),
         });
+        runtime_state
+            .monitor_event_registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(Arc::downgrade(&binding));
 
-    let removed = context
-        .runtime()
-        .resources
-        .remove(handle.0, Some(context.engine()))
-        .is_some();
-    if !removed {
-        return Err(core::not_found(
-            "destack.display.window.eventClose",
-            format!("window event handle {} was not found", handle.0.0),
-        ));
+        (runtime_state, binding)
     }
 
-    Ok(())
-}
+    /// Drop lifecycle publishers should enqueue one started then completed event sequence.
+    #[test]
+    fn test_drop_lifecycle_publishers_enqueue_expected_record_kinds() {
+        let (runtime_state, binding, window) = subscribed_window_stream();
 
-/// Wait for one window event.
-pub(crate) unsafe fn window_event_read(
-    context: &BindingCallContext,
-    out: *mut WindowEvent,
-    handle: resource::WindowEventHandle,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-
-    let binding = display_resource::resolve_window_event_binding(
-        context,
-        handle,
-        "destack.display.window.eventRead",
-    )?;
-    ensure_window_event_thread(&binding, "destack.display.window.eventRead")?;
-
-    let deadline = core::now_timestamp_ns().saturating_add(timeoutns);
-    loop {
-        window::pump_window_messages();
+        publish_window_drop_started_event(&runtime_state, window);
+        publish_window_drop_completed_event(&runtime_state, window);
+        publish_window_drop_cancelled_event(&runtime_state, window);
 
         let mut state = binding
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if state.overflow_error_pending {
-            state.overflow_error_pending = false;
-            return Err(core::io_busy(
-                "destack.display.window.eventRead",
-                "event queue overflowed",
-            ));
-        }
+        let first = state
+            .pending
+            .pop_front()
+            .expect("missing dropStarted record");
+        let second = state
+            .pending
+            .pop_front()
+            .expect("missing dropCompleted record");
+        let third = state
+            .pending
+            .pop_front()
+            .expect("missing dropCancelled record");
 
-        if let Some(record) = state.pending.pop_front() {
-            unsafe {
-                *out = window_event_from_record(record, context);
-            }
-            return Ok(());
-        }
-
-        let now = core::now_timestamp_ns();
-        if now >= deadline {
-            return Err(core::io_would_block(
-                "destack.display.window.eventRead",
-                "event read timed out",
-            ));
-        }
-
-        let wait_slice_ns = core::window_event_wait_slice_ns(context);
-        let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
-        let wait_duration = wait_duration(remaining_ns);
-        let _ = binding
-            .signal
-            .wait_timeout(state, wait_duration)
-            .unwrap_or_else(|error| error.into_inner());
+        assert!(matches!(
+            first.kind,
+            WindowEventRecordKind::DropStarted { window: value } if value == window
+        ));
+        assert!(matches!(
+            second.kind,
+            WindowEventRecordKind::DropCompleted { window: value } if value == window
+        ));
+        assert!(matches!(
+            third.kind,
+            WindowEventRecordKind::DropCancelled { window: value } if value == window
+        ));
     }
-}
 
-/// Wait for one batch of window events.
-pub(crate) unsafe fn window_event_read_batch(
-    context: &BindingCallContext,
-    out: *mut NativeArray<WindowEvent>,
-    handle: resource::WindowEventHandle,
-    maxevents: u32,
-    timeoutns: u64,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-    let maxevents = core::validate_max_events(maxevents, "maxevents")?;
+    /// File-drop publisher should preserve UTF-16 path payload and position metadata.
+    #[test]
+    fn test_file_drop_publisher_preserves_path_and_position_payloads() {
+        let (runtime_state, binding, window) = subscribed_window_stream();
+        let path_utf16 = "C:\\drop\\asset.txt".encode_utf16().collect::<Vec<_>>();
+        let position = Some(WindowPosition { x: 480, y: 320 });
 
-    let binding = display_resource::resolve_window_event_binding(
-        context,
-        handle,
-        "destack.display.window.eventReadBatch",
-    )?;
-    ensure_window_event_thread(&binding, "destack.display.window.eventReadBatch")?;
-
-    let deadline = core::now_timestamp_ns().saturating_add(timeoutns);
-    loop {
-        window::pump_window_messages();
+        publish_window_file_dropped_event(
+            &runtime_state,
+            window,
+            Some(path_utf16.clone()),
+            position,
+        );
 
         let mut state = binding
             .state
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if state.overflow_error_pending {
-            state.overflow_error_pending = false;
-            return Err(core::io_busy(
-                "destack.display.window.eventReadBatch",
-                "event queue overflowed",
-            ));
-        }
+        let record = state
+            .pending
+            .pop_front()
+            .expect("missing fileDropped record");
+        assert!(matches!(
+            record.kind,
+            WindowEventRecordKind::FileDropped {
+                window: value,
+                path_utf16: Some(path),
+                position: payload_position,
+            } if value == window && path == path_utf16 && payload_position == position
+        ));
+    }
 
-        if !state.pending.is_empty() {
-            let take = maxevents.min(state.pending.len());
-            let mut events = Vec::with_capacity(take);
-            for _ in 0..take {
-                if let Some(record) = state.pending.pop_front() {
-                    events.push(window_event_from_record(record, context));
-                }
-            }
+    /// Window-event filters should restrict delivery to one target window.
+    #[test]
+    fn test_window_event_filter_restricts_window_handle() {
+        let target_window = WindowHandle(ResourceId(200));
+        let other_window = WindowHandle(ResourceId(201));
+        let (runtime_state, binding, _) =
+            subscribed_window_stream_with_filter(WindowEventFilterState {
+                window: Some(target_window),
+                kind_mask: None,
+            });
 
-            unsafe {
-                *out = context.store_array(events);
-            }
-            return Ok(());
-        }
+        publish_window_drop_started_event(&runtime_state, other_window);
+        publish_window_drop_started_event(&runtime_state, target_window);
 
-        let now = core::now_timestamp_ns();
-        if now >= deadline {
-            return Err(core::io_would_block(
-                "destack.display.window.eventReadBatch",
-                "event read timed out",
-            ));
-        }
-
-        let wait_slice_ns = core::window_event_wait_slice_ns(context);
-        let remaining_ns = deadline.saturating_sub(now).min(wait_slice_ns);
-        let wait_duration = wait_duration(remaining_ns);
-        let _ = binding
-            .signal
-            .wait_timeout(state, wait_duration)
+        let mut state = binding
+            .state
+            .lock()
             .unwrap_or_else(|error| error.into_inner());
-    }
-}
-
-/// Poll one window event without blocking.
-pub(crate) unsafe fn window_event_try_read(
-    context: &BindingCallContext,
-    out: *mut WindowEvent,
-    handle: resource::WindowEventHandle,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-    window::pump_window_messages();
-
-    let binding = display_resource::resolve_window_event_binding(
-        context,
-        handle,
-        "destack.display.window.eventTryRead",
-    )?;
-    ensure_window_event_thread(&binding, "destack.display.window.eventTryRead")?;
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    if state.overflow_error_pending {
-        state.overflow_error_pending = false;
-        return Err(core::io_busy(
-            "destack.display.window.eventTryRead",
-            "event queue overflowed",
+        assert_eq!(state.pending.len(), 1);
+        assert!(matches!(
+            state.pending.pop_front().map(|value| value.kind),
+            Some(WindowEventRecordKind::DropStarted { window }) if window == target_window
         ));
     }
 
-    let Some(record) = state.pending.pop_front() else {
-        return Err(core::io_would_block(
-            "destack.display.window.eventTryRead",
-            "no window event is currently queued",
-        ));
-    };
+    /// Window-event filters should restrict delivery by event-kind mask.
+    #[test]
+    fn test_window_event_filter_restricts_kind_mask() {
+        let (runtime_state, binding, window) =
+            subscribed_window_stream_with_filter(WindowEventFilterState {
+                window: None,
+                kind_mask: Some(super::core::WINDOW_EVENT_KIND_DROP_STARTED),
+            });
 
-    unsafe {
-        *out = window_event_from_record(record, context);
-    }
+        publish_window_drop_started_event(&runtime_state, window);
+        publish_window_drop_completed_event(&runtime_state, window);
 
-    Ok(())
-}
-
-/// Poll one batch of window events without blocking.
-pub(crate) unsafe fn window_event_try_read_batch(
-    context: &BindingCallContext,
-    out: *mut NativeArray<WindowEvent>,
-    handle: resource::WindowEventHandle,
-    maxevents: u32,
-) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
-    let maxevents = core::validate_max_events(maxevents, "maxevents")?;
-    window::pump_window_messages();
-
-    let binding = display_resource::resolve_window_event_binding(
-        context,
-        handle,
-        "destack.display.window.eventTryReadBatch",
-    )?;
-    ensure_window_event_thread(&binding, "destack.display.window.eventTryReadBatch")?;
-    let mut state = binding
-        .state
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
-    if state.overflow_error_pending {
-        state.overflow_error_pending = false;
-        return Err(core::io_busy(
-            "destack.display.window.eventTryReadBatch",
-            "event queue overflowed",
+        let mut state = binding
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        assert_eq!(state.pending.len(), 1);
+        assert!(matches!(
+            state.pending.pop_front().map(|value| value.kind),
+            Some(WindowEventRecordKind::DropStarted { window: value }) if value == window
         ));
     }
 
-    if state.pending.is_empty() {
-        return Err(core::io_would_block(
-            "destack.display.window.eventTryReadBatch",
-            "no window event is currently queued",
+    /// Monitor-event filters should restrict delivery by event-kind mask.
+    #[test]
+    fn test_monitor_event_filter_restricts_kind_mask() {
+        let (runtime_state, binding) =
+            subscribed_monitor_stream_with_filter(MonitorEventFilterState {
+                display_id: None,
+                kind_mask: Some(super::core::DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED),
+            });
+
+        publish_monitor_event(
+            &runtime_state,
+            display_event_record(DisplayEventRecordKind::PrimaryChanged {
+                previous_id: Some(String::from(r"\\.\DISPLAY1")),
+                current_id: Some(String::from(r"\\.\DISPLAY2")),
+            }),
+        );
+        publish_monitor_event(
+            &runtime_state,
+            display_event_record(DisplayEventRecordKind::ModeChanged {
+                id: String::from(r"\\.\DISPLAY2"),
+                previous: None,
+                current: mode(2560, 1440, 144_000),
+            }),
+        );
+
+        let mut state = binding
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        assert_eq!(state.pending.len(), 1);
+        assert!(matches!(
+            state.pending.pop_front().map(|value| value.kind),
+            Some(DisplayEventRecordKind::ModeChanged { ref id, .. }) if id == r"\\.\DISPLAY2"
         ));
     }
 
-    let take = maxevents.min(state.pending.len());
-    let mut events = Vec::with_capacity(take);
-    for _ in 0..take {
-        if let Some(record) = state.pending.pop_front() {
-            events.push(window_event_from_record(record, context));
-        }
-    }
+    /// Monitor-event filters should restrict delivery by display identifier.
+    #[test]
+    fn test_monitor_event_filter_restricts_display_identifier() {
+        let (runtime_state, binding) =
+            subscribed_monitor_stream_with_filter(MonitorEventFilterState {
+                display_id: Some(String::from(r"\\.\DISPLAY2")),
+                kind_mask: None,
+            });
 
-    unsafe {
-        *out = context.store_array(events);
-    }
+        publish_monitor_event(
+            &runtime_state,
+            display_event_record(DisplayEventRecordKind::Added {
+                descriptor: descriptor(r"\\.\DISPLAY1", false, 1920, 1080),
+            }),
+        );
+        publish_monitor_event(
+            &runtime_state,
+            display_event_record(DisplayEventRecordKind::Added {
+                descriptor: descriptor(r"\\.\DISPLAY2", true, 2560, 1440),
+            }),
+        );
 
-    Ok(())
+        let mut state = binding
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        assert_eq!(state.pending.len(), 1);
+        assert!(matches!(
+            state.pending.pop_front().map(|value| value.kind),
+            Some(DisplayEventRecordKind::Added { descriptor }) if descriptor.id == r"\\.\DISPLAY2"
+        ));
+    }
 }

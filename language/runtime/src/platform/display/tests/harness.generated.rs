@@ -71,9 +71,9 @@ use crate::platform::display::{
     WindowWindowedModeOptionsVm, native as display_native, vm as display_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, fs, resource,
+    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
+use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> DisplayHarnessContext<'call> {

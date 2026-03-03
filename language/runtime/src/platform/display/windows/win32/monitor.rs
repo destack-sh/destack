@@ -1,28 +1,91 @@
-use windows_sys::Win32::Foundation::{BOOL, LPARAM, RECT};
+use std::collections::HashMap;
+
+use windows_sys::Win32::Devices::Display::{
+    DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
+    DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE, DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO,
+    DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE,
+    DISPLAYCONFIG_SOURCE_DEVICE_NAME, DisplayConfigGetDeviceInfo, DisplayConfigSetDeviceInfo,
+    GetDisplayConfigBufferSizes, QDC_ONLY_ACTIVE_PATHS, QueryDisplayConfig,
+};
+use windows_sys::Win32::Foundation::{
+    BOOL, ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS, HWND, LPARAM, LUID, RECT,
+};
 use windows_sys::Win32::Graphics::Gdi::{
     CDS_FULLSCREEN, ChangeDisplaySettingsExW, CreateDCW, DEVMODEW, DISP_CHANGE_BADFLAGS,
     DISP_CHANGE_BADMODE, DISP_CHANGE_BADPARAM, DISP_CHANGE_SUCCESSFUL, DISPLAY_DEVICE_ACTIVE,
-    DISPLAY_DEVICE_REMOVABLE, DISPLAY_DEVICEW, DM_BITSPERPEL, DM_DISPLAYFREQUENCY,
-    DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH, DMDO_90, DMDO_180, DMDO_270, DMDO_DEFAULT,
-    DeleteDC, ENUM_CURRENT_SETTINGS, ENUM_REGISTRY_SETTINGS, EnumDisplayDevicesW,
-    EnumDisplayMonitors, EnumDisplaySettingsExW, GetDeviceCaps, GetMonitorInfoW, HORZSIZE,
-    LOGPIXELSX, MONITORINFOEXW, VERTSIZE,
+    DISPLAY_DEVICE_REMOVABLE, DISPLAY_DEVICEW, DISPLAYCONFIG_COLOR_ENCODING_RGB, DM_BITSPERPEL,
+    DM_DISPLAYFREQUENCY, DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH, DMDO_90, DMDO_180,
+    DMDO_270, DMDO_DEFAULT, DeleteDC, ENUM_CURRENT_SETTINGS, ENUM_REGISTRY_SETTINGS,
+    EnumDisplayDevicesW, EnumDisplayMonitors, EnumDisplaySettingsExW, GetDeviceCaps,
+    GetMonitorInfoW, HORZSIZE, LOGPIXELSX, MONITOR_DEFAULTTONEAREST, MONITORINFOEXW,
+    MonitorFromWindow, VERTSIZE,
 };
+use windows_sys::Win32::UI::ColorSystem::{GetDeviceGammaRamp, SetDeviceGammaRamp};
 use windows_sys::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::display::{
-    DisplayBackend, DisplayDescriptor, DisplayMode, DisplayMonitorListRequest,
-    DisplayMonitorOpenOptions, DisplayOrientation, WindowMode, WindowModeOptions,
+    DisplayBackend, DisplayColorSpace, DisplayColorState, DisplayDescriptor, DisplayGammaRamp,
+    DisplayHdrMode, DisplayMode, DisplayMonitorListRequest, DisplayMonitorOpenOptions,
+    DisplayOrientation, DisplaySupportStatus, WindowModeOptions,
 };
-use crate::platform::{NativeSlice, NativeStringRef, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::model::{DisplayDescriptorOwned, MonitorSnapshot};
 use super::{core, event, resource as display_resource};
 
+/// One advanced-color flag bit indicating support.
+const ADVANCED_COLOR_SUPPORTED_BIT: u32 = 0x1;
+/// One advanced-color flag bit indicating active HDR output.
+const ADVANCED_COLOR_ENABLED_BIT: u32 = 0x2;
+/// One bit in set-advanced-color payload that enables HDR output.
+const SET_ADVANCED_COLOR_ENABLE_BIT: u32 = 0x1;
+/// Number of gamma entries per color channel in Win32.
+const GAMMA_RAMP_CHANNEL_ENTRIES: usize = 256;
+/// Total number of gamma entries in one Win32 gamma table.
+const GAMMA_RAMP_TOTAL_ENTRIES: usize = GAMMA_RAMP_CHANNEL_ENTRIES * 3;
+/// One raw monitor-row tuple used by monitor enumeration.
+type MonitorRow = (String, RECT, RECT, bool);
+
+/// Enumerate one monitor row and append normalized tuple payload.
+unsafe extern "system" fn enumerate_monitor_rows_callback(
+    monitor: isize,
+    _hdc: isize,
+    _rect: *mut RECT,
+    data: LPARAM,
+) -> BOOL {
+    // decode output vector from callback payload
+    let output = unsafe { &mut *(data as *mut Vec<MonitorRow>) };
+
+    // load monitor information for this callback row
+    let mut info = unsafe { std::mem::zeroed::<MONITORINFOEXW>() };
+    info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+    if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) } == 0 {
+        return 1;
+    }
+
+    // skip rows without one concrete device id
+    let device_id = core::utf16_buffer_to_string(&info.szDevice);
+    if device_id.is_empty() {
+        return 1;
+    }
+
+    // append one normalized monitor row
+    let is_primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+    output.push((
+        device_id,
+        info.monitorInfo.rcMonitor,
+        info.monitorInfo.rcWork,
+        is_primary,
+    ));
+
+    1
+}
+
 /// Build one DisplayMode payload from one DEVMODEW value.
 fn display_mode_from_devmode(value: &DEVMODEW) -> DisplayMode {
+    // clamp bit depth into binding representation
     let bit_depth = if value.dmBitsPerPel > u16::MAX as u32 {
         u16::MAX
     } else {
@@ -40,8 +103,10 @@ fn display_mode_from_devmode(value: &DEVMODEW) -> DisplayMode {
 
 /// Query one raw DEVMODE payload from one monitor device and mode selector.
 fn query_raw_devmode(device_id: &str, mode_index: u32) -> RuntimeResult<Option<DEVMODEW>> {
-    let device_wide = core::wide_with_nul("id", device_id)?;
+    // normalize device id into win32 wide string
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
 
+    // query one indexed devmode payload
     let mut dev_mode = unsafe { std::mem::zeroed::<DEVMODEW>() };
     dev_mode.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
     let status =
@@ -55,6 +120,7 @@ fn query_raw_devmode(device_id: &str, mode_index: u32) -> RuntimeResult<Option<D
 
 /// Resolve one display orientation payload from one raw DEVMODE value.
 fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
+    // infer orientation from dimensions when the flag is absent
     let has_orientation = (value.dmFields & DM_DISPLAYORIENTATION) != 0;
     if !has_orientation {
         return if value.dmPelsWidth >= value.dmPelsHeight {
@@ -64,6 +130,7 @@ fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
         };
     }
 
+    // map explicit win32 orientation values
     let orientation = unsafe { value.Anonymous1.Anonymous2.dmDisplayOrientation };
     if orientation == DMDO_DEFAULT {
         return if value.dmPelsWidth >= value.dmPelsHeight {
@@ -90,6 +157,7 @@ fn orientation_from_devmode(value: &DEVMODEW) -> DisplayOrientation {
 
 /// Build one fallback mode payload from one monitor rectangle.
 fn display_mode_from_rect(rect: RECT) -> DisplayMode {
+    // derive one fallback mode from monitor rectangle bounds
     let width = (rect.right - rect.left).max(1) as u32;
     let height = (rect.bottom - rect.top).max(1) as u32;
 
@@ -112,6 +180,7 @@ fn query_display_mode(device_id: &str, mode_index: u32) -> RuntimeResult<Option<
 
 /// Enumerate all supported display modes for one monitor device id.
 fn enumerate_display_modes(device_id: &str) -> RuntimeResult<Vec<DisplayMode>> {
+    // enumerate unique indexed display modes
     let mut modes = Vec::new();
     let mut mode_index = 0u32;
 
@@ -125,6 +194,7 @@ fn enumerate_display_modes(device_id: &str) -> RuntimeResult<Vec<DisplayMode>> {
         modes.push(mode);
     }
 
+    // fall back to current mode when indexed enumeration is empty
     if modes.is_empty()
         && let Some(current_mode) = query_display_mode(device_id, ENUM_CURRENT_SETTINGS)?
     {
@@ -136,15 +206,18 @@ fn enumerate_display_modes(device_id: &str) -> RuntimeResult<Vec<DisplayMode>> {
 
 /// Query one monitor display-name string from one monitor device id.
 fn display_name_for_device(device_id: &str) -> RuntimeResult<Option<String>> {
-    let device_wide = core::wide_with_nul("id", device_id)?;
+    // query one logical monitor display name
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
 
     let mut display_device = unsafe { std::mem::zeroed::<DISPLAY_DEVICEW>() };
     display_device.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as u32;
     let status = unsafe { EnumDisplayDevicesW(device_wide.as_ptr(), 0, &mut display_device, 0) };
+    // return none when monitor row is unavailable
     if status == 0 {
         return Ok(None);
     }
 
+    // normalize empty names to none
     let value = core::utf16_buffer_to_string(&display_device.DeviceString);
     if value.is_empty() {
         return Ok(None);
@@ -155,7 +228,8 @@ fn display_name_for_device(device_id: &str) -> RuntimeResult<Option<String>> {
 
 /// Resolve whether one display likely maps to one built-in panel.
 fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
-    let device_wide = core::wide_with_nul("id", device_id)?;
+    // iterate display devices attached to one monitor row
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
     let mut index = 0u32;
     loop {
         let mut display_device = unsafe { std::mem::zeroed::<DISPLAY_DEVICEW>() };
@@ -167,6 +241,7 @@ fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
         }
 
         index = index.saturating_add(1);
+        // ignore inactive and removable connectors
         if (display_device.StateFlags & DISPLAY_DEVICE_ACTIVE) == 0 {
             continue;
         }
@@ -175,6 +250,7 @@ fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
             continue;
         }
 
+        // match common integrated panel identifiers
         let identifier = core::utf16_buffer_to_string(&display_device.DeviceID).to_uppercase();
         if identifier.contains("INTERNAL")
             || identifier.contains("EDP")
@@ -190,7 +266,8 @@ fn display_is_builtin(device_id: &str) -> RuntimeResult<bool> {
 
 /// Query physical monitor metrics and dpi-derived scale for one display device.
 fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32, u32)> {
-    let device_wide = core::wide_with_nul("id", device_id)?;
+    // open one display device context for physical metrics
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
 
     let hdc = unsafe {
         CreateDCW(
@@ -200,10 +277,12 @@ fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32, u32)>
             std::ptr::null(),
         )
     };
+    // return conservative defaults when dc open fails
     if hdc == 0 {
         return Ok((0, 0, 1000));
     }
 
+    // query and release win32 physical metrics
     let width_mm_raw = unsafe { GetDeviceCaps(hdc, HORZSIZE as i32) };
     let height_mm_raw = unsafe { GetDeviceCaps(hdc, VERTSIZE as i32) };
     let dpi_x = unsafe { GetDeviceCaps(hdc, LOGPIXELSX as i32) };
@@ -212,6 +291,7 @@ fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32, u32)>
         DeleteDC(hdc);
     }
 
+    // normalize raw metrics into binding payload
     let width_mm = width_mm_raw.max(0) as u32;
     let height_mm = height_mm_raw.max(0) as u32;
     let scale_factor_milli = if dpi_x <= 0 {
@@ -224,45 +304,387 @@ fn display_metrics_for_device(device_id: &str) -> RuntimeResult<(u32, u32, u32)>
     Ok((width_mm, height_mm, scale_factor_milli))
 }
 
-/// Enumerate raw monitor rows from the active desktop.
-fn enumerate_monitor_rows() -> RuntimeResult<Vec<(String, RECT, RECT, bool)>> {
-    unsafe extern "system" fn callback(
-        monitor: isize,
-        _hdc: isize,
-        _rect: *mut RECT,
-        data: LPARAM,
-    ) -> BOOL {
-        let output = unsafe { &mut *(data as *mut Vec<(String, RECT, RECT, bool)>) };
+/// Resolve one source-device name from one active display-config path.
+fn source_name_for_path(path: &DISPLAYCONFIG_PATH_INFO) -> Option<String> {
+    // query source display name for one active path
+    let mut source_name = unsafe { std::mem::zeroed::<DISPLAYCONFIG_SOURCE_DEVICE_NAME>() };
+    source_name.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+    source_name.header.size = std::mem::size_of::<DISPLAYCONFIG_SOURCE_DEVICE_NAME>() as u32;
+    source_name.header.adapterId = path.sourceInfo.adapterId;
+    source_name.header.id = path.sourceInfo.id;
 
-        let mut info = unsafe { std::mem::zeroed::<MONITORINFOEXW>() };
-        info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
-
-        if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) } == 0 {
-            return 1;
-        }
-
-        let device_id = core::utf16_buffer_to_string(&info.szDevice);
-        if device_id.is_empty() {
-            return 1;
-        }
-
-        let is_primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-        output.push((
-            device_id,
-            info.monitorInfo.rcMonitor,
-            info.monitorInfo.rcWork,
-            is_primary,
-        ));
-
-        1
+    let status = unsafe { DisplayConfigGetDeviceInfo(&mut source_name.header) };
+    // reject paths that fail source query
+    if status != ERROR_SUCCESS as i32 {
+        return None;
     }
 
-    let mut rows: Vec<(String, RECT, RECT, bool)> = Vec::new();
+    // normalize empty source names to none
+    let value = core::utf16_buffer_to_string(&source_name.viewGdiDeviceName);
+    if value.is_empty() {
+        return None;
+    }
+
+    Some(value)
+}
+
+/// Resolve whether one display-config target path reports hdr capability.
+fn target_supports_hdr(path: &DISPLAYCONFIG_PATH_INFO) -> Option<bool> {
+    // query advanced color info for one target path
+    let mut hdr_info = unsafe { std::mem::zeroed::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() };
+    hdr_info.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+    hdr_info.header.size = std::mem::size_of::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() as u32;
+    hdr_info.header.adapterId = path.targetInfo.adapterId;
+    hdr_info.header.id = path.targetInfo.id;
+
+    let status = unsafe { DisplayConfigGetDeviceInfo(&mut hdr_info.header) };
+    // reject paths that do not expose advanced color info
+    if status != ERROR_SUCCESS as i32 {
+        return None;
+    }
+
+    let flags = unsafe { hdr_info.Anonymous.value };
+    Some((flags & 0x1) != 0)
+}
+
+/// Build one hdr-support map keyed by uppercased display identifier.
+fn display_hdr_support_map() -> HashMap<String, bool> {
+    // query active display config path table with one resize retry
+    let mut supports_hdr_by_device_id = HashMap::new();
+    let mut attempt_count = 0u8;
+    loop {
+        let mut path_count = 0u32;
+        let mut mode_count = 0u32;
+
+        let count_status = unsafe {
+            GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
+        };
+        // stop when host cannot provide display config sizes
+        if count_status != ERROR_SUCCESS {
+            return supports_hdr_by_device_id;
+        }
+
+        let mut paths =
+            vec![unsafe { std::mem::zeroed::<DISPLAYCONFIG_PATH_INFO>() }; path_count as usize];
+        let mut modes = vec![
+            unsafe {
+                std::mem::zeroed::<windows_sys::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO>()
+            };
+            mode_count as usize
+        ];
+        let query_status = unsafe {
+            QueryDisplayConfig(
+                QDC_ONLY_ACTIVE_PATHS,
+                &mut path_count,
+                paths.as_mut_ptr(),
+                &mut mode_count,
+                modes.as_mut_ptr(),
+                std::ptr::null_mut(),
+            )
+        };
+        // retry once on buffer growth races
+        if query_status == ERROR_INSUFFICIENT_BUFFER && attempt_count == 0 {
+            attempt_count = 1;
+            continue;
+        }
+
+        // stop on query failures after retry
+        if query_status != ERROR_SUCCESS {
+            return supports_hdr_by_device_id;
+        }
+
+        // merge per path hdr support by source display id
+        for path in paths.iter().take(path_count as usize) {
+            let Some(source_name) = source_name_for_path(path) else {
+                continue;
+            };
+            let Some(supports_hdr) = target_supports_hdr(path) else {
+                continue;
+            };
+            let key = source_name.to_uppercase();
+            supports_hdr_by_device_id
+                .entry(key)
+                .and_modify(|value| *value |= supports_hdr)
+                .or_insert(supports_hdr);
+        }
+
+        return supports_hdr_by_device_id;
+    }
+}
+
+/// Resolve active display-config paths for one snapshot query.
+fn active_display_paths() -> Option<Vec<DISPLAYCONFIG_PATH_INFO>> {
+    // query active path table with one resize retry
+    let mut attempt_count = 0u8;
+    loop {
+        let mut path_count = 0u32;
+        let mut mode_count = 0u32;
+        let count_status = unsafe {
+            GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
+        };
+        // stop when host cannot provide display config sizes
+        if count_status != ERROR_SUCCESS {
+            return None;
+        }
+
+        let mut paths =
+            vec![unsafe { std::mem::zeroed::<DISPLAYCONFIG_PATH_INFO>() }; path_count as usize];
+        let mut modes = vec![
+            unsafe {
+                std::mem::zeroed::<windows_sys::Win32::Devices::Display::DISPLAYCONFIG_MODE_INFO>()
+            };
+            mode_count as usize
+        ];
+        let query_status = unsafe {
+            QueryDisplayConfig(
+                QDC_ONLY_ACTIVE_PATHS,
+                &mut path_count,
+                paths.as_mut_ptr(),
+                &mut mode_count,
+                modes.as_mut_ptr(),
+                std::ptr::null_mut(),
+            )
+        };
+        // retry once on buffer growth races
+        if query_status == ERROR_INSUFFICIENT_BUFFER && attempt_count == 0 {
+            attempt_count = 1;
+            continue;
+        }
+
+        // return none after failed query
+        if query_status != ERROR_SUCCESS {
+            return None;
+        }
+
+        // truncate to reported path count
+        paths.truncate(path_count as usize);
+        return Some(paths);
+    }
+}
+
+/// Resolve one active target tuple and advanced-color info for one display id.
+fn advanced_color_target_for_device(
+    device_id: &str,
+) -> Option<(LUID, u32, DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO)> {
+    let paths = active_display_paths()?;
+    let target_id = device_id.to_uppercase();
+
+    for path in &paths {
+        let Some(source_name) = source_name_for_path(path) else {
+            continue;
+        };
+        if source_name.to_uppercase() != target_id {
+            continue;
+        }
+
+        let mut hdr_info = unsafe { std::mem::zeroed::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() };
+        hdr_info.header.r#type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+        hdr_info.header.size = std::mem::size_of::<DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO>() as u32;
+        hdr_info.header.adapterId = path.targetInfo.adapterId;
+        hdr_info.header.id = path.targetInfo.id;
+        let status = unsafe { DisplayConfigGetDeviceInfo(&mut hdr_info.header) };
+        if status != ERROR_SUCCESS as i32 {
+            return None;
+        }
+
+        return Some((path.targetInfo.adapterId, path.targetInfo.id, hdr_info));
+    }
+
+    None
+}
+
+/// Resolve one color-space value from one advanced-color payload.
+fn color_space_from_advanced_info(
+    info: &DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO,
+    hdr_enabled: bool,
+) -> DisplayColorSpace {
+    if hdr_enabled {
+        return DisplayColorSpace::Hdr10;
+    }
+
+    if info.colorEncoding == DISPLAYCONFIG_COLOR_ENCODING_RGB {
+        return DisplayColorSpace::Srgb;
+    }
+
+    DisplayColorSpace::Unknown
+}
+
+/// Resolve one color-state payload for one display id.
+fn monitor_color_state_by_id(device_id: &str) -> DisplayColorState {
+    // return unknown state when advanced color query is unavailable
+    let Some((_, _, info)) = advanced_color_target_for_device(device_id) else {
+        return DisplayColorState {
+            hdr_mode: DisplayHdrMode::Unknown,
+            color_space: DisplayColorSpace::Unknown,
+            bits_per_channel: None,
+        };
+    };
+
+    // map advanced color flags to binding color state
+    let flags = unsafe { info.Anonymous.value };
+    let hdr_supported = (flags & ADVANCED_COLOR_SUPPORTED_BIT) != 0;
+    let hdr_enabled = (flags & ADVANCED_COLOR_ENABLED_BIT) != 0;
+    let hdr_mode = if hdr_supported && hdr_enabled {
+        DisplayHdrMode::Hdr
+    } else {
+        DisplayHdrMode::Sdr
+    };
+    let bits_per_channel = if info.bitsPerColorChannel == 0 {
+        None
+    } else {
+        Some(info.bitsPerColorChannel.min(u16::MAX as u32) as u16)
+    };
+
+    DisplayColorState {
+        hdr_mode,
+        color_space: color_space_from_advanced_info(&info, hdr_enabled),
+        bits_per_channel,
+    }
+}
+
+/// Apply one HDR enable state for one display id.
+fn set_monitor_hdr_enabled_by_id(
+    device_id: &str,
+    enabled: bool,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let Some((adapter_id, target_id, info)) = advanced_color_target_for_device(device_id) else {
+        return Err(core_platform::not_supported(operation));
+    };
+
+    let flags = unsafe { info.Anonymous.value };
+    let hdr_supported = (flags & ADVANCED_COLOR_SUPPORTED_BIT) != 0;
+    if enabled && !hdr_supported {
+        return Err(core_platform::invalid_argument(
+            "mode",
+            "display does not report HDR support",
+        ));
+    }
+    if !hdr_supported {
+        return Ok(());
+    }
+
+    let mut state = unsafe { std::mem::zeroed::<DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE>() };
+    state.header.r#type = DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE;
+    state.header.size = std::mem::size_of::<DISPLAYCONFIG_SET_ADVANCED_COLOR_STATE>() as u32;
+    state.header.adapterId = adapter_id;
+    state.header.id = target_id;
+    state.Anonymous.value = if enabled {
+        SET_ADVANCED_COLOR_ENABLE_BIT
+    } else {
+        0
+    };
+
+    let status = unsafe { DisplayConfigSetDeviceInfo(&state.header) };
+    if status == ERROR_SUCCESS as i32 {
+        return Ok(());
+    }
+
+    Err(core::io_error_with_code(
+        operation,
+        "DisplayConfigSetDeviceInfo",
+        status as u32,
+        "failed to apply hdr mode",
+    ))
+}
+
+/// Query one Win32 gamma-ramp payload from one display id.
+fn read_monitor_gamma_ramp_by_id(
+    device_id: &str,
+    operation: &'static str,
+) -> RuntimeResult<[u16; GAMMA_RAMP_TOTAL_ENTRIES]> {
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
+    let hdc = unsafe {
+        CreateDCW(
+            device_wide.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    if hdc == 0 {
+        return Err(core::io_error(
+            operation,
+            "CreateDCW",
+            "failed to open display device",
+        ));
+    }
+
+    let mut gamma = [0u16; GAMMA_RAMP_TOTAL_ENTRIES];
+    let status = unsafe { GetDeviceGammaRamp(hdc, gamma.as_mut_ptr().cast()) };
+    unsafe {
+        DeleteDC(hdc);
+    }
+    if status != 0 {
+        return Ok(gamma);
+    }
+
+    let code = core_platform::last_error_code() as u32;
+    if code == 0 {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Err(core::io_error_with_code(
+        operation,
+        "GetDeviceGammaRamp",
+        code,
+        "failed to query display gamma ramp",
+    ))
+}
+
+/// Apply one Win32 gamma-ramp payload to one display id.
+fn write_monitor_gamma_ramp_by_id(
+    device_id: &str,
+    gamma: &[u16; GAMMA_RAMP_TOTAL_ENTRIES],
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let device_wide = core_platform::wide_from_str("id", device_id)?;
+    let hdc = unsafe {
+        CreateDCW(
+            device_wide.as_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    if hdc == 0 {
+        return Err(core::io_error(
+            operation,
+            "CreateDCW",
+            "failed to open display device",
+        ));
+    }
+
+    let status = unsafe { SetDeviceGammaRamp(hdc, gamma.as_ptr().cast()) };
+    unsafe {
+        DeleteDC(hdc);
+    }
+    if status != 0 {
+        return Ok(());
+    }
+
+    let code = core_platform::last_error_code() as u32;
+    if code == 0 {
+        return Err(core_platform::not_supported(operation));
+    }
+
+    Err(core::io_error_with_code(
+        operation,
+        "SetDeviceGammaRamp",
+        code,
+        "failed to apply display gamma ramp",
+    ))
+}
+
+/// Enumerate raw monitor rows from the active desktop.
+fn enumerate_monitor_rows() -> RuntimeResult<Vec<MonitorRow>> {
+    // enumerate active desktop monitors
+    let mut rows: Vec<MonitorRow> = Vec::new();
     let status = unsafe {
         EnumDisplayMonitors(
             0,
             std::ptr::null(),
-            Some(callback),
+            Some(enumerate_monitor_rows_callback),
             &mut rows as *mut _ as LPARAM,
         )
     };
@@ -279,9 +701,12 @@ fn enumerate_monitor_rows() -> RuntimeResult<Vec<(String, RECT, RECT, bool)>> {
 
 /// Enumerate monitor snapshots for the current desktop.
 pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot>> {
+    // query raw monitor rows and hdr support map
     let rows = enumerate_monitor_rows()?;
+    let supports_hdr_by_device_id = display_hdr_support_map();
     let mut snapshots = Vec::with_capacity(rows.len());
 
+    // build one snapshot per monitor row
     for (device_id, bounds, work_area, primary) in rows {
         let name = display_name_for_device(&device_id)?.unwrap_or_else(|| device_id.clone());
         let current_mode = query_display_mode(&device_id, ENUM_CURRENT_SETTINGS)?
@@ -305,6 +730,7 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
             modes.push(desktop_mode);
         }
 
+        // resolve descriptor support lanes and geometry
         let (width_mm, height_mm, scale_factor_milli) = display_metrics_for_device(&device_id)?;
         let is_builtin = display_is_builtin(&device_id)?;
         let width_px = (bounds.right - bounds.left).max(1) as u32;
@@ -312,6 +738,12 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
         let work_area_width_px = (work_area.right - work_area.left).max(1) as u32;
         let work_area_height_px = (work_area.bottom - work_area.top).max(1) as u32;
 
+        let hdr_key = device_id.to_uppercase();
+        let supports_hdr = supports_hdr_by_device_id
+            .get(&hdr_key)
+            .copied()
+            .unwrap_or(false);
+        // materialize descriptor payload
         let descriptor = DisplayDescriptorOwned {
             backend: DisplayBackend::Win32,
             id: device_id,
@@ -329,11 +761,20 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
             height_mm,
             scale_factor_milli,
             orientation,
-            is_builtin,
-            supports_variable_refresh: false,
-            supports_hdr: false,
+            builtin_panel: if is_builtin {
+                DisplaySupportStatus::Supported
+            } else {
+                DisplaySupportStatus::Unsupported
+            },
+            variable_refresh_support: DisplaySupportStatus::Unknown,
+            hdr_support: if supports_hdr {
+                DisplaySupportStatus::Supported
+            } else {
+                DisplaySupportStatus::Unsupported
+            },
         };
 
+        // append snapshot payload
         snapshots.push(MonitorSnapshot {
             descriptor,
             current_mode,
@@ -342,6 +783,7 @@ pub(super) fn enumerate_monitor_snapshots() -> RuntimeResult<Vec<MonitorSnapshot
         });
     }
 
+    // return stable primary first ordering
     snapshots
         .sort_by_key(|snapshot| (!snapshot.descriptor.primary, snapshot.descriptor.id.clone()));
     Ok(snapshots)
@@ -377,9 +819,9 @@ pub(super) fn descriptor_from_owned(
         height_mm: value.height_mm,
         scale_factor_milli: value.scale_factor_milli,
         orientation: value.orientation,
-        is_builtin: value.is_builtin,
-        supports_variable_refresh: value.supports_variable_refresh,
-        supports_hdr: value.supports_hdr,
+        builtin_panel: value.builtin_panel,
+        variable_refresh_support: value.variable_refresh_support,
+        hdr_support: value.hdr_support,
     }
 }
 
@@ -392,7 +834,7 @@ fn monitor_snapshot_for_handle(
     let id = display_resource::resolve_display_id(context, handle, operation)?;
 
     monitor_snapshot_by_id(&id)?.ok_or_else(|| {
-        core::not_found(
+        core_platform::io_not_found(
             operation,
             format!("display id '{id}' is no longer available"),
         )
@@ -406,21 +848,27 @@ pub(super) fn apply_monitor_mode_by_id(
     operation: &'static str,
 ) -> RuntimeResult<()> {
     if mode.width == 0 || mode.height == 0 {
-        return Err(core::invalid_argument(
+        return Err(core_platform::invalid_argument(
             "mode",
             "mode dimensions must be greater than zero",
         ));
     }
 
-    let device_wide = core::wide_with_nul("id", id)?;
+    let device_wide = core_platform::wide_from_str("id", id)?;
 
     let mut dev_mode = unsafe { std::mem::zeroed::<DEVMODEW>() };
     dev_mode.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
     dev_mode.dmPelsWidth = mode.width;
     dev_mode.dmPelsHeight = mode.height;
-    dev_mode.dmBitsPerPel = u32::from(mode.bit_depth);
-    dev_mode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL;
+    dev_mode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
 
+    // only set bit depth when the caller provided one explicit value
+    if mode.bit_depth > 0 {
+        dev_mode.dmBitsPerPel = u32::from(mode.bit_depth);
+        dev_mode.dmFields |= DM_BITSPERPEL;
+    }
+
+    // only set refresh when the caller provided one explicit value
     if mode.refresh_milli_hz > 0 {
         dev_mode.dmDisplayFrequency = (mode.refresh_milli_hz / 1000).max(1);
         dev_mode.dmFields |= DM_DISPLAYFREQUENCY;
@@ -441,14 +889,14 @@ pub(super) fn apply_monitor_mode_by_id(
     }
 
     if result == DISP_CHANGE_BADMODE {
-        return Err(core::invalid_argument(
+        return Err(core_platform::invalid_argument(
             "mode",
             "requested display mode is not supported",
         ));
     }
 
     if result == DISP_CHANGE_BADPARAM || result == DISP_CHANGE_BADFLAGS {
-        return Err(core::invalid_argument(
+        return Err(core_platform::invalid_argument(
             "mode",
             "requested display mode parameters are invalid",
         ));
@@ -467,36 +915,64 @@ pub(super) fn mode_target_rect(
     context: &BindingCallContext,
     mode: WindowModeOptions,
     display: Option<resource::DisplayHandle>,
+    hwnd: HWND,
+    operation: &'static str,
 ) -> RuntimeResult<Option<RECT>> {
-    match mode.mode {
-        WindowMode::Windowed => Ok(None),
-        WindowMode::Borderless | WindowMode::ExclusiveFullscreen => {
-            let display = mode.display.or(display).ok_or_else(|| {
-                core::invalid_argument(
-                    "mode.display",
-                    "fullscreen mode requires one display target",
-                )
-            })?;
-            let id = display_resource::resolve_display_id(
-                context,
-                display,
-                "destack.display.window.setMode",
-            )?;
-            let snapshot = monitor_snapshot_by_id(&id)?.ok_or_else(|| {
-                core::not_found(
-                    "destack.display.window.setMode",
-                    format!("display id '{id}' is no longer available"),
-                )
-            })?;
-
-            Ok(Some(RECT {
-                left: snapshot.descriptor.x,
-                top: snapshot.descriptor.y,
-                right: snapshot.descriptor.x + snapshot.descriptor.width_px as i32,
-                bottom: snapshot.descriptor.y + snapshot.descriptor.height_px as i32,
-            }))
-        }
+    // windowed mode does not target one monitor rectangle
+    if matches!(mode, WindowModeOptions::WindowWindowedModeOptions(_)) {
+        return Ok(None);
     }
+
+    // resolve borderless mode without explicit display from current window monitor
+    if let WindowModeOptions::WindowBorderlessModeOptions(options) = mode
+        && options.display.is_none()
+        && display.is_none()
+    {
+        let monitor = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+        if monitor == 0 {
+            return Ok(None);
+        }
+
+        let mut info = unsafe { std::mem::zeroed::<MONITORINFOEXW>() };
+        info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+        if unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) } == 0 {
+            return Err(core::io_error(
+                operation,
+                "GetMonitorInfoW",
+                "failed to resolve monitor target rectangle",
+            ));
+        }
+
+        return Ok(Some(info.monitorInfo.rcMonitor));
+    }
+
+    // resolve explicit display target for fullscreen/borderless placement
+    let display = match mode {
+        WindowModeOptions::WindowWindowedModeOptions(_) => return Ok(None),
+        WindowModeOptions::WindowBorderlessModeOptions(options) => options.display.or(display),
+        WindowModeOptions::WindowExclusiveFullscreenModeOptions(options) => Some(options.display),
+    }
+    .ok_or_else(|| {
+        core_platform::invalid_argument(
+            "mode.display",
+            "fullscreen mode requires one display target",
+        )
+    })?;
+
+    let id = display_resource::resolve_display_id(context, display, operation)?;
+    let snapshot = monitor_snapshot_by_id(&id)?.ok_or_else(|| {
+        core_platform::io_not_found(
+            operation,
+            format!("display id '{id}' is no longer available"),
+        )
+    })?;
+
+    Ok(Some(RECT {
+        left: snapshot.descriptor.x,
+        top: snapshot.descriptor.y,
+        right: snapshot.descriptor.x + snapshot.descriptor.width_px as i32,
+        bottom: snapshot.descriptor.y + snapshot.descriptor.height_px as i32,
+    }))
 }
 
 /// List available displays.
@@ -505,7 +981,7 @@ pub(crate) unsafe fn monitor_list(
     out: *mut NativeSlice<DisplayDescriptor>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let descriptors = enumerate_monitor_snapshots()?
         .into_iter()
@@ -527,11 +1003,11 @@ pub(crate) unsafe fn monitor_open(
     id: NativeStringRef,
     options: DisplayMonitorOpenOptions,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let id = unsafe { id.as_str()? };
     let snapshot = monitor_snapshot_by_id(id)?.ok_or_else(|| {
-        core::not_found(
+        core_platform::io_not_found(
             "destack.display.monitor.open",
             format!("display id '{id}' was not found"),
         )
@@ -559,7 +1035,7 @@ pub(crate) unsafe fn monitor_close(
         .remove(handle.0, Some(context.engine()))
         .is_some();
     if !removed {
-        return Err(core::not_found(
+        return Err(core_platform::io_not_found(
             "destack.display.monitor.close",
             format!("display handle {} was not found", handle.0.0),
         ));
@@ -574,7 +1050,7 @@ pub(crate) unsafe fn monitor_descriptor(
     out: *mut DisplayDescriptor,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.descriptor")?;
@@ -591,7 +1067,7 @@ pub(crate) unsafe fn monitor_modes(
     out: *mut NativeSlice<DisplayMode>,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshot = monitor_snapshot_for_handle(context, handle, "destack.display.monitor.modes")?;
     unsafe {
@@ -607,7 +1083,7 @@ pub(crate) unsafe fn monitor_current_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.currentMode")?;
@@ -624,7 +1100,7 @@ pub(crate) unsafe fn monitor_desktop_mode(
     out: *mut DisplayMode,
     handle: resource::DisplayHandle,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.desktopMode")?;
@@ -642,12 +1118,12 @@ pub(crate) unsafe fn monitor_closest_mode(
     handle: resource::DisplayHandle,
     requested: DisplayMode,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshot =
         monitor_snapshot_for_handle(context, handle, "destack.display.monitor.closestMode")?;
     if snapshot.modes.is_empty() {
-        return Err(core::not_found(
+        return Err(core_platform::io_not_found(
             "destack.display.monitor.closestMode",
             "display mode table is empty",
         ));
@@ -685,7 +1161,7 @@ pub(crate) unsafe fn monitor_primary(
     out: *mut Option<resource::DisplayHandle>,
     request: DisplayMonitorListRequest,
 ) -> RuntimeResult<()> {
-    core::ensure_out(out, "out")?;
+    core_platform::ensure_out(out, "out")?;
 
     let snapshots = enumerate_monitor_snapshots()?;
     let primary = snapshots
@@ -725,5 +1201,130 @@ pub(crate) unsafe fn monitor_set_mode(
         event::publish_mode_changed_event(context, &id, mode);
     }
 
+    event::refresh_monitor_topology_cache(context);
     Ok(())
+}
+
+/// Read one monitor color-state snapshot.
+pub(crate) unsafe fn monitor_color_state(
+    context: &BindingCallContext,
+    out: *mut DisplayColorState,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    core_platform::ensure_out(out, "out")?;
+
+    let id = display_resource::resolve_display_id(
+        context,
+        handle,
+        "destack.display.monitor.colorState",
+    )?;
+    let state = monitor_color_state_by_id(&id);
+    unsafe {
+        *out = state;
+    }
+
+    Ok(())
+}
+
+/// Read one monitor hdr-mode value.
+pub(crate) unsafe fn monitor_hdr_mode(
+    context: &BindingCallContext,
+    out: *mut DisplayHdrMode,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    core_platform::ensure_out(out, "out")?;
+
+    let id =
+        display_resource::resolve_display_id(context, handle, "destack.display.monitor.hdrMode")?;
+    let state = monitor_color_state_by_id(&id);
+    unsafe {
+        *out = state.hdr_mode;
+    }
+
+    Ok(())
+}
+
+/// Set one monitor hdr-mode value.
+pub(crate) unsafe fn monitor_set_hdr_mode(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    mode: DisplayHdrMode,
+) -> RuntimeResult<()> {
+    if mode == DisplayHdrMode::Unknown {
+        return Err(core_platform::invalid_argument(
+            "mode",
+            "hdr mode must be one concrete mode",
+        ));
+    }
+    if mode == DisplayHdrMode::System {
+        return Err(core_platform::not_supported(
+            "destack.display.monitor.setHdrMode",
+        ));
+    }
+
+    let id = display_resource::resolve_display_id(
+        context,
+        handle,
+        "destack.display.monitor.setHdrMode",
+    )?;
+    let enable_hdr = mode == DisplayHdrMode::Hdr;
+    set_monitor_hdr_enabled_by_id(&id, enable_hdr, "destack.display.monitor.setHdrMode")?;
+    event::refresh_monitor_topology_cache(context);
+
+    Ok(())
+}
+
+/// Read one monitor gamma-ramp payload.
+pub(crate) unsafe fn monitor_gamma_ramp(
+    context: &BindingCallContext,
+    out: *mut DisplayGammaRamp,
+    handle: resource::DisplayHandle,
+) -> RuntimeResult<()> {
+    core_platform::ensure_out(out, "out")?;
+
+    let id =
+        display_resource::resolve_display_id(context, handle, "destack.display.monitor.gammaRamp")?;
+    let gamma = read_monitor_gamma_ramp_by_id(&id, "destack.display.monitor.gammaRamp")?;
+    let red = context.store_slice(gamma[0..GAMMA_RAMP_CHANNEL_ENTRIES].to_vec());
+    let green = context
+        .store_slice(gamma[GAMMA_RAMP_CHANNEL_ENTRIES..(GAMMA_RAMP_CHANNEL_ENTRIES * 2)].to_vec());
+    let blue = context
+        .store_slice(gamma[(GAMMA_RAMP_CHANNEL_ENTRIES * 2)..GAMMA_RAMP_TOTAL_ENTRIES].to_vec());
+    unsafe {
+        *out = DisplayGammaRamp { red, green, blue };
+    }
+
+    Ok(())
+}
+
+/// Set one monitor gamma-ramp payload.
+pub(crate) unsafe fn monitor_set_gamma_ramp(
+    context: &BindingCallContext,
+    handle: resource::DisplayHandle,
+    ramp: DisplayGammaRamp,
+) -> RuntimeResult<()> {
+    let id = display_resource::resolve_display_id(
+        context,
+        handle,
+        "destack.display.monitor.setGammaRamp",
+    )?;
+    let red = unsafe { ramp.red.as_slice()? };
+    let green = unsafe { ramp.green.as_slice()? };
+    let blue = unsafe { ramp.blue.as_slice()? };
+    if red.len() != GAMMA_RAMP_CHANNEL_ENTRIES
+        || green.len() != GAMMA_RAMP_CHANNEL_ENTRIES
+        || blue.len() != GAMMA_RAMP_CHANNEL_ENTRIES
+    {
+        return Err(core_platform::invalid_argument(
+            "ramp",
+            "gamma ramp channels must each contain exactly 256 entries",
+        ));
+    }
+
+    let mut gamma = [0u16; GAMMA_RAMP_TOTAL_ENTRIES];
+    gamma[0..GAMMA_RAMP_CHANNEL_ENTRIES].copy_from_slice(red);
+    gamma[GAMMA_RAMP_CHANNEL_ENTRIES..(GAMMA_RAMP_CHANNEL_ENTRIES * 2)].copy_from_slice(green);
+    gamma[(GAMMA_RAMP_CHANNEL_ENTRIES * 2)..GAMMA_RAMP_TOTAL_ENTRIES].copy_from_slice(blue);
+
+    write_monitor_gamma_ramp_by_id(&id, &gamma, "destack.display.monitor.setGammaRamp")
 }

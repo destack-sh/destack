@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::display::DisplayBackendDescriptor;
-use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List display backends that are available for the active target.
 pub(crate) unsafe fn destack_display_backend_list(

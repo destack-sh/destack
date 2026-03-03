@@ -6,19 +6,27 @@ use super::{
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(windows)]
+use crate::platform::display as display_platform;
+#[cfg(windows)]
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::WindowVisibility;
 
 #[cfg(windows)]
-const DISPLAY_CAP_WINDOW_ICON: u64 = 0x1000000;
+const DISPLAY_CAP_WINDOW_ICON: u64 = display_platform::DISPLAY_BACKEND_CAP_WINDOW_ICON.0;
 #[cfg(windows)]
-const DISPLAY_CAP_WINDOW_ASPECT_RATIO: u64 = 0x100000000;
+const DISPLAY_CAP_WINDOW_ASPECT_RATIO: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO.0;
 #[cfg(windows)]
-const DISPLAY_CAP_MONITOR_COLOR_STATE: u64 = 0x40;
+const DISPLAY_CAP_MONITOR_COLOR_STATE: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE.0;
 #[cfg(windows)]
-const DISPLAY_CAP_MONITOR_HDR_CONTROL: u64 = 0x80;
+const DISPLAY_CAP_MONITOR_HDR_CONTROL: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL.0;
 #[cfg(windows)]
-const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 = 0x100;
+const DISPLAY_CAP_MONITOR_GAMMA_CONTROL: u64 =
+    display_platform::DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL.0;
+#[cfg(windows)]
+const DISPLAY_CAP_OCCLUSION: u64 = display_platform::DISPLAY_BACKEND_CAP_OCCLUSION.0;
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -197,6 +205,7 @@ fn test_display_backend_capabilities_match_win32_implementation() {
             win32_capability_flags & DISPLAY_CAP_MONITOR_GAMMA_CONTROL,
             0
         );
+        assert_eq!(win32_capability_flags & DISPLAY_CAP_OCCLUSION, 0);
 
         Ok(())
     });

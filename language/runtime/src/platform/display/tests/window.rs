@@ -247,6 +247,30 @@ fn test_window_open_size_matches_requested_client_size() {
 
 #[cfg(windows)]
 #[test]
+fn test_window_mode_borderless_without_display_is_accepted() {
+    with_harness_context(|mut context| {
+        let options = default_window_options(&mut context, "borderless-no-display")?;
+        let window = match context.destack_display_window_open(options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let borderless = harness_window_mode_options(&context, HarnessWindowMode::Borderless);
+        context.destack_display_window_set_mode(window, borderless)?;
+
+        context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
 fn test_window_focus_on_show_false_does_not_force_focus() {
     with_harness_context(|mut context| {
         let mut options = default_window_options(&mut context, "focus-disabled")?;
@@ -276,6 +300,62 @@ fn test_window_focus_on_show_false_does_not_force_focus() {
         assert!(!state.focused);
 
         context.destack_display_window_close(window)?;
+        Ok(())
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn test_window_close_keeps_cursor_hidden_when_another_window_requests_hidden_mode() {
+    with_harness_context(|mut context| {
+        let first_options = default_window_options(&mut context, "cursor-hidden-first")?;
+        let first_window = match context.destack_display_window_open(first_options) {
+            Ok(window) => window,
+            Err(error) => {
+                if error_code(&error) == Some(PlatformErrorCode::NotSupported) {
+                    return Ok(());
+                }
+
+                return Err(error);
+            }
+        };
+
+        let second_options = default_window_options(&mut context, "cursor-hidden-second")?;
+        let second_window = context.destack_display_window_open(second_options)?;
+
+        context.destack_display_window_set_cursor_mode(
+            first_window,
+            crate::platform::display::WindowCursorMode::Hidden,
+        )?;
+        context.destack_display_window_set_cursor_mode(
+            second_window,
+            crate::platform::display::WindowCursorMode::Hidden,
+        )?;
+
+        context.destack_display_window_close(first_window)?;
+
+        let mut cursor = CURSORINFO {
+            cbSize: std::mem::size_of::<CURSORINFO>() as u32,
+            flags: 0,
+            hCursor: 0,
+            ptScreenPos: POINT { x: 0, y: 0 },
+        };
+        let status = unsafe { GetCursorInfo(&mut cursor) };
+        assert_ne!(status, 0);
+        assert_eq!(cursor.flags & CURSOR_SHOWING, 0);
+
+        context.destack_display_window_close(second_window)?;
+
+        let mut cursor = CURSORINFO {
+            cbSize: std::mem::size_of::<CURSORINFO>() as u32,
+            flags: 0,
+            hCursor: 0,
+            ptScreenPos: POINT { x: 0, y: 0 },
+        };
+        let status = unsafe { GetCursorInfo(&mut cursor) };
+        assert_ne!(status, 0);
+        assert_ne!(cursor.flags & CURSOR_SHOWING, 0);
+
         Ok(())
     });
 }

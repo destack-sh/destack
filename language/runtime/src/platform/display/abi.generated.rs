@@ -9728,3 +9728,274 @@ pub enum WindowModeOptionsReplayRecord {
     /// WindowWindowedModeOptions variant.
     WindowWindowedModeOptions(WindowWindowedModeOptionsReplayRecord),
 }
+
+/// Backend capability flag bit for always-on-top state control.
+pub const DISPLAY_BACKEND_CAP_ALWAYS_ON_TOP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(262144u64);
+
+/// Backend capability flag bit for host-level attention requests.
+pub const DISPLAY_BACKEND_CAP_ATTENTION_REQUEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(524288u64);
+
+/// Backend capability flag bit for borderless fullscreen.
+pub const DISPLAY_BACKEND_CAP_BORDERLESS_FULLSCREEN: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1024u64);
+
+/// Backend capability flag bit for cursor confine mode.
+pub const DISPLAY_BACKEND_CAP_CURSOR_CONFINE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4096u64);
+
+/// Backend capability flag bit for cursor icon selection.
+pub const DISPLAY_BACKEND_CAP_CURSOR_ICON: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16384u64);
+
+/// Backend capability flag bit for cursor lock mode.
+pub const DISPLAY_BACKEND_CAP_CURSOR_LOCK: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2048u64);
+
+/// Backend capability flag bit for explicit cursor visibility control.
+pub const DISPLAY_BACKEND_CAP_CURSOR_VISIBILITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(32768u64);
+
+/// Backend capability flag bit for cursor warping and explicit cursor-position updates.
+pub const DISPLAY_BACKEND_CAP_CURSOR_WARP: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8192u64);
+
+/// Backend capability flag bit for exclusive fullscreen.
+pub const DISPLAY_BACKEND_CAP_EXCLUSIVE_FULLSCREEN: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(512u64);
+
+/// Backend capability flag bit for monitor enumeration and mode management.
+pub const DISPLAY_BACKEND_CAP_MONITOR: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4u64);
+
+/// Backend capability flag bit for monitor color-state queries.
+pub const DISPLAY_BACKEND_CAP_MONITOR_COLOR_STATE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(64u64);
+
+/// Backend capability flag bit for monitor-event streams.
+pub const DISPLAY_BACKEND_CAP_MONITOR_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16u64);
+
+/// Backend capability flag bit for monitor gamma-ramp control.
+pub const DISPLAY_BACKEND_CAP_MONITOR_GAMMA_CONTROL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(256u64);
+
+/// Backend capability flag bit for monitor HDR-mode control.
+pub const DISPLAY_BACKEND_CAP_MONITOR_HDR_CONTROL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(128u64);
+
+/// Backend capability flag bit for monitor mode-setting operations.
+pub const DISPLAY_BACKEND_CAP_MONITOR_MODE_SET: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(32u64);
+
+/// Backend capability flag bit for occlusion reporting.
+pub const DISPLAY_BACKEND_CAP_OCCLUSION: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4194304u64);
+
+/// Backend capability flag bit for explicit refresh-request signaling.
+pub const DISPLAY_BACKEND_CAP_REFRESH_REQUEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1048576u64);
+
+/// Backend capability flag bit for safe-area and inset reporting.
+pub const DISPLAY_BACKEND_CAP_SAFE_AREA: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8388608u64);
+
+/// Backend capability flag bit for window theme reporting.
+pub const DISPLAY_BACKEND_CAP_THEME: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2097152u64);
+
+/// Backend capability flag bit for compositor transparency.
+pub const DISPLAY_BACKEND_CAP_TRANSPARENCY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(131072u64);
+
+/// Backend capability flag bit for window creation and management.
+pub const DISPLAY_BACKEND_CAP_WINDOW: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1u64);
+
+/// Backend capability flag bit for aspect-ratio lock control.
+pub const DISPLAY_BACKEND_CAP_WINDOW_ASPECT_RATIO: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(4294967296u64);
+
+/// Backend capability flag bit for window chrome-style control.
+pub const DISPLAY_BACKEND_CAP_WINDOW_CHROME: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(17179869184u64);
+
+/// Backend capability flag bit for native move-drag and resize-drag operations.
+pub const DISPLAY_BACKEND_CAP_WINDOW_DRAG_INTERACTION: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(536870912u64);
+
+/// Backend capability flag bit for file and text drop window events.
+pub const DISPLAY_BACKEND_CAP_WINDOW_DROP_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8589934592u64);
+
+/// Backend capability flag bit for window-event streams.
+pub const DISPLAY_BACKEND_CAP_WINDOW_EVENTS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(8u64);
+
+/// Backend capability flag bit for explicit focus requests.
+pub const DISPLAY_BACKEND_CAP_WINDOW_FOCUS: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(67108864u64);
+
+/// Backend capability flag bit for mouse passthrough and hit-test policy control.
+pub const DISPLAY_BACKEND_CAP_WINDOW_HIT_TEST: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(268435456u64);
+
+/// Backend capability flag bit for native window icon updates.
+pub const DISPLAY_BACKEND_CAP_WINDOW_ICON: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(16777216u64);
+
+/// Backend capability flag bit for modal window behavior.
+pub const DISPLAY_BACKEND_CAP_WINDOW_MODAL: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2147483648u64);
+
+/// Backend capability flag bit for whole-window opacity control.
+pub const DISPLAY_BACKEND_CAP_WINDOW_OPACITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(33554432u64);
+
+/// Backend capability flag bit for parent and transient window relationships.
+pub const DISPLAY_BACKEND_CAP_WINDOW_PARENTING: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(1073741824u64);
+
+/// Backend capability flag bit for explicit raise and stack-order requests.
+pub const DISPLAY_BACKEND_CAP_WINDOW_RAISE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(134217728u64);
+
+/// Backend capability flag bit for point-in-time window state and descriptor reads.
+pub const DISPLAY_BACKEND_CAP_WINDOW_STATE: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(2u64);
+
+/// Backend capability flag bit for taskbar and dock visibility control.
+pub const DISPLAY_BACKEND_CAP_WINDOW_TASKBAR_VISIBILITY: DisplayBackendCapabilityFlags =
+    DisplayBackendCapabilityFlags(34359738368u64);
+
+/// Display metric changed-mask bit for desktop-bounds updates.
+pub const DISPLAY_METRIC_CHANGED_BOUNDS: DisplayMetricChangedMask = DisplayMetricChangedMask(4u32);
+
+/// Display metric changed-mask bit for display-name updates.
+pub const DISPLAY_METRIC_CHANGED_NAME: DisplayMetricChangedMask = DisplayMetricChangedMask(1u32);
+
+/// Display metric changed-mask bit for orientation updates.
+pub const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(32u32);
+
+/// Display metric changed-mask bit for primary-display updates.
+pub const DISPLAY_METRIC_CHANGED_PRIMARY: DisplayMetricChangedMask = DisplayMetricChangedMask(2u32);
+
+/// Display metric changed-mask bit for scale-factor updates.
+pub const DISPLAY_METRIC_CHANGED_SCALE_FACTOR: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(16u32);
+
+/// Display metric changed-mask bit for work-area updates.
+pub const DISPLAY_METRIC_CHANGED_WORK_AREA: DisplayMetricChangedMask =
+    DisplayMetricChangedMask(8u32);
+
+/// Event kind bit for `added`.
+pub const DISPLAY_MONITOR_EVENT_KIND_ADDED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(1u32);
+
+/// Event kind bit for `descriptorChanged`.
+pub const DISPLAY_MONITOR_EVENT_KIND_DESCRIPTOR_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(8u32);
+
+/// Event kind bit for `modeChanged`.
+pub const DISPLAY_MONITOR_EVENT_KIND_MODE_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(16u32);
+
+/// Event kind bit for `primaryChanged`.
+pub const DISPLAY_MONITOR_EVENT_KIND_PRIMARY_CHANGED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(4u32);
+
+/// Event kind bit for `removed`.
+pub const DISPLAY_MONITOR_EVENT_KIND_REMOVED: DisplayMonitorEventKindMask =
+    DisplayMonitorEventKindMask(2u32);
+
+/// Event kind bit for `aspectRatioChanged`.
+pub const WINDOW_EVENT_KIND_ASPECT_RATIO_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(2097152u64);
+
+/// Event kind bit for `chromeChanged`.
+pub const WINDOW_EVENT_KIND_CHROME_CHANGED: WindowEventKindMask = WindowEventKindMask(8192u64);
+
+/// Event kind bit for `closeRequested`.
+pub const WINDOW_EVENT_KIND_CLOSE_REQUESTED: WindowEventKindMask = WindowEventKindMask(2u64);
+
+/// Event kind bit for `created`.
+pub const WINDOW_EVENT_KIND_CREATED: WindowEventKindMask = WindowEventKindMask(1u64);
+
+/// Event kind bit for `destroyed`.
+pub const WINDOW_EVENT_KIND_DESTROYED: WindowEventKindMask = WindowEventKindMask(4u64);
+
+/// Event kind bit for `displayChanged`.
+pub const WINDOW_EVENT_KIND_DISPLAY_CHANGED: WindowEventKindMask = WindowEventKindMask(2048u64);
+
+/// Event kind bit for `dropCancelled`.
+pub const WINDOW_EVENT_KIND_DROP_CANCELLED: WindowEventKindMask = WindowEventKindMask(16777216u64);
+
+/// Event kind bit for `dropCompleted`.
+pub const WINDOW_EVENT_KIND_DROP_COMPLETED: WindowEventKindMask = WindowEventKindMask(33554432u64);
+
+/// Event kind bit for `dropStarted`.
+pub const WINDOW_EVENT_KIND_DROP_STARTED: WindowEventKindMask = WindowEventKindMask(4194304u64);
+
+/// Event kind bit for `fileDropped`.
+pub const WINDOW_EVENT_KIND_FILE_DROPPED: WindowEventKindMask = WindowEventKindMask(134217728u64);
+
+/// Event kind bit for `fileHovered`.
+pub const WINDOW_EVENT_KIND_FILE_HOVERED: WindowEventKindMask = WindowEventKindMask(8388608u64);
+
+/// Event kind bit for `fileHoverLeft`.
+pub const WINDOW_EVENT_KIND_FILE_HOVER_LEFT: WindowEventKindMask = WindowEventKindMask(67108864u64);
+
+/// Event kind bit for `focusChanged`.
+pub const WINDOW_EVENT_KIND_FOCUS_CHANGED: WindowEventKindMask = WindowEventKindMask(8u64);
+
+/// Event kind bit for `modalChanged`.
+pub const WINDOW_EVENT_KIND_MODAL_CHANGED: WindowEventKindMask = WindowEventKindMask(524288u64);
+
+/// Event kind bit for `modeChanged`.
+pub const WINDOW_EVENT_KIND_MODE_CHANGED: WindowEventKindMask = WindowEventKindMask(1024u64);
+
+/// Event kind bit for `mousePassthroughChanged`.
+pub const WINDOW_EVENT_KIND_MOUSE_PASSTHROUGH_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(1048576u64);
+
+/// Event kind bit for `occlusionChanged`.
+pub const WINDOW_EVENT_KIND_OCCLUSION_CHANGED: WindowEventKindMask = WindowEventKindMask(32u64);
+
+/// Event kind bit for `opacityChanged`.
+pub const WINDOW_EVENT_KIND_OPACITY_CHANGED: WindowEventKindMask = WindowEventKindMask(65536u64);
+
+/// Event kind bit for `parentChanged`.
+pub const WINDOW_EVENT_KIND_PARENT_CHANGED: WindowEventKindMask = WindowEventKindMask(131072u64);
+
+/// Event kind bit for `positionChanged`.
+pub const WINDOW_EVENT_KIND_POSITION_CHANGED: WindowEventKindMask = WindowEventKindMask(64u64);
+
+/// Event kind bit for `refreshRequested`.
+pub const WINDOW_EVENT_KIND_REFRESH_REQUESTED: WindowEventKindMask = WindowEventKindMask(512u64);
+
+/// Event kind bit for `safeAreaChanged`.
+pub const WINDOW_EVENT_KIND_SAFE_AREA_CHANGED: WindowEventKindMask = WindowEventKindMask(32768u64);
+
+/// Event kind bit for `scaleFactorChanged`.
+pub const WINDOW_EVENT_KIND_SCALE_FACTOR_CHANGED: WindowEventKindMask = WindowEventKindMask(256u64);
+
+/// Event kind bit for `sizeChanged`.
+pub const WINDOW_EVENT_KIND_SIZE_CHANGED: WindowEventKindMask = WindowEventKindMask(128u64);
+
+/// Event kind bit for `taskbarVisibilityChanged`.
+pub const WINDOW_EVENT_KIND_TASKBAR_VISIBILITY_CHANGED: WindowEventKindMask =
+    WindowEventKindMask(16384u64);
+
+/// Event kind bit for `textDropped`.
+pub const WINDOW_EVENT_KIND_TEXT_DROPPED: WindowEventKindMask = WindowEventKindMask(268435456u64);
+
+/// Event kind bit for `themeChanged`.
+pub const WINDOW_EVENT_KIND_THEME_CHANGED: WindowEventKindMask = WindowEventKindMask(4096u64);
+
+/// Event kind bit for `transientChanged`.
+pub const WINDOW_EVENT_KIND_TRANSIENT_CHANGED: WindowEventKindMask = WindowEventKindMask(262144u64);
+
+/// Event kind bit for `visibilityChanged`.
+pub const WINDOW_EVENT_KIND_VISIBILITY_CHANGED: WindowEventKindMask = WindowEventKindMask(16u64);

@@ -4,8 +4,8 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmSlice, display, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, VmSlice, display, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
@@ -521,6 +521,73 @@ pub(crate) fn window_event_open_options(
             overflow_policy,
         },
         filter: None,
+    };
+
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(options)
+    } else {
+        HarnessValue::Native(options)
+    }
+}
+
+/// Build one monitor-event open options payload with one explicit kind-mask filter.
+#[cfg(windows)]
+pub(crate) fn monitor_event_open_options_with_kind_mask(
+    context: &DisplayHarnessContext<'_>,
+    queue_capacity: u32,
+    overflow_policy: display::DisplayEventOverflowPolicy,
+    kind_mask: u32,
+) -> HarnessValue<display::DisplayMonitorEventOpenOptions, display::DisplayMonitorEventOpenOptionsVm>
+{
+    if context.vm_context.is_some() {
+        HarnessValue::Vm(display::DisplayMonitorEventOpenOptionsVm {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity,
+                overflow_policy,
+            },
+            filter: Some(display::DisplayMonitorEventFilterVm {
+                display_id: None,
+                kind_mask: Some(display::DisplayMonitorEventKindMask(kind_mask)),
+            }),
+        })
+    } else {
+        HarnessValue::Native(display::DisplayMonitorEventOpenOptions {
+            backend: display::DisplayBackend::Auto,
+            backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+            queue: display::DisplayEventQueueOptions {
+                queue_capacity,
+                overflow_policy,
+            },
+            filter: Some(display::DisplayMonitorEventFilter {
+                display_id: None,
+                kind_mask: Some(display::DisplayMonitorEventKindMask(kind_mask)),
+            }),
+        })
+    }
+}
+
+/// Build one window-event open options payload with explicit filter restrictions.
+#[cfg(windows)]
+pub(crate) fn window_event_open_options_with_filter(
+    context: &DisplayHarnessContext<'_>,
+    queue_capacity: u32,
+    overflow_policy: display::DisplayEventOverflowPolicy,
+    window: Option<resource::WindowHandle>,
+    kind_mask: Option<u64>,
+) -> HarnessValue<display::WindowEventOpenOptions, display::WindowEventOpenOptionsVm> {
+    let options = display::WindowEventOpenOptions {
+        backend: display::DisplayBackend::Auto,
+        backend_policy: display::DisplayBackendSelectionPolicy::AllowFallback,
+        queue: display::DisplayEventQueueOptions {
+            queue_capacity,
+            overflow_policy,
+        },
+        filter: Some(display::WindowEventFilter {
+            window,
+            kind_mask: kind_mask.map(display::WindowEventKindMask),
+        }),
     };
 
     if context.vm_context.is_some() {
