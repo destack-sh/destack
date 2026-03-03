@@ -36,6 +36,8 @@ typescript/angular-component-examples/test.component.ts
 typescript/arrow/comments.ts
 typescript/prettier-ignore/mapped-types.ts
 typescript/prettier-ignore/prettier-ignore-parenthesized-type.ts
+# oxc currently rewrites single-type union leading comment placement across passes
+typescript/union/consistent-with-flow/single-type.ts
 
 # unsupported flow and flow-repo syntax (1429)
 flow-repo/ambient_declarations/component_namespace.js
