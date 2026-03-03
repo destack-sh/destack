@@ -9,7 +9,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::thread::{
     ThreadOptions, ThreadOptionsVm, native as thread_native, vm as thread_vm,
 };
-use crate::platform::{NativeStringRef, PlatformError as HarnessPlatformError, resource};
+use crate::platform::{PlatformError as HarnessPlatformError, resource};
+use crate::runtime::NativeStringRef;
 use destack_vm as vm;
 
 impl<'call> ThreadHarnessContext<'call> {

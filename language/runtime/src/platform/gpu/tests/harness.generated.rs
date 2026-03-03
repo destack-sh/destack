@@ -53,9 +53,9 @@ use crate::platform::gpu::{
     native as gpu_native, vm as gpu_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice, resource,
+    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, resource,
 };
+use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> GpuHarnessContext<'call> {

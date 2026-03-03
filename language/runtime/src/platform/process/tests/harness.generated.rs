@@ -24,9 +24,9 @@ use crate::platform::process::{
     native as process_native, vm as process_vm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice,
-    PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
+    NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource,
 };
+use crate::runtime::{NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_vm as vm;
 
 impl<'call> ProcessHarnessContext<'call> {

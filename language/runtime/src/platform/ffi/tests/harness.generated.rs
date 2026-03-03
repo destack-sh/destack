@@ -7,10 +7,8 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::{FfiPointer, native as ffi_native, vm as ffi_vm};
-use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, VmSlice, fs,
-    resource,
-};
+use crate::platform::{PlatformError as HarnessPlatformError, VmArray, VmSlice, fs, resource};
+use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> FfiHarnessContext<'call> {

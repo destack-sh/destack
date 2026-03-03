@@ -7,9 +7,8 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
-use crate::platform::{
-    NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi,
-};
+use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
+use crate::runtime::NativeStringRef;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,

@@ -15,9 +15,10 @@ use crate::platform::io::{
     UringParametersVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
+use crate::runtime::NativeSlice;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,

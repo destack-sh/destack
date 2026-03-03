@@ -12,9 +12,9 @@ use crate::platform::random::{
     SecureRandomMetadataVm,
 };
 use crate::platform::{
-    NativeSlice, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
+use crate::runtime::NativeSlice;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, native_call,

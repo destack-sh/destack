@@ -11,7 +11,7 @@ use destack_workspace::{
 };
 
 use crate::capability::generate_platform_capability_kind;
-use crate::collect::collect_platform_bindings;
+use crate::collect::{collect_platform_bindings, collect_platform_constants};
 use crate::emit::{
     DomainAbiTypes, collect_domain_abi_types, render_abi_types, render_domain_bindings,
     render_domain_mod_stub, render_domain_test_harness_generated, render_domain_test_harness_stub,
@@ -362,7 +362,8 @@ fn generate_bindings(
     let catalog = collect_platform_bindings(program, strings, profile_id, platform_modules);
     let catalog = normalize_binding_catalog(catalog);
     validate_binding_catalog(&catalog);
-    let domain_types = collect_domain_abi_types(&catalog);
+    let constants = collect_platform_constants(program, strings, profile_id, platform_modules);
+    let domain_types = collect_domain_abi_types(&catalog, &constants);
 
     // render bindings for each discovered domain
     let binding_domains = catalog.keys().cloned().collect::<BTreeSet<_>>();
@@ -452,7 +453,8 @@ fn generate_bindings(
         }
 
         let types = domain_types.get(domain).unwrap_or(&empty_types);
-        let abi_types = render_abi_types(domain, types);
+        let domain_constants = constants.get(domain);
+        let abi_types = render_abi_types(domain, types, domain_constants);
         let abi_types_path = runtime_domain_abi_types_path(domain);
         write_domain_bindings(&abi_types_path, &abi_types);
     }

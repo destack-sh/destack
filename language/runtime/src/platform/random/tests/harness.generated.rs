@@ -10,10 +10,8 @@ use crate::platform::random::{
     RandomStream, RandomStreamDomain, RandomStreamState, RandomStreamStateVm, SecureRandomMetadata,
     SecureRandomMetadataVm, SecureRandomSource, native as random_native, vm as random_vm,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
-    VmSlice,
-};
+use crate::platform::{NativeArray, PlatformError as HarnessPlatformError, VmArray, VmSlice};
+use crate::runtime::{NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 impl<'call> RandomHarnessContext<'call> {

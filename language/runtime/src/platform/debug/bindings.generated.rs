@@ -10,9 +10,9 @@ use crate::platform::debug::{
     InspectorEndpoint, InspectorEndpointReplayRecord, InspectorEndpointVm, ProfileKind, TraceLevel,
 };
 use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray,
-    abi as platform_abi,
+    NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
+use crate::runtime::NativeStringRef;
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, native_call,

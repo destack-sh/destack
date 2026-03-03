@@ -8,13 +8,13 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::ffi::FfiPointer;
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
-    abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
+use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

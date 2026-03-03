@@ -10,13 +10,13 @@ use crate::platform::security::{
     PlatformCapability, PlatformCapabilityVm, SecurityPolicyRule, SecurityPolicyRuleVm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice,
-    abi as platform_abi,
+    PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
     BindingScope, NativeBinding, NativeBindingSet, native_call,
 };
+use crate::runtime::{NativeSlice, NativeStringRef};
 use crate::vm_binding_set;
 use destack_vm as vm;
 use destack_vm::Isolate;

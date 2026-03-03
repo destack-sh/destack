@@ -10,9 +10,8 @@ use crate::platform::debug::{
     InspectorEndpoint, InspectorEndpointVm, ProfileKind, TraceLevel, native as debug_native,
     vm as debug_vm,
 };
-use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, resource,
-};
+use crate::platform::{NativeArray, PlatformError as HarnessPlatformError, VmArray, resource};
+use crate::runtime::NativeStringRef;
 use destack_vm as vm;
 
 impl<'call> DebugHarnessContext<'call> {
