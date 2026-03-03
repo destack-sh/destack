@@ -595,10 +595,10 @@ fn try_attach_comment_declaration_before_semicolon_seam(
         .or(owners.preceding)
         .or(owners.following)?;
 
-    // member-level semicolon seams are handled by member/statement routing
-    if promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Member).is_some()
-    {
-        return None;
+    // member-level semicolon seams stay on the member boundary
+    if let Some(target_owner) = promote_owner_to_member_like_ancestor(tree, parents, target_owner) {
+        let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+        return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
     }
 
     // normalize to declaration boundary ownership
@@ -653,8 +653,13 @@ pub(crate) fn try_attach_comment_declaration_type_value_seam(
     // map declaration owner to the declaration value expression owner
     let target_node = declaration_owner_type_value_expression_owner(tree, declaration_owner)?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+    let position = if seam.comment_is_line {
+        AnnotationPosition::LinePrefix
+    } else {
+        AnnotationPosition::BlockPrefix
+    };
 
-    Some((Some(target_node), AnnotationPosition::BlockPrefix))
+    Some((Some(target_node), position))
 }
 
 /// Resolve declaration seam comment rules.

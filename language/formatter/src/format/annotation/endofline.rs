@@ -15,6 +15,9 @@ use super::boundary::{
     CommentSeamData, CommentSeamKeyword, comment_enclosing_owner,
     seam_is_template_interpolation_open_brace,
 };
+use super::expression::{
+    first_dynamic_argument_owner_for_call_like, promote_owner_to_call_like_expression_ancestor,
+};
 use super::ownership::{
     find_preferred_owner_starting_at, find_smallest_owner_enclosing_token,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
@@ -429,34 +432,20 @@ fn attach_parenthesized_tree_head_line_comment(
 fn attach_call_argument_head_line_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
+    token_before_span: Option<Span>,
     seam: &CommentSeamData,
-    enclosing_owner: Option<u32>,
-    following_owner_with_token_fallback: Option<u32>,
     is_same_line_line_comment: bool,
 ) -> Option<CommentAttachment> {
     if !is_same_line_line_comment || !seam.token_before_is(TokenType::OpenParenthesis) {
         return None;
     }
 
-    let Some(enclosing_owner) = enclosing_owner else {
-        return None;
-    };
-    if tree.get_node_type(enclosing_owner) != NodeType::Expression {
-        return None;
-    }
-
-    let enclosing_expression_id = LocalNodeId::<Expression>::new(enclosing_owner);
-    if !matches!(
-        tree.get(enclosing_expression_id),
-        Expression::Call { .. } | Expression::New { .. }
-    ) {
-        return None;
-    }
-
-    let target_owner = following_owner_with_token_fallback?;
-    let target_owner =
-        promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Argument)
-            .unwrap_or(target_owner);
+    let token_before_owner =
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))?;
+    let token_before_owner = normalize_formatter_trivia_target_owner(tree, token_before_owner);
+    let call_like_owner =
+        promote_owner_to_call_like_expression_ancestor(tree, parents, token_before_owner)?;
+    let target_owner = first_dynamic_argument_owner_for_call_like(tree, call_like_owner)?;
     let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
     Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
@@ -748,7 +737,8 @@ fn attach_end_of_line_inline_before_semicolon_comment(
         comment_context.semicolon_after_is_line_leading,
         comment_context.preceding_owner,
         comment_context.token_before_span,
-        comment_context.is_same_line_line_comment,
+        comment_context.is_same_line_line_comment
+            || comment_context.is_same_line_trailing_block_comment,
     )
 }
 
@@ -896,9 +886,8 @@ fn attach_end_of_line_call_argument_head_comment(
     attach_call_argument_head_line_comment(
         comment_context.tree,
         comment_context.parents,
+        comment_context.token_before_span,
         comment_context.seam,
-        comment_context.enclosing_owner,
-        comment_context.following_owner_with_token_fallback,
         comment_context.is_same_line_line_comment,
     )
 }

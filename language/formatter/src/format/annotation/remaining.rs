@@ -1,4 +1,4 @@
-use destack_ast::{AnnotationPosition, NodeParentIndex, NodeTree};
+use destack_ast::{AnnotationPosition, NodeParentIndex, NodeTree, TokenType};
 use destack_source::Span;
 
 use super::attachment::following_owner_with_token_after_fallback;
@@ -6,8 +6,8 @@ use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentSeamContext, CommentSeamData,
 };
 use super::ownership::{
-    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start,
+    find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
 };
 use super::semicolon::{
     attach_before_comment_semicolon_guard_head, attach_inline_comment_before_semicolon,
@@ -27,6 +27,8 @@ struct RemainingCommentContext<'a, 'ctx> {
     parents: &'a NodeParentIndex,
     /// Span before the seam.
     token_before_span: Option<Span>,
+    /// Owner before the seam from token lookup.
+    token_before_owner: Option<u32>,
     /// Span after the seam.
     token_after_span: Option<Span>,
     /// Owner before the seam.
@@ -50,6 +52,8 @@ fn build_remaining_comment_context<'a, 'ctx>(
     let tree = context.tree;
     let parents = context.parents;
     let token_before_span = context.token_before_span.map(|token| token.span);
+    let token_before_owner =
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span));
     let token_after_span = context.token_after_span.map(|token| token.span);
     let preceding_owner = owners.preceding;
     let following_owner = owners.following;
@@ -66,6 +70,7 @@ fn build_remaining_comment_context<'a, 'ctx>(
         tree,
         parents,
         token_before_span,
+        token_before_owner,
         token_after_span,
         preceding_owner,
         following_owner,
@@ -95,16 +100,35 @@ fn attach_token_after_prefers_preceding(
     parents: &NodeParentIndex,
     seam: &CommentSeamData,
     preceding_owner: Option<u32>,
+    token_before_owner: Option<u32>,
     token_before_span: Option<Span>,
+    is_inline_star_comment: bool,
 ) -> Option<CommentAttachment> {
     if !seam.token_after_prefers_preceding {
         return None;
     }
 
-    let target_node = preceding_owner?;
-    let target_node =
-        normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
-    Some((Some(target_node), AnnotationPosition::LinePostfix))
+    let token_after_is_close_delimiter_or_separator =
+        token_type_is_close_delimiter_or_separator(seam.token_after_type);
+    let target_node = if token_after_is_close_delimiter_or_separator {
+        token_before_owner.or(preceding_owner)?
+    } else {
+        preceding_owner.or(token_before_owner)?
+    };
+    let target_node = if token_after_is_close_delimiter_or_separator {
+        normalize_formatter_trivia_target_owner(tree, target_node)
+    } else {
+        normalize_owner_with_shared_end(tree, parents, target_node, token_before_span)
+    };
+
+    // inline block comments before close delimiters and separators should stay boundary-bound
+    let position = if is_inline_star_comment && token_after_is_close_delimiter_or_separator {
+        AnnotationPosition::LinePostfixBoundary
+    } else {
+        AnnotationPosition::LinePostfix
+    };
+
+    Some((Some(target_node), position))
 }
 
 /// Attach same-line seams to following owners as line-prefix comments.
@@ -173,7 +197,22 @@ fn attach_remaining_preceding_separator_comment(
         comment_context.parents,
         comment_context.seam,
         comment_context.preceding_owner,
+        comment_context.token_before_owner,
         comment_context.token_before_span,
+        comment_context.is_inline_star_comment,
+    )
+}
+
+/// Return whether one token type is a close delimiter or one list separator token.
+fn token_type_is_close_delimiter_or_separator(token_type: Option<TokenType>) -> bool {
+    matches!(
+        token_type,
+        Some(
+            TokenType::CloseParenthesis
+                | TokenType::CloseBracket
+                | TokenType::CloseBrace
+                | TokenType::Semicolon
+        )
     )
 }
 

@@ -11,6 +11,9 @@ use super::boundary::{
     CommentSeamData, CommentSeamKeyword, comment_enclosing_owner, is_open_delimiter_token,
     previous_non_newline_token_index,
 };
+use super::expression::{
+    first_dynamic_argument_owner_for_call_like, promote_owner_to_call_like_expression_ancestor,
+};
 use super::facts::next_non_newline_token_type_after_seam;
 use super::ownership::{
     find_preferred_owner_starting_at, find_smallest_owner_enclosing_token, is_block_like_owner,
@@ -180,6 +183,28 @@ fn attach_before_jsx_statement_head_comment(
     }
 
     None
+}
+
+/// Handle own-line comments between call callee and first argument.
+fn attach_call_argument_head_comment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    token_before_span: Option<Span>,
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if !seam.token_before_is(TokenType::OpenParenthesis) {
+        return None;
+    }
+
+    let token_before_owner =
+        token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))?;
+    let token_before_owner = normalize_formatter_trivia_target_owner(tree, token_before_owner);
+    let call_like_owner =
+        promote_owner_to_call_like_expression_ancestor(tree, parents, token_before_owner)?;
+    let target_owner = first_dynamic_argument_owner_for_call_like(tree, call_like_owner)?;
+    let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+
+    Some((Some(target_owner), AnnotationPosition::LinePrefix))
 }
 
 /// Handle own-line import or export specifier separator comments as dependency-item prefixes.
@@ -504,6 +529,18 @@ fn attach_own_line_jsx_statement_head_comment(
     )
 }
 
+/// Attach call-argument head ownership for own-line comments.
+fn attach_own_line_call_argument_head_comment(
+    comment_context: &OwnLineCommentContext<'_, '_>,
+) -> Option<CommentAttachment> {
+    attach_call_argument_head_comment(
+        comment_context.tree,
+        comment_context.parents,
+        comment_context.token_before_span,
+        comment_context.seam,
+    )
+}
+
 /// Attach member-dot prefix ownership for own-line comments.
 fn attach_own_line_member_dot_comment(
     comment_context: &OwnLineCommentContext<'_, '_>,
@@ -580,6 +617,7 @@ pub(crate) fn attach_own_line_comment(
             attach_own_line_less_than_comment,
             attach_own_line_member_semicolon_comment,
             attach_own_line_jsx_statement_head_comment,
+            attach_own_line_call_argument_head_comment,
             attach_own_line_member_dot_comment,
             attach_own_line_dependency_item_separator_comment,
             attach_own_line_dependency_item_trailing_comma_comment,

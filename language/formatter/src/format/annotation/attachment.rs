@@ -1912,6 +1912,12 @@ fn attach_default_own_line_comment(
     let comment_is_ignore_directive = seam_comment_is_ignore_directive(context, seam);
 
     if comment_is_ignore_directive {
+        let target_node = resolved_owners.following;
+        if let Some(target_node) = target_node {
+            let target_node = normalize_formatter_trivia_target_owner(context.tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        }
+
         return attach_to_following_owner(context, resolved_owners, AnnotationPosition::LinePrefix);
     }
 
