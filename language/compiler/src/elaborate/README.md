@@ -1,13 +1,14 @@
 # Elaborate
 
 Elaborate turns DIR into a "canonical" form by transforming and reifying ("elaborating") implicit or higher level concepts from the base DIR into "canonical DIR".
-.
-The exact responsibilities of Elaborate are unfortunately a bit fuzzy because we need to support both high-level targets like JS/TS *and* low-level targets like WASM.
-We try to keep most transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable (like to retain some nullish coalescing behavior without complicating the JS/TS codegen backend).
+
+The exact responsibilities of Elaborate are unfortunately a bit fuzzy because we need to support both high-level targets like JS/TS *and* low-level AOT targets.
+We try to keep most transforms the same across targets to reduce the combinatorial explosion, but in some cases it's inevitable, like to retain some nullish coalescing behavior without complicating the JS/TS codegen backend.
 
 ## Pipeline
 
 Elaborate is part of the front-end that runs per profile on analyzed DIR (after Execute has patched comptime results in).
+For the most part, we can think of Elaborate as "transformation", which "simplify" the DIR, and "reification", which makes some implicit logic explicit.
 
 ## Transform
 
@@ -235,7 +236,9 @@ Labeled blocks stay labeled, but break-with-value becomes assignment plus a plai
 // source
 function pick(flag: boolean): int32 {
     let value = outer: {
-        if (flag) { break outer 1 }
+        if (flag) { 
+            break outer 1;
+        }
         2
     };
     return value;
@@ -435,14 +438,14 @@ extension for Vec2 implements Add<Vec2> {
 }
 
 function sum(a: Vec2, b: Vec2): Vec2 {
-    a + b
+    return a + b;
 }
 ```
 
 ```ds
 // after reify
 function sum(a: Vec2, b: Vec2): Vec2 {
-    a.add(b)  // Resolution::Static { target: Vec2.add }
+    return a.add(b);  // Resolution::Static { target: Vec2.add }
 }
 ```
 
@@ -453,7 +456,7 @@ When the receiver is a union type with different implementations, we insert `is`
 ```ds
 // source
 function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
-    a + b  // Resolution::Dynamic { candidates: [Vec2.add, Vec3.add] }
+    return a + b;  // Resolution::Dynamic { candidates: [Vec2.add, Vec3.add] }
 }
 ```
 
@@ -461,9 +464,9 @@ function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
 // after reify
 function add(a: Vec2 | Vec3, b: Vec2 | Vec3): Vec2 | Vec3 {
     if (a is Vec2) {
-        a.add(b)  // Resolution::Static { target: Vec2.add }
+        return a.add(b);  // Resolution::Static { target: Vec2.add }
     } else {
-        a.add(b)  // Resolution::Static { target: Vec3.add }
+        return a.add(b);  // Resolution::Static { target: Vec3.add }
     }
 }
 ```
@@ -484,18 +487,20 @@ Method calls on union types with different target symbols are split into type ch
 // source
 struct Cat { name: string }
 extension for Cat {
-    speak(): string { "meow" }
+    speak(): string { 
+        return "meow";
+    }
 }
 
 function greet(c: Cat): string {
-    c.speak()  // Resolution::Static { target: Cat.speak }
+    return c.speak();  // Resolution::Static { target: Cat.speak }
 }
 ```
 
 ```ds
 // after reify (unchanged, already static)
 function greet(c: Cat): string {
-    c.speak()  // Resolution::Static { target: Cat.speak }
+    return c.speak();  // Resolution::Static { target: Cat.speak }
 }
 ```
 
@@ -507,14 +512,18 @@ struct Cat { name: string }
 struct Dog { name: string }
 
 extension for Cat {
-    speak(): string { "meow" }
+    speak(): string { 
+        return "meow"; 
+    }
 }
 extension for Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        return "woof";
+    }
 }
 
 function greet(pet: Cat | Dog): string {
-    pet.speak()  // Resolution::Dynamic { candidates: [Cat.speak, Dog.speak] }
+    return pet.speak();  // Resolution::Dynamic { candidates: [Cat.speak, Dog.speak] }
 }
 ```
 
@@ -522,9 +531,9 @@ function greet(pet: Cat | Dog): string {
 // after reify
 function greet(pet: Cat | Dog): string {
     if (pet is Cat) {
-        pet.speak()  // Resolution::Static { target: Cat.speak }
+        return pet.speak();  // Resolution::Static { target: Cat.speak }
     } else {
-        pet.speak()  // Resolution::Static { target: Dog.speak }
+        return pet.speak();  // Resolution::Static { target: Dog.speak }
     }
 }
 ```
@@ -537,17 +546,20 @@ Field access on union types where fields have different offsets or types.
 
 ```ds
 // source
-struct User { name: string, age: int32 }
+struct User { 
+    name: string;
+    age: int32;
+}
 
 function getName(u: User): string {
-    u.name  // Resolution::Static { target: User.name }
+    return u.name;  // Resolution::Static { target: User.name }
 }
 ```
 
 ```ds
 // after reify (unchanged, already static)
 function getName(u: User): string {
-    u.name  // Resolution::Static { target: User.name }
+    return u.name;  // Resolution::Static { target: User.name }
 }
 ```
 
@@ -555,11 +567,18 @@ function getName(u: User): string {
 
 ```ds
 // source
-struct User { name: string, role: string }
-struct Admin { name: string, level: int32 }
+struct User { 
+    name: string;
+    role: string;
+}
+
+struct Admin { 
+    name: string; 
+    level: int32;
+}
 
 function getName(person: User | Admin): string {
-    person.name  // Resolution::Dynamic { candidates: [User.name, Admin.name] }
+    return person.name;  // Resolution::Dynamic { candidates: [User.name, Admin.name] }
 }
 ```
 
@@ -567,9 +586,9 @@ function getName(person: User | Admin): string {
 // after reify
 function getName(person: User | Admin): string {
     if (person is User) {
-        person.name  // Resolution::Static { target: User.name }
+        return person.name;  // Resolution::Static { target: User.name }
     } else {
-        person.name  // Resolution::Static { target: Admin.name }
+        return person.name;  // Resolution::Static { target: Admin.name }
     }
 }
 ```
@@ -583,14 +602,14 @@ Index operations on union types with different `Index` implementations.
 ```ds
 // source
 function first(arr: int32[]): int32 {
-    arr[0]  // Resolution::Static { target: Array.index }
+    return arr[0];  // Resolution::Static { target: Array.index }
 }
 ```
 
 ```ds
 // after reify (unchanged, already static)
 function first(arr: int32[]): int32 {
-    arr[0]  // Resolution::Static { target: Array.index }
+    return arr[0];  // Resolution::Static { target: Array.index }
 }
 ```
 
@@ -600,11 +619,13 @@ function first(arr: int32[]): int32 {
 // source
 struct Vec2 { x: int32, y: int32 }
 extension for Vec2 implements Index<int32, int32> {
-    index(i: int32): int32 { if (i == 0) this.x else this.y }
+    index(i: int32): int32 { 
+        if (i == 0) { 
+            this.x else this.y }
 }
 
 function getFirst(v: int32[] | Vec2): int32 {
-    v[0]  // Resolution::Dynamic { candidates: [Array.index, Vec2.index] }
+    return v[0];  // Resolution::Dynamic { candidates: [Array.index, Vec2.index] }
 }
 ```
 
@@ -612,9 +633,9 @@ function getFirst(v: int32[] | Vec2): int32 {
 // after reify
 function getFirst(v: int32[] | Vec2): int32 {
     if (v is int32[]) {
-        v[0]  // Resolution::Static { target: Array.index }
+        return (v /* as int32[] */).[0]  // Resolution::Static { target: Array.index }
     } else {
-        v[0]  // Resolution::Static { target: Vec2.index }
+        return (v /* as Vec2 */).index(0)  // Resolution::Static { target: Vec2.index }
     }
 }
 ```
@@ -622,28 +643,24 @@ function getFirst(v: int32[] | Vec2): int32 {
 ### Reify nominal constructor calls into tagged expressions
 
 Calls that Analyze resolves as nominal constructors become tagged expressions in DIR.
-This preserves newtype and nominal struct intent for Lower and codegen.
-Tagged object literals (`Type { ... }`) are already bound as `TaggedObjectExpression`.
-Reify only needs to handle call-form constructors (primarily newtypes).
+Note that tagged object literals (`Type { ... }`) are already bound as `TaggedObjectExpression`, so reify only needs to handle call-form constructors (primarily newtypes).
 
 ```ds
 newtype UserId = int64;
 newtype Point = (float32, float32);
 
 function build(): (UserId, Point) {
-    let id = UserId(42); // code looks the same
-    let point = Point(1.0, 2.0); // code looks the same
+    let id = UserId(42);          
+    let point = Point(1.0, 2.0);
     return (id, point);
 }
 ```
 
-### Desugar Try, Maybe, Must, and Coalesce
+### Desugar Try (and related Maybe, Must, and Coalesce)
 
-Overload resolution is reified in all profiles.
-This uses the same resolution machinery as operator overloading.
+Overload resolution is reified in all profiles, using the same resolution machinery as operator overloading.
 If no overload exists, explicit control flow is inserted.
 Coalesce uses Try semantics when the left side implements Try and nullish semantics otherwise.
-Profiles with native nullish operators may keep them instead of rewriting (TBD).
 
 ```ds
 // source
@@ -677,86 +694,106 @@ function loadCount(): Result<int32, Error> {
 }
 ```
 
+Profiles with native nullish operators may keep them instead of rewriting (TBD).
+
 ```ds
 // source
 function nameOrDefault(name: string | undefined, fallback: string): string {
-    name ?? fallback
+    return name ?? fallback;
 }
 ```
 
 ```ds
 // JS/TS profile reify
 function nameOrDefault(name: string | undefined, fallback: string): string {
-    name ?? fallback
+    return name ?? fallback;
 }
 ```
 
 ```ds
 // native profile reify
 function nameOrDefault(name: string | undefined, fallback: string): string {
-    if (name == null || name == undefined) fallback else name
+    if (name == null || name == undefined) {
+        return fallback;
+    } else {
+        return name;
+    }
 }
 ```
+
+THe same goes for the must (`!`) operator:
 
 ```ds
 // source
 function requireName(name: string | null): string {
-    name!
+    return name!;
 }
 ```
 
 ```ds
 // after reify
 function requireName(name: string | null): string {
-    if (name == null || name == undefined) throw "nullish value" else name
+    if (name == null || name == undefined) {
+        throw "nullish value"; // TODO #Cleanup: revisit try-related reification
+    } else {
+        return name;
+    }
 }
 ```
 
-### Realize tree literals via TreeTag and TreeTagBuilder
+### Realize tree literals (via `TreeTag` and `TreeTagBuilder`)
 
-Tree literals are realized via tag routing, not a renderer protocol.
+Tree literals are realized via "tag routing".
 Value tags (e.g. `<Button />`) lower through `fromTree` on the resolved `TreeTag`.
+
+```ds
+// source
+function view(label: string): unknown {
+    return <Button>{label}</Button>;
+}
+```
+
+```ds
+// after reify
+function view(label: string): unknown {
+    return Button.fromTree({}, [label]);
+}
+```
+
 Intrinsic tags (e.g. `<div />` and `<svg:path />`) lower through the active `TreeTagBuilder`.
+
+```ds
+// source
+function panel(label: string): unknown {
+    return <div className="card">{label}</div>;
+}
+```
+
+```ds
+// after reify
+function panel(label: string): unknown {
+    return TreeTagBuilder.Tag<"div">.fromTree({ className: "card" }, [label]);
+}
+```
+
+Same goes for XML-style-namespaced intrinsic tags like `svg:path`:
+
+```ds
+// source
+function namespaced(): unknown {
+    return <svg:path />;
+}
+```
+
+```ds
+// after reify
+function namespaced(): unknown {
+    return TreeTagBuilder.Tag<"svg:path">.fromTree({}, []);
+}
+```
+
 Fragment syntax lowers through the builder `Fragment` tag.
 
 ```ds
-// source
-function view(label: string): unknown {
-    <Button>{label}</Button>
-}
-```
-
-```ds
-// after reify
-function view(label: string): unknown {
-    Button.fromTree({}, [label])
-}
-```
-
-```ds
-// source
-function panel(label: string): unknown {
-    <div className="card">{label}</div>
-}
-```
-
-```ds
-// after reify
-function panel(label: string): unknown {
-    TreeTagBuilder.Tag<"div">.fromTree({ className: "card" }, [label])
-}
-```
-
-```ds
-// source
-function namespaced(): unknown {
-    <svg:path />
-}
-```
-
-```ds
-// after reify
-function namespaced(): unknown {
-    TreeTagBuilder.Tag<"svg:path">.fromTree({}, [])
-}
+// TODO #Incomplete: revisit TreeTag reification (?)
 ```

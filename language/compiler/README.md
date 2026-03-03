@@ -1,6 +1,11 @@
 # Destack Compiler
 
-The Destack compiler takes JavaScript, TypeScript and Destack source files (`.(ds|ts|tsx|js|jsx)`) and by the power of magic and the art of computer science transforms them into executable artifacts like (`.(js|ts|wasm|o)`) with a classic multi-phase compilation pipeline.
+The Destack compiler takes JavaScript, TypeScript and Destack source files (`.(ds|ts|tsx|js|jsx)`) and by the power of magic and the art of computer science transforms them into executable artifacts like (`.(js|ts|wasm|o)`) with a (mostly) classic multi-phase compilation pipeline.
+Most of the compilation logic lives in `language/compiler`, with a few externalized crates for better organization:
+ - **Import** (I) uses `language/parser` for parsing code modules (but not data modules)
+ - **Resolve** (R) uses `language/resolver` for module path resolution (but not symbol resolution)
+ - **Generate** (G) uses `language/codegen` for most of the actual codegen (incl. vendored Cranelift)
+ - **Lint** (L) uses `language/linter` for the main linting logic
 
 ## Pipeline
 
@@ -40,11 +45,22 @@ Like most compilers, the Destack compiler has three main regions:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Representations
+
+The compiler uses three main intermediate representations from raw syntax form (AST) to canonical analyzed form (DIR) to canonical machine form (MIR).
+
+| Representation | Full Name | Description |
+|----------------|-----------|-------------|
+| AST | Abstract Syntax Tree | Untyped syntax tree, close to source text (~=CST) |
+| DIR | Destack IR | Semantic IR with symbols, scopes, and types (base, canonical, patched) |
+| MIR | Machine IR | Monomorphic, target-aware IR for comptime execution, optimization, and native codegen |
+
 ## Phases
 
-Each phase transforms or enriches the `Program`.
-Phases are identified by a single letter for tracing and diagnostics, and just because that seems kind of nice.
-Linting is a separate "phase" that conceptually runs alongside the pipeline; this is very convenient for running zero-copy checks in-process on the same rich IR (and in parallel, too).
+The compiler is divided into ~10 phases from raw text to final output, some of which may be skipped, and most of which can run in parallel across different modules (but never per module).
+Each phase is identified by a single letter for tracing and diagnostics, and just because that seems kind of nice.
+
+Note that linting is a separate "phase" that conceptually runs alongside the pipeline; this is very convenient for running zero-copy checks in-process on the same rich IRs (and in parallel, too).
 
 ### Front-End
 
@@ -79,23 +95,7 @@ The "back-end" generates target artifacts from DIR (for JS/TS) or MIR (for nativ
 | Link | `K` | artifacts | linked | Link artifacts into final output |
 | Emit | `W` | linked | files | Write linked output to disk |
 
-### Lint
-
-| Phase | Letter | Input | Output | Description |
-|-------|--------|-------|--------|-------------|
-| Lint | `L` | DIR | diagnostics | Lint the program (runs alongside the pipeline) |
-
-## Representations
-
-The compiler uses three main intermediate representations.
-
-| Representation | Full Name | Description |
-|----------------|-----------|-------------|
-| AST | Abstract Syntax Tree | Untyped syntax tree, close to source text (~=CST) |
-| DIR | Destack IR | Semantic IR with symbols, scopes, and types (base, canonical, patched) |
-| MIR | Machine IR | Monomorphic, target-aware IR for comptime execution, optimization, and native codegen |
-
-## Profiles and Targets
+## Profiles, Platforms and Targets
 
 A **profile** is a semantic configuration, a "comptime world" that determines which symbols exist, how types resolve, and what the global constants (like `import.meta`) are.
 A **target** is a build output, with specific settings for code generation, optimization, and output paths.
@@ -120,7 +120,7 @@ See [builtin/README.md](../builtin/README.md) for the full structure, basically,
 
 ## Structure
 
-The compiler is organized into modules (roughly) corresponding to each phase.
+The compiler is organized into modules (roughly) corresponding to each phase, plus some additional administrative modules (like `compile/` and `unbind/` and `tests/`).
 
 | Path | Description | Source |
 |------|-------------|--------|

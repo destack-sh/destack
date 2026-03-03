@@ -5,19 +5,15 @@ Transforms source text into the [Destack AST](../ast/README.md).
 
 ## Overview
 
-The parser handles `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` files uniformly.
-Destack syntax is a superset of TypeScript, so valid TS/JS parses to a valid AST subset.
+The parser handles `.ds`, `.ts`, `.tsx`, `.js`, and `.jsx` files (mostly) uniformly.
+Destack syntax is a superset of (modern, strict) TypeScript, so valid TS/JS parses to a valid Destack AST subset.
 
 ### "Recursive Descent"
 
-The parser uses recursive descent with operator precedence climbing.
-(Why this deserves a special name is unclear: it's just how you write a parser.)
+The parser uses "recursive descent" with operator precedence climbing.
+(Why this deserves a special name is still unclear to me: it's just how you write a parser?)
 
 Like most parsers, we use a lookahead and some context to make parsing decisions.
-Many syntactic ambiguities in TypeScript (and some more in Destack) require context tracking:
-
-### Error Recovery
-
 The parser tries to continue after errors to report multiple diagnostics per file.
 We use synchronization points (`;`, `}`, keywords) to resync after malformed input.
 
