@@ -530,28 +530,19 @@ pub(crate) fn try_attach_comment_declaration_return_type_seam(
     Some((Some(target_node), AnnotationPosition::LinePrefix))
 }
 
-/// One normalized assignment seam side for one type declaration value seam.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TypeValueAssignmentSeamSide {
-    /// The seam appears before one `=`.
-    Before,
-    /// The seam appears after one `=`.
-    After,
-}
-
-/// Return assignment seam side for one type declaration value seam.
-fn type_value_assignment_seam_side(
+/// Return whether one type-value declaration seam is adjacent to one `=` token.
+fn type_value_seam_is_adjacent_to_assignment(
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
-) -> Option<TypeValueAssignmentSeamSide> {
+) -> bool {
     // direct seam match before `=`
     if seam.token_before_is(TokenType::Assign) {
-        return Some(TypeValueAssignmentSeamSide::Before);
+        return true;
     }
 
     // direct seam match after `=`
     if seam.token_after_is(TokenType::Assign) {
-        return Some(TypeValueAssignmentSeamSide::After);
+        return true;
     }
 
     // trivia before comment still belongs to the left assignment seam
@@ -562,7 +553,7 @@ fn type_value_assignment_seam_side(
             previous_non_trivia_token_index(context.semantic_tokens, token_before_index)
         && context.semantic_tokens[previous_index].token.ty == TokenType::Assign
     {
-        return Some(TypeValueAssignmentSeamSide::Before);
+        return true;
     }
 
     // trivia after comment still belongs to the right assignment seam
@@ -573,10 +564,10 @@ fn type_value_assignment_seam_side(
             next_non_trivia_token_index(context.semantic_tokens, token_after_index)
         && context.semantic_tokens[next_index].token.ty == TokenType::Assign
     {
-        return Some(TypeValueAssignmentSeamSide::After);
+        return true;
     }
 
-    None
+    false
 }
 
 /// Resolve declaration comments before trailing semicolons to declaration boundary ownership.
@@ -587,9 +578,10 @@ fn try_attach_comment_declaration_before_semicolon_seam(
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    // this rule only applies to same-line line comments before `;`
+    // this rule only applies to same-line comments before `;`
+    let seam_has_supported_comment_style = seam.comment_is_line || seam.comment_is_star;
     if seam.has_leading_newline
-        || !seam.comment_is_line
+        || !seam_has_supported_comment_style
         || !seam.token_after_is(TokenType::Semicolon)
         || seam.token_before_is(TokenType::Semicolon)
     {
@@ -602,6 +594,12 @@ fn try_attach_comment_declaration_before_semicolon_seam(
         .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
         .or(owners.preceding)
         .or(owners.following)?;
+
+    // member-level semicolon seams are handled by member/statement routing
+    if promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Member).is_some()
+    {
+        return None;
+    }
 
     // normalize to declaration boundary ownership
     let target_owner = promote_owner_to_declaration_ancestor(tree, parents, target_owner)?;
@@ -618,61 +616,45 @@ pub(crate) fn try_attach_comment_declaration_type_value_seam(
     seam: &CommentSeamData,
     owners: CommentAttachmentNeighbors,
 ) -> Option<CommentAttachment> {
-    // own-line line comments between declaration head and `=` are supported here
-    if !seam.comment_is_line || !seam.has_leading_newline || !seam.has_trailing_newline {
+    // own-line comments between declaration head and `=` are supported here
+    let seam_has_supported_comment_style = seam.comment_is_line || seam.comment_is_star;
+    if !seam_has_supported_comment_style || !seam.has_leading_newline || !seam.has_trailing_newline
+    {
         return None;
     }
 
-    // classify the seam side relative to assignment token ownership
-    let Some(seam_side) = type_value_assignment_seam_side(context, seam) else {
+    // keep this rule only for seams around assignment in type declarations
+    if !type_value_seam_is_adjacent_to_assignment(context, seam) {
         return None;
-    };
+    }
 
-    // resolve the declaration owner from seam side token neighborhood
-    let declaration_owner = if seam_side == TypeValueAssignmentSeamSide::Before {
-        context
-            .token_after_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            .or_else(|| {
-                owners
-                    .following
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-            .or_else(|| {
-                owners
-                    .preceding
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-    } else {
-        context
-            .token_before_span
-            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            .or_else(|| {
-                owners
-                    .preceding
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-            .or_else(|| {
-                owners
-                    .following
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-    }?;
+    // resolve the declaration owner from the seam neighborhood
+    let declaration_owner = context
+        .token_after_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        .or_else(|| {
+            context
+                .token_before_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })
+        .or_else(|| {
+            owners
+                .following
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })
+        .or_else(|| {
+            owners
+                .preceding
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })?;
 
     // map declaration owner to the declaration value expression owner
     let target_node = declaration_owner_type_value_expression_owner(tree, declaration_owner)?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
 
-    // before-assignment seams stay block-prefix, after-assignment seams stay line-prefix
-    let position = if seam_side == TypeValueAssignmentSeamSide::Before {
-        AnnotationPosition::BlockPrefix
-    } else {
-        AnnotationPosition::LinePrefix
-    };
-
-    Some((Some(target_node), position))
+    Some((Some(target_node), AnnotationPosition::BlockPrefix))
 }
 
 /// Resolve declaration seam comment rules.
