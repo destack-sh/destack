@@ -11,4 +11,3 @@ js/ternaries/nested.js
 js/unary-expression/comments.js
 typescript/arrow/16067.ts
 typescript/interface2/comments-ts-only/18278.ts
-typescript/union/consistent-with-flow/single-type.ts

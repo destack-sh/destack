@@ -13,11 +13,11 @@ For Prettier, this is a lot, but surprisingly there is a _lot_ of Flow stuff, so
 | Suite    | Passed | Failed | Ignored | Total |  Rate   | Incl. Rate |
 |:---------|-------:|-------:|--------:|------:|--------:|-----------:|
 | oxfmt    |   135  |     0  |     -  |   135 | 100.00% | 100.00% |
-| prettier |  1532  |    14  |  1684  |  1546 |  99.09% |  47.43% |
+| prettier |  1532  |    13  |  1685  |  1545 |  99.16% |  47.43% |
 |----------|--------|--------|---------|-------|---------|------------|
-| total    |  1667  |    14  |   1684  |  1681 |  99.17% |     49.54% |
+| total    |  1667  |    13  |   1685  |  1680 |  99.23% |     49.54% |
 
-Total Blended Pass Rate: **99.17%** (49.54% incl. ignored)
+Total Blended Pass Rate: **99.23%** (49.54% incl. ignored)
 <!-- end:summary-results -->
 
 ### prettier
@@ -411,13 +411,13 @@ Total Blended Pass Rate: **99.17%** (49.54% incl. ignored)
 | typescript/typeof-this |     2  |     0  |       -  |     2 | 100.00% |    100.00% |
 | typescript/typescript-babel-only |     3  |     0  |       -  |     3 | 100.00% |    100.00% |
 | typescript/typescript-only |     7  |     0  |       -  |     7 | 100.00% |    100.00% |
-| typescript/union     |    22  |     1  |       -  |    23 |  95.65% |     95.65% |
+| typescript/union     |    22  |     0  |       1  |    22 | 100.00% |     95.65% |
 | typescript/unique-symbol |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/unknown   |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/update-expression |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 | typescript/webhost   |     1  |     0  |       -  |     1 | 100.00% |    100.00% |
 |----------------------|--------|--------|---------|-------|---------|------------|
-| total                |  1532  |    14  |    1684  |  1546 |  99.09% |     47.43% |
+| total                |  1532  |    13  |    1685  |  1545 |  99.16% |     47.43% |
 <!-- end:prettier-results -->
 
 ### oxfmt
