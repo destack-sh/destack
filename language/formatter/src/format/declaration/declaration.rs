@@ -37,7 +37,18 @@ struct NormalizedTypeAliasValueExpression {
     /// The normalized value expression to print.
     value_id: LocalNodeId<Expression>,
     /// Transparent wrapper owners whose prefix annotations stay before `value_id`.
-    dropped_prefix_annotation_owner_ids: Vec<LocalNodeId<Expression>>,
+    transparent_wrapper_prefix_annotation_owner_ids: Vec<LocalNodeId<Expression>>,
+}
+
+/// Aggregated annotation facts for transparent wrapper owners.
+#[derive(Default)]
+struct TransparentWrapperAnnotationFacts {
+    /// Whether any transparent wrapper has a block-prefix annotation.
+    has_block_prefix_annotation: bool,
+    /// Whether any transparent wrapper has an own-line prefix annotation.
+    has_own_line_prefix_annotation: bool,
+    /// Whether any transparent wrapper has an own-line line-prefix annotation before `|`.
+    has_own_line_pipe_prefix_annotation: bool,
 }
 
 /// Normalize one TypeScript type-alias value through transparent grouping wrappers.
@@ -50,17 +61,17 @@ fn normalize_typescript_type_alias_value_expression(
     if context.options.language_type.is_destack() {
         return NormalizedTypeAliasValueExpression {
             value_id,
-            dropped_prefix_annotation_owner_ids: Vec::new(),
+            transparent_wrapper_prefix_annotation_owner_ids: Vec::new(),
         };
     }
 
     let mut current_id = value_id;
-    let mut dropped_prefix_annotation_owner_ids = Vec::new();
+    let mut transparent_wrapper_prefix_annotation_owner_ids = Vec::new();
     loop {
         match context.tree.get(current_id) {
             Expression::Statement(inner_expression_id) => {
                 if context.has_prefix_annotation(current_id) {
-                    dropped_prefix_annotation_owner_ids.push(current_id);
+                    transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
                 }
                 current_id = *inner_expression_id;
                 continue;
@@ -69,7 +80,7 @@ fn normalize_typescript_type_alias_value_expression(
                 expression: inner_expression_id,
             } => {
                 if context.has_prefix_annotation(current_id) {
-                    dropped_prefix_annotation_owner_ids.push(current_id);
+                    transparent_wrapper_prefix_annotation_owner_ids.push(current_id);
                 }
                 current_id = *inner_expression_id;
                 continue;
@@ -98,7 +109,7 @@ fn normalize_typescript_type_alias_value_expression(
 
     NormalizedTypeAliasValueExpression {
         value_id: current_id,
-        dropped_prefix_annotation_owner_ids,
+        transparent_wrapper_prefix_annotation_owner_ids,
     }
 }
 
@@ -191,64 +202,77 @@ fn type_alias_value_is_type_binary_expression(
     }
 }
 
-/// Return whether dropped wrappers include one own-line `|` line-prefix seam comment.
-fn dropped_wrappers_have_own_line_pipe_prefix_annotation(
+/// Build annotation facts for one transparent wrapper owner.
+fn transparent_wrapper_annotation_facts_for_expression(
     context: &DestackFormatContext<'_>,
-    expression_ids: &[LocalNodeId<Expression>],
-) -> bool {
-    expression_ids.iter().copied().any(|expression_id| {
-        context
-            .visit_annotations(expression_id, |annotations| {
-                annotations.iter().copied().any(|annotation_id| {
-                    matches!(
-                        context.annotation(annotation_id).position(),
-                        AnnotationPosition::LinePrefix
-                    ) && context.annotation_starts_on_own_line(annotation_id)
-                        && context.annotation_next_token_is_on_same_line(annotation_id)
-                        && context.annotation_next_non_whitespace_token_type(annotation_id)
-                            == Some(TokenType::ElementwiseOr)
-                })
-            })
-            .unwrap_or(false)
-    })
+    expression_id: LocalNodeId<Expression>,
+) -> TransparentWrapperAnnotationFacts {
+    let mut facts = TransparentWrapperAnnotationFacts::default();
+
+    context
+        .visit_annotations(expression_id, |annotations| {
+            for annotation_id in annotations.iter().copied() {
+                let position = context.annotation(annotation_id).position();
+                let starts_on_own_line = context.annotation_starts_on_own_line(annotation_id);
+
+                if position == AnnotationPosition::BlockPrefix {
+                    facts.has_block_prefix_annotation = true;
+                }
+
+                if matches!(
+                    position,
+                    AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+                ) && starts_on_own_line
+                {
+                    facts.has_own_line_prefix_annotation = true;
+                }
+
+                if position == AnnotationPosition::LinePrefix
+                    && starts_on_own_line
+                    && context.annotation_next_token_is_on_same_line(annotation_id)
+                    && context.annotation_next_non_whitespace_token_type(annotation_id)
+                        == Some(TokenType::ElementwiseOr)
+                {
+                    facts.has_own_line_pipe_prefix_annotation = true;
+                }
+
+                if facts.has_block_prefix_annotation
+                    && facts.has_own_line_prefix_annotation
+                    && facts.has_own_line_pipe_prefix_annotation
+                {
+                    break;
+                }
+            }
+        })
+        .unwrap_or(());
+
+    facts
 }
 
-/// Return whether dropped wrappers include one block-prefix annotation.
-fn dropped_wrappers_have_block_prefix_annotation(
+/// Build annotation facts for transparent wrapper owners around one type-alias value.
+fn collect_transparent_wrapper_annotation_facts(
     context: &DestackFormatContext<'_>,
     expression_ids: &[LocalNodeId<Expression>],
-) -> bool {
-    expression_ids.iter().copied().any(|expression_id| {
-        context
-            .visit_annotations(expression_id, |annotations| {
-                annotations.iter().copied().any(|annotation_id| {
-                    matches!(
-                        context.annotation(annotation_id).position(),
-                        AnnotationPosition::BlockPrefix
-                    )
-                })
-            })
-            .unwrap_or(false)
-    })
-}
+) -> TransparentWrapperAnnotationFacts {
+    let mut facts = TransparentWrapperAnnotationFacts::default();
 
-/// Return whether dropped wrappers include one own-line prefix annotation.
-fn dropped_wrappers_have_own_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_ids: &[LocalNodeId<Expression>],
-) -> bool {
-    expression_ids.iter().copied().any(|expression_id| {
-        context
-            .visit_annotations(expression_id, |annotations| {
-                annotations.iter().copied().any(|annotation_id| {
-                    matches!(
-                        context.annotation(annotation_id).position(),
-                        AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-                    ) && context.annotation_starts_on_own_line(annotation_id)
-                })
-            })
-            .unwrap_or(false)
-    })
+    for expression_id in expression_ids.iter().copied() {
+        let expression_facts =
+            transparent_wrapper_annotation_facts_for_expression(context, expression_id);
+        facts.has_block_prefix_annotation |= expression_facts.has_block_prefix_annotation;
+        facts.has_own_line_prefix_annotation |= expression_facts.has_own_line_prefix_annotation;
+        facts.has_own_line_pipe_prefix_annotation |=
+            expression_facts.has_own_line_pipe_prefix_annotation;
+
+        if facts.has_block_prefix_annotation
+            && facts.has_own_line_prefix_annotation
+            && facts.has_own_line_pipe_prefix_annotation
+        {
+            break;
+        }
+    }
+
+    facts
 }
 
 /// Format one declaration export modifier and export-head seam comments.
@@ -702,7 +726,12 @@ pub(crate) fn format_type_alias_declaration<'ast>(
 ) -> FormatResult<()> {
     let normalized_value = normalize_typescript_type_alias_value_expression(f.context(), value_id);
     let value_id = normalized_value.value_id;
-    let dropped_prefix_annotation_owner_ids = normalized_value.dropped_prefix_annotation_owner_ids;
+    let transparent_wrapper_prefix_annotation_owner_ids =
+        normalized_value.transparent_wrapper_prefix_annotation_owner_ids;
+    let transparent_wrapper_annotation_facts = collect_transparent_wrapper_annotation_facts(
+        f.context(),
+        transparent_wrapper_prefix_annotation_owner_ids.as_slice(),
+    );
     let value_expression = f.context().tree.get(value_id);
     let value_is_type_binary = type_alias_value_is_type_binary_expression(f.context(), value_id);
     let value_is_type_union = matches!(
@@ -712,21 +741,9 @@ pub(crate) fn format_type_alias_declaration<'ast>(
             ..
         }
     ) && is_type_context(f.context(), value_id);
-    let dropped_prefix_has_block_prefix_annotation = dropped_wrappers_have_block_prefix_annotation(
-        f.context(),
-        dropped_prefix_annotation_owner_ids.as_slice(),
-    );
-    let dropped_prefix_has_own_line_prefix_annotation =
-        dropped_wrappers_have_own_line_prefix_annotation(
-            f.context(),
-            dropped_prefix_annotation_owner_ids.as_slice(),
-        );
-    let dropped_has_own_line_pipe_prefix_annotation = value_is_type_union
-        && dropped_prefix_has_block_prefix_annotation
-        && dropped_wrappers_have_own_line_pipe_prefix_annotation(
-            f.context(),
-            dropped_prefix_annotation_owner_ids.as_slice(),
-        );
+    let transparent_wrapper_has_own_line_pipe_prefix_annotation = value_is_type_union
+        && transparent_wrapper_annotation_facts.has_block_prefix_annotation
+        && transparent_wrapper_annotation_facts.has_own_line_pipe_prefix_annotation;
 
     let header = format_with(|f| {
         // export
@@ -766,23 +783,27 @@ pub(crate) fn format_type_alias_declaration<'ast>(
 
     let tree = f.context().tree;
     let format_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if !dropped_prefix_annotation_owner_ids.is_empty() {
-            let format_dropped_prefix = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                for expression_id in dropped_prefix_annotation_owner_ids.iter().copied() {
-                    write!(f, [f.context().any_prefix_annotations(expression_id)])?;
-                }
+        if !transparent_wrapper_prefix_annotation_owner_ids.is_empty() {
+            let format_transparent_wrapper_prefix =
+                format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    for expression_id in transparent_wrapper_prefix_annotation_owner_ids
+                        .iter()
+                        .copied()
+                    {
+                        write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+                    }
 
-                Ok(())
-            });
+                    Ok(())
+                });
 
             if value_is_type_binary {
-                write!(f, [indent(&format_dropped_prefix)])?;
+                write!(f, [indent(&format_transparent_wrapper_prefix)])?;
             } else {
-                write!(f, [format_dropped_prefix])?;
+                write!(f, [format_transparent_wrapper_prefix])?;
             }
         }
 
-        if dropped_has_own_line_pipe_prefix_annotation {
+        if transparent_wrapper_has_own_line_pipe_prefix_annotation {
             let operands = flatten_type_binary_expression(
                 f.context(),
                 value_id,
@@ -853,9 +874,9 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     };
     let value_has_own_line_prefix_annotation =
         expression_has_own_line_prefix_annotation(f.context(), value_id)
-            || dropped_prefix_has_own_line_prefix_annotation;
+            || transparent_wrapper_annotation_facts.has_own_line_prefix_annotation;
     let should_break_for_prefix_annotation = if value_is_type_binary {
-        dropped_has_own_line_pipe_prefix_annotation
+        transparent_wrapper_has_own_line_pipe_prefix_annotation
     } else {
         value_has_own_line_prefix_annotation
     };
