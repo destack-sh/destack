@@ -51,7 +51,7 @@ resolve_version() {
         return
     fi
 
-    local version_path="${DESTACK_REPOSITORY_ROOT}/VERSION"
+    local version_path="${DESTACK_REPOSITORY_ROOT}/VERSION.txt"
     if [ -f "${version_path}" ]; then
         local version_file
         version_file="$(tr -d '[:space:]' < "${version_path}")"
@@ -61,7 +61,7 @@ resolve_version() {
         fi
     fi
 
-    fail "release version not provided and VERSION is missing"
+    fail "release version not provided and VERSION.txt is missing"
 }
 
 # resolve the version in bridge/zed/extension.toml
@@ -227,7 +227,7 @@ validate_semver "${DESTACK_RELEASE_VERSION}"
 
 DESTACK_MANIFEST_VERSION="$(resolve_manifest_version)"
 if [ "${DESTACK_MANIFEST_VERSION}" != "${DESTACK_RELEASE_VERSION}" ]; then
-    fail "version mismatch: VERSION=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
+    fail "version mismatch: VERSION.txt=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
 fi
 
 # resolve the source commit for the zed registry submodule pointer

@@ -1,6 +1,6 @@
 {
     "name": "@destack/typescript",
-    "version": "0.55.2",
+    "version": "0.55.3",
     "description": "Destack client for TypeScript and JavaScript",
     "license": "MIT",
     "type": "module",

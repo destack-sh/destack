@@ -1,6 +1,6 @@
 {
     "name": "@destack/cli-darwin-x64",
-    "version": "0.55.2",
+    "version": "0.55.3",
     "license": "MIT",
     "description": "Destack CLI binaries for darwin x64",
     "os": ["darwin"],

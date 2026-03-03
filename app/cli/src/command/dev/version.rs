@@ -7,7 +7,7 @@ use destack_source::glob;
 use crate::console;
 
 const FILE_GLOBS_TO_UPDATE: &[&str] = &[
-    "VERSION",
+    "VERSION.txt",
     "README.md",
     "Cargo.toml",
     "package.json",
@@ -17,6 +17,8 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "*/*/*/package.json",
 ];
 const FILE_GLOBS_TO_IGNORE: &[&str] = &[
+    "node_modules/",
+    "template/create-destack/templates/",
     "language/test/fixtures/",
     "language/grammar/destack/",
     "bridge/zed/grammars/",
@@ -133,10 +135,7 @@ pub fn bump(kind: &VersionCommands) -> i32 {
             vec![PathBuf::from(glob_path)]
         };
         for path in paths {
-            if FILE_GLOBS_TO_IGNORE
-                .iter()
-                .any(|ignore| path.to_string_lossy().contains(ignore))
-            {
+            if should_ignore_path(&path) {
                 continue;
             }
             console::print(&format!("  {}", path.display()));
@@ -169,6 +168,13 @@ pub fn bump(kind: &VersionCommands) -> i32 {
     }
 
     0
+}
+
+/// Return whether a path should be excluded from bulk version updates.
+fn should_ignore_path(path: &Path) -> bool {
+    FILE_GLOBS_TO_IGNORE
+        .iter()
+        .any(|ignore| path.to_string_lossy().contains(ignore))
 }
 
 /// Update a file with the new version.
@@ -221,7 +227,7 @@ fn update_readme_badge_version(text: &str, new_version: &str) -> Option<String> 
 
 /// Read the current version from the version file.
 fn read_current_version() -> Option<String> {
-    fs::read_to_string("VERSION")
+    fs::read_to_string("VERSION.txt")
         .ok()
         .map(|s| s.trim().to_string())
 }
@@ -307,5 +313,26 @@ mod tests {
         let error = update_file_version(path, source, "0.55.2", "0.55.3").unwrap_err();
 
         assert_eq!(error, "0.55.2 not found");
+    }
+
+    #[test]
+    fn test_should_ignore_path_for_node_modules() {
+        let path = Path::new("node_modules/agent-base/package.json");
+
+        assert!(should_ignore_path(path));
+    }
+
+    #[test]
+    fn test_should_not_ignore_path_for_workspace_package() {
+        let path = Path::new("bridge/vscode/package.json");
+
+        assert!(!should_ignore_path(path));
+    }
+
+    #[test]
+    fn test_should_ignore_path_for_project_template_package() {
+        let path = Path::new("template/create-destack/templates/empty/package.json");
+
+        assert!(should_ignore_path(path));
     }
 }

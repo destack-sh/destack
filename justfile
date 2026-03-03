@@ -293,7 +293,7 @@ fuzz-nightly duration="120":
 
 # show current version
 version:
-    @cat VERSION
+    @cat VERSION.txt
 
 # bump version: major, minor, or patch
 bump kind:
@@ -331,7 +331,7 @@ publish-live-local:
     just build
 
     if [ -d "${cli_artifacts_directory}" ]; then
-        just app/stage-cli-binaries-from-artifacts "$(cat VERSION)" "${cli_artifacts_directory}"
+        just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "${cli_artifacts_directory}"
     else
         # default local target selection to host target when not explicitly set
         if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
@@ -365,7 +365,7 @@ release kind message:
 
     # bump version
     just bump {{ kind }}
-    VERSION=$(cat VERSION)
+    VERSION=$(cat VERSION.txt)
 
     # check if changelog has entry for this version
     if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then

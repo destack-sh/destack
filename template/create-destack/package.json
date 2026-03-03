@@ -1,6 +1,6 @@
 {
     "name": "create-destack",
-    "version": "0.55.2",
+    "version": "0.55.3",
     "description": "Create Destack apps",
     "license": "MIT",
     "type": "module",

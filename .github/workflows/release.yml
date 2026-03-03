@@ -504,13 +504,13 @@ jobs:
           cp release-binaries/x86_64-pc-windows-msvc/* target/x86_64-pc-windows-msvc/release/
 
       - name: Package cli release archives
-        run: bash app/cli/install/package-release-artifacts.sh "$(cat VERSION)" release-cli-assets
+        run: bash app/cli/install/package-release-artifacts.sh "$(cat VERSION.txt)" release-cli-assets
 
       - name: Validate cli release archives
-        run: bash app/cli/install/validate-release-artifacts.sh "$(cat VERSION)" release-cli-assets
+        run: bash app/cli/install/validate-release-artifacts.sh "$(cat VERSION.txt)" release-cli-assets
 
       - name: Run installer smoke test
-        run: bash app/cli/install/test-install.sh "$(cat VERSION)" release-cli-assets
+        run: bash app/cli/install/test-install.sh "$(cat VERSION.txt)" release-cli-assets
 
       - name: Upload cli release assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -540,7 +540,7 @@ jobs:
       - name: Run windows installer smoke test
         shell: powershell
         run: |
-          $version = (Get-Content "VERSION").Trim()
+          $version = (Get-Content "VERSION.txt").Trim()
           $releaseTag = "v$version"
           $tempRoot = Join-Path $env:RUNNER_TEMP "destack-install-smoke-$env:GITHUB_RUN_ID"
           $releaseDirectory = Join-Path $tempRoot "releases\download\$releaseTag"
@@ -685,7 +685,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Stage cli npm binaries from release artifacts
-        run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION)" "release-cli-assets"
+        run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION.txt)" "release-cli-assets"
 
       - name: Validate publish secrets
         run: |
@@ -740,7 +740,7 @@ jobs:
 
       - name: Publish zed registry PR
         if: inputs.publish_zed == true
-        run: just bridge/publish-zed "" "$(cat VERSION)"
+        run: just bridge/publish-zed "" "$(cat VERSION.txt)"
         env:
           GH_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           DESTACK_ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}
