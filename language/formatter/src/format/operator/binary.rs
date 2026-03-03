@@ -2159,10 +2159,10 @@ pub(crate) fn format_binary_expression<'ast>(
     };
     let should_force_type_binary_expansion = is_type_intersection
         && type_binary_operands_are_structurally_complex(f.context(), &operands);
-    let has_node_annotation = f.context().has_annotation(node_id);
+    let has_node_annotation = f.context().has_non_blank_annotation(node_id);
     let has_operand_annotations = operands
         .iter()
-        .any(|operand| f.context().has_annotation(operand.expression));
+        .any(|operand| f.context().has_non_blank_annotation(operand.expression));
     let has_operand_prefix_comments = operands
         .iter()
         .any(|operand| expression_has_leading_prefix_comment(f.context(), operand.expression));
