@@ -2,9 +2,9 @@ use crate::format::collection::list_like;
 use crate::format::declaration::signature::{
     FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
-    signature_return_type_is_multiline, signature_should_elide_space_before_body,
-    single_parameter_should_hug, write_empty_parameter_list_with_interior_annotations,
-    write_function_header_prefix, write_signature_dynamic_parameter_list,
+    signature_should_elide_space_before_body, single_parameter_should_hug,
+    write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
+    write_signature_dynamic_parameter_list,
 };
 use crate::format::directive::{
     FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -632,8 +632,6 @@ where
     } else if signature.dynamic_parameters.len() == 1
         && !should_expand_parameters
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
-        && !signature_return_type_is_multiline(f.context(), signature.return_type)
-        && !signature_is_multiline_before_body
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {

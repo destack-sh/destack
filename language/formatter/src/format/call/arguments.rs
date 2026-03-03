@@ -221,7 +221,6 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         );
     let has_hug_blocking_comment_annotation =
         argument_has_callback_blocking_comment_annotation(f.context(), argument_id);
-
     // separator comment path
     if let Some(comment_source) = separator_line_comment_source.as_ref() {
         format_single_plain_argument_with_separator_line_comment(f, argument_id, comment_source)?;
@@ -361,7 +360,8 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         call_node_id,
         group_id,
         argument_is_plain_call_argument(f.context(), argument_id),
-    )
+    )?;
+    Ok(())
 }
 
 /// Format call arguments with an active list group id.

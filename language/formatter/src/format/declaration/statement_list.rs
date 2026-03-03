@@ -168,52 +168,6 @@ fn write_expression_postfix_annotations<'ast>(
     )
 }
 
-/// Return whether an expression or declaration wrapper has one non-comment prefix annotation.
-fn expression_has_effective_non_comment_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let has_non_comment_prefix_annotation = context
-        .annotations(expression_id)
-        .map(|annotation_ids| {
-            annotation_ids.into_iter().any(|annotation_id| {
-                matches!(
-                    context.annotation(annotation_id),
-                    Annotation::Decorator {
-                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
-                        ..
-                    }
-                )
-            })
-        })
-        .unwrap_or(false);
-    if has_non_comment_prefix_annotation {
-        return true;
-    }
-
-    match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => context
-            .annotations(*declaration_id)
-            .map(|annotation_ids| {
-                annotation_ids.into_iter().any(|annotation_id| {
-                    matches!(
-                        context.annotation(annotation_id),
-                        Annotation::Decorator {
-                            position: AnnotationPosition::BlockPrefix
-                                | AnnotationPosition::LinePrefix,
-                            ..
-                        }
-                    )
-                })
-            })
-            .unwrap_or(false),
-        Expression::Statement(inner_id) => {
-            expression_has_effective_non_comment_prefix_annotation(context, *inner_id)
-        }
-        _ => false,
-    }
-}
-
 /// Return whether an expression or its declaration wrapper has a blank prefix annotation.
 fn expression_has_effective_blank_prefix_annotation(
     context: &DestackFormatContext<'_>,
@@ -408,8 +362,6 @@ pub(crate) fn format_block_of_statements<'ast>(
             let previous_expression_id = effective_expressions[i - 1];
             let has_blank_prefix_annotation =
                 expression_has_effective_blank_prefix_annotation(f.context(), expression_id);
-            let has_non_comment_prefix_annotation =
-                expression_has_effective_non_comment_prefix_annotation(f.context(), expression_id);
             let previous_has_blank_postfix_annotation =
                 expression_has_effective_blank_postfix_annotation(
                     f.context(),
@@ -453,7 +405,6 @@ pub(crate) fn format_block_of_statements<'ast>(
             };
             let uses_source_blank_line_without_leading_break = source_has_blank_line_between
                 && !has_blank_prefix_annotation
-                && !has_non_comment_prefix_annotation
                 && !previous_has_blank_postfix_annotation
                 && !has_ignore_range;
             if !has_ignore_range {
@@ -479,9 +430,7 @@ pub(crate) fn format_block_of_statements<'ast>(
                     // blank line after import section (if not already present)
                     !has_blank_prefix_annotation && !previous_has_blank_postfix_annotation
                 } else if source_has_blank_line_between {
-                    !has_blank_prefix_annotation
-                        && !has_non_comment_prefix_annotation
-                        && !previous_has_blank_postfix_annotation
+                    !has_blank_prefix_annotation && !previous_has_blank_postfix_annotation
                 } else {
                     false
                 };

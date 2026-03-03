@@ -498,12 +498,14 @@ where
     NodeTree: NodeTreeImpl<T>,
 {
     let span = context.span(node_id);
-    let end = match directive.position {
-        FormatterDirectivePosition::Prefix { .. } => span.end,
-        FormatterDirectivePosition::Postfix { comment_span } => comment_span.end.max(span.end),
+    let (start, end) = match directive.position {
+        FormatterDirectivePosition::Prefix { .. } => (span.start, span.end),
+        FormatterDirectivePosition::Postfix { comment_span } => {
+            (span.start, comment_span.end.max(span.end))
+        }
     };
 
-    Span::new(span.file, span.start, end)
+    Span::new(span.file, start, end)
 }
 
 /// Find the matching ignore range end comment following a start offset.
@@ -640,7 +642,10 @@ mod tests {
     use destack_source::{File, FileId, FileType, LanguageType, Uri};
     use destack_workspace::FormatterOptions;
 
-    use crate::format::directive::{comment_tokens, ignore_range_for_node, ignored_span_source};
+    use crate::format::directive::{
+        comment_tokens, directive_for_node, ignore_range_for_node, ignored_node_span,
+        ignored_span_source,
+    };
     use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
     #[test]
@@ -752,5 +757,56 @@ mod tests {
 
         let raw = ignored_span_source(&context, range);
         assert!(raw.starts_with("// oxfmt-ignore-start"));
+    }
+
+    #[test]
+    fn test_ignored_node_span_prefix_uses_node_source_only() {
+        let source = "// prettier-ignore\ncall(   a, b)\n";
+        let file = Arc::new(File::from_text(
+            FileId::new(0),
+            "main.ts".to_string(),
+            Uri::from_string("file://main.ts"),
+            None,
+            FileType::TypeScript,
+            source.to_string(),
+        ));
+
+        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+
+        let statement_expression_id = expressions[0];
+        let expression_id = match parser.tree.get(statement_expression_id) {
+            Expression::Statement(expression_id) => *expression_id,
+            _ => panic!("expected statement expression"),
+        };
+
+        let side_span = parser.compute_side_span();
+        let (tokens, side_tokens) = parser.take_tokens();
+        let strings = parser.strings.into_immutable();
+        let parents = NodeParentIndex::from_tree(&parser.tree);
+        let options = DestackFormatOptions::from_formatter_options(
+            FormatterOptions::default(),
+            LanguageType::TypeScript,
+        );
+        let context = DestackFormatContext::new(
+            options,
+            DestackFormatArtifacts {
+                file: &file,
+                tree: &parser.tree,
+                tokens: &tokens,
+                side_tokens: &side_tokens,
+                side_span: &side_span,
+                strings: &strings,
+                parents,
+            },
+        );
+
+        let directive =
+            directive_for_node(&context, expression_id).expect("expected prefix ignore directive");
+        let ignored_span = ignored_node_span(&context, expression_id, directive);
+        let raw = ignored_span_source(&context, ignored_span);
+
+        assert_eq!(raw, "call(   a, b)");
     }
 }
