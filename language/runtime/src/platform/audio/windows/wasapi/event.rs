@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -13,12 +12,11 @@ use super::abi::{
 use super::constants::{HRESULT_OK, IID_IMM_NOTIFICATION_CLIENT};
 use super::host::{create_device_enumerator, failed, hresult_error, initialize_com};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
-use windows_sys::Win32::Foundation::E_NOINTERFACE;
 use windows_sys::Win32::Media::Audio::{EDataFlow, ERole, IMMDeviceEnumerator};
 use windows_sys::Win32::UI::Shell::PropertiesSystem::PROPERTYKEY;
 use windows_sys::core::{GUID, HRESULT, PCWSTR};
@@ -270,29 +268,22 @@ struct WasapiNotificationClientVTable {
         unsafe extern "system" fn(*mut c_void, PCWSTR, *const PROPERTYKEY) -> HRESULT,
 }
 
-/// One COM `IUnknown` interface guid.
-const IID_IUNKNOWN: GUID = GUID::from_u128(0x00000000_0000_0000_c000_000000000046);
-
-/// Shared vtable for WASAPI endpoint notification callbacks.
-static WASAPI_NOTIFICATION_CLIENT_VTABLE: WasapiNotificationClientVTable =
-    WasapiNotificationClientVTable {
-        query_interface,
-        add_ref,
-        release,
-        on_device_state_changed,
-        on_device_added,
-        on_device_removed,
-        on_default_device_changed,
-        on_property_value_changed,
-    };
-
-/// Return whether two COM interface identifiers are byte-for-byte equal.
-fn guid_equals(left: &GUID, right: &GUID) -> bool {
-    left.data1 == right.data1
-        && left.data2 == right.data2
-        && left.data3 == right.data3
-        && left.data4 == right.data4
-}
+// shared vtable for WASAPI endpoint notification callbacks
+core_platform::define_com_callback_vtable!(
+    static = WASAPI_NOTIFICATION_CLIENT_VTABLE,
+    type = WasapiNotificationClientVTable,
+    value = WasapiNotificationClientVTable,
+    query_interface = query_interface,
+    add_ref = add_ref,
+    release = release,
+    methods = {
+        on_device_state_changed = on_device_state_changed,
+        on_device_added = on_device_added,
+        on_device_removed = on_device_removed,
+        on_default_device_changed = on_default_device_changed,
+        on_property_value_changed = on_property_value_changed
+    }
+);
 
 /// Create one COM callback object for WASAPI endpoint notifications.
 fn create_notification_client(
@@ -309,77 +300,25 @@ fn create_notification_client(
 
 /// Release one COM callback object pointer.
 fn release_notification_client(callback_pointer: *mut c_void) {
-    if callback_pointer.is_null() {
-        return;
-    }
-
     unsafe {
-        let _ = release(callback_pointer);
+        core_platform::com_release_with(callback_pointer, release);
     }
 }
 
-/// Return one callback object pointer cast from one COM instance pointer.
-unsafe fn callback_from_raw(this: *mut c_void) -> *mut WasapiNotificationClient {
-    this.cast::<WasapiNotificationClient>()
-}
-
-/// Query one callback interface from one COM callback object.
-unsafe extern "system" fn query_interface(
-    this: *mut c_void,
-    interface_id: *const GUID,
-    out_interface: *mut *mut c_void,
-) -> HRESULT {
-    if out_interface.is_null() {
-        return E_NOINTERFACE;
-    }
-
-    unsafe {
-        *out_interface = ptr::null_mut();
-    }
-
-    if interface_id.is_null() {
-        return E_NOINTERFACE;
-    }
-
-    let interface_id = unsafe { *interface_id };
-    if guid_equals(&interface_id, &IID_IUNKNOWN)
-        || guid_equals(&interface_id, &IID_IMM_NOTIFICATION_CLIENT)
-    {
-        unsafe {
-            *out_interface = this;
-            let _ = add_ref(this);
-        }
-        return HRESULT_OK;
-    }
-
-    E_NOINTERFACE
-}
-
-/// Increment one COM callback reference count.
-unsafe extern "system" fn add_ref(this: *mut c_void) -> u32 {
-    let callback = unsafe { callback_from_raw(this) };
-    unsafe { (*callback).reference_count.fetch_add(1, Ordering::Relaxed) + 1 }
-}
-
-/// Decrement one COM callback reference count and free on zero.
-unsafe extern "system" fn release(this: *mut c_void) -> u32 {
-    let callback = unsafe { callback_from_raw(this) };
-    let remaining = unsafe { (*callback).reference_count.fetch_sub(1, Ordering::Release) - 1 };
-    if remaining == 0 {
-        std::sync::atomic::fence(Ordering::Acquire);
-        unsafe {
-            let _ = Box::from_raw(callback);
-        }
-    }
-
-    remaining
-}
+core_platform::define_com_iunknown_methods!(
+    object = WasapiNotificationClient,
+    from_raw = callback_from_raw,
+    query_interface = query_interface,
+    add_ref = add_ref,
+    release = release,
+    interfaces = [IID_IMM_NOTIFICATION_CLIENT]
+);
 
 /// Publish one snapshot refresh for one WASAPI device callback.
 fn publish_notification_snapshot(this: *mut c_void) {
     let callback = unsafe { callback_from_raw(this) };
-    let _ = std::panic::catch_unwind(|| {
-        let runtime_state = unsafe { &*callback };
+    core_platform::callback_boundary(|| {
+        let runtime_state = unsafe { callback.as_ref() };
         audio_core::publish_device_snapshot_native(
             &runtime_state.runtime_state,
             audio_core::AudioBackend::Wasapi,

@@ -38,7 +38,7 @@ use windows_sys::Win32::System::Com::{
 use windows_sys::Win32::System::Threading::CreateEventW;
 use windows_sys::Win32::System::Variant::VT_LPWSTR;
 use windows_sys::Win32::UI::Shell::PropertiesSystem::{IPropertyStore, PROPERTYKEY};
-use windows_sys::core::{GUID, HRESULT, PWSTR};
+use windows_sys::core::{HRESULT, PWSTR};
 
 /// Initialize COM for one WASAPI call site.
 pub(super) fn initialize_com() -> RuntimeResult<ComApartment> {
@@ -872,7 +872,7 @@ fn sample_format_from_wave_format(
         let wave_format_extensible_pointer = wave_format_pointer as *const WAVEFORMATEXTENSIBLE;
         let sub_format =
             unsafe { ptr::addr_of!((*wave_format_extensible_pointer).SubFormat).read_unaligned() };
-        if guid_equals(&sub_format, &WAVE_SUBTYPE_PCM) {
+        if core_platform::com_guid_equals(&sub_format, &WAVE_SUBTYPE_PCM) {
             return match bits_per_sample {
                 8 => Some(audio_core::AudioSampleFormat::U8),
                 16 => Some(audio_core::AudioSampleFormat::S16),
@@ -882,7 +882,7 @@ fn sample_format_from_wave_format(
             };
         }
 
-        if guid_equals(&sub_format, &WAVE_SUBTYPE_IEEE_FLOAT) {
+        if core_platform::com_guid_equals(&sub_format, &WAVE_SUBTYPE_IEEE_FLOAT) {
             return match bits_per_sample {
                 32 => Some(audio_core::AudioSampleFormat::F32),
                 64 => Some(audio_core::AudioSampleFormat::F64),
@@ -991,12 +991,4 @@ pub(super) fn channel_mask(channels: u16) -> u64 {
     }
 
     (1u64 << channels) - 1
-}
-
-/// Return whether two GUID values are byte-for-byte equal.
-fn guid_equals(left: &GUID, right: &GUID) -> bool {
-    left.data1 == right.data1
-        && left.data2 == right.data2
-        && left.data3 == right.data3
-        && left.data4 == right.data4
 }

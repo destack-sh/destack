@@ -3,7 +3,9 @@ use std::ffi::c_void;
 use windows_sys::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
 use windows_sys::core::{GUID, HRESULT};
 
-use super::constants::{ASE_OK, ASIO_MAX_DRIVER_NAME_BYTES, ASIO_MAX_ERROR_MESSAGE_BYTES};
+use super::constants::{
+    ASE_NOT_PRESENT, ASE_OK, ASIO_MAX_DRIVER_NAME_BYTES, ASIO_MAX_ERROR_MESSAGE_BYTES,
+};
 use super::core::succeeded;
 
 /// One raw ASIODriverInfo payload.
@@ -135,25 +137,42 @@ pub(super) struct AsioDriverVTable {
     output_ready: unsafe extern "system" fn(*mut c_void) -> i32,
 }
 
-/// Return one IASIO vtable pointer for one raw interface.
-pub(super) unsafe fn asio_driver_vtable(driver: *mut c_void) -> *const AsioDriverVTable {
-    unsafe { *(driver as *const *const AsioDriverVTable) }
+/// Resolve one IASIO vtable row from one raw interface pointer.
+unsafe fn asio_driver_vtable_row(driver: *mut c_void) -> Option<&'static AsioDriverVTable> {
+    // reject invalid driver pointers
+    if driver.is_null() {
+        return None;
+    }
+
+    // read one vtable pointer from the COM object header
+    let vtable_pointer = unsafe { *(driver as *const *const AsioDriverVTable) };
+    if vtable_pointer.is_null() {
+        return None;
+    }
+
+    // cast one vtable pointer to one shared reference
+    let vtable = unsafe { &*vtable_pointer };
+    Some(vtable)
 }
 
 /// Release one IASIO interface pointer.
 pub(super) unsafe fn asio_driver_release(driver: *mut c_void) {
-    if driver.is_null() {
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
         return;
-    }
+    };
 
     unsafe {
-        ((*asio_driver_vtable(driver)).release)(driver);
+        (vtable.release)(driver);
     }
 }
 
 /// Initialize one IASIO driver instance.
 pub(super) unsafe fn asio_driver_init(driver: *mut c_void, info: *mut AsioDriverInfo) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).init)(driver, info as *mut c_void) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.init)(driver, info as *mut c_void) }
 }
 
 /// Exit one IASIO driver instance.
@@ -164,26 +183,42 @@ pub(super) unsafe fn asio_driver_exit(driver: *mut c_void) -> i32 {
 
 /// Read one IASIO driver name into one C buffer.
 pub(super) unsafe fn asio_driver_get_name(driver: *mut c_void, name: *mut i8) {
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return;
+    };
+
     unsafe {
-        ((*asio_driver_vtable(driver)).get_driver_name)(driver, name);
+        (vtable.get_driver_name)(driver, name);
     }
 }
 
 /// Read one IASIO driver error message into one C buffer.
 pub(super) unsafe fn asio_driver_get_error_message(driver: *mut c_void, message: *mut i8) {
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return;
+    };
+
     unsafe {
-        ((*asio_driver_vtable(driver)).get_error_message)(driver, message);
+        (vtable.get_error_message)(driver, message);
     }
 }
 
 /// Start one IASIO stream engine.
 pub(super) unsafe fn asio_driver_start(driver: *mut c_void) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).start)(driver) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.start)(driver) }
 }
 
 /// Stop one IASIO stream engine.
 pub(super) unsafe fn asio_driver_stop(driver: *mut c_void) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).stop)(driver) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.stop)(driver) }
 }
 
 /// Query one IASIO channel-count pair.
@@ -192,7 +227,11 @@ pub(super) unsafe fn asio_driver_get_channels(
     input_channels: *mut i32,
     output_channels: *mut i32,
 ) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).get_channels)(driver, input_channels, output_channels) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.get_channels)(driver, input_channels, output_channels) }
 }
 
 /// Query one IASIO latency pair.
@@ -201,7 +240,11 @@ pub(super) unsafe fn asio_driver_get_latencies(
     input_latency: *mut i32,
     output_latency: *mut i32,
 ) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).get_latencies)(driver, input_latency, output_latency) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.get_latencies)(driver, input_latency, output_latency) }
 }
 
 /// Query one IASIO buffer-size tuple.
@@ -212,20 +255,20 @@ pub(super) unsafe fn asio_driver_get_buffer_size(
     preferred_size: *mut i32,
     granularity: *mut i32,
 ) -> i32 {
-    unsafe {
-        ((*asio_driver_vtable(driver)).get_buffer_size)(
-            driver,
-            min_size,
-            max_size,
-            preferred_size,
-            granularity,
-        )
-    }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.get_buffer_size)(driver, min_size, max_size, preferred_size, granularity) }
 }
 
 /// Query whether one sample rate is supported.
 pub(super) unsafe fn asio_driver_can_sample_rate(driver: *mut c_void, sample_rate: f64) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).can_sample_rate)(driver, sample_rate) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.can_sample_rate)(driver, sample_rate) }
 }
 
 /// Query one current IASIO sample rate.
@@ -233,12 +276,20 @@ pub(super) unsafe fn asio_driver_get_sample_rate(
     driver: *mut c_void,
     sample_rate: *mut f64,
 ) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).get_sample_rate)(driver, sample_rate) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.get_sample_rate)(driver, sample_rate) }
 }
 
 /// Apply one IASIO sample rate.
 pub(super) unsafe fn asio_driver_set_sample_rate(driver: *mut c_void, sample_rate: f64) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).set_sample_rate)(driver, sample_rate) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.set_sample_rate)(driver, sample_rate) }
 }
 
 /// Query one IASIO channel descriptor.
@@ -246,7 +297,11 @@ pub(super) unsafe fn asio_driver_get_channel_info(
     driver: *mut c_void,
     info: *mut AsioChannelInfo,
 ) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).get_channel_info)(driver, info) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.get_channel_info)(driver, info) }
 }
 
 /// Create one IASIO callback buffer set.
@@ -257,25 +312,29 @@ pub(super) unsafe fn asio_driver_create_buffers(
     buffer_size: i32,
     callbacks: *const AsioCallbacks,
 ) -> i32 {
-    unsafe {
-        ((*asio_driver_vtable(driver)).create_buffers)(
-            driver,
-            buffer_infos,
-            num_channels,
-            buffer_size,
-            callbacks,
-        )
-    }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.create_buffers)(driver, buffer_infos, num_channels, buffer_size, callbacks) }
 }
 
 /// Dispose one IASIO callback buffer set.
 pub(super) unsafe fn asio_driver_dispose_buffers(driver: *mut c_void) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).dispose_buffers)(driver) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.dispose_buffers)(driver) }
 }
 
 /// Signal one ASIO output-ready hint.
 pub(super) unsafe fn asio_driver_output_ready(driver: *mut c_void) -> i32 {
-    unsafe { ((*asio_driver_vtable(driver)).output_ready)(driver) }
+    let Some(vtable) = (unsafe { asio_driver_vtable_row(driver) }) else {
+        return ASE_NOT_PRESENT;
+    };
+
+    unsafe { (vtable.output_ready)(driver) }
 }
 
 /// Activate one ASIO driver interface from one class id.

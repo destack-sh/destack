@@ -224,7 +224,7 @@ fn run_monitor_thread(
             break;
         }
 
-        let _ = std::panic::catch_unwind(|| {
+        core_platform::callback_boundary(|| {
             audio_core::publish_device_snapshot_native(
                 &runtime_state,
                 audio_core::AudioBackend::Asio,
