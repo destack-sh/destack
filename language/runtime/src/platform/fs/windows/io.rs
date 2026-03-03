@@ -12,8 +12,8 @@ use crate::platform::fs::{
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{PipeHandle, ResourceId, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Build a socket error from the last WSA error.
 fn last_socket_error(syscall: &str) -> Box<RuntimeError> {

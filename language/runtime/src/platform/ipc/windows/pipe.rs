@@ -4,8 +4,8 @@ use windows_sys::Win32::System::Pipes::CreatePipe;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::PipePair;
-use crate::platform::{NativeSlice, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::core::{pipe_handle, register_pipe_handle, validate_handle};
 

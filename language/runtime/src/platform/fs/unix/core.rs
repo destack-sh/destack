@@ -9,8 +9,8 @@ use crate::platform::fs::{
 use crate::platform::resource::{
     DirectoryHandle, FileHandle, ResourceFinalizer, ResourceId, ResourceKind,
 };
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;

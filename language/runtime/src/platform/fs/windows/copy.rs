@@ -3,11 +3,11 @@ use windows_sys::Win32::Storage::FileSystem::CopyFileW;
 use super::io::{destack_fs_pread, destack_fs_pwrite};
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::fs::{
     CopyFlags, FileHandle, FileOffset, FileSize, OsPath, PathBytes, PathUtf16, core as core_fs,
 };
-use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Copy a file.
 ///

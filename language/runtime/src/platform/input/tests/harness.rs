@@ -16,7 +16,8 @@ use crate::platform::input::{
     InputSensorSample, InputSensorSampleVm, InputTextInputArea, InputTextInputAreaVm,
     InputTouchState, InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 #[path = "harness.generated.rs"]
 mod generated;

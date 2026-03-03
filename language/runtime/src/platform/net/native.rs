@@ -11,8 +11,8 @@ use crate::platform::net::{
     UdsAbstractAddress, UdsAddress, UdsPathAddress, UdsUnnamedAddress, host as host_net,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 pub(crate) use host_net::{
     destack_net_accept, destack_net_close, destack_net_close_listener,

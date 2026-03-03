@@ -6,8 +6,8 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{
     CredentialAccessibility, CredentialAuthenticationPolicy, CredentialAuthenticationRequirement,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use super::backend;
 
@@ -337,7 +337,7 @@ fn validate_service_account(
     // reject empty services because host credential managers index by service namespace
     if service.is_empty() {
         return Err(core_platform::invalid_argument(
-            &format!("{field_scope}.service"),
+            format!("{field_scope}.service"),
             format!("{operation}: service cannot be empty"),
         ));
     }
@@ -345,7 +345,7 @@ fn validate_service_account(
     // reject empty accounts because host credential managers index by account key
     if account.is_empty() {
         return Err(core_platform::invalid_argument(
-            &format!("{field_scope}.account"),
+            format!("{field_scope}.account"),
             format!("{operation}: account cannot be empty"),
         ));
     }

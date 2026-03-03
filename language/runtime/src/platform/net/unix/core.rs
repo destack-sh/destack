@@ -12,10 +12,8 @@ use crate::platform::net::{
 use crate::platform::resource::{
     ListenerHandle, ResourceEntry, ResourceFinalizer, ResourceKind, SocketHandle, TransferredHandle,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, ResourceId, core as core_platform,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, ResourceId, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 use std::ffi::{CStr, CString};
 use std::os::unix::io::RawFd;

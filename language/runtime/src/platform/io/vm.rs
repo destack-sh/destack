@@ -9,8 +9,8 @@ use crate::platform::io::{
     PollEventVm, PollInterest, TimerFdClock, TimerFdFlags, TimerFdSetFlags, TimerFdSpec,
     TimerFdSpecVm, UringFeaturesVm, UringParametersVm, core as core_io, host as host_io,
 };
-use crate::platform::{NativeSlice, PlatformError, VmArray, VmSlice, VmValueCodec, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, VmArray, VmSlice, VmValueCodec, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 use destack_vm as vm;
 
 /// Call one host binding with one output pointer.

@@ -2,8 +2,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::tls::{
     TlsContextOptions, TlsHostnameVerificationMode, TlsSessionResumptionMode, core as core_tls,
 };
-use crate::platform::{NativeSlice, NativeStringSlice, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringSlice};
 
 /// Close one tls context object.
 ///

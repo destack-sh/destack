@@ -9,10 +9,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::net::{SocketPair, SocketType, native as net_native, vm as net_vm};
 use crate::platform::tls::{TlsContextOptions, TlsContextOptionsVm, TlsRole, TlsVersion};
-use crate::platform::{
-    NativeSlice, NativeStringRef, NativeStringSlice, ResourceId, VmSlice, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{ResourceId, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::tests::runtime::TestRuntime;
 
 /// TLS harness context used by tests.

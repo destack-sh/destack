@@ -10,8 +10,8 @@ use crate::platform::input::{
     InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::ResourceEntry;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Build one capabilities payload from available device summary metadata.
 fn derive_capabilities_from_device_summary(

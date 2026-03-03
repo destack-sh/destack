@@ -36,10 +36,8 @@ use crate::platform::crypto::{
     CryptoStoreProvenanceVm, CryptoStoreProvider, CryptoStoreSignatureCapabilityVm,
     host as host_crypto,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use destack_vm as vm;
 
 /// Derive one symmetric key from one local private key and one peer public key.

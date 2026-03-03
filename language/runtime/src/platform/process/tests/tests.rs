@@ -22,11 +22,8 @@ use crate::platform::process::{
     UserId,
 };
 use crate::platform::resource::{self, ResourceId};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError, VmArray, VmSlice,
-    fs,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice, fs};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::tests::runtime::TestRuntime;
 
 /// Spawn options used by process harness helpers.

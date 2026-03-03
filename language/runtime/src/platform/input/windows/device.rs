@@ -12,8 +12,8 @@ use crate::platform::input::{
     InputDeviceDescriptor, InputDeviceKind, InputReadMode, InputTextInputArea, InputTextInputType,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Enumerate windows input devices and raw-input devices.
 pub(super) fn list_devices(

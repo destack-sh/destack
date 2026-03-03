@@ -9,8 +9,8 @@ use crate::platform::net::{
     SocketAddress, SocketFamily, SocketHandle, UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Create a UDP socket.
 ///

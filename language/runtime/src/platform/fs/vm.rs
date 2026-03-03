@@ -17,8 +17,8 @@ use crate::platform::fs::{
     WatchRenameEventVm, XattrFlags,
 };
 use crate::platform::resource::{PipeHandle, ResourceId, SocketHandle, WatchHandle};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError, VmArray, VmSlice};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
     let mut out = std::mem::MaybeUninit::<T>::uninit();

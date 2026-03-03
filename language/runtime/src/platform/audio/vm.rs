@@ -11,8 +11,8 @@ use super::{
     host as host_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, VmArray, VmSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, VmArray, VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectorList = Vec<VmSlice<u8>>;

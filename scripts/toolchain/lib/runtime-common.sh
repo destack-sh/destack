@@ -121,6 +121,7 @@ import sys
 output_file = sys.argv[1]
 package_name = sys.argv[2]
 package_prefix = f"{package_name} "
+package_anchor = f"#{package_name}@"
 
 executables = []
 seen = set()
@@ -140,7 +141,12 @@ with open(output_file, "r", encoding="utf-8", errors="replace") as handle:
             continue
 
         package_id = payload.get("package_id", "")
-        if not isinstance(package_id, str) or not package_id.startswith(package_prefix):
+        if not isinstance(package_id, str):
+            continue
+
+        # match both legacy "crate version (...)" and modern "path+...#crate@version" package ids
+        package_matches = package_id.startswith(package_prefix) or package_anchor in package_id
+        if not package_matches:
             continue
 
         profile = payload.get("profile", {})

@@ -1,8 +1,8 @@
 use super::core::require_out;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::io::{CompletionEvent, CompletionOperation, core as io_core};
-use crate::platform::{NativeArray, NativeSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, resource};
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// Cancel queued operations for one target.
 ///

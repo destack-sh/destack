@@ -6,10 +6,9 @@ mod harness;
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::NativeStringRef;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::thread::{ThreadOptions, ThreadOptionsVm};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 use crate::tests::runtime::TestRuntime;
 
 /// Return canonical thread spawn options used by tests.

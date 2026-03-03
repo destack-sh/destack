@@ -17,10 +17,9 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, VmAggregateCodec, VmArray, VmSlice,
-    fs as platform_fs,
+    NativeArray, PlatformError, VmAggregateCodec, VmArray, VmSlice, fs as platform_fs,
 };
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use crate::tests::runtime::TestRuntime;
 use platform_fs::{
     Dirent, DirentKind, DirentNext, DirentNextVm, DirentVm, OpenOptions, OpenOptionsVm, OsPath,

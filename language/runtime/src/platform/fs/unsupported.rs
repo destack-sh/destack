@@ -9,8 +9,8 @@ use crate::platform::fs::{
 };
 use crate::platform::net::SocketHandle;
 use crate::platform::resource::{DirectoryHandle, FileHandle, PipeHandle, ResourceId};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, PlatformError};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 pub(crate) use crate::platform::fs::simulation::native::*;
 

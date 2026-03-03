@@ -2,8 +2,9 @@
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::security::bindings_generated as bindings;
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
+use crate::runtime::{NativeSlice, NativeStringRef};
 
 use crate::runtime::BindingCallContext;
 use bindings::*;

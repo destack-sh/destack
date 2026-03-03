@@ -1,8 +1,8 @@
 use crate::diagnostic::RuntimeResult;
+use crate::platform::NativeArray;
 use crate::platform::fs::{OsPath, XattrFlags};
 use crate::platform::resource::FileHandle;
-use crate::platform::{NativeArray, NativeSlice};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::host as host_fs;
 #[allow(unused_imports)]

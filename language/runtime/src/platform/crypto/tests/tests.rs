@@ -8,31 +8,31 @@ use std::sync::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::ResourceId;
-use crate::platform::{NativeSlice, NativeStringRef, VmSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{VmSlice, crypto as crypto_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 use crate::tests::runtime::TestRuntime;
 
 /// Global lock to serialize host-sensitive crypto tests.
 static CRYPTO_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// Key usage bit: sign.
-pub(crate) const KEY_USAGE_SIGN: u32 = 0x0000_0001;
+pub(crate) const KEY_USAGE_SIGN: u32 = crypto_platform::CRYPTO_KEY_USAGE_SIGN.0;
 /// Key usage bit: verify.
-pub(crate) const KEY_USAGE_VERIFY: u32 = 0x0000_0002;
+pub(crate) const KEY_USAGE_VERIFY: u32 = crypto_platform::CRYPTO_KEY_USAGE_VERIFY.0;
 /// Key usage bit: encrypt.
-pub(crate) const KEY_USAGE_ENCRYPT: u32 = 0x0000_0004;
+pub(crate) const KEY_USAGE_ENCRYPT: u32 = crypto_platform::CRYPTO_KEY_USAGE_ENCRYPT.0;
 /// Key usage bit: decrypt.
-pub(crate) const KEY_USAGE_DECRYPT: u32 = 0x0000_0008;
+pub(crate) const KEY_USAGE_DECRYPT: u32 = crypto_platform::CRYPTO_KEY_USAGE_DECRYPT.0;
 /// Key usage bit: wrap.
-pub(crate) const KEY_USAGE_WRAP: u32 = 0x0000_0010;
+pub(crate) const KEY_USAGE_WRAP: u32 = crypto_platform::CRYPTO_KEY_USAGE_WRAP.0;
 /// Key usage bit: unwrap.
-pub(crate) const KEY_USAGE_UNWRAP: u32 = 0x0000_0020;
+pub(crate) const KEY_USAGE_UNWRAP: u32 = crypto_platform::CRYPTO_KEY_USAGE_UNWRAP.0;
 /// Key usage bit: derive bits.
-pub(crate) const KEY_USAGE_DERIVE_BITS: u32 = 0x0000_0040;
+pub(crate) const KEY_USAGE_DERIVE_BITS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_BITS.0;
 /// Key usage bit: derive keys.
-pub(crate) const KEY_USAGE_DERIVE_KEYS: u32 = 0x0000_0080;
+pub(crate) const KEY_USAGE_DERIVE_KEYS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_KEYS.0;
 /// Key usage bit: export.
-pub(crate) const KEY_USAGE_EXPORT: u32 = 0x0000_0100;
+pub(crate) const KEY_USAGE_EXPORT: u32 = crypto_platform::CRYPTO_KEY_USAGE_EXPORT.0;
 
 /// Test harness context used by tests.
 pub(crate) struct CryptoHarnessContext<'call> {

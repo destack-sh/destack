@@ -7,8 +7,8 @@ use crate::platform::resource::ResourceKind;
 use crate::platform::tls::{
     TlsHandshakeStatus, TlsRole, TlsSessionResumptionState, core as core_tls,
 };
-use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Socket transport adapter for TLS over unix descriptors.
 struct UnixSocketTransport {

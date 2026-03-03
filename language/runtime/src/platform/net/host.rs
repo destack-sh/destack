@@ -17,9 +17,9 @@ mod unsupported;
 pub(crate) use unsupported::*;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::net::{PacketBackend, PacketBackendCapabilityFlags, PacketBackendDescriptor};
-use crate::platform::{NativeSlice, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 /// List host packet backends.
 pub(crate) unsafe fn destack_net_packet_backend_list(

@@ -1,3 +1,4 @@
+use crate::platform::crypto as crypto_platform;
 use crate::platform::resource::ResourceKind;
 
 /// Resource kind used for crypto store handles.
@@ -37,39 +38,48 @@ pub(super) const DEFAULT_CERTIFICATE_LIST_LIMIT: usize = 128;
 pub(super) const DEFAULT_AEAD_TAG_LENGTH_BYTES: usize = 16;
 
 /// Usage mask bit: sign.
-pub(super) const KEY_USAGE_SIGN: u32 = 0x0000_0001;
+pub(super) const KEY_USAGE_SIGN: u32 = crypto_platform::CRYPTO_KEY_USAGE_SIGN.0;
 /// Usage mask bit: verify.
-pub(super) const KEY_USAGE_VERIFY: u32 = 0x0000_0002;
+pub(super) const KEY_USAGE_VERIFY: u32 = crypto_platform::CRYPTO_KEY_USAGE_VERIFY.0;
 /// Usage mask bit: encrypt.
-pub(super) const KEY_USAGE_ENCRYPT: u32 = 0x0000_0004;
+pub(super) const KEY_USAGE_ENCRYPT: u32 = crypto_platform::CRYPTO_KEY_USAGE_ENCRYPT.0;
 /// Usage mask bit: decrypt.
-pub(super) const KEY_USAGE_DECRYPT: u32 = 0x0000_0008;
+pub(super) const KEY_USAGE_DECRYPT: u32 = crypto_platform::CRYPTO_KEY_USAGE_DECRYPT.0;
 /// Usage mask bit: wrap.
-pub(super) const KEY_USAGE_WRAP: u32 = 0x0000_0010;
+pub(super) const KEY_USAGE_WRAP: u32 = crypto_platform::CRYPTO_KEY_USAGE_WRAP.0;
 /// Usage mask bit: unwrap.
-pub(super) const KEY_USAGE_UNWRAP: u32 = 0x0000_0020;
+pub(super) const KEY_USAGE_UNWRAP: u32 = crypto_platform::CRYPTO_KEY_USAGE_UNWRAP.0;
 /// Usage mask bit: derive bits.
-pub(super) const KEY_USAGE_DERIVE_BITS: u32 = 0x0000_0040;
+pub(super) const KEY_USAGE_DERIVE_BITS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_BITS.0;
 /// Usage mask bit: derive keys.
-pub(super) const KEY_USAGE_DERIVE_KEYS: u32 = 0x0000_0080;
+pub(super) const KEY_USAGE_DERIVE_KEYS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_KEYS.0;
 /// Usage mask bit: export.
-pub(super) const KEY_USAGE_EXPORT: u32 = 0x0000_0100;
+pub(super) const KEY_USAGE_EXPORT: u32 = crypto_platform::CRYPTO_KEY_USAGE_EXPORT.0;
 
 /// Certificate usage bit: digital signature.
-pub(super) const CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE: u32 = 1 << 0;
+pub(super) const CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE;
 /// Certificate usage bit: non repudation.
-pub(super) const CERTIFICATE_KEY_USAGE_NON_REPUDIATION: u32 = 1 << 1;
+pub(super) const CERTIFICATE_KEY_USAGE_NON_REPUDIATION: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_NON_REPUDIATION;
 /// Certificate usage bit: key encipherment.
-pub(super) const CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT: u32 = 1 << 2;
+pub(super) const CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT;
 /// Certificate usage bit: data encipherment.
-pub(super) const CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT: u32 = 1 << 3;
+pub(super) const CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT;
 /// Certificate usage bit: key agreement.
-pub(super) const CERTIFICATE_KEY_USAGE_KEY_AGREEMENT: u32 = 1 << 4;
+pub(super) const CERTIFICATE_KEY_USAGE_KEY_AGREEMENT: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_KEY_AGREEMENT;
 /// Certificate usage bit: certificate signing.
-pub(super) const CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN: u32 = 1 << 5;
+pub(super) const CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN;
 /// Certificate usage bit: crl signing.
-pub(super) const CERTIFICATE_KEY_USAGE_CRL_SIGN: u32 = 1 << 6;
+pub(super) const CERTIFICATE_KEY_USAGE_CRL_SIGN: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_CRL_SIGN;
 /// Certificate usage bit: encipher only.
-pub(super) const CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY: u32 = 1 << 7;
+pub(super) const CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY;
 /// Certificate usage bit: decipher only.
-pub(super) const CERTIFICATE_KEY_USAGE_DECIPHER_ONLY: u32 = 1 << 8;
+pub(super) const CERTIFICATE_KEY_USAGE_DECIPHER_ONLY: u32 =
+    crypto_platform::CRYPTO_CERTIFICATE_KEY_USAGE_DECIPHER_ONLY;

@@ -9,10 +9,8 @@ use crate::platform::audio::{
     AudioStreamStatusFlags, AudioStreamSupport, AudioStreamTiming, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
-use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, core as core_platform, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 /// Flatten one vectorized byte-buffer payload into one contiguous payload.
 unsafe fn flatten_vectorized_buffers(

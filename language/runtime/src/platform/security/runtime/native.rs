@@ -2,7 +2,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::security::{
     PlatformCapability, SecurityPolicyRule, native as security_native,
 };
-use crate::platform::{NativeSlice, NativeStringRef};
+use crate::runtime::{NativeSlice, NativeStringRef};
+
 use crate::runtime::BindingCallContext;
 
 use crate::platform::resource;

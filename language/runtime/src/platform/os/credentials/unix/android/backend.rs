@@ -4,9 +4,8 @@ use crate::host::{
     destack_host_android_credentials_contains, destack_host_android_credentials_delete,
     destack_host_android_credentials_read, destack_host_android_credentials_write,
 };
-use crate::platform::NativeSlice;
 use crate::platform::os::{CredentialAuthenticationMechanism, CredentialAuthenticationResult};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeSlice};
 
 use super::super::super::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,

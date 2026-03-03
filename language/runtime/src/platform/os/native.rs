@@ -1,10 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
 use crate::platform::os::{
     CredentialAuthenticationOptions, CredentialAuthenticationResult, CredentialQuery,
     CredentialRecord, CredentialWriteOptions,
 };
-use crate::platform::{NativeStringRef, PlatformError};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 
 use super::credentials::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialWriteOptionsOwned,

@@ -18,11 +18,8 @@ use crate::platform::process::{
     ProcessWaitStatusVm, ProcessWaitStoppedStatusVm, Signal, SignalEventVm, SignalFdFlags,
     SignalMaskHow, SyscallFilterFlags, UserId, host as host_process,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, VmAggregateCodec, VmArray,
-    VmSlice, VmValueCodec, resource,
-};
-use crate::runtime::BindingCallContext;
+use crate::platform::{NativeArray, VmAggregateCodec, VmArray, VmSlice, VmValueCodec, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
     let mut out = std::mem::MaybeUninit::<T>::uninit();

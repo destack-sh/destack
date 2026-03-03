@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::ipc::MessageQueueReceive;
-use crate::platform::{NativeSlice, NativeStringRef, core as core_platform, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{core as core_platform, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef};
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 use super::core::{

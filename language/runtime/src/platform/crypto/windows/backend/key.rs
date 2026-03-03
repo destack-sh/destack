@@ -35,6 +35,7 @@ use windows_sys::Win32::Security::Cryptography::{
 use windows_sys::core::PCWSTR;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::crypto as crypto_platform;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
@@ -50,16 +51,16 @@ use super::core::{invalid_data, permission_denied};
 use crate::platform::core as core_platform;
 
 /// Usage-bit mask for sign operations.
-const KEY_USAGE_SIGN: u32 = 0x0000_0001;
+const KEY_USAGE_SIGN: u32 = crypto_platform::CRYPTO_KEY_USAGE_SIGN.0;
 
 /// Usage-bit mask for verify operations.
-const KEY_USAGE_VERIFY: u32 = 0x0000_0002;
+const KEY_USAGE_VERIFY: u32 = crypto_platform::CRYPTO_KEY_USAGE_VERIFY.0;
 
 /// Usage-bit mask for derive-bits operations.
-const KEY_USAGE_DERIVE_BITS: u32 = 0x0000_0040;
+const KEY_USAGE_DERIVE_BITS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_BITS.0;
 
 /// Usage-bit mask for derive-key operations.
-const KEY_USAGE_DERIVE_KEYS: u32 = 0x0000_0080;
+const KEY_USAGE_DERIVE_KEYS: u32 = crypto_platform::CRYPTO_KEY_USAGE_DERIVE_KEYS.0;
 
 /// AES block size in bytes.
 const AES_BLOCK_SIZE_BYTES: usize = 16;

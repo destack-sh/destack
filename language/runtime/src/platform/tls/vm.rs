@@ -5,8 +5,8 @@ use crate::platform::tls::{
     TlsContextOptions, TlsContextOptionsVm, TlsHandshakeStatus, TlsHostnameVerificationMode,
     TlsSessionResumptionMode, TlsSessionResumptionState, host as host_tls,
 };
-use crate::platform::{NativeSlice, NativeStringRef, NativeStringSlice, VmSlice, resource};
-use crate::runtime::BindingCallContext;
+use crate::platform::{VmSlice, resource};
+use crate::runtime::{BindingCallContext, NativeSlice, NativeStringRef, NativeStringSlice};
 
 fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
     // allocate one output slot and invoke one host call

@@ -1,12 +1,11 @@
 #![allow(dead_code)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::NativeStringRef;
 use crate::platform::resource::{
     BarrierHandle, CondVarHandle, MutexHandle, RwLockHandle, ThreadHandle, ThreadLocalKey,
     ThreadSemaphoreHandle,
 };
 use crate::platform::thread::{ThreadOptionsVm, host as host_thread};
-use crate::runtime::BindingCallContext;
+use crate::runtime::{BindingCallContext, NativeStringRef};
 use destack_vm as vm;
 
 /// Call one native binding with one output pointer and return the produced value.

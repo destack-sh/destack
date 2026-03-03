@@ -10,8 +10,8 @@ pub(crate) use std::time::{Duration, Instant};
 pub(crate) use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub(crate) use crate::platform::diagnostic::PlatformErrorCode;
 pub(crate) use crate::platform::resource::ResourceKind;
-pub(crate) use crate::platform::{NativeStringRef, PlatformError, resource};
-pub(crate) use crate::runtime::BindingCallContext;
+use crate::platform::{PlatformError, resource};
+pub(crate) use crate::runtime::{BindingCallContext, NativeStringRef};
 
 pub(crate) use super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendSelectionPolicy, AudioChannelLayout,
