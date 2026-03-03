@@ -4,7 +4,7 @@ Formatting Intermediate Representation for pretty-printing code-shaped text.
 FIR is a document model that abstracts over layout decisions, describing what should be printed while the printer figures out how and where to break lines.
 
 The Destack FIR is heavily based on [Ruff's formatter IR](https://github.com/astral-sh/ruff/tree/main/crates/ruff_formatter) (MIT), which itself builds on [Rome's formatter](https://github.com/rome/tools) and [Prettier's algorithm](https://github.com/prettier/prettier/blob/main/docs/technical-details.md).
-The core idea traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf) paper.
+The core idea traces back to Wadler's ["A prettier printer"](https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf) paper (which is funny, considering we're actually sort of implementing prettier again).
 
 ## How It Works
 
@@ -25,7 +25,6 @@ group(
 ```
 
 If it fits on one line: `[a, b]`
-
 If it doesn't fit:
 ```text
 [
