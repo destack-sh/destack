@@ -20,7 +20,9 @@ resolve_from_ndk_directory() {
         return 1
     fi
 
-    latest_version_directory="$(ls -1d "${ndk_directory}"/* 2>/dev/null | sort -V | tail -n1 || true)"
+    latest_version_directory="$(
+        find "${ndk_directory}" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort -V | tail -n1 || true
+    )"
     if [ -n "${latest_version_directory}" ] && [ -d "${latest_version_directory}" ]; then
         printf '%s\n' "${latest_version_directory}"
         return 0

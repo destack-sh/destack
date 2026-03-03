@@ -37,4 +37,4 @@ jobs:
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run wasip1 runtime check
-        run: just check-runtime-wasip1
+        run: just runtime-wasip1-check

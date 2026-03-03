@@ -302,11 +302,8 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
 
-      - name: Build runtime smoke release binary
-        run: cargo build --release -p destack_runtime --bin runtime-smoke --target x86_64-pc-windows-gnu
-
-      - name: Run runtime smoke release binary
-        run: WINEDEBUG="${WINEDEBUG:--all}" wine "./target/x86_64-pc-windows-gnu/release/runtime-smoke.exe"
+      - name: Build and run runtime smoke release binary
+        run: ./scripts/toolchain/runtime-windows-gnu-smoke.sh --release
 
   build-artifacts:
     name: Build Release Artifacts

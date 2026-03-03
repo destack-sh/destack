@@ -47,4 +47,4 @@ jobs:
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run windows gnu runtime checks
-        run: just check-runtime-windows-gnu
+        run: just runtime-windows-gnu-check

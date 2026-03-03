@@ -75,7 +75,7 @@ jobs:
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run android runtime check
-        run: just check-runtime-android
+        run: just runtime-android-check
         env:
           ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
           ANDROID_NDK_ROOT: ${{ runner.temp }}/android-sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
