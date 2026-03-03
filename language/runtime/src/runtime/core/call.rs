@@ -8,9 +8,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformContext, PlatformError,
-};
+use crate::platform::{NativeArray, PlatformContext, PlatformError};
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload, RuntimeWorld,
 };
@@ -21,7 +19,7 @@ use crate::runtime::scheduler::{
 };
 
 use super::Agent;
-use crate::runtime::{HookState, Hooks};
+use crate::runtime::{HookState, Hooks, NativeSlice, NativeStringRef, NativeStringSlice};
 use destack_workspace::RuntimeAccess;
 
 thread_local! {

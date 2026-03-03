@@ -57,10 +57,7 @@ pub mod tls;
 /// TTY bindings.
 pub mod tty;
 
-pub use abi::{
-    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmAggregateCodec,
-    VmArray, VmSlice, VmValueCodec,
-};
+pub use abi::{NativeArray, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, VmValueCodec};
 pub use context::PlatformContext;
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
