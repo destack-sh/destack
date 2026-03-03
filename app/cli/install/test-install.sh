@@ -23,16 +23,16 @@ resolve_version() {
         return
     fi
 
-    if [ -f "VERSION" ]; then
+    if [ -f "VERSION.txt" ]; then
         local version_file
-        version_file="$(cat VERSION | tr -d '[:space:]')"
+        version_file="$(cat VERSION.txt | tr -d '[:space:]')"
         if [ -n "${version_file}" ]; then
             printf '%s\n' "${version_file#v}"
             return
         fi
     fi
 
-    fail "release version not provided and VERSION is missing"
+    fail "release version not provided and VERSION.txt is missing"
 }
 
 # resolve linux libc family

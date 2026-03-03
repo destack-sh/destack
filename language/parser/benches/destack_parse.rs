@@ -264,7 +264,7 @@ fn bench_parse(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("VERSION").exists())
+        .find(|p| p.join("VERSION.txt").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
@@ -352,7 +352,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("VERSION").exists())
+        .find(|p| p.join("VERSION.txt").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
 

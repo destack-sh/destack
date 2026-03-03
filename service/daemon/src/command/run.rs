@@ -226,7 +226,6 @@ fn run_entry_module(
     let platform = PlatformContext::new(process_args);
     let mut runtime = Runtime::from_options(platform, &target.runtime_options)
         .map_err(|error| format!("{error}"))?;
-    runtime.install_vm_defaults(&mut isolate);
 
     let entry = VmEntry::new(entry_name);
     let result = runtime

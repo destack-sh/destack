@@ -1,6 +1,6 @@
 {
     "name": "@destack/napi",
-    "version": "0.55.2",
+    "version": "0.55.3",
     "description": "Node-API bindings for Destack",
     "license": "MIT",
     "type": "module",

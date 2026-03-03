@@ -1,6 +1,6 @@
 {
     "name": "@destack/cli",
-    "version": "0.55.2",
+    "version": "0.55.3",
     "license": "MIT",
     "type": "module",
     "description": "Destack command-line interface",
@@ -23,11 +23,11 @@
         "publish:live": "npm publish --access public"
     },
     "optionalDependencies": {
-        "@destack/cli-darwin-arm64": "0.55.2",
-        "@destack/cli-darwin-x64": "0.55.2",
-        "@destack/cli-linux-arm64-gnu": "0.55.2",
-        "@destack/cli-linux-x64-gnu": "0.55.2",
-        "@destack/cli-win32-x64-msvc": "0.55.2"
+        "@destack/cli-darwin-arm64": "0.55.3",
+        "@destack/cli-darwin-x64": "0.55.3",
+        "@destack/cli-linux-arm64-gnu": "0.55.3",
+        "@destack/cli-linux-x64-gnu": "0.55.3",
+        "@destack/cli-win32-x64-msvc": "0.55.3"
     },
     "publishConfig": {
         "access": "public"
