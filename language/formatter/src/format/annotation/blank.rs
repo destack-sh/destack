@@ -1095,35 +1095,46 @@ fn try_attach_decorator_blank_seam(
 
     if let Some(token) = token_after_span
         && let Some(target_node) = find_smallest_owner_enclosing_token(tree, token.span)
-        && tree.get_node_type(target_node) == NodeType::Member
+        && let Some(target_node) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
     {
         return Some(block_prefix_attachment(tree, target_node));
     }
 
     if let Some(target_node) = following_owner
-        && tree.get_node_type(target_node) == NodeType::Member
+        && let Some(target_node) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
     {
         return Some(block_prefix_attachment(tree, target_node));
     }
 
-    let declaration_target = token_after
-        .and_then(|token_after_index| {
-            find_owner_at_or_after_token_with_node_type(
-                tree,
-                owner_index,
-                token_after_index,
-                NodeType::Declaration,
-            )
-        })
-        .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-        .or_else(|| {
-            following_owner
-                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-                .or(following_owner)
-        });
-
-    if let Some(target_node) = declaration_target {
+    if !token_before_is_semicolon
+        && preceding_owner.is_some_and(|owner| tree.get_node_type(owner) == NodeType::Declaration)
+        && let Some(target_node) = following_owner
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            .or_else(|| {
+                following_owner.filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
+            })
+    {
         return Some(block_prefix_attachment(tree, target_node));
+    }
+
+    if !token_before_is_semicolon
+        && let Some(target_node) =
+            preceding_owner.filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
+    {
+        return Some(block_postfix_attachment(tree, target_node));
+    }
+
+    // top level decorator seams between different declarations stay with the following declaration
+    if !token_before_is_semicolon
+        && let Some(preceding_declaration) = preceding_owner
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        && let Some(following_declaration) = following_owner
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        && preceding_declaration != following_declaration
+    {
+        return Some(block_prefix_attachment(tree, following_declaration));
     }
 
     None

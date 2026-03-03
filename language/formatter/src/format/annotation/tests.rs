@@ -44,6 +44,14 @@ fn javascript_format_options() -> DestackFormatOptions {
     )
 }
 
+/// Return default formatter options for JavaScriptXml mode.
+fn javascript_xml_format_options() -> DestackFormatOptions {
+    DestackFormatOptions::from_formatter_options(
+        FormatterOptions::default(),
+        LanguageType::JavaScriptXml,
+    )
+}
+
 /// Find an annotation node by source marker text.
 fn find_annotation_by_marker(
     context: &DestackFormatContext<'_>,
@@ -842,7 +850,7 @@ fn test_annotation_type_declaration_assignment_line_comment_attaches_to_rhs_valu
     );
 }
 
-/// Type declaration `prettier-ignore` comments after `=` should stay block-prefixed on the rhs.
+/// Type declaration `prettier-ignore` comments after `=` should stay line-prefixed on the rhs.
 #[test]
 fn test_annotation_type_declaration_assignment_prettier_ignore_attaches_to_rhs_value() {
     let source = "type Foo =
@@ -864,7 +872,7 @@ aa;";
         .expect("expected type assignment prettier-ignore owner node");
     let owner_node_type = context.tree.get_node_type(owner_node as u32);
 
-    assert_eq!(position, AnnotationPosition::BlockPrefix);
+    assert_eq!(position, AnnotationPosition::LinePrefix);
     assert_eq!(
         owner_node_type,
         NodeType::Expression,
@@ -1810,6 +1818,37 @@ import {
     );
 }
 
+/// Dynamic import head comments before the first argument should remain stable across passes.
+#[test]
+fn test_format_dynamic_import_argument_head_comment_is_idempotent() {
+    let source = r#"import(/* Hello */ 'something')
+
+import('something' /* Hello */)
+
+import(/* Hello */ 'something' /* Hello */)
+
+import('something' /* Hello */ + 'else')
+
+import(
+  /* Hello */
+  'something'
+  /* Hello */
+)
+
+wrap(
+  import(/* Hello */
+    'something'
+  )
+)
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
 /// Single call argument trailing line comments stay discoverable with stable positions.
 #[test]
 fn test_annotation_single_call_argument_trailing_line_comment_attachment() {
@@ -2655,6 +2694,27 @@ fn test_format_decorators_on_struct() {
     );
 }
 
+/// Blank lines between top-level decorated declarations should stay stable.
+#[test]
+fn test_format_top_level_decorator_declarations_keep_blank_lines() {
+    let source = r#"@decorator
+function demo() {}
+
+@factory<T>()
+function factory_demo() {}
+
+@(chain.first().second())
+function chained() {}
+"#;
+
+    assert_format_program_roundtrip_with_file_type(
+        source,
+        source,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Comments between declaration decorators should stay declaration block-prefix comments.
 #[test]
 fn test_annotation_decorator_between_comments_attach_to_declaration_prefix() {
@@ -3262,6 +3322,41 @@ fn test_format_zero_argument_call_callee_comment_stays_on_callee_boundary() {
   (function () {}) /* trailing */(),
   (() => {}) /* trailing */(),
 ]"#;
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Parenthesized callee seam comments should stay outside the callee parentheses.
+#[test]
+fn test_annotation_zero_argument_parenthesized_callee_comment_stays_on_parenthesized_owner() {
+    let source = "{
+    (() => {}) /* zero-arg-callee-marker */();
+}";
+    let (formatter, _) = TestFormatter::parse(source, |p| {
+        p.eat_block(destack_ast::BlockContext::Expression)
+    })
+    .expect("parse zero-argument parenthesized callee seam source");
+    let context = context_from_formatter(&formatter);
+
+    let annotation_id = find_annotation_by_marker(&context, "zero-arg-callee-marker")
+        .expect("expected zero-argument parenthesized callee seam marker");
+    let position = context.annotation(annotation_id).position();
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected zero-argument parenthesized callee seam owner node");
+    let owner_expression = context
+        .tree
+        .get(LocalNodeId::<Expression>::new(owner_node as u32));
+
+    assert_eq!(position, AnnotationPosition::LinePostfix);
+    assert!(
+        matches!(owner_expression, Expression::Parenthesized { .. }),
+        "expected parenthesized expression owner, got {:?}",
+        owner_expression
+    );
+
     assert_format_program_idempotent_with_file_type(
         source,
         FileType::JavaScript,
@@ -4188,6 +4283,26 @@ fn test_format_inline_block_comment_before_semicolon_is_idempotent() {
     );
 }
 
+/// Type-member multiline block comments before semicolons should stay on member boundaries.
+#[test]
+fn test_format_type_member_multiline_block_comment_before_semicolon_is_idempotent() {
+    let source = r#"type BitDecorator<T> = BitDecoratorCall<T> & {
+  storage(
+    value: unknown,
+    context: ClassFieldDecoratorContext<T, number>
+  ): void /*{
+    context.metadata.bitsStorage = context.access;
+  }*/;
+};
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::TypeScript,
+        DestackFormatOptions::default(),
+    );
+}
+
 /// Logical grouped trailing block comments before semicolons should stay after grouped operands.
 #[test]
 fn test_format_logical_group_trailing_block_comment_before_semicolon_is_idempotent() {
@@ -4561,5 +4676,311 @@ fn test_annotation_type_union_comment_after_assign_is_idempotent() {
         source,
         FileType::TypeScript,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+    );
+}
+
+/// Parenthesized iife and tagged prefix line comments should stay idempotent.
+#[test]
+fn test_format_parenthesized_iife_prefix_line_comments_are_idempotent() {
+    let source = r#"[
+  (// leading-1
+  function () {})(),
+  (// leading-2
+  function () {})?.(),
+  (// tagged-leading
+  function () {})``,
+  (// prettier-ignore
+  function () {      })(),
+  (// prettier-ignore
+  function () {      })``,
+]
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Parenthesized iife prettier-ignore comments should stay in annotation entries.
+#[test]
+fn test_annotation_parenthesized_iife_ignore_comments_are_present() {
+    let source = r#"[
+  (// prettier-ignore
+  function () {})(),
+  (// prettier-ignore
+  function () {})``,
+]
+"#;
+    let (formatter, _) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse parenthesized iife ignore source");
+    let context = context_from_formatter(&formatter);
+    let ignore_annotations = find_annotations_by_marker(&context, "prettier-ignore");
+
+    assert_eq!(
+        ignore_annotations.len(),
+        2,
+        "expected two parenthesized iife ignore annotations, got {ignore_annotations:?}"
+    );
+
+    for annotation_id in ignore_annotations {
+        let position = context.annotation(annotation_id).position();
+
+        assert_eq!(
+            position,
+            AnnotationPosition::LinePrefix,
+            "expected line-prefix ignore seam for parenthesized iife ignore comment"
+        );
+    }
+}
+
+/// Arrow iife trailing comments after commas should stay stable across passes.
+#[test]
+fn test_format_arrow_iife_trailing_comma_line_comments_are_idempotent() {
+    let source = r#"[
+  (() => {})(), // leading 1
+  (() => {})?.(), // leading 2
+  (/*block 1*/
+  () => {})(),
+]
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScript,
+        javascript_format_options(),
+    );
+}
+
+/// Trailing comma line comments on adjacent arrow iifes should keep owner order.
+#[test]
+fn test_annotation_arrow_iife_trailing_comma_comments_keep_owner_order() {
+    let source = r#"[
+  (() => {})(), // leading 1
+  (() => {})?.(), // leading 2
+  (/*block 1*/
+  () => {})(),
+]
+"#;
+
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
+            .expect("parse arrow iife trailing comma comment source");
+    assert_eq!(roots.len(), 1);
+
+    let statement_id = roots[0];
+    let Expression::Statement(array_expression_id) = formatter.tree.get(statement_id) else {
+        panic!("expected statement expression root");
+    };
+    let Expression::ArrayExpression { elements, .. } = formatter.tree.get(*array_expression_id)
+    else {
+        panic!("expected array expression root");
+    };
+    assert!(elements.len() >= 2);
+
+    let first_item_span_start = match formatter.tree.get(elements[0]) {
+        destack_ast::Argument::Named { value, .. }
+        | destack_ast::Argument::Labeled { value, .. }
+        | destack_ast::Argument::Positional { value, .. }
+        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+    };
+    let second_item_span_start = match formatter.tree.get(elements[1]) {
+        destack_ast::Argument::Named { value, .. }
+        | destack_ast::Argument::Labeled { value, .. }
+        | destack_ast::Argument::Positional { value, .. }
+        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+    };
+
+    let context = context_from_formatter(&formatter);
+    let leading_one_annotation = find_annotation_by_marker(&context, "leading 1")
+        .expect("expected leading 1 trailing comma annotation");
+    let leading_two_annotation = find_annotation_by_marker(&context, "leading 2")
+        .expect("expected leading 2 trailing comma annotation");
+
+    let leading_one_owner = find_annotation_target_owner_node(&context, leading_one_annotation)
+        .expect("expected leading 1 owner");
+    let leading_two_owner = find_annotation_target_owner_node(&context, leading_two_annotation)
+        .expect("expected leading 2 owner");
+    let leading_one_owner_span_start = context.span_by_id(leading_one_owner as u32).start;
+    let leading_two_owner_span_start = context.span_by_id(leading_two_owner as u32).start;
+    let leading_one_previous_token =
+        context.annotation_previous_non_whitespace_token_type(leading_one_annotation);
+    let leading_two_previous_token =
+        context.annotation_previous_non_whitespace_token_type(leading_two_annotation);
+    let leading_one_next_token =
+        context.annotation_next_non_whitespace_token_type(leading_one_annotation);
+    let leading_two_next_token =
+        context.annotation_next_non_whitespace_token_type(leading_two_annotation);
+
+    assert!(matches!(
+        context.annotation(leading_one_annotation).position(),
+        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+    ));
+    assert!(matches!(
+        context.annotation(leading_two_annotation).position(),
+        AnnotationPosition::LinePostfix | AnnotationPosition::LinePostfixBoundary
+    ));
+    assert_eq!(leading_one_previous_token, Some(TokenType::Comma));
+    assert_eq!(leading_two_previous_token, Some(TokenType::Comma));
+    assert_eq!(leading_one_next_token, Some(TokenType::OpenParenthesis));
+    assert_eq!(leading_two_next_token, Some(TokenType::OpenParenthesis));
+    assert_eq!(leading_one_owner_span_start, first_item_span_start);
+    assert_eq!(leading_two_owner_span_start, second_item_span_start);
+}
+
+/// Own-line call-argument head comments should stay on the first argument owner.
+#[test]
+fn test_annotation_call_argument_head_own_line_comment_stays_on_first_argument() {
+    let source = r#"KEYPAD_NUMBERS.map(
+  // Buttons 0-9
+  num => (
+    <div />
+  )
+);
+"#;
+    let (formatter, roots) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScriptXml, |p| Ok(p.parse()))
+            .expect("parse own-line call argument head comment source");
+    assert_eq!(roots.len(), 1);
+
+    let statement_id = roots[0];
+    let Expression::Statement(call_expression_id) = formatter.tree.get(statement_id) else {
+        panic!("expected statement expression root");
+    };
+    let Expression::Call {
+        dynamic_arguments, ..
+    } = formatter.tree.get(*call_expression_id)
+    else {
+        panic!("expected call expression root");
+    };
+    assert!(!dynamic_arguments.is_empty());
+
+    let first_argument_span_start = match formatter.tree.get(dynamic_arguments[0]) {
+        destack_ast::Argument::Named { value, .. }
+        | destack_ast::Argument::Labeled { value, .. }
+        | destack_ast::Argument::Positional { value, .. }
+        | destack_ast::Argument::Spread { value, .. } => formatter.tree.get_span(*value).start,
+    };
+
+    let context = context_from_formatter(&formatter);
+    let annotation_id = find_annotation_by_marker(&context, "Buttons 0-9")
+        .expect("expected call argument head own-line annotation");
+    let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+        .expect("expected call argument head own-line owner");
+    let owner_span_start = context.span_by_id(owner_node as u32).start;
+
+    assert_eq!(
+        context.annotation(annotation_id).position(),
+        AnnotationPosition::LinePrefix
+    );
+    assert_eq!(
+        context.annotation_previous_non_whitespace_token_type(annotation_id),
+        Some(TokenType::OpenParenthesis)
+    );
+    assert_eq!(
+        context.annotation_next_non_whitespace_token_type(annotation_id),
+        Some(TokenType::Identifier)
+    );
+    assert_eq!(owner_span_start, first_argument_span_start);
+}
+
+/// Break and continue semicolon-guard comments should stay idempotent.
+#[test]
+fn test_format_break_continue_semicolon_guard_comments_are_idempotent() {
+    let source = r#"for (;;) {
+  if (condition){ continue
+
+  // breaking comment
+  ;(possibleArray || []).sort()
+  }
+}
+
+lbl: for (;;) {
+  if (condition){ continue lbl
+
+  // breaking comment
+  ;(possibleArray || []).sort()
+  }
+}
+
+lbl: for (;;) {
+  if (condition){
+    // prettier-ignore
+    continue                   lbl
+
+    // breaking comment
+    ;(possibleArray || []).sort()
+  }
+  if (condition){
+    // prettier-ignore
+    break                   lbl;
+
+    // breaking comment
+    ;(possibleArray || []).sort()
+  }
+}
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        javascript_xml_format_options(),
+    );
+}
+
+/// Closure typecast seam comments should stay idempotent.
+#[test]
+fn test_format_closure_typecast_middle_comment_is_idempotent() {
+    let source = r#"var a =
+/**
+ * bla bla bla
+ * @type {string |
+  * number
+ * }
+* bla bla bla
+ */
+//2
+ ((window['s'])).toString();
+console.log(a.foo());
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        javascript_xml_format_options(),
+    );
+}
+
+/// Ignore directive call seams should stay idempotent.
+#[test]
+fn test_format_ignore_directive_call_seams_are_idempotent() {
+    let source = r#"function HelloWorld(x) {
+
+  (
+    // prettier-ignore
+    // eslint-disable-next-line
+    x.a |
+    x.b
+  ).call(null)
+
+}
+
+function HelloWorld(x) {
+  // prettier-ignore
+  (
+    // eslint-disable-next-line
+    x.a |
+    x.b
+  ).call(null)
+
+}
+"#;
+
+    assert_format_program_idempotent_with_file_type(
+        source,
+        FileType::JavaScriptXml,
+        javascript_xml_format_options(),
     );
 }

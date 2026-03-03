@@ -1404,6 +1404,20 @@ var inspect = 4 === util.inspect.length
     );
 }
 
+/// Own-line comments before ternary question separators should stay idempotent.
+#[test]
+fn test_format_ternary_question_separator_own_line_comments_are_idempotent() {
+    let source = r#"cond ?
+  // comment
+  <T>() => () => 1
+  :
+  // comment
+  <T>() => () => 1;
+"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+    assert_format_program_idempotent_with_file_type(source, FileType::TypeScript, options);
+}
+
 /// Formats type intersections with trailing operators in Destack.
 #[test]
 fn test_format_type_intersection_trailing_operator_destack() {

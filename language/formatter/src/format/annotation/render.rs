@@ -1970,6 +1970,10 @@ pub(crate) fn write_line_prefix_ignore_directive_comment<'ast>(
         return Ok(false);
     }
 
+    if !flow.starts_on_own_line {
+        return Ok(false);
+    }
+
     write!(
         f,
         [

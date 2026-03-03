@@ -422,6 +422,20 @@ fn try_attach_comment_expression_operator_assignment_and_leading_grouping(
         return Some((Some(target_node), position));
     }
 
+    // own-line comments after mapped-type value `:` should target the full mapped value owner
+    if seam.token_before_is(TokenType::Colon)
+        && !seam.token_before_is_return_type_colon
+        && has_leading_newline
+        && comment_is_line
+        && let Some(target_node) = [following_owner, preceding_owner, enclosing_owner]
+            .into_iter()
+            .flatten()
+            .find_map(|owner_id| promote_owner_to_mapped_type_value_owner(tree, parents, owner_id))
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
+
     // line comments before type and bitwise separators stay with the left operand
     if has_trailing_newline
         && comment_is_line
